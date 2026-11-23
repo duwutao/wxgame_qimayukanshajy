@@ -4,6 +4,8 @@
 
 全部美术（地形、城池、单位、UI）都由 Canvas 代码逐像素生成，**没有任何图片资源**，整个工程约 210 KB，打开即玩。
 
+仓库：https://github.com/duwutao/wxgame_qimayukanshajy
+
 ```
 洛阳溃兵 → 陈留募兵 → 官渡烧粮 → 下邳围城 → 赤壁截杀 → 夷陵连营 → 定稿之战
 ```
