@@ -310,6 +310,35 @@ const VILLAGE_FOOD = [
   { id: 'veg', name: '菜蔬', price: 18, food: 6, desc: '地里刚拔的，撑不了几天。' },
 ];
 
+/**
+ * 每位领主长得不一样：兵器、头饰、披风、马色
+ * weapon: ji 戟 / dao 刀 / qiang 枪 / gong 弓 / jian 剑
+ * helm:   plume 双翎 / horn 红缨盔 / crown 高冠 / band 头巾
+ */
+const LORD_LOOK = {
+  caocao: { weapon: 'jian', helm: 'crown', cape: '#7a2118', horse: '#2a2320' },
+  xiahou: { weapon: 'dao', helm: 'horn', cape: '#4a2a20', horse: '#6a3a24' },
+  zhangliao: { weapon: 'qiang', helm: 'horn', cape: '#3a4a58', horse: '#4a4440' },
+  liubei: { weapon: 'jian', helm: 'crown', cape: '#c9c2ae', horse: '#7a6a52' },
+  guanyu: { weapon: 'dao', helm: 'band', cape: '#2f6a3a', horse: '#8a5a36', beard: true, tall: true },
+  zhangfei: { weapon: 'qiang', helm: 'horn', cape: '#2a2a2e', horse: '#2a2a2e', beard: true, big: true },
+  sunquan: { weapon: 'jian', helm: 'crown', cape: '#4a3a68', horse: '#4a4440' },
+  zhouyu: { weapon: 'jian', helm: 'band', cape: '#d8d2c0', horse: '#8a7a5c' },
+  taishici: { weapon: 'gong', helm: 'horn', cape: '#3a5a52', horse: '#6a4a30' },
+  yuanshao: { weapon: 'jian', helm: 'crown', cape: '#8a6a2a', horse: '#5a4030' },
+  yanliang: { weapon: 'dao', helm: 'horn', cape: '#6a2a24', horse: '#5a3a26', big: true },
+  lvbu: { weapon: 'ji', helm: 'plume', cape: '#b03a30', horse: '#6a2a22' },
+  gaoshun: { weapon: 'qiang', helm: 'horn', cape: '#4a4a4e', horse: '#3a3430' },
+  liubiao: { weapon: 'jian', helm: 'crown', cape: '#5a6a4a', horse: '#5a4a3a' },
+  caimao: { weapon: 'gong', helm: 'band', cape: '#3a5a6a', horse: '#4a4440' },
+  liuzhang: { weapon: 'jian', helm: 'crown', cape: '#6a5a2a', horse: '#6a5a42' },
+  zhangren: { weapon: 'qiang', helm: 'horn', cape: '#5a4a2a', horse: '#4a3a28' },
+  kebineng: { weapon: 'gong', helm: 'band', cape: '#7a6a3a', horse: '#c9c2ae' },
+  mateng: { weapon: 'qiang', helm: 'horn', cape: '#4a5a6a', horse: '#c9c2ae' },
+  machao: { weapon: 'qiang', helm: 'horn', cape: '#d8d2c0', horse: '#e2dcd0' },
+  huangfusong: { weapon: 'jian', helm: 'crown', cape: '#5a4a3a', horse: '#4a4440' },
+};
+
 module.exports = {
   GOODS,
   BANDIT_TIERS,
@@ -318,5 +347,6 @@ module.exports = {
   HEROES,
   HERO_MAX_LEVEL,
   LORD_TALK,
+  LORD_LOOK,
   VILLAGE_FOOD,
 };

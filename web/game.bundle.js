@@ -1120,39 +1120,91 @@ function makePlayerSprite(runtime) {
 
 /**
  * 领主棋子：小骑马剪影
- * color 为势力色，variant 为 'lvbu' 时加双翎与方天戟（一眼能认出来）
+ * color 为势力色；look 决定这个人的样子：
+ *   weapon: ji / dao / qiang / gong / jian
+ *   helm:   plume（双翎） / horn（红缨盔） / crown（高冠） / band（头巾）
+ *   cape / horse: 披风与马的颜色；beard 长髯；big 壮；tall 高
+ * 也可以直接传字符串 'lvbu' / 'normal' 兼容旧调用。
  */
-function makeLordSprite(runtime, color, variant) {
+function makeLordSprite(runtime, color, look) {
+  if (!look || typeof look === 'string') {
+    const old = look;
+    look = old === 'lvbu'
+      ? { weapon: 'ji', helm: 'plume', cape: '#b03a30', horse: '#6a2a22' }
+      : {};
+  }
   const size = 20;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   g.clearRect(0, 0, size, size);
   const main = color || '#e6e2d6';
+  const dark = shade(main, -0.32);
+  const horse = look.horse || '#2a2320';
+  const horseHi = shade(horse, 0.22);
+  const cape = look.cape || shade(main, -0.16);
+  const skin = look.skin || '#d8cdb6';
+  const tall = !!look.tall;
 
   // 马
-  px(g, 3, 12, '#2a2320', 12, 5);
-  px(g, 3, 12, '#443a33', 12, 1);
-  px(g, 14, 9, '#2a2320', 3, 4);
-  px(g, 4, 16, '#2a2320', 2, 3);
-  px(g, 12, 16, '#2a2320', 2, 3);
-  px(g, 3, 13, '#5a4a3c', 2, 1);
+  px(g, 3, 12, horse, 12, 5);
+  px(g, 3, 12, horseHi, 12, 1);
+  px(g, 14, 9, horse, 3, 4);
+  px(g, 4, 16, shade(horse, -0.18), 2, 3);
+  px(g, 12, 16, shade(horse, -0.18), 2, 3);
+  px(g, 3, 13, shade(horse, 0.35), 2, 1);
+
+  // 披风（马背上、骑手身后）
+  px(g, 5, tall ? 9 : 10, cape, 2, tall ? 8 : 7);
+  px(g, 5, tall ? 9 : 10, shade(cape, 0.25), 1, tall ? 8 : 7);
 
   // 骑手
-  px(g, 7, 6, main, 6, 6);
-  px(g, 7, 6, 'rgba(0,0,0,0.25)', 6, 1);
-  px(g, 8, 3, '#d8cdb6', 4, 3);
-  px(g, 8, 2, '#3a3a44', 4, 1);
+  const bodyY = tall ? 5 : 6;
+  const bodyH = tall ? 7 : 6;
+  px(g, 7, bodyY, main, 6, bodyH);
+  px(g, 7, bodyY, dark, 1, bodyH);
+  px(g, 7, bodyY, 'rgba(0,0,0,0.22)', 6, 1);
+  px(g, 7, bodyY + bodyH - 2, '#4a3a28', 6, 1);
 
-  if (variant === 'lvbu') {
-    // 双翎
+  // 头
+  const headY = bodyY - 3;
+  px(g, 8, headY, skin, 4, 3);
+  if (look.beard) px(g, 8, headY + 3, shade(skin, -0.5), 3, 1);
+
+  // 头饰
+  const helm = look.helm || 'band';
+  if (helm === 'plume') {
+    px(g, 8, headY - 1, '#3a3a44', 4, 1);
     px(g, 7, 0, '#c03830', 1, 4);
     px(g, 12, 0, '#c03830', 1, 4);
-    // 方天戟
-    px(g, 17, 2, '#8a8f99', 1, 14);
-    px(g, 16, 2, '#d8dde6', 3, 2);
-    px(g, 16, 5, '#d8dde6', 2, 1);
+  } else if (helm === 'horn') {
+    px(g, 8, headY - 1, '#3a3a44', 4, 1);
+    px(g, 9, headY - 3, '#c03830', 2, 2);
+  } else if (helm === 'crown') {
+    px(g, 8, headY - 2, '#2a2a30', 4, 2);
+    px(g, 8, headY - 2, '#d9a441', 4, 1);
   } else {
-    // 刀
+    px(g, 8, headY - 1, dark, 4, 1);
+  }
+  if (look.big) px(g, 6, bodyY, main, 1, bodyH);
+
+  // 兵器
+  const weapon = look.weapon || 'dao';
+  if (weapon === 'ji') {
+    px(g, 16, 2, '#8a8f99', 1, 14);
+    px(g, 15, 2, '#d8dde6', 3, 2);
+    px(g, 14, 4, '#d8dde6', 2, 1);
+  } else if (weapon === 'qiang') {
+    px(g, 16, 3, '#7a6a52', 1, 13);
+    px(g, 16, 1, '#d8dde6', 1, 2);
+    px(g, 15, 3, '#b03a30', 2, 1);
+  } else if (weapon === 'gong') {
+    px(g, 16, 4, '#6a4a2c', 1, 9);
+    px(g, 17, 5, '#8a7a5c', 1, 7);
+    px(g, 15, 5, '#d8d2c0', 1, 7);
+  } else if (weapon === 'jian') {
+    px(g, 16, 4, '#c8ccd6', 1, 9);
+    px(g, 15, 12, '#4a3a28', 2, 1);
+  } else {
     px(g, 16, 4, '#b8bcc4', 1, 11);
     px(g, 15, 3, '#e2e6ee', 2, 2);
   }
@@ -1222,11 +1274,12 @@ function buildAssets(runtime) {
     lord: makeLordSprite(runtime, '#e6e2d6', 'normal'),
     bandit: makeBanditSprite(runtime, '#7d2f28'),
     flag: { player: makeFlagSprite(runtime, '#d9a441') },
-    /** 按势力色生成领主棋子（带缓存） */
-    lordIconFor: function (color, variant) {
-      const key = (color || 'x') + '|' + (variant || 'n');
+    /** 按势力色 + 造型生成领主棋子（带缓存） */
+    lordIconFor: function (color, look) {
+      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
+      const key = (color || 'x') + '|' + lookKey;
       if (!this.lordCache) this.lordCache = {};
-      if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, variant);
+      if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, look);
       return this.lordCache[key];
     },
     /** 按等级色生成匪团棋子 */
@@ -2808,6 +2861,35 @@ const VILLAGE_FOOD = [
   { id: 'veg', name: '菜蔬', price: 18, food: 6, desc: '地里刚拔的，撑不了几天。' },
 ];
 
+/**
+ * 每位领主长得不一样：兵器、头饰、披风、马色
+ * weapon: ji 戟 / dao 刀 / qiang 枪 / gong 弓 / jian 剑
+ * helm:   plume 双翎 / horn 红缨盔 / crown 高冠 / band 头巾
+ */
+const LORD_LOOK = {
+  caocao: { weapon: 'jian', helm: 'crown', cape: '#7a2118', horse: '#2a2320' },
+  xiahou: { weapon: 'dao', helm: 'horn', cape: '#4a2a20', horse: '#6a3a24' },
+  zhangliao: { weapon: 'qiang', helm: 'horn', cape: '#3a4a58', horse: '#4a4440' },
+  liubei: { weapon: 'jian', helm: 'crown', cape: '#c9c2ae', horse: '#7a6a52' },
+  guanyu: { weapon: 'dao', helm: 'band', cape: '#2f6a3a', horse: '#8a5a36', beard: true, tall: true },
+  zhangfei: { weapon: 'qiang', helm: 'horn', cape: '#2a2a2e', horse: '#2a2a2e', beard: true, big: true },
+  sunquan: { weapon: 'jian', helm: 'crown', cape: '#4a3a68', horse: '#4a4440' },
+  zhouyu: { weapon: 'jian', helm: 'band', cape: '#d8d2c0', horse: '#8a7a5c' },
+  taishici: { weapon: 'gong', helm: 'horn', cape: '#3a5a52', horse: '#6a4a30' },
+  yuanshao: { weapon: 'jian', helm: 'crown', cape: '#8a6a2a', horse: '#5a4030' },
+  yanliang: { weapon: 'dao', helm: 'horn', cape: '#6a2a24', horse: '#5a3a26', big: true },
+  lvbu: { weapon: 'ji', helm: 'plume', cape: '#b03a30', horse: '#6a2a22' },
+  gaoshun: { weapon: 'qiang', helm: 'horn', cape: '#4a4a4e', horse: '#3a3430' },
+  liubiao: { weapon: 'jian', helm: 'crown', cape: '#5a6a4a', horse: '#5a4a3a' },
+  caimao: { weapon: 'gong', helm: 'band', cape: '#3a5a6a', horse: '#4a4440' },
+  liuzhang: { weapon: 'jian', helm: 'crown', cape: '#6a5a2a', horse: '#6a5a42' },
+  zhangren: { weapon: 'qiang', helm: 'horn', cape: '#5a4a2a', horse: '#4a3a28' },
+  kebineng: { weapon: 'gong', helm: 'band', cape: '#7a6a3a', horse: '#c9c2ae' },
+  mateng: { weapon: 'qiang', helm: 'horn', cape: '#4a5a6a', horse: '#c9c2ae' },
+  machao: { weapon: 'qiang', helm: 'horn', cape: '#d8d2c0', horse: '#e2dcd0' },
+  huangfusong: { weapon: 'jian', helm: 'crown', cape: '#5a4a3a', horse: '#4a4440' },
+};
+
 module.exports = {
   GOODS,
   BANDIT_TIERS,
@@ -2816,6 +2898,7 @@ module.exports = {
   HEROES,
   HERO_MAX_LEVEL,
   LORD_TALK,
+  LORD_LOOK,
   VILLAGE_FOOD,
 };
 
@@ -5445,6 +5528,7 @@ const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, terrainAt } = __require(8);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = __require(5);
+const { LORD_LOOK } = __require(13);
 const flows = __require(19);
 
 const TILE = 64;
@@ -5858,9 +5942,10 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.arc(sx, sy, 22, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 领主棋子：按势力上色；吕布自带双翎方天戟
-    const icon = assets.lordIconFor(col, lord.id === 'lvbu' ? 'lvbu' : 'normal');
-    const isz = lord.id === 'lvbu' ? 50 : 40;
+    // 领主棋子：按势力上色，每人一套兵器/头饰/马色
+    const look = LORD_LOOK[lord.id] || {};
+    const icon = assets.lordIconFor(col, look);
+    const isz = lord.id === 'lvbu' ? 50 : look.big ? 44 : 40;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.62, isz, isz);
 
     ctx.fillStyle = col;
@@ -7232,6 +7317,8 @@ const BattleScene = {
     const bv = app.battleView;
     const b = app.state.battle;
     if (!b) {
+      // 结算页要留着，别一闪而过
+      if (bv && bv.summary) return;
       app.pop();
       return;
     }
@@ -7254,7 +7341,23 @@ const BattleScene = {
     const h = app.runtime.height;
     const bv = app.battleView;
     const b = app.state.battle;
-    if (!b) return;
+    if (!b) {
+      // 仗打完了（state.battle 已清），照样把结果画出来
+      if (bv && bv.summary) {
+        ctx.fillStyle = '#14100c';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#1c1712';
+        ctx.fillRect(0, 0, w, 120);
+        ctx.fillStyle = '#3a2c1e';
+        ctx.fillRect(0, 118, w, 3);
+        text(ctx, '战果', w / 2, 26, { size: 36, align: 'center', color: '#f0c060' });
+        text(ctx, '认这一战，或者退回开打之前', w / 2, 76, {
+          size: 17, align: 'center', color: '#a2947a',
+        });
+        renderResult(app, bv.summary, w, h, h * 0.30);
+      }
+      return;
+    }
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
@@ -7309,15 +7412,19 @@ const BattleScene = {
           onTap: function () { bv.tactic = id; },
         });
       });
-      const ty = bottom + 128;
+      const ty = bottom + 120;
       text(ctx, TACTICS[bv.tactic].desc, 16, ty, { size: 16, color: '#a2947a' });
 
-      // 战前也能走：撤出不会算撤退伤亡，但要退出城下
-      app.ui.button(ctx, 16, h - 100, 200, 78, '撤出', {
+      // 战前也能走：撤离不算撤退伤亡，退开之后对方一时追不上
+      text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, h - 122, {
+        size: 15, color: '#8fbf7a',
+      });
+      app.ui.button(ctx, 16, h - 100, 200, 78, '撤离', {
         id: 'leave', size: 26, fill: '#241c14', onTap: function () {
           stateLib.afterRetreat(app.state, b.context);
           app.state.battle = null;
           backToMap(app);
+          app.showToast('你退离了战场。', 2);
         },
       });
       app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
@@ -7390,9 +7497,9 @@ function drawTroopRow(ctx, w, y, troops, initial, color, dir) {
   }
 }
 
-function renderResult(app, sum, w, h) {
+function renderResult(app, sum, w, h, y0Top) {
   const ctx = app.runtime.ctx;
-  const y0 = h - 220;
+  const y0 = y0Top || (h - 220);
   if (!sum) return;
 
   const win = sum.result === 'win';
@@ -7407,13 +7514,32 @@ function renderResult(app, sum, w, h) {
   if (win) text(ctx, '缴获 ' + sum.loot + ' 金', 16, y0 + 122, { size: 22, color: '#f0c060' });
   if (sum.shiMark) text(ctx, '史简「' + sum.shiName + '」已生效', 16, y0 + 152, { size: 17, color: '#c9a0e0' });
 
-  app.ui.button(ctx, 16, h - 96, w - 32, 76, '继续', {
-    id: 'cont', size: 28, fill: '#33271b', onTap: function () {
+  // 打完可以认账，也可以退到开打前那份快照
+  const preKey = 'bw_pre_v4';
+  const hasPre = !!app.runtime.storage.get(preKey);
+  const gap = 12;
+  const leftW = Math.round((w - 32 - gap) * 0.58);
+  const rightW = w - 32 - gap - leftW;
+
+  app.ui.button(ctx, 16, h - 96, leftW, 76, '继续', {
+    id: 'cont', size: 27, fill: '#33271b', onTap: function () {
       if (app.state.gameOver) {
         app.replace('ending');
       } else {
         backToMap(app);
       }
+    },
+  });
+  app.ui.button(ctx, 16 + leftW + gap, h - 96, rightW, 76, hasPre ? '退回战前' : '退回战前（空）', {
+    id: 'rollback', size: 22, fill: '#3a2418', disabled: !hasPre, onTap: function () {
+      const loaded = stateLib.deserialize(app.runtime.storage.get(preKey));
+      if (!loaded) {
+        app.showToast('战前快照读不出来。', 2);
+        return;
+      }
+      app.state = loaded;
+      app.replace('map');
+      app.showToast('回到开战之前。', 2);
     },
   });
 }
@@ -8268,6 +8394,9 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
+const { LORD_LOOK } = __require(13);
+
+const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
 
 function lordOf(app) {
   const d = app.lordTalk;
@@ -8322,9 +8451,9 @@ const LordScene = {
     ctx.fillRect(0, 0, w, 300);
     ctx.globalAlpha = 1;
 
-    // 立绘：按原始比例放大，吕布用自己的双翎造型
-    const variant = lord.id === 'lvbu' ? 'lvbu' : 'normal';
-    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, variant) : null) || app.assets.lord;
+    // 立绘：按原始比例放大，每人一套兵器/头饰/马色
+    const look = LORD_LOOK[lord.id] || {};
+    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, look) : null) || app.assets.lord;
     const sw0 = sprite.width || 20;
     const sh0 = sprite.height || 20;
     let spW = Math.min(300, w * 0.72);
@@ -8346,7 +8475,8 @@ const LordScene = {
     const boxY = Math.max(h * 0.30, 200);
     const boxH = Math.min(260, h - boxY - 250);
     panel(ctx, 20, boxY, w - 40, boxH, { fill: '#201a14' });
-    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' + stateLib.lordRank(lord),
+    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' +
+      (RANK_LABEL[stateLib.lordRank(lord)] || '将领'),
       w - 36, boxY + 10, { size: 16, align: 'right', color: '#a2947a' });
     const size = 21;
     const lines = wrap(ctx, d.line, w - 96, size, 'bold');
@@ -8385,6 +8515,22 @@ const LordScene = {
       });
       app.ui.button(ctx, 20, bottomY + 116, w - 40, 62, '算了', {
         id: 'gift_back', size: 22, fill: '#241c14', onTap: function () { d.page = 'menu'; },
+      });
+    } else if (d.page === 'confront') {
+      // 被拦住：可以迎战，也可以撤开——不是只能打
+      text(ctx, '迎战：当场打一场。', 24, bottomY, { size: 17, color: '#c9bda2' });
+      text(ctx, '撤开：不损一兵，双方拉开，短时间不会再撞上。', 24, bottomY + 26, {
+        size: 17, color: '#8fbf7a',
+      });
+      app.ui.button(ctx, 20, bottomY + 62, w / 2 - 30, 74, '迎战', {
+        id: 'cf_war', size: 26, fill: '#43201a', onTap: function () { act(app, 'war'); },
+      });
+      app.ui.button(ctx, w / 2 + 10, bottomY + 62, w / 2 - 30, 74, '撤开', {
+        id: 'cf_flee', size: 26, fill: '#241c14', onTap: function () {
+          stateLib.afterRetreat(st, { lordId: lord.id });
+          app.pop();
+          app.showToast('你退开一段路，他没有追上来。', 2.2);
+        },
       });
     } else {
       app.ui.button(ctx, 20, bottomY, w - 40, 68, '回到话头', {
@@ -8432,9 +8578,8 @@ function act(app, id) {
   }
   if (id === 'leave') {
     if (stateLib.isHostileFaction(st, lord.faction)) {
-      app.showToast('他不打算让你走。', 2);
-      stateLib.startLordBattle(st, lord);
-      app.push('battle', { mode: 'lord' });
+      d.page = 'confront';
+      d.line = '“既然来了，就别想着走了。”\n他勒转马头，手已经按在刀柄上。';
       return;
     }
     app.pop();
@@ -8541,15 +8686,18 @@ module.exports = ReviveScene;
   /* js/scenes/menu.js */
   __defs[30] = function (module, exports, __require) {
 /**
- * 系统菜单：存档、读档、回标题（退出）
+ * 系统菜单：存档、读档、退回战前、回标题（退出）
  */
 
-const { text, panel, wrap } = __require(6);
+const { text, panel } = __require(6);
 const stateLib = __require(7);
 const audio = __require(16);
 const { formatClock } = __require(8);
 
 const AUTO_KEY = 'bw_save_v4';
+const AUTO_1 = 'bw_save_v4_a1';
+const AUTO_2 = 'bw_save_v4_a2';
+const PRE_KEY = 'bw_pre_v4';
 const MANUAL_KEY = 'bw_manual_v4';
 
 function readMeta(app, key) {
@@ -8564,9 +8712,32 @@ function readMeta(app, key) {
   }
 }
 
+function describe(data) {
+  if (!data) return '';
+  const p = data.player || {};
+  const troops = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
+  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金';
+}
+
+function load(app, key, failMsg) {
+  const raw = app.runtime.storage.get(key);
+  const loaded = stateLib.deserialize(raw);
+  if (!loaded) {
+    app.showToast(failMsg, 2);
+    return;
+  }
+  app.state = loaded;
+  app.replace('map');
+}
+
 const MenuScene = {
   enter(app) {
-    app.menuView = { auto: readMeta(app, AUTO_KEY), manual: readMeta(app, MANUAL_KEY) };
+    app.menuView = {
+      auto: readMeta(app, AUTO_KEY),
+      auto1: readMeta(app, AUTO_1),
+      pre: readMeta(app, PRE_KEY),
+      manual: readMeta(app, MANUAL_KEY),
+    };
   },
 
   update() {},
@@ -8574,29 +8745,33 @@ const MenuScene = {
   render(app) {
     const ctx = app.runtime.ctx;
     const w = app.runtime.width;
-    const h = app.runtime.height;
     const st = app.state;
     const mv = app.menuView || {};
 
-    ctx.fillStyle = 'rgba(8,6,4,0.94)';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(8,6,4,0.96)';
+    ctx.fillRect(0, 0, w, app.runtime.height);
 
-    text(ctx, '营帐', w / 2, 44, { size: 40, align: 'center', color: '#f0c060' });
-    text(ctx, st ? formatClock(st.clock) : '', w / 2, 96, { size: 20, align: 'center', color: '#a2947a' });
+    text(ctx, '营帐', w / 2, 30, { size: 38, align: 'center', color: '#f0c060' });
+    text(ctx, st ? formatClock(st.clock) : '', w / 2, 78, { size: 19, align: 'center', color: '#a2947a' });
 
-    // 手动存档信息
-    const infoY = 130;
-    panel(ctx, 20, infoY, w - 40, 106, { fill: '#201a14' });
-    text(ctx, '手动存档', 44, infoY + 14, { size: 20, color: '#c9bda2' });
-    text(ctx, mv.manual
-      ? '第 ' + mv.manual.clock.day + ' 天 · ' + (mv.manual.player.flagName === '无旗' ? mv.manual.player.name : mv.manual.player.flagName) + ' · ' + (mv.manual.player.gold || 0) + ' 金'
-      : '还没有手动存过档', 44, infoY + 50, { size: 18, color: '#8a8070' });
+    // 存档信息
+    const infoY = 108;
+    panel(ctx, 20, infoY, w - 40, 96, { fill: '#201a14' });
+    text(ctx, '手动存档', 40, infoY + 10, { size: 19, color: '#c9bda2' });
+    text(ctx, mv.manual ? describe(mv.manual) : '还没存过', 40, infoY + 44, {
+      size: 17, color: mv.manual ? '#efe3c6' : '#8a8070',
+    });
+    text(ctx, '自动存档', w - 40, infoY + 10, { size: 19, align: 'right', color: '#c9bda2' });
+    text(ctx, mv.auto ? describe(mv.auto) : '暂无', w - 40, infoY + 44, {
+      size: 17, align: 'right', color: mv.auto ? '#efe3c6' : '#8a8070',
+    });
 
-    const BH = 64;
-    const GAP = 70;
-    let y = infoY + 118;
+    const BH = 62;
+    const GAP = 68;
+    let y = infoY + 108;
+
     app.ui.button(ctx, 20, y, w - 40, BH, '保存到现在', {
-      id: 'menu_save', size: 26, fill: '#3a2c1e', onTap: function () {
+      id: 'menu_save', size: 25, fill: '#3a2c1e', onTap: function () {
         if (!app.state) return;
         app.runtime.storage.set(MANUAL_KEY, stateLib.serialize(app.state));
         app.menuView.manual = readMeta(app, MANUAL_KEY);
@@ -8605,41 +8780,37 @@ const MenuScene = {
     });
     y += GAP;
 
-    app.ui.button(ctx, 20, y, w - 40, BH, mv.manual ? '读取手动存档' : '读取手动存档（空）', {
-      id: 'menu_load', size: 26, fill: '#241c14', disabled: !mv.manual, onTap: function () {
-        const raw = app.runtime.storage.get(MANUAL_KEY);
-        const loaded = stateLib.deserialize(raw);
-        if (!loaded) {
-          app.showToast('存档读不出来。', 2);
-          return;
-        }
-        app.state = loaded;
-        app.replace('map');
+    app.ui.button(ctx, 20, y, w / 2 - 30, BH, '读取手动存档', {
+      id: 'menu_load', size: 22, fill: '#241c14', disabled: !mv.manual, onTap: function () {
+        load(app, MANUAL_KEY, '手动存档读不出来。');
+      },
+    });
+    app.ui.button(ctx, w / 2 + 10, y, w / 2 - 30, BH, '读取自动存档', {
+      id: 'menu_auto', size: 22, fill: '#241c14', disabled: !mv.auto, onTap: function () {
+        load(app, AUTO_KEY, '自动存档读不出来。');
       },
     });
     y += GAP;
 
-    app.ui.button(ctx, 20, y, w / 2 - 30, BH, '读取自动存档', {
-      id: 'menu_auto', size: 22, fill: '#241c14', disabled: !mv.auto, onTap: function () {
-        const raw = app.runtime.storage.get(AUTO_KEY);
-        const loaded = stateLib.deserialize(raw);
-        if (!loaded) {
-          app.showToast('自动存档读不出来。', 2);
-          return;
-        }
-        app.state = loaded;
-        app.replace('map');
-      },
-    });
-    app.ui.button(ctx, w / 2 + 10, y, w / 2 - 30, BH, '回到标题', {
-      id: 'menu_title', size: 22, fill: '#43201a', onTap: function () {
+    // 退回：开打前的快照 / 上一份自动存档
+    app.ui.button(ctx, 20, y, w / 2 - 30, BH,
+      mv.pre ? '退回战前 · 第' + mv.pre.clock.day + '天' : '退回战前（空）', {
+        id: 'menu_pre', size: 21, fill: '#3a2418', disabled: !mv.pre, onTap: function () {
+          load(app, PRE_KEY, '战前快照读不出来。');
+        },
+      });
+    app.ui.button(ctx, w / 2 + 10, y, w / 2 - 30, BH,
+      mv.auto1 ? '退回上一份 · 第' + mv.auto1.clock.day + '天' : '退回上一份（空）', {
+        id: 'menu_auto1', size: 21, fill: '#241c14', disabled: !mv.auto1, onTap: function () {
+          load(app, AUTO_1, '上一份自动存档读不出来。');
+        },
+      });
+    y += GAP;
+
+    app.ui.button(ctx, 20, y, w / 2 - 30, BH, '回到标题', {
+      id: 'menu_title', size: 24, fill: '#43201a', onTap: function () {
         app.replace('title');
       },
-    });
-    y += GAP;
-
-    app.ui.button(ctx, 20, y, w / 2 - 30, BH, '继续游戏', {
-      id: 'menu_close', size: 26, fill: '#33271b', onTap: function () { app.pop(); },
     });
     app.ui.button(ctx, w / 2 + 10, y, w / 2 - 30, BH, audio.isEnabled() ? '音乐：开' : '音乐：关', {
       id: 'menu_audio', size: 24, fill: '#241c14', onTap: function () {
@@ -8649,9 +8820,14 @@ const MenuScene = {
         app.showToast(on ? '音乐已打开' : '音乐已关闭', 1.6);
       },
     });
+    y += GAP;
 
-    text(ctx, '自动存档每 12 秒一次，只在地图上。回标题等于退出这一局。', w / 2, h - 40, {
-      size: 15, align: 'center', color: '#6a6050',
+    app.ui.button(ctx, 20, y, w - 40, BH, '继续游戏', {
+      id: 'menu_close', size: 26, fill: '#33271b', onTap: function () { app.pop(); },
+    });
+
+    text(ctx, '自动存档每 45 秒一份，保留最近两份；每次开打前会另存一份战前快照。', w / 2, y + BH + 30, {
+      size: 14, align: 'center', color: '#6a6050',
     });
   },
 
@@ -8663,6 +8839,7 @@ const MenuScene = {
 module.exports = MenuScene;
 module.exports.AUTO_KEY = AUTO_KEY;
 module.exports.MANUAL_KEY = MANUAL_KEY;
+module.exports.PRE_KEY = PRE_KEY;
 
   };
 
@@ -8677,6 +8854,12 @@ const pixel = __require(3);
 const { UI, text, wrap, panel } = __require(6);
 const stateLib = __require(7);
 const audio = __require(16);
+
+// 存档槽：最新 / 上一份 / 上上一份，外加开打前的快照
+const AUTO_KEY = 'bw_save_v4';
+const AUTO_1 = 'bw_save_v4_a1';
+const AUTO_2 = 'bw_save_v4_a2';
+const PRE_KEY = 'bw_pre_v4';
 
 class App {
   constructor(runtime) {
@@ -8737,6 +8920,12 @@ class App {
     this.stack.push(entry);
     if (scene.enter) scene.enter(this, entry.params);
     this.applyMusic(name);
+    // 开打之前留一份快照：打输了、想反悔，都能退回来
+    if (name === 'battle' && this.state && !this.state.gameOver) {
+      try {
+        this.runtime.storage.set(PRE_KEY, stateLib.serialize(this.state));
+      } catch (e) { /* ignore */ }
+    }
   }
 
   applyMusic(name) {
@@ -8832,8 +9021,13 @@ class App {
     if (this.state && !this.state.gameOver && !this.state.battle) {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
-        this.saveTimer = 12;
-        this.runtime.storage.set('bw_save_v4', stateLib.serialize(this.state));
+        this.saveTimer = 45;
+        const store = this.runtime.storage;
+        const prev1 = store.get(AUTO_1);
+        if (prev1) store.set(AUTO_2, prev1);
+        const prev0 = store.get(AUTO_KEY);
+        if (prev0) store.set(AUTO_1, prev0);
+        store.set(AUTO_KEY, stateLib.serialize(this.state));
       }
     }
   }

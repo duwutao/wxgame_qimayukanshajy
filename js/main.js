@@ -8,6 +8,12 @@ const { UI, text, wrap, panel } = require('./render/ui.js');
 const stateLib = require('./core/state.js');
 const audio = require('./core/audio.js');
 
+// 存档槽：最新 / 上一份 / 上上一份，外加开打前的快照
+const AUTO_KEY = 'bw_save_v4';
+const AUTO_1 = 'bw_save_v4_a1';
+const AUTO_2 = 'bw_save_v4_a2';
+const PRE_KEY = 'bw_pre_v4';
+
 class App {
   constructor(runtime) {
     this.runtime = runtime;
@@ -67,6 +73,12 @@ class App {
     this.stack.push(entry);
     if (scene.enter) scene.enter(this, entry.params);
     this.applyMusic(name);
+    // 开打之前留一份快照：打输了、想反悔，都能退回来
+    if (name === 'battle' && this.state && !this.state.gameOver) {
+      try {
+        this.runtime.storage.set(PRE_KEY, stateLib.serialize(this.state));
+      } catch (e) { /* ignore */ }
+    }
   }
 
   applyMusic(name) {
@@ -162,8 +174,13 @@ class App {
     if (this.state && !this.state.gameOver && !this.state.battle) {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
-        this.saveTimer = 12;
-        this.runtime.storage.set('bw_save_v4', stateLib.serialize(this.state));
+        this.saveTimer = 45;
+        const store = this.runtime.storage;
+        const prev1 = store.get(AUTO_1);
+        if (prev1) store.set(AUTO_2, prev1);
+        const prev0 = store.get(AUTO_KEY);
+        if (prev0) store.set(AUTO_1, prev0);
+        store.set(AUTO_KEY, stateLib.serialize(this.state));
       }
     }
   }

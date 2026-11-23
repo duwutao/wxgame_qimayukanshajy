@@ -8,6 +8,9 @@ const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { FACTIONS } = require('../data/china.js');
+const { LORD_LOOK } = require('../data/extra.js');
+
+const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
 
 function lordOf(app) {
   const d = app.lordTalk;
@@ -62,9 +65,9 @@ const LordScene = {
     ctx.fillRect(0, 0, w, 300);
     ctx.globalAlpha = 1;
 
-    // 立绘：按原始比例放大，吕布用自己的双翎造型
-    const variant = lord.id === 'lvbu' ? 'lvbu' : 'normal';
-    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, variant) : null) || app.assets.lord;
+    // 立绘：按原始比例放大，每人一套兵器/头饰/马色
+    const look = LORD_LOOK[lord.id] || {};
+    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, look) : null) || app.assets.lord;
     const sw0 = sprite.width || 20;
     const sh0 = sprite.height || 20;
     let spW = Math.min(300, w * 0.72);
@@ -86,7 +89,8 @@ const LordScene = {
     const boxY = Math.max(h * 0.30, 200);
     const boxH = Math.min(260, h - boxY - 250);
     panel(ctx, 20, boxY, w - 40, boxH, { fill: '#201a14' });
-    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' + stateLib.lordRank(lord),
+    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' +
+      (RANK_LABEL[stateLib.lordRank(lord)] || '将领'),
       w - 36, boxY + 10, { size: 16, align: 'right', color: '#a2947a' });
     const size = 21;
     const lines = wrap(ctx, d.line, w - 96, size, 'bold');
@@ -125,6 +129,22 @@ const LordScene = {
       });
       app.ui.button(ctx, 20, bottomY + 116, w - 40, 62, '算了', {
         id: 'gift_back', size: 22, fill: '#241c14', onTap: function () { d.page = 'menu'; },
+      });
+    } else if (d.page === 'confront') {
+      // 被拦住：可以迎战，也可以撤开——不是只能打
+      text(ctx, '迎战：当场打一场。', 24, bottomY, { size: 17, color: '#c9bda2' });
+      text(ctx, '撤开：不损一兵，双方拉开，短时间不会再撞上。', 24, bottomY + 26, {
+        size: 17, color: '#8fbf7a',
+      });
+      app.ui.button(ctx, 20, bottomY + 62, w / 2 - 30, 74, '迎战', {
+        id: 'cf_war', size: 26, fill: '#43201a', onTap: function () { act(app, 'war'); },
+      });
+      app.ui.button(ctx, w / 2 + 10, bottomY + 62, w / 2 - 30, 74, '撤开', {
+        id: 'cf_flee', size: 26, fill: '#241c14', onTap: function () {
+          stateLib.afterRetreat(st, { lordId: lord.id });
+          app.pop();
+          app.showToast('你退开一段路，他没有追上来。', 2.2);
+        },
       });
     } else {
       app.ui.button(ctx, 20, bottomY, w - 40, 68, '回到话头', {
@@ -172,9 +192,8 @@ function act(app, id) {
   }
   if (id === 'leave') {
     if (stateLib.isHostileFaction(st, lord.faction)) {
-      app.showToast('他不打算让你走。', 2);
-      stateLib.startLordBattle(st, lord);
-      app.push('battle', { mode: 'lord' });
+      d.page = 'confront';
+      d.line = '“既然来了，就别想着走了。”\n他勒转马头，手已经按在刀柄上。';
       return;
     }
     app.pop();

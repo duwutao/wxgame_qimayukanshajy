@@ -74,6 +74,8 @@ const BattleScene = {
     const bv = app.battleView;
     const b = app.state.battle;
     if (!b) {
+      // 结算页要留着，别一闪而过
+      if (bv && bv.summary) return;
       app.pop();
       return;
     }
@@ -96,7 +98,23 @@ const BattleScene = {
     const h = app.runtime.height;
     const bv = app.battleView;
     const b = app.state.battle;
-    if (!b) return;
+    if (!b) {
+      // 仗打完了（state.battle 已清），照样把结果画出来
+      if (bv && bv.summary) {
+        ctx.fillStyle = '#14100c';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#1c1712';
+        ctx.fillRect(0, 0, w, 120);
+        ctx.fillStyle = '#3a2c1e';
+        ctx.fillRect(0, 118, w, 3);
+        text(ctx, '战果', w / 2, 26, { size: 36, align: 'center', color: '#f0c060' });
+        text(ctx, '认这一战，或者退回开打之前', w / 2, 76, {
+          size: 17, align: 'center', color: '#a2947a',
+        });
+        renderResult(app, bv.summary, w, h, h * 0.30);
+      }
+      return;
+    }
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
@@ -151,15 +169,19 @@ const BattleScene = {
           onTap: function () { bv.tactic = id; },
         });
       });
-      const ty = bottom + 128;
+      const ty = bottom + 120;
       text(ctx, TACTICS[bv.tactic].desc, 16, ty, { size: 16, color: '#a2947a' });
 
-      // 战前也能走：撤出不会算撤退伤亡，但要退出城下
-      app.ui.button(ctx, 16, h - 100, 200, 78, '撤出', {
+      // 战前也能走：撤离不算撤退伤亡，退开之后对方一时追不上
+      text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, h - 122, {
+        size: 15, color: '#8fbf7a',
+      });
+      app.ui.button(ctx, 16, h - 100, 200, 78, '撤离', {
         id: 'leave', size: 26, fill: '#241c14', onTap: function () {
           stateLib.afterRetreat(app.state, b.context);
           app.state.battle = null;
           backToMap(app);
+          app.showToast('你退离了战场。', 2);
         },
       });
       app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
@@ -232,9 +254,9 @@ function drawTroopRow(ctx, w, y, troops, initial, color, dir) {
   }
 }
 
-function renderResult(app, sum, w, h) {
+function renderResult(app, sum, w, h, y0Top) {
   const ctx = app.runtime.ctx;
-  const y0 = h - 220;
+  const y0 = y0Top || (h - 220);
   if (!sum) return;
 
   const win = sum.result === 'win';
@@ -249,13 +271,32 @@ function renderResult(app, sum, w, h) {
   if (win) text(ctx, '缴获 ' + sum.loot + ' 金', 16, y0 + 122, { size: 22, color: '#f0c060' });
   if (sum.shiMark) text(ctx, '史简「' + sum.shiName + '」已生效', 16, y0 + 152, { size: 17, color: '#c9a0e0' });
 
-  app.ui.button(ctx, 16, h - 96, w - 32, 76, '继续', {
-    id: 'cont', size: 28, fill: '#33271b', onTap: function () {
+  // 打完可以认账，也可以退到开打前那份快照
+  const preKey = 'bw_pre_v4';
+  const hasPre = !!app.runtime.storage.get(preKey);
+  const gap = 12;
+  const leftW = Math.round((w - 32 - gap) * 0.58);
+  const rightW = w - 32 - gap - leftW;
+
+  app.ui.button(ctx, 16, h - 96, leftW, 76, '继续', {
+    id: 'cont', size: 27, fill: '#33271b', onTap: function () {
       if (app.state.gameOver) {
         app.replace('ending');
       } else {
         backToMap(app);
       }
+    },
+  });
+  app.ui.button(ctx, 16 + leftW + gap, h - 96, rightW, 76, hasPre ? '退回战前' : '退回战前（空）', {
+    id: 'rollback', size: 22, fill: '#3a2418', disabled: !hasPre, onTap: function () {
+      const loaded = stateLib.deserialize(app.runtime.storage.get(preKey));
+      if (!loaded) {
+        app.showToast('战前快照读不出来。', 2);
+        return;
+      }
+      app.state = loaded;
+      app.replace('map');
+      app.showToast('回到开战之前。', 2);
     },
   });
 }

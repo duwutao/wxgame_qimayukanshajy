@@ -302,39 +302,91 @@ function makePlayerSprite(runtime) {
 
 /**
  * 领主棋子：小骑马剪影
- * color 为势力色，variant 为 'lvbu' 时加双翎与方天戟（一眼能认出来）
+ * color 为势力色；look 决定这个人的样子：
+ *   weapon: ji / dao / qiang / gong / jian
+ *   helm:   plume（双翎） / horn（红缨盔） / crown（高冠） / band（头巾）
+ *   cape / horse: 披风与马的颜色；beard 长髯；big 壮；tall 高
+ * 也可以直接传字符串 'lvbu' / 'normal' 兼容旧调用。
  */
-function makeLordSprite(runtime, color, variant) {
+function makeLordSprite(runtime, color, look) {
+  if (!look || typeof look === 'string') {
+    const old = look;
+    look = old === 'lvbu'
+      ? { weapon: 'ji', helm: 'plume', cape: '#b03a30', horse: '#6a2a22' }
+      : {};
+  }
   const size = 20;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   g.clearRect(0, 0, size, size);
   const main = color || '#e6e2d6';
+  const dark = shade(main, -0.32);
+  const horse = look.horse || '#2a2320';
+  const horseHi = shade(horse, 0.22);
+  const cape = look.cape || shade(main, -0.16);
+  const skin = look.skin || '#d8cdb6';
+  const tall = !!look.tall;
 
   // 马
-  px(g, 3, 12, '#2a2320', 12, 5);
-  px(g, 3, 12, '#443a33', 12, 1);
-  px(g, 14, 9, '#2a2320', 3, 4);
-  px(g, 4, 16, '#2a2320', 2, 3);
-  px(g, 12, 16, '#2a2320', 2, 3);
-  px(g, 3, 13, '#5a4a3c', 2, 1);
+  px(g, 3, 12, horse, 12, 5);
+  px(g, 3, 12, horseHi, 12, 1);
+  px(g, 14, 9, horse, 3, 4);
+  px(g, 4, 16, shade(horse, -0.18), 2, 3);
+  px(g, 12, 16, shade(horse, -0.18), 2, 3);
+  px(g, 3, 13, shade(horse, 0.35), 2, 1);
+
+  // 披风（马背上、骑手身后）
+  px(g, 5, tall ? 9 : 10, cape, 2, tall ? 8 : 7);
+  px(g, 5, tall ? 9 : 10, shade(cape, 0.25), 1, tall ? 8 : 7);
 
   // 骑手
-  px(g, 7, 6, main, 6, 6);
-  px(g, 7, 6, 'rgba(0,0,0,0.25)', 6, 1);
-  px(g, 8, 3, '#d8cdb6', 4, 3);
-  px(g, 8, 2, '#3a3a44', 4, 1);
+  const bodyY = tall ? 5 : 6;
+  const bodyH = tall ? 7 : 6;
+  px(g, 7, bodyY, main, 6, bodyH);
+  px(g, 7, bodyY, dark, 1, bodyH);
+  px(g, 7, bodyY, 'rgba(0,0,0,0.22)', 6, 1);
+  px(g, 7, bodyY + bodyH - 2, '#4a3a28', 6, 1);
 
-  if (variant === 'lvbu') {
-    // 双翎
+  // 头
+  const headY = bodyY - 3;
+  px(g, 8, headY, skin, 4, 3);
+  if (look.beard) px(g, 8, headY + 3, shade(skin, -0.5), 3, 1);
+
+  // 头饰
+  const helm = look.helm || 'band';
+  if (helm === 'plume') {
+    px(g, 8, headY - 1, '#3a3a44', 4, 1);
     px(g, 7, 0, '#c03830', 1, 4);
     px(g, 12, 0, '#c03830', 1, 4);
-    // 方天戟
-    px(g, 17, 2, '#8a8f99', 1, 14);
-    px(g, 16, 2, '#d8dde6', 3, 2);
-    px(g, 16, 5, '#d8dde6', 2, 1);
+  } else if (helm === 'horn') {
+    px(g, 8, headY - 1, '#3a3a44', 4, 1);
+    px(g, 9, headY - 3, '#c03830', 2, 2);
+  } else if (helm === 'crown') {
+    px(g, 8, headY - 2, '#2a2a30', 4, 2);
+    px(g, 8, headY - 2, '#d9a441', 4, 1);
   } else {
-    // 刀
+    px(g, 8, headY - 1, dark, 4, 1);
+  }
+  if (look.big) px(g, 6, bodyY, main, 1, bodyH);
+
+  // 兵器
+  const weapon = look.weapon || 'dao';
+  if (weapon === 'ji') {
+    px(g, 16, 2, '#8a8f99', 1, 14);
+    px(g, 15, 2, '#d8dde6', 3, 2);
+    px(g, 14, 4, '#d8dde6', 2, 1);
+  } else if (weapon === 'qiang') {
+    px(g, 16, 3, '#7a6a52', 1, 13);
+    px(g, 16, 1, '#d8dde6', 1, 2);
+    px(g, 15, 3, '#b03a30', 2, 1);
+  } else if (weapon === 'gong') {
+    px(g, 16, 4, '#6a4a2c', 1, 9);
+    px(g, 17, 5, '#8a7a5c', 1, 7);
+    px(g, 15, 5, '#d8d2c0', 1, 7);
+  } else if (weapon === 'jian') {
+    px(g, 16, 4, '#c8ccd6', 1, 9);
+    px(g, 15, 12, '#4a3a28', 2, 1);
+  } else {
     px(g, 16, 4, '#b8bcc4', 1, 11);
     px(g, 15, 3, '#e2e6ee', 2, 2);
   }
@@ -404,11 +456,12 @@ function buildAssets(runtime) {
     lord: makeLordSprite(runtime, '#e6e2d6', 'normal'),
     bandit: makeBanditSprite(runtime, '#7d2f28'),
     flag: { player: makeFlagSprite(runtime, '#d9a441') },
-    /** 按势力色生成领主棋子（带缓存） */
-    lordIconFor: function (color, variant) {
-      const key = (color || 'x') + '|' + (variant || 'n');
+    /** 按势力色 + 造型生成领主棋子（带缓存） */
+    lordIconFor: function (color, look) {
+      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
+      const key = (color || 'x') + '|' + lookKey;
       if (!this.lordCache) this.lordCache = {};
-      if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, variant);
+      if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, look);
       return this.lordCache[key];
     },
     /** 按等级色生成匪团棋子 */
