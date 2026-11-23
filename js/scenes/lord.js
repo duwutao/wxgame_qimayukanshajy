@@ -30,10 +30,21 @@ const OPTIONS = [
 const LordScene = {
   enter(app, params) {
     const lord = app.state.lords.filter(function (l) { return l.id === params.lordId; })[0];
+    const hostile = lord ? stateLib.isHostileFaction(app.state, lord.faction) : false;
+    // 排队的同一位领主事件清掉，避免说完了又被弹一次
+    const evs = app.state.events;
+    if (evs) {
+      for (let i = evs.length - 1; i >= 0; i--) {
+        if (evs[i].type === 'lord' && evs[i].lordId === params.lordId) evs.splice(i, 1);
+      }
+    }
     app.lordTalk = {
       lordId: params.lordId,
-      page: 'menu',
-      line: lord ? stateLib.lordGreet(app.state, lord) + '\n' + stateLib.lordIdle(app.state, lord) : '……',
+      // 敌对撞上先给“迎战/撤开”，不把人直接推进战斗
+      page: hostile ? 'confront' : 'menu',
+      line: !lord ? '……' : hostile
+        ? '“站住。”\n他把马横在路当中，手按在刀柄上，眼睛在你队伍上扫了一遍。'
+        : stateLib.lordGreet(app.state, lord) + '\n' + stateLib.lordIdle(app.state, lord),
     };
   },
 

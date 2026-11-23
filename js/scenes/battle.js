@@ -18,7 +18,8 @@ function backToMap(app) {
     const t = app.top();
     if (!t) break;
     if (t.name === 'map') break;
-    if (t.name === 'town' || t.name === 'lord' || t.name === 'battle' || t.name === 'chapter') {
+    if (t.name === 'town' || t.name === 'lord' || t.name === 'battle' || t.name === 'chapter' ||
+        t.name === 'contact') {
       app.pop();
       continue;
     }
@@ -119,93 +120,154 @@ const BattleScene = {
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
 
-    // 标题
+    // 矮屏（桌面窗口）与大屏（手机竖屏）两套排法，按钮永远在屏幕里
+    const compact = h < 720;
     const fire = b.fireGround;
+    const headH = compact ? 104 : 160;
     ctx.fillStyle = fire ? '#2e1810' : '#1c1712';
-    ctx.fillRect(0, 0, w, 160);
+    ctx.fillRect(0, 0, w, headH);
     ctx.fillStyle = fire ? '#d0662a' : '#3a2c1e';
-    ctx.fillRect(0, 158, w, 4);
-    text(ctx, boxTitle(app), w / 2, 34, { size: 40, align: 'center', color: fire ? '#ffb066' : '#f0c060' });
+    ctx.fillRect(0, headH - 2, w, 4);
+    text(ctx, boxTitle(app), w / 2, compact ? 16 : 34, {
+      size: compact ? 30 : 40, align: 'center', color: fire ? '#ffb066' : '#f0c060',
+    });
     const sub = subTitle(app);
-    if (sub) text(ctx, sub, w / 2, 92, { size: 18, align: 'center', color: '#a2947a' });
-    if (fire) text(ctx, '火攻', w - 20, 20, { size: 18, align: 'right', color: '#ff8f4a' });
-    if (b.shiName) text(ctx, '史简 · ' + b.shiName, 20, 20, { size: 18, color: '#c9a0e0' });
+    if (sub) text(ctx, sub, w / 2, compact ? 56 : 92, {
+      size: compact ? 15 : 18, align: 'center', color: '#a2947a',
+    });
+    if (fire) text(ctx, '火攻', w - 20, 10, { size: 16, align: 'right', color: '#ff8f4a' });
+    if (b.shiName) text(ctx, '史简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
 
     const a = b.a;
     const bb = b.b;
-    // 双方卡片
-    drawSide(ctx, w, 190, a, '我方', '#6f9fd8', true);
-    drawSide(ctx, w, 300, bb, '敌方', '#d07060', false);
+    const y1 = compact ? 112 : 190;
+    const y2 = compact ? 190 : 300;
+    drawSide(ctx, w, y1, a, '我方', '#6f9fd8', true);
+    drawSide(ctx, w, y2, bb, '敌方', '#d07060', false);
 
-    // 对峙画面
-    drawTroopRow(ctx, w, 430, a.troops, a.initialTroops, '#5a8fd0', 1);
-    drawTroopRow(ctx, w, 520, bb.troops, bb.initialTroops, '#c05a4a', -1);
-    text(ctx, 'VS', w / 2, 470, { size: 30, align: 'center', color: '#6a6050' });
+    if (!compact) {
+      drawTroopRow(ctx, w, 430, a.troops, a.initialTroops, '#5a8fd0', 1);
+      drawTroopRow(ctx, w, 520, bb.troops, bb.initialTroops, '#c05a4a', -1);
+      text(ctx, 'VS', w / 2, 470, { size: 30, align: 'center', color: '#6a6050' });
+    }
 
-    // 战报
-    const logY = 590;
-    text(ctx, '战报', 16, logY, { size: 20, color: '#a2947a' });
-    const recent = b.log.slice(-4);
-    recent.forEach(function (e, i) {
-      const y = logY + 34 + i * 34;
-      text(ctx, '第' + e.round + '轮', 16, y, { size: 16, color: '#8a8070' });
-      text(ctx, '我 ' + e.aLossText, 90, y, { size: 18, color: '#9fb8d8' });
-      text(ctx, '敌 ' + e.bLossText, 380, y, { size: 18, color: '#d8a09f' });
-    });
+    const logY = compact ? y2 + 92 : 590;
+    if (bv.phase === 'fight') {
+      text(ctx, '战报', 16, logY, { size: compact ? 17 : 20, color: '#a2947a' });
+      const recent = b.log.slice(compact ? -2 : -4);
+      recent.forEach(function (e, i) {
+        const y = logY + (compact ? 26 : 34) + i * (compact ? 28 : 34);
+        text(ctx, '第' + e.round + '轮', 16, y, { size: 15, color: '#8a8070' });
+        text(ctx, '我 ' + e.aLossText, 90, y, { size: compact ? 15 : 18, color: '#9fb8d8' });
+        text(ctx, '敌 ' + e.bLossText, 380, y, { size: compact ? 15 : 18, color: '#d8a09f' });
+      });
+    }
 
     // 底部
-    const bottom = h - 268;
+    const bottom = compact ? Math.max(y2 + 96, h - 232) : Math.max(778, h - 486);
     if (bv.phase === 'prep') {
-      text(ctx, '选一个打法', 16, bottom - 40, { size: 20, color: '#a2947a' });
-      TACTIC_LIST.forEach(function (id, i) {
-        const t = TACTICS[id];
-        const bx = 16 + (i % 2) * (w / 2 - 8);
-        const by = bottom + Math.floor(i / 2) * 70 - 10;
-        const active = bv.tactic === id;
-        app.ui.button(ctx, bx, by, w / 2 - 24, 60, t.name, {
-          id: 'tac_' + id, size: 24,
-          fill: active ? '#4a3620' : '#241c14',
-          border: active ? UI_COLORS.accent : UI_COLORS.border,
-          onTap: function () { bv.tactic = id; },
+      text(ctx, '选一个打法', 16, bottom - 30, { size: 18, color: '#a2947a' });
+      if (compact) {
+        // 矮屏：四个打法排一行，不占两行高
+        const bw4 = (w - 32 - 24) / 4;
+        TACTIC_LIST.forEach(function (id, i) {
+          const t = TACTICS[id];
+          const active = bv.tactic === id;
+          app.ui.button(ctx, 16 + i * (bw4 + 8), bottom, bw4, 54, t.name, {
+            id: 'tac_' + id, size: 20,
+            fill: active ? '#4a3620' : '#241c14',
+            border: active ? UI_COLORS.accent : UI_COLORS.border,
+            onTap: function () { bv.tactic = id; },
+          });
         });
-      });
-      const ty = bottom + 120;
-      text(ctx, TACTICS[bv.tactic].desc, 16, ty, { size: 16, color: '#a2947a' });
+        const dline = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 15)[0] || '';
+        text(ctx, dline, 16, bottom + 62, { size: 15, color: '#a2947a' });
+      } else {
+        TACTIC_LIST.forEach(function (id, i) {
+          const t = TACTICS[id];
+          const bx = 16 + (i % 2) * (w / 2 - 8);
+          const by = bottom + Math.floor(i / 2) * 70 - 10;
+          const active = bv.tactic === id;
+          app.ui.button(ctx, bx, by, w / 2 - 24, 60, t.name, {
+            id: 'tac_' + id, size: 24,
+            fill: active ? '#4a3620' : '#241c14',
+            border: active ? UI_COLORS.accent : UI_COLORS.border,
+            onTap: function () { bv.tactic = id; },
+          });
+        });
+        const dlines = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 16);
+        dlines.slice(0, 2).forEach(function (ln, i) {
+          text(ctx, ln, 16, bottom + 148 + i * 24, { size: 16, color: '#a2947a' });
+        });
+      }
 
       // 战前也能走：撤离不算撤退伤亡，退开之后对方一时追不上
-      text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, h - 122, {
-        size: 15, color: '#8fbf7a',
+      const tipY = compact ? h - 128 : h - 134;
+      text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, tipY, {
+        size: compact ? 14 : 15, color: '#8fbf7a',
       });
-      app.ui.button(ctx, 16, h - 100, 200, 78, '撤离', {
-        id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+      if (compact) {
+        app.ui.button(ctx, 16, h - 92, 196, 74, '撤离', {
+          id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+            stateLib.afterRetreat(app.state, b.context);
+            app.state.battle = null;
+            backToMap(app);
+            app.showToast('你退离了战场。', 2);
+          },
+        });
+        app.ui.button(ctx, 224, h - 92, w - 240, 74, '开战', {
+          id: 'go', size: 28, fill: '#4a2a1a', onTap: function () {
+            b.setTactic(bv.tactic);
+            bv.phase = 'fight';
+            bv.timer = 0;
+          },
+        });
+      } else {
+        app.ui.button(ctx, 16, h - 100, 200, 78, '撤离', {
+          id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+            stateLib.afterRetreat(app.state, b.context);
+            app.state.battle = null;
+            backToMap(app);
+            app.showToast('你退离了战场。', 2);
+          },
+        });
+        app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
+          id: 'go', size: 30, fill: '#4a2a1a', onTap: function () {
+            b.setTactic(bv.tactic);
+            bv.phase = 'fight';
+            bv.timer = 0;
+          },
+        });
+      }
+    } else if (bv.phase === 'fight') {
+      // 打起来了也能走：撤离不损兵，撤退要留人殿后
+      const byy = compact ? h - 150 : h - 190;
+      const bh = compact ? 66 : 74;
+      const bw = (w - 32 - 24) / 3;
+      app.ui.button(ctx, 16, byy, bw, bh, '撤离', {
+        id: 'b_flee', size: compact ? 22 : 26, fill: '#2a3320', onTap: function () {
           stateLib.afterRetreat(app.state, b.context);
           app.state.battle = null;
           backToMap(app);
-          app.showToast('你退离了战场。', 2);
+          app.showToast('你带人从阵后撤出，不损一兵。', 2);
         },
       });
-      app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
-        id: 'go', size: 30, fill: '#4a2a1a', onTap: function () {
-          b.setTactic(bv.tactic);
-          bv.phase = 'fight';
-          bv.timer = 0;
-        },
-      });
-    } else if (bv.phase === 'fight') {
-      app.ui.button(ctx, 16, h - 190, 220, 74, '史简 ×' + app.state.player.shi, {
-        id: 'shi', size: 24, fill: '#3a2438', disabled: app.state.player.shi <= 0 || !!b.shiMark, onTap: function () {
+      app.ui.button(ctx, 16 + bw + 12, byy, bw, bh, '史简 ×' + app.state.player.shi, {
+        id: 'shi', size: compact ? 19 : 22, fill: '#3a2438', disabled: app.state.player.shi <= 0 || !!b.shiMark, onTap: function () {
           bv.shiOpen = true;
         },
       });
-      app.ui.button(ctx, 252, h - 190, 220, 74, '撤退', {
-        id: 'retreat', size: 24, fill: '#241c14', onTap: function () {
+      app.ui.button(ctx, 16 + (bw + 12) * 2, byy, bw, bh, '撤退', {
+        id: 'retreat', size: compact ? 22 : 26, fill: '#241c14', onTap: function () {
           b.retreat();
           bv.summary = stateLib.resolveBattle(app.state, b);
           bv.phase = 'result';
         },
       });
-      text(ctx, '回合自动推进 · 每 0.6 秒一轮', 16, h - 100, { size: 16, color: '#8a8070' });
-      if (b.shiMark) text(ctx, '本战已落笔：' + b.shiName, 16, h - 74, { size: 16, color: '#c9a0e0' });
+      text(ctx, '撤离不损兵 · 撤退要留一成殿后', 16, byy + bh + 8, { size: 15, color: '#8fbf7a' });
+      text(ctx, b.shiMark ? '本战已落笔：' + b.shiName : '回合自动推进 · 每 0.6 秒一轮', 16, byy + bh + 32, {
+        size: 15, color: b.shiMark ? '#c9a0e0' : '#8a8070',
+      });
     } else {
       renderResult(app, bv.summary, w, h);
     }

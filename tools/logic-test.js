@@ -143,7 +143,7 @@ const b3 = new Battle({
 });
 b3.retreat();
 ok('撤退成立', b3.result === 'retreat' && b3.retreated);
-ok('撤退额外掉 25%', b3.summary().remainA <= 16, '剩 ' + b3.summary().remainA);
+ok('撤退额外留一成殿后', b3.summary().remainA <= 19, '剩 ' + b3.summary().remainA);
 
 /* ---------------------------------------------------------------- 史简 */
 

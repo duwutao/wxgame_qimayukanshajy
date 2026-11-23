@@ -45,11 +45,100 @@ function ensureCam(app) {
   app.mapCam.y = clamp(app.mapCam.y, Math.min(0, maxY), Math.max(0, maxY));
 }
 
+/** 屏幕坐标 → 有没有点到某个人（领主优先，其次匪团） */
+function unitAt(app, x, y, cam, box) {
+  const st = app.state;
+  for (let i = 0; i < st.lords.length; i++) {
+    const l = st.lords[i];
+    if (!l.alive) continue;
+    const sx = l.x * TILE - cam.x + TILE / 2;
+    const sy = box.top + l.y * TILE - cam.y + TILE / 2;
+    // 棋子身子 + 底下名牌都算热区，点名字也能点中
+    if (Math.abs(x - sx) <= 30 && y >= sy - 48 && y <= sy + 40) {
+      return { kind: 'lord', id: l.id, x: l.x, y: l.y };
+    }
+  }
+  for (let i = 0; i < st.parties.length; i++) {
+    const p = st.parties[i];
+    if (army.troopCount(p.troops || {}) <= 0) continue;
+    const sx = p.x * TILE - cam.x + TILE / 2;
+    const sy = box.top + p.y * TILE - cam.y + TILE / 2;
+    if (Math.abs(x - sx) <= 26 && Math.abs(y - sy) <= 30) {
+      return { kind: 'party', id: p.id, x: p.x, y: p.y };
+    }
+  }
+  return null;
+}
+
+function pushUnitPage(app, kind, id) {
+  const top = app.top();
+  const name = top ? top.name : '';
+  if (name === 'lord' || name === 'contact' || name === 'battle' || name === 'town') return;
+  if (kind === 'lord') app.push('lord', { lordId: id });
+  else app.push('contact', { partyId: id });
+}
+
+/**
+ * 点名追人：点了领主/匪团，就一路跟上去。
+ * 对方在这三小时里挪了格，路线跟着重算，不会半路丢人。
+ */
+function updateFollow(app) {
+  const f = app.follow;
+  if (!f) return false;
+  const st = app.state;
+  const p = st.player;
+  const t = f.kind === 'lord'
+    ? st.lords.filter(function (l) { return l.id === f.id; })[0]
+    : st.parties.filter(function (q) { return q.id === f.id; })[0];
+
+  if (!t || (f.kind === 'lord' && !t.alive) || army.troopCount(t.troops || {}) <= 0) {
+    app.follow = null;
+    return false;
+  }
+
+  const d = Math.max(Math.abs(t.x - p.x), Math.abs(t.y - p.y));
+  if (d <= 1) {
+    app.follow = null;
+    stateLib.stopMoving(st);
+    pushUnitPage(app, f.kind, f.id);
+    return true;
+  }
+
+  // 跟不上的时候别让人干追一天：24 小时还没靠近就放弃
+  const nowH = stateLib.gameHours(st);
+  if (f.startH === undefined) {
+    f.startH = nowH;
+    f.best = d;
+  }
+  if (d < f.best) f.best = d;
+  if (nowH - f.startH > 24 && d > f.best) {
+    app.follow = null;
+    app.showToast('跟丢了，他的马比你快。', 2);
+    return false;
+  }
+
+  // 只在对方挪得比较远、或者自己已经停下时才重算路线。
+  // 每帧重算会把正在走的那一步作废，人就在原地打转。
+  const shift = Math.abs(t.x - f.x) + Math.abs(t.y - f.y);
+  if (shift >= 2 || !p.route || !p.route.length) {
+    f.x = t.x;
+    f.y = t.y;
+    const r = stateLib.goTo(st, t.x, t.y);
+    if (!r.ok) {
+      app.follow = null;
+      app.showToast('追不上，路被堵住了。');
+      return false;
+    }
+  }
+  return false;
+}
+
 const MapScene = {
   enter(app) {
     app.mapCam = null;
     app.mapPhase = 0;
     app.mapDrag = null;
+    app.follow = null;
     ensureCam(app);
     flows.process(app);
     if (app.state && app.state.player.atSiteId) {
@@ -72,6 +161,8 @@ const MapScene = {
       app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 9);
       app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 9);
     }
+
+    if (updateFollow(app)) return;
 
     if (st.events.length) {
       flows.process(app);
@@ -112,7 +203,11 @@ const MapScene = {
     if (!d) return;
     const dx = x - d.startX;
     const dy = y - d.startY;
-    if (!d.dragging && Math.abs(dx) + Math.abs(dy) > 22) d.dragging = true;
+    if (!d.dragging && Math.abs(dx) + Math.abs(dy) > 22) {
+      d.dragging = true;
+      // 手一拖就是看地图，不追人了
+      app.follow = null;
+    }
     if (d.dragging) {
       app.mapCam.x = d.camX - dx;
       app.mapCam.y = d.camY - dy;
@@ -125,9 +220,32 @@ const MapScene = {
     if (!d) return;
     if (d.dragging) return;
     if (app.lastHit) return;
-    if (y < TOP_H || y > TOP_H + mapBox(app).h) return;
+    const box = mapBox(app);
+    if (y < TOP_H || y > TOP_H + box.h) return;
 
     const st = app.state;
+
+    // 先看是不是点在人身上：点领主去说话，点匪团先看遭遇页
+    const unit = unitAt(app, x, y, app.mapCam, box);
+    if (unit) {
+      const p = st.player;
+      const dist = Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y));
+      if (dist <= 1) {
+        stateLib.stopMoving(st);
+        pushUnitPage(app, unit.kind, unit.id);
+        return;
+      }
+      app.follow = { kind: unit.kind, id: unit.id, x: unit.x, y: unit.y };
+      const r = stateLib.goTo(st, unit.x, unit.y);
+      if (!r.ok) {
+        app.follow = null;
+        app.showToast(r.msg);
+        return;
+      }
+      app.showToast(unit.kind === 'lord' ? '向他那边靠过去。' : '朝那伙人追过去。', 1.6);
+      return;
+    }
+
     const tx = Math.floor((x + app.mapCam.x) / TILE);
     const ty = Math.floor((y - TOP_H + app.mapCam.y) / TILE);
     if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;

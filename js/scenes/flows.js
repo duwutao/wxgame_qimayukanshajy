@@ -27,8 +27,8 @@ function process(app) {
     if (ev.type === 'encounter') {
       const party = st.parties.filter(function (p) { return p.id === ev.partyId; })[0];
       if (!party) continue;
-      stateLib.startPartyBattle(st, party);
-      app.push('battle', { mode: 'party' });
+      // 先亮一张遭遇页：看清人数、看清强弱，再决定打不打
+      app.push('contact', { partyId: ev.partyId });
       return;
     }
     if (ev.type === 'lord') {

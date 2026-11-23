@@ -73,11 +73,17 @@ function defenseOf(side, st, tactic, enemySt) {
   return def;
 }
 
-function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng) {
-  const ratio = defenderAtk / (defenderAtk + attackerDef * 2.2);
-  const base = clamp(Math.pow(Math.min(1.2, ratio), 1.8) * 0.5, 0.04, 0.3);
-  const jitter = 0.92 + rng.random() * 0.16;
-  return Math.max(1, Math.round(attackerCount * base * jitter));
+/**
+ * 每回合伤亡比例。
+ * 防守权重给得高（3.2）：甲厚、结阵的一方几乎不掉人，输的一方才会被碾。
+ * minLoss 传 0 时，弱势一方可能整轮无伤亡（仗就不会打成磨盘）。
+ */
+function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng, minLoss) {
+  const ratio = defenderAtk / (defenderAtk + attackerDef * 3.2);
+  const base = clamp(Math.pow(Math.min(1.2, ratio), 1.9) * 0.56, 0.02, 0.3);
+  const jitter = 0.9 + rng.random() * 0.2;
+  const n = Math.round(attackerCount * base * jitter);
+  return Math.max(minLoss === undefined ? 1 : minLoss, n);
 }
 
 function lossText(troops, losses) {
@@ -180,8 +186,10 @@ class Battle {
       alphaStrike = Math.round(sb.count * 0.06 + sa.ranged * 0.5);
     }
 
-    const lossA = lossOfAttacker(atkB, defA, sa.count, this.rng);
-    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng) + alphaStrike;
+    // 主将亲自带的人更经打：玩家侧伤亡再打六折，别让人一场就赔光
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 0);
+    if (this.a.isPlayer) lossA = Math.round(lossA * 0.45);
+    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
 
     const realA = distributeLosses(this.a.troops, lossA);
     const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
@@ -209,8 +217,8 @@ class Battle {
     const ratioB = this.remainB() / (this.b.initialCount || 1);
     const lockA = strength(this.a.initialTroops).lockRatio > 0.25;
     const lockB = strength(this.b.initialTroops).lockRatio > 0.25;
-    const breakA = ratioA < 0.35 && !lockA;
-    const breakB = ratioB < 0.35 && !lockB;
+    const breakA = ratioA < 0.28 && !lockA;
+    const breakB = ratioB < 0.28 && !lockB;
 
     if (this.remainA() <= 0 || breakA || this.remainB() <= 0 || breakB) {
       if (this.remainA() <= 0 && this.remainB() <= 0) this.finish('draw');
@@ -224,13 +232,33 @@ class Battle {
   }
 
   finish(result) {
+    // 哪怕是碾压，也总有几个人倒在阵前：胜仗至少记一笔零星伤亡
+    if (this.a.isPlayer && result === 'win') {
+      const lost = this.a.initialCount - this.remainA();
+      if (lost <= 0 && this.a.initialCount >= 6) {
+        const real = distributeLosses(this.a.troops, 1);
+        const self = this;
+        Object.keys(real).forEach(function (id) {
+          self.lossesA[id] = (self.lossesA[id] || 0) + real[id];
+        });
+        this.log.push({
+          round: this.round,
+          aLossText: lossText(this.a.troops, real),
+          bLossText: '无伤亡',
+          remainA: this.remainA(),
+          remainB: this.remainB(),
+          alphaStrike: 0,
+        });
+      }
+    }
     this.finished = true;
     this.result = result;
   }
 
   retreat() {
     if (this.finished) return this.result;
-    const extra = Math.max(1, Math.round(this.remainA() * 0.25));
+    // 殿后留一成，不再一刀砍掉四分之一
+    const extra = Math.max(1, Math.round(this.remainA() * 0.1));
     const real = distributeLosses(this.a.troops, extra);
     const self = this;
     Object.keys(real).forEach(function (id) {
@@ -279,3 +307,4 @@ class Battle {
 }
 
 module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor };
+
