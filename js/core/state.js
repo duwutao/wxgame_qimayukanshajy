@@ -221,16 +221,37 @@ function allowedTiers(state) {
   return out;
 }
 
+/**
+ * 按配额补：先补"离目标占比差得最多"的那一级，
+ * 这样地图上的青色/蓝色/橙色/赤色比例稳定，不会越打越偏。
+ */
 function pickBanditTier(state) {
   const tiers = allowedTiers(state);
+  const counts = {};
   let total = 0;
-  tiers.forEach(function (id) { total += BANDIT_TIERS[id].share; });
-  let r = state.rng.random() * total;
-  for (let i = 0; i < tiers.length; i++) {
-    r -= BANDIT_TIERS[tiers[i]].share;
-    if (r <= 0) return tiers[i];
+  (state.parties || []).forEach(function (p) {
+    if (p.faction !== 'bandit') return;
+    counts[p.banditTier] = (counts[p.banditTier] || 0) + 1;
+    total++;
+  });
+  const base = Math.max(BANDIT_TARGET, total + 1);
+
+  // 四分之一的情况随机挑，保留一点意外
+  if (state.rng.random() < 0.25) {
+    return tiers[state.rng.int(0, tiers.length - 1)];
   }
-  return tiers[tiers.length - 1];
+
+  let best = tiers[0];
+  let bestGap = -Infinity;
+  tiers.forEach(function (id) {
+    const want = (BANDIT_TIERS[id].share || 0) * base;
+    const gap = want - (counts[id] || 0);
+    if (gap > bestGap) {
+      bestGap = gap;
+      best = id;
+    }
+  });
+  return best;
 }
 
 function spawnBanditParties(state, count) {

@@ -255,9 +255,9 @@ class Battle {
     Object.keys(this.b.initialTroops).forEach(function (id) {
       const t = TROOPS[id];
       const unit = t && t.recruit ? t.recruit : t ? Math.max(16, t.tier * 12) : 16;
-      base += unit * 0.55 * self.b.initialTroops[id];
+      base += unit * 0.7 * self.b.initialTroops[id];
     });
-    return Math.max(90, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
+    return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
   }
 
   summary() {
