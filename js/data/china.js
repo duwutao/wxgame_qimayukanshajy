@@ -4,8 +4,14 @@
  * 区域(region)决定地形基色，同一张图从塞北草原到江南水乡各不相同。
  */
 
-const MAP_W = 40;
-const MAP_H = 48;
+/**
+ * 原始设计稿是 40x48。所有折线、区域框、据点坐标都按这个尺寸写。
+ * 放大 1.6 倍后：地图 64x77，城与城之间拉开距离，TILE 不变，视野仍是 ~11 格。
+ */
+const BASE_W = 40;
+const BASE_H = 48;
+const MAP_W = 64;
+const MAP_H = 77;
 
 /** 地形：cost 影响寻路，hours 为越过一格的游戏小时 */
 const TERRAIN = {
@@ -471,6 +477,8 @@ const ENDINGS = {
 const BATTLE_SITES = ['河滩', '断桥', '麦田', '山道', '城门', '江岸', '营地', '林口'];
 
 module.exports = {
+  BASE_W,
+  BASE_H,
   MAP_W,
   MAP_H,
   TERRAIN,

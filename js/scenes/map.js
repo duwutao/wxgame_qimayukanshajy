@@ -8,7 +8,7 @@ const { UI_COLORS } = pixel;
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { regionAt, regionDef, siteById, terrainAt } = require('../core/world.js');
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS } = require('../data/china.js');
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = require('../data/china.js');
 const flows = require('./flows.js');
 
 const TILE = 64;
@@ -62,13 +62,14 @@ const MapScene = {
     stateLib.update(st, dt);
     ensureCam(app);
 
-    // 相机跟随
+    // 相机跟随（跟插值后的位置，不再跟着格子跳）
     const box = mapBox(app);
-    const targetX = st.player.x * TILE + TILE / 2 - app.runtime.width / 2;
-    const targetY = st.player.y * TILE + TILE / 2 - box.h / 2;
+    const pos = playerPixel(app);
+    const targetX = pos.gx * TILE + TILE / 2 - app.runtime.width / 2;
+    const targetY = pos.gy * TILE + TILE / 2 - box.h / 2;
     if (!app.mapDrag) {
-      app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 4.5);
-      app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 4.5);
+      app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 9);
+      app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 9);
     }
 
     if (st.events.length) {
@@ -96,6 +97,7 @@ const MapScene = {
     drawRoute(ctx, app, cam, box);
     drawPlayerOnMap(ctx, app, cam, box);
     drawRegionTag(ctx, app, box, w);
+    drawQuestCard(ctx, app, box, w);
     drawTop(ctx, app, w);
     drawBottom(ctx, app, w, box);
   },
@@ -171,8 +173,15 @@ function siteOf(world, id) {
 
 function drawGeography(ctx, app, cam, box, w) {
   const world = app.state.world;
+  // 设计稿坐标 → 实图坐标（地图放大后折线层跟着一起放大，否则和据点错位）
+  const gs = world.w / BASE_W;
   const toX = function (gx) { return gx * TILE - cam.x; };
   const toY = function (gy) { return box.top + gy * TILE - cam.y; };
+  const sc = function (pts) {
+    const out = [];
+    for (let i = 0; i < pts.length; i++) out.push([pts[i][0] * gs, pts[i][1] * gs]);
+    return out;
+  };
 
   ctx.save();
   ctx.beginPath();
@@ -182,7 +191,7 @@ function drawGeography(ctx, app, cam, box, w) {
   ctx.lineJoin = 'round';
 
   // 海岸：沙滩带 + 浪线
-  const coast = coastPoints();
+  const coast = sc(coastPoints());
   ctx.strokeStyle = 'rgba(233,216,180,0.42)';
   ctx.lineWidth = 13;
   strokePolyline(ctx, coast, toX, toY);
@@ -191,7 +200,7 @@ function drawGeography(ctx, app, cam, box, w) {
   strokePolyline(ctx, coast, toX, toY);
 
   // 河流：暗岸 + 水体 + 高光
-  [[RIVER_HUANG, 0.72], [RIVER_YANG, 0.85], [RIVER_HUAI, 0.55]].forEach(function (r) {
+  [[sc(RIVER_HUANG), 0.72], [sc(RIVER_YANG), 0.85], [sc(RIVER_HUAI), 0.55]].forEach(function (r) {
     const width = TILE * r[1];
     ctx.strokeStyle = 'rgba(30,58,84,0.38)';
     ctx.lineWidth = width + 4;
@@ -205,12 +214,13 @@ function drawGeography(ctx, app, cam, box, w) {
   });
 
   // 山脉：暗带 + 亮脊 + 峰尖
-  MOUNTAINS.forEach(function (line) {
+  MOUNTAINS.forEach(function (raw) {
+    const line = sc(raw);
     ctx.strokeStyle = 'rgba(86,80,70,0.35)';
-    ctx.lineWidth = TILE * 1.15;
+    ctx.lineWidth = TILE * 1.3;
     strokePolyline(ctx, line, toX, toY);
     ctx.strokeStyle = 'rgba(152,145,132,0.58)';
-    ctx.lineWidth = TILE * 0.5;
+    ctx.lineWidth = TILE * 0.56;
     strokePolyline(ctx, line, toX, toY);
 
     for (let i = 0; i < line.length; i++) {
@@ -368,17 +378,32 @@ function drawUnits(ctx, app, cam, box, w) {
   ctx.rect(0, box.top, w, box.h);
   ctx.clip();
 
-  // 匪团
+  // 匪团：颜色分等级，人能看出该不该惹
   st.parties.forEach(function (p) {
     const sx = p.x * TILE - cam.x + TILE / 2;
     const sy = box.top + p.y * TILE - cam.y + TILE / 2;
     if (sx < -40 || sx > w + 40 || sy < box.top - 40 || sy > box.top + box.h + 40) return;
-    ctx.drawImage(assets.bandit, sx - 14, sy - 14, 28, 28);
-    if (p.scripted) {
-      // 追兵：红色警示
-      ctx.fillStyle = 'rgba(200,60,40,0.9)';
+    const icon = assets.banditIconFor(p.color || '#7d2f28');
+    const sz = p.banditTier === 'hong' ? 34 : p.banditTier === 'cheng' ? 31 : 28;
+    ctx.drawImage(icon, sx - sz / 2, sy - sz / 2, sz, sz);
+
+    // 兵力小字：先看人数再决定上不上
+    const n = army.troopCount(p.troops || {});
+    if (n > 0) {
+      text(ctx, String(n), sx + 14, sy + 8, { size: 13, color: p.color === '#4f8f6a' ? '#8fd0a8' : '#f0c9b0', shadow: true });
+    }
+    if (p.chasing) {
+      text(ctx, '!', sx, sy - 34, { size: 20, align: 'center', color: '#e05a42', shadow: true });
+    }
+    if (p.scuffle > 0) {
+      ctx.fillStyle = 'rgba(220,80,50,0.85)';
       ctx.fillRect(sx - 22, sy - 40, 44, 16);
-      text(ctx, '追兵', sx, sy - 39, { size: 13, align: 'center', color: '#fff' });
+      text(ctx, '交战', sx, sy - 39, { size: 12, align: 'center', color: '#fff' });
+    }
+    if (p.scripted) {
+      ctx.fillStyle = 'rgba(200,60,40,0.9)';
+      ctx.fillRect(sx - 22, sy - 56, 44, 16);
+      text(ctx, '追兵', sx, sy - 55, { size: 13, align: 'center', color: '#fff' });
     }
   });
 
@@ -397,7 +422,10 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.arc(sx, sy, 22, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.drawImage(assets.lord, sx - 18, sy - 20, 36, 36);
+    // 领主棋子：按势力上色；吕布自带双翎方天戟
+    const icon = assets.lordIconFor(col, lord.id === 'lvbu' ? 'lvbu' : 'normal');
+    const isz = lord.id === 'lvbu' ? 50 : 40;
+    ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.62, isz, isz);
 
     ctx.fillStyle = col;
     ctx.fillRect(sx + 14, sy - 22, 10, 12);
@@ -449,10 +477,24 @@ function drawRoute(ctx, app, cam, box) {
   ctx.restore();
 }
 
+function playerPixel(app) {
+  const p = app.state.player;
+  let gx = p.x;
+  let gy = p.y;
+  if (p.stepTo && p.stepFrom && p.stepProgress > 0) {
+    const t = p.stepProgress > 1 ? 1 : p.stepProgress;
+    gx = p.stepFrom.x + (p.stepTo.x - p.stepFrom.x) * t;
+    gy = p.stepFrom.y + (p.stepTo.y - p.stepFrom.y) * t;
+  }
+  return { gx, gy };
+}
+
 function drawPlayerOnMap(ctx, app, cam, box) {
   const p = app.state.player;
-  const sx = p.x * TILE + TILE / 2 - cam.x;
-  const sy = box.top + p.y * TILE + TILE / 2 - cam.y;
+  const pos = playerPixel(app);
+  const walk = p.stepTo ? Math.abs(Math.sin(p.stepProgress * Math.PI)) : 0;
+  const sx = pos.gx * TILE + TILE / 2 - cam.x;
+  const sy = box.top + pos.gy * TILE + TILE / 2 - cam.y - walk * 5;
   pixel.drawPlayer(ctx, app.assets, sx, sy, TILE, app.mapPhase || 0, p.facing || 1);
 
   // 头顶旗标
@@ -464,6 +506,46 @@ function drawPlayerOnMap(ctx, app, cam, box) {
   ctx.closePath();
   ctx.fill();
   text(ctx, p.banner ? '旗' : '我', sx, sy - 50, { size: 13, align: 'center', color: '#2a1c08' });
+}
+
+/** 左上角常驻任务卡：现在该干什么，点开能看详情 */
+function drawQuestCard(ctx, app, box, w) {
+  const st = app.state;
+  const info = stateLib.campaignInfo(st);
+  if (!info) return;
+
+  const pw = Math.min(520, w - 20);
+  const ph = info.done ? 78 : 116;
+  const x = 10;
+  const y = box.top + 10;
+
+  ctx.fillStyle = 'rgba(10,8,6,0.80)';
+  ctx.fillRect(x, y, pw, ph);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(x, y, 4, ph);
+  ctx.fillStyle = 'rgba(217,164,65,0.10)';
+  ctx.fillRect(x + 4, y, pw - 4, 26);
+
+  if (info.done) {
+    text(ctx, '主线已走完', x + 16, y + 8, { size: 17, color: '#8fbf7a' });
+    text(ctx, '剩下的是占地与写史', x + 16, y + 38, { size: 15, color: '#a2947a' });
+    app.ui.rect('quest_card', x, y, pw, ph, function () { app.push('journal'); });
+    return;
+  }
+
+  text(ctx, '主线 · 第 ' + (info.index + 1) + '/' + info.total + ' 章', x + 16, y + 4, {
+    size: 16, color: '#a2947a',
+  });
+  const tl = wrap(ctx, info.title, pw - 130, 20, 'bold')[0] || '';
+  text(ctx, tl, x + 16, y + 28, { size: 20, color: '#f0c060' });
+
+  const hintLine = wrap(ctx, info.hint, pw - 44, 16).slice(0, 2);
+  hintLine.forEach(function (ln, i) {
+    text(ctx, ln, x + 16, y + 60 + i * 24, { size: 16, color: i === 0 ? '#efe3c6' : '#a2947a' });
+  });
+
+  text(ctx, '点开看任务', x + pw - 14, y + 6, { size: 14, align: 'right', color: '#8a8070' });
+  app.ui.rect('quest_card', x, y, pw, ph, function () { app.push('journal'); });
 }
 
 function drawRegionTag(ctx, app, box, w) {
@@ -526,12 +608,7 @@ function drawTop(ctx, app, w) {
     text(ctx, String(it.v), x + 26, 74, { size: 22, color: it.c });
   });
 
-  // 战役目标
-  const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
-  if (stage) {
-    text(ctx, '战役 · ' + stage.title, 16, 104, { size: 15, color: '#a2947a' });
-    text(ctx, stage.goal, 150, 104, { size: 15, color: '#e6d7b6' });
-  }
+  // 战役目标不放在顶栏了，改成地图上的任务卡（见 drawQuestCard）
 }
 
 function drawBottom(ctx, app, w, box) {
@@ -543,19 +620,20 @@ function drawBottom(ctx, app, w, box) {
 
   const btns = [
     { id: 'army', label: '队伍', tap: function () { app.push('army'); } },
-    { id: 'journal', label: '史册', tap: function () { app.push('journal'); } },
     { id: 'atlas', label: '天下', tap: function () { app.push('atlas'); } },
+    { id: 'journal', label: '史册', tap: function () { app.push('journal'); } },
     { id: 'help', label: '玩法', tap: function () { app.push('help'); } },
     { id: 'camp', label: '扎营', tap: function () {
       const r = stateLib.camp(app.state);
       app.showToast(r.msg);
     } },
+    { id: 'menu', label: '菜单', tap: function () { app.push('menu'); } },
   ];
   const gap = 10;
-  const bw = (w - 20 - gap * 4) / 5;
+  const bw = (w - 20 - gap * 5) / 6;
   btns.forEach(function (b, i) {
     app.ui.button(ctx, 10 + i * (bw + gap), y0 + 14, bw, 76, b.label, {
-      id: b.id, size: 26, onTap: b.tap,
+      id: b.id, size: 22, onTap: b.tap,
     });
   });
 

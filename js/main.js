@@ -6,6 +6,7 @@ const { createRuntime } = require('./render/platform.js');
 const pixel = require('./render/pixel.js');
 const { UI, text, wrap, panel } = require('./render/ui.js');
 const stateLib = require('./core/state.js');
+const audio = require('./core/audio.js');
 
 class App {
   constructor(runtime) {
@@ -26,6 +27,9 @@ class App {
       nested: null,
       chapter: require('./scenes/chapter.js'),
       ending: require('./scenes/ending.js'),
+      lord: require('./scenes/lord.js'),
+      revive: require('./scenes/revive.js'),
+      menu: require('./scenes/menu.js'),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;
@@ -62,6 +66,12 @@ class App {
     const entry = { name, scene, params: params || {} };
     this.stack.push(entry);
     if (scene.enter) scene.enter(this, entry.params);
+    this.applyMusic(name);
+  }
+
+  applyMusic(name) {
+    if (name === 'battle') audio.play('battle');
+    else if (name === 'map' || name === 'title') audio.play('field');
   }
 
   pop() {
@@ -71,6 +81,8 @@ class App {
     this.ui.items.length = 0;
     this.ui.pressed = null;
     this.lastHit = null;
+    const nowTop = this.top();
+    if (nowTop) this.applyMusic(nowTop.name);
   }
 
   replace(name, params) {
@@ -92,6 +104,7 @@ class App {
   }
 
   onStart(x, y) {
+    audio.resume();
     this.ui.press(x, y);
     const top = this.top();
     if (top && top.scene.onTouchStart) top.scene.onTouchStart(this, x, y);
@@ -127,6 +140,7 @@ class App {
 
     const r = this.runtime;
     r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, 0);
+    audio.update(dt);
 
     const top = this.top();
     if (top && top.scene.update) top.scene.update(this, dt);
@@ -149,7 +163,7 @@ class App {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
         this.saveTimer = 12;
-        this.runtime.storage.set('bw_save_v3', stateLib.serialize(this.state));
+        this.runtime.storage.set('bw_save_v4', stateLib.serialize(this.state));
       }
     }
   }

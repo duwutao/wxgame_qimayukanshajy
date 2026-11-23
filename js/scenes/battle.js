@@ -11,6 +11,21 @@ const { TROOPS } = require('../data/troops.js');
 const { TACTICS, TACTIC_LIST } = require('../core/battle.js');
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = require('../data/china.js');
 
+/** 打完/撤出后一路退回地图，不在城门口再被弹一次 */
+function backToMap(app) {
+  let guard = 0;
+  while (app.stack.length > 1 && guard++ < 4) {
+    const t = app.top();
+    if (!t) break;
+    if (t.name === 'map') break;
+    if (t.name === 'town' || t.name === 'lord' || t.name === 'battle' || t.name === 'chapter') {
+      app.pop();
+      continue;
+    }
+    break;
+  }
+}
+
 function boxTitle(app) {
   const bv = app.battleView;
   const b = app.state.battle;
@@ -121,7 +136,7 @@ const BattleScene = {
     });
 
     // 底部
-    const bottom = h - 220;
+    const bottom = h - 268;
     if (bv.phase === 'prep') {
       text(ctx, '选一个打法', 16, bottom - 40, { size: 20, color: '#a2947a' });
       TACTIC_LIST.forEach(function (id, i) {
@@ -136,10 +151,18 @@ const BattleScene = {
           onTap: function () { bv.tactic = id; },
         });
       });
-      const ty = bottom + 140;
+      const ty = bottom + 128;
       text(ctx, TACTICS[bv.tactic].desc, 16, ty, { size: 16, color: '#a2947a' });
 
-      app.ui.button(ctx, 16, h - 100, w - 32, 78, '开战', {
+      // 战前也能走：撤出不会算撤退伤亡，但要退出城下
+      app.ui.button(ctx, 16, h - 100, 200, 78, '撤出', {
+        id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+          stateLib.afterRetreat(app.state, b.context);
+          app.state.battle = null;
+          backToMap(app);
+        },
+      });
+      app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
         id: 'go', size: 30, fill: '#4a2a1a', onTap: function () {
           b.setTactic(bv.tactic);
           bv.phase = 'fight';
@@ -231,7 +254,7 @@ function renderResult(app, sum, w, h) {
       if (app.state.gameOver) {
         app.replace('ending');
       } else {
-        app.pop();
+        backToMap(app);
       }
     },
   });

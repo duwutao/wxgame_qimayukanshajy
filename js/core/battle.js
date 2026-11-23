@@ -243,14 +243,21 @@ class Battle {
 
   loot() {
     if (this.result !== 'win') return 0;
+    const ctx = this.context || {};
+    // 打匪团来钱快（新手要靠这个滚雪球），攻城与战役另算
+    const kindMul = ctx.kind === 'party' || ctx.kind === 'chase' ? 1.9
+      : ctx.kind === 'lord' ? 2.1
+      : ctx.kind === 'siege' ? 1.5
+      : ctx.kind === 'campaign' ? 2.4 : 1.2;
+    const tierMul = ctx.tier ? 1 + (ctx.tier - 1) * 0.35 : 1;
     let base = 0;
     const self = this;
     Object.keys(this.b.initialTroops).forEach(function (id) {
       const t = TROOPS[id];
-      if (!t) return;
-      base += (t.recruit || 12) * 0.55 * self.b.initialTroops[id];
+      const unit = t && t.recruit ? t.recruit : t ? Math.max(16, t.tier * 12) : 16;
+      base += unit * 0.55 * self.b.initialTroops[id];
     });
-    return Math.max(70, Math.round(base * (0.7 + this.rng.random() * 0.4)));
+    return Math.max(90, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
   }
 
   summary() {

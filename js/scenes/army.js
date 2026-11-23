@@ -6,6 +6,8 @@ const { text, panel, bar, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const armyLib = require('../core/army.js');
+const heroesLib = require('../core/heroes.js');
+const { HERO_MAX_LEVEL } = require('../data/extra.js');
 const { TROOPS } = require('../data/troops.js');
 const { EQUIPMENT } = require('../data/china.js');
 
@@ -65,6 +67,26 @@ const ArmyScene = {
       });
       y += 70;
     });
+
+    // 随行英雄
+    if ((p.heroes || []).length) {
+      y += 6;
+      text(ctx, '随行英雄', 20, y, { size: 20, color: '#a2947a' });
+      text(ctx, '满级 ' + HERO_MAX_LEVEL, w - 20, y + 4, { size: 15, align: 'right', color: '#8a8070' });
+      y += 30;
+      p.heroes.forEach(function (h) {
+        const def = heroesLib.heroById(h.id) || { name: h.id };
+        ctx.fillStyle = 'rgba(36,28,20,0.55)';
+        ctx.fillRect(16, y, w - 32, 54);
+        text(ctx, def.name, 32, y + 8, { size: 21, color: '#efe3c6' });
+        text(ctx, 'Lv ' + h.level, w - 130, y + 10, { size: 19, align: 'right', color: '#f0c060' });
+        bar(ctx, w - 120, y + 16, 92, 8, h.level >= HERO_MAX_LEVEL ? 1 : h.exp / (h.level * heroesLib.EXP_PER_LEVEL), '#7fae6a');
+        text(ctx, '+攻 ' + Math.round((h.level || 1) * 1.1) + '% · +防 ' + Math.round((h.level || 1) * 0.8) + '%', 32, y + 32, {
+          size: 14, color: '#8a8070',
+        });
+        y += 62;
+      });
+    }
 
     // 装备
     y += 8;

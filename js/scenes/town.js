@@ -9,10 +9,13 @@ const { UI_COLORS } = require('../render/pixel.js');
 const pixel = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const economy = require('../core/economy.js');
+const trade = require('../core/trade.js');
+const heroes = require('../core/heroes.js');
 const army = require('../core/army.js');
 const { siteById, regionDef } = require('../core/world.js');
 const { TROOPS } = require('../data/troops.js');
 const { FACTIONS, EQUIPMENT } = require('../data/china.js');
+const { GOODS, VILLAGE_FOOD } = require('../data/extra.js');
 const flows = require('./flows.js');
 
 const PAD = 16;
@@ -116,29 +119,37 @@ function renderMenu(app, site) {
 
   const isVillage = site.type === 'village';
 
-  y = menuButton(app, y, '招兵', isVillage ? '村里的壮丁，价钱便宜' : '花钱买人，价钱随城而变', function () {
-    app.townView.view = 'recruit';
-  }, { id: 'm_recruit', right: '→' });
+  if (isVillage) {
+    y = menuButton(app, y, '招兵', '村里的壮丁 · 只有最低一档，比城里便宜', function () {
+      app.townView.view = 'recruit';
+    }, { id: 'm_recruit', right: '→' });
 
-  y = menuButton(app, y, '市场', isVillage ? '粮价低 · 无军械' : '粮草 · 军械', function () {
-    app.townView.view = 'market';
-    app.townView.tab = 'food';
-  }, { id: 'm_market', right: '粮 ' + economy.foodPrice(site) + ' 金/单位' });
+    y = menuButton(app, y, '村市 · 找村长', '牛、羊、鸡、谷，村里卖得比城里便宜', function () {
+      app.townView.view = 'village';
+    }, { id: 'm_village', right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金' });
 
-  if (!isVillage) {
-    y = menuButton(app, y, '酒馆', '接活 · 打听消息', function () {
+    y = menuButton(app, y, '屠村', '抢钱抢粮，村子会记很久（关系 -5）', function () {
+      const r = stateLib.raidVillage(app.state, site);
+      app.showToast(r.msg, 2.6);
+      if (r.ok) app.townView.view = 'menu';
+    }, { id: 'm_raid', fill: '#3a2018', right: '→' });
+  } else {
+    y = menuButton(app, y, '招兵', '花钱买人，价钱随城而变', function () {
+      app.townView.view = 'recruit';
+    }, { id: 'm_recruit', right: '→' });
+
+    y = menuButton(app, y, '市场', '粮草 · 货物 · 军械', function () {
+      app.townView.view = 'market';
+      app.townView.tab = 'goods';
+    }, { id: 'm_market', right: '粮 ' + economy.foodPrice(site) + ' 金/单位' });
+
+    y = menuButton(app, y, '酒馆', '接活 · 打听消息 · 招募英雄', function () {
       app.townView.view = 'tavern';
     }, { id: 'm_tavern', right: '→' });
 
     y = menuButton(app, y, '领主府', '效忠 · 宣战 · 情报', function () {
       app.townView.view = 'hall';
     }, { id: 'm_hall', right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主' });
-  } else {
-    y = menuButton(app, y, '劫掠村庄', '抢粮抢钱，掉声望，得罪其主', function () {
-      const r = stateLib.raidVillage(app.state, site);
-      app.showToast(r.ok ? r.msg : r.msg, 2.6);
-      if (r.ok) app.townView.view = 'menu';
-    }, { id: 'm_raid', fill: '#3a2018', right: '→' });
   }
 
   app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {
@@ -162,7 +173,12 @@ function renderRecruit(app, site) {
     size: 18, align: 'right', color: '#a2947a',
   });
 
-  const list = site.recruitList || [];
+  let list = site.recruitList || [];
+  // 村庄只出最低一档的壮丁
+  if (site.type === 'village') {
+    list = ['militia'];
+    if (!site.recruits.militia || site.recruits.militia <= 0) site.recruits.militia = 3;
+  }
   let y = 340;
 
   if (!list.length) {
@@ -206,16 +222,174 @@ function renderRecruit(app, site) {
 
 /* ---------------------------------------------------------------- 市场 */
 
+/* ---------------------------------------------------------------- 货物 */
+
+/** 货物总览：十种货，两列五行，点开看单品 */
+function renderGoods(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const h = app.runtime.height;
+  const p = app.state.player;
+  const carried = trade.goodsCount(p);
+
+  text(ctx, '驮队 ' + carried + ' / ' + trade.GOODS_CAP + ' 件', PAD, 360, { size: 21, color: '#efe3c6' });
+  text(ctx, '买低卖高，异地差价就是利润', w - PAD, 366, {
+    size: 15, align: 'right', color: '#8a8070',
+  });
+
+  const top = 396;
+  const cw = (w - PAD * 2 - 10) / 2;
+  const rh = 96;
+
+  GOODS.forEach(function (gd, i) {
+    const cx = PAD + (i % 2) * (cw + 10);
+    const cy = top + Math.floor(i / 2) * rh;
+    const buy = trade.buyPrice(site, gd.id);
+    const sell = trade.sellPrice(site, gd.id);
+    const have = (p.goods || {})[gd.id] || 0;
+
+    panel(ctx, cx, cy, cw, rh - 8, { fill: '#241c14' });
+    text(ctx, gd.name, cx + 14, cy + 8, { size: 20, color: '#efe3c6' });
+    text(ctx, '买 ' + buy + ' / 卖 ' + sell, cx + 14, cy + 36, { size: 16, color: '#f0c060' });
+    text(ctx, '持有 ' + have, cx + 14, cy + 60, {
+      size: 15, color: have > 0 ? '#8fbf7a' : '#6a6050',
+    });
+    text(ctx, '→', cx + cw - 22, cy + 30, { size: 22, color: '#8a8070' });
+
+    app.ui.rect('good_' + gd.id, cx, cy, cw, rh - 8, function () {
+      app.townView.goodId = gd.id;
+      app.townView.estimate = null;
+    });
+  });
+
+  backButton(app, h - 84);
+}
+
+/** 单品交易：买/卖几件，顺便估个价 */
+function renderGoodOne(app, site, goodId) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const h = app.runtime.height;
+  const st = app.state;
+  const p = st.player;
+  const gd = trade.goodById(goodId);
+  if (!gd) {
+    app.townView.goodId = null;
+    return;
+  }
+  const buy = trade.buyPrice(site, goodId);
+  const sell = trade.sellPrice(site, goodId);
+  const have = (p.goods || {})[goodId] || 0;
+
+  text(ctx, gd.name, PAD, 358, { size: 30, color: '#f0c060' });
+  text(ctx, '基准 ' + gd.base + ' 金 / ' + gd.unit, w - PAD, 364, { size: 16, align: 'right', color: '#8a8070' });
+  wrap(ctx, gd.desc, w - PAD * 2, 16).slice(0, 2).forEach(function (ln, i) {
+    text(ctx, ln, PAD, 400 + i * 24, { size: 16, color: '#a2947a' });
+  });
+
+  text(ctx, '本地买 ' + buy + ' 金', PAD, 460, { size: 22, color: '#f0c060' });
+  text(ctx, '本地卖 ' + sell + ' 金', PAD + 220, 460, { size: 22, color: '#8fb0d8' });
+  text(ctx, '持有 ' + have + ' · 驮队 ' + trade.goodsCount(p) + '/' + trade.GOODS_CAP, PAD, 498, {
+    size: 18, color: '#efe3c6',
+  });
+
+  const bw = (w - PAD * 2 - 20) / 3;
+  [1, 5, 10].forEach(function (n, i) {
+    app.ui.button(ctx, PAD + i * (bw + 10), 540, bw, 68, '买 ' + n, {
+      id: 'gb' + n, size: 22, onTap: function () {
+        const r = trade.buyGoods(st, site, goodId, n);
+        app.showToast(r.msg, 2.2);
+      },
+    });
+    app.ui.button(ctx, PAD + i * (bw + 10), 618, bw, 68, '卖 ' + n, {
+      id: 'gs' + n, size: 22, fill: '#241c14', disabled: have <= 0, onTap: function () {
+        const r = trade.sellGoods(st, site, goodId, n);
+        app.showToast(r.msg, 2.2);
+      },
+    });
+  });
+
+  app.ui.button(ctx, PAD, 700, w - PAD * 2, 68, '估价 · 哪里卖得贵', {
+    id: 'g_est', size: 24, fill: '#3a2c1e', onTap: function () {
+      app.townView.estimate = trade.estimate(st, site, goodId);
+    },
+  });
+
+  // 估价结果
+  const est = app.townView.estimate;
+  if (est && est.ok) {
+    let y = 786;
+    if (!est.rows || !est.rows.length) {
+      text(ctx, est.msg, PAD, y, { size: 17, color: '#a2947a' });
+    } else {
+      text(ctx, '本城 ' + est.here + ' 金 · 往这些城去：', PAD, y, { size: 17, color: '#a2947a' });
+      y += 30;
+      est.rows.forEach(function (row) {
+        if (y > h - 150) return;
+        text(ctx, row.site.name, PAD, y, { size: 19, color: '#efe3c6' });
+        text(ctx, row.price + ' 金', PAD + 150, y, { size: 19, color: '#f0c060' });
+        text(ctx, '每件多赚 ' + row.profit, PAD + 260, y, { size: 17, color: '#8fbf7a' });
+        text(ctx, row.dist + ' 格', w - PAD, y, { size: 15, align: 'right', color: '#8a8070' });
+        y += 34;
+      });
+    }
+  }
+
+  app.ui.button(ctx, PAD, h - 84, 150, 64, '← 货物', {
+    id: 'g_back', size: 22, onTap: function () {
+      app.townView.goodId = null;
+      app.townView.estimate = null;
+    },
+  });
+}
+
+/* ---------------------------------------------------------------- 村市 */
+
+/** 村长：牛、羊、鸡、谷，村里比城里便宜 */
+function renderVillage(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const h = app.runtime.height;
+  const st = app.state;
+  const p = st.player;
+
+  text(ctx, '村市 · 村长', PAD, 296, { size: 26, color: '#f0c060' });
+  text(ctx, '“牛不卖，除非你出得起。”', PAD, 332, { size: 17, color: '#a2947a' });
+  text(ctx, '你的粮草 ' + p.food + ' 单位', w - PAD, 336, { size: 18, align: 'right', color: '#8fbf7a' });
+
+  let y = 380;
+  VILLAGE_FOOD.forEach(function (f) {
+    const price = Math.round(f.price * (site.priceIndex || 1) * 0.85);
+    panel(ctx, PAD, y, w - PAD * 2, 96, { fill: '#241c14' });
+    text(ctx, f.name, PAD + 18, y + 10, { size: 24, color: '#efe3c6' });
+    text(ctx, '+' + f.food + ' 口粮', PAD + 150, y + 16, { size: 18, color: '#a2947a' });
+    const dl = wrap(ctx, f.desc, w - PAD * 2 - 200, 15)[0] || '';
+    text(ctx, dl, PAD + 18, y + 50, { size: 15, color: '#8a8070' });
+    text(ctx, price + ' 金', w - PAD - 142, y + 44, { size: 22, align: 'right', color: '#f0c060' });
+    app.ui.button(ctx, w - PAD - 130, y + 22, 112, 54, '买', {
+      id: 'vf_' + f.id, size: 22, disabled: p.gold < price, onTap: function () {
+        const r = stateLib.buyVillageFood(st, site, f.id);
+        app.showToast(r.msg, 2.2);
+      },
+    });
+    y += 108;
+  });
+
+  backButton(app, h - 84);
+}
+
 function renderMarket(app, site, tab) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
+  const h = app.runtime.height;
   const st = app.state;
 
   const tabs = [
+    { id: 'goods', label: '货物' },
     { id: 'food', label: '粮草' },
     { id: 'arms', label: '军械' },
   ];
-  const tw = (w - PAD * 2) / 2;
+  const tw = (w - PAD * 2) / 3;
   tabs.forEach(function (t, i) {
     const active = tab === t.id;
     const x = PAD + i * tw;
@@ -226,8 +400,15 @@ function renderMarket(app, site, tab) {
     text(ctx, t.label, x + tw / 2 - 2, 306, { size: 24, align: 'center', color: active ? '#f0c060' : '#a2947a' });
     app.ui.rect('tab_' + t.id, x, 292, tw - 4, 56, function () {
       app.townView.tab = t.id;
+      app.townView.goodId = null;
     });
   });
+
+  if (tab === 'goods') {
+    if (app.townView.goodId) renderGoodOne(app, site, app.townView.goodId);
+    else renderGoods(app, site);
+    return;
+  }
 
   if (tab === 'food') {
     const price = economy.foodPrice(site);
@@ -329,6 +510,29 @@ function renderTavern(app, site) {
       },
     });
     y += 90;
+  }
+
+  // 英雄：在酒馆里坐着的不起眼的人
+  const offers = heroes.offersAt(st, site);
+  if (offers.length) {
+    text(ctx, '角落里坐着的人', PAD, y + 6, { size: 20, color: '#a2947a' });
+    y += 40;
+    offers.slice(0, 2).forEach(function (h) {
+      panel(ctx, PAD, y, w - PAD * 2, 150, { fill: '#201a14' });
+      text(ctx, h.name, PAD + 18, y + 12, { size: 26, color: '#efe3c6' });
+      text(ctx, '1-10 级 · 随队不死 · 打仗涨级', PAD + 150, y + 20, { size: 15, color: '#8a8070' });
+      wrap(ctx, h.bio, w - PAD * 2 - 200, 15).slice(0, 2).forEach(function (ln, i) {
+        text(ctx, ln, PAD + 18, y + 56 + i * 22, { size: 15, color: '#a2947a' });
+      });
+      text(ctx, h.cost + ' 金', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
+      app.ui.button(ctx, w - PAD - 120, y + 88, 104, 52, '招募', {
+        id: 'hero_' + h.id, size: 20, disabled: st.player.gold < h.cost, onTap: function () {
+          const r = heroes.hireHero(st, site, h.id);
+          app.showToast(r.msg, 2.4);
+        },
+      });
+      y += 164;
+    });
   }
 
   // 传闻
@@ -467,7 +671,9 @@ const TownScene = {
     app.townView = {
       siteId: params.siteId,
       view: params.view || 'menu',
-      tab: 'food',
+      tab: 'goods',
+      goodId: null,
+      estimate: null,
     };
   },
 
@@ -491,7 +697,8 @@ const TownScene = {
 
     const v = app.townView.view;
     if (v === 'recruit') renderRecruit(app, site);
-    else if (v === 'market') renderMarket(app, site, app.townView.tab || 'food');
+    else if (v === 'market') renderMarket(app, site, app.townView.tab || 'goods');
+    else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);
     else if (v === 'hall') renderHall(app, site);
     else {

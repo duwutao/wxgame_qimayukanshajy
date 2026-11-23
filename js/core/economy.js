@@ -8,6 +8,12 @@ const { troopCount, troopCapacity } = require('./army.js');
 
 const FOOD_BASE = 5; // 基准粮价（金币 / 单位）
 
+/**
+ * 兵价按档次重排：民兵近乎白给，往上每一档都明显更贵。
+ * 低阶兵是消耗品，高阶兵是资产。
+ */
+const TIER_PRICE_MUL = { 1: 0.42, 2: 0.85, 3: 1.05, 4: 1.18, 5: 1.35 };
+
 function foodPrice(site) {
   if (!site || !site.market) return 0;
   return Math.max(2, Math.round(FOOD_BASE * site.priceBase * (site.priceIndex || 1)));
@@ -21,8 +27,9 @@ function foodSellPrice(site) {
 function recruitPrice(site, troopId) {
   const t = TROOPS[troopId];
   if (!t || !site) return 0;
-  const typeMul = site.type === 'castle' ? 1.2 : site.type === 'village' ? 0.9 : 1.0;
-  return Math.round(t.recruit * typeMul * (site.priceIndex || 1));
+  const typeMul = site.type === 'castle' ? 1.2 : site.type === 'village' ? 0.68 : 1.0;
+  const tierMul = TIER_PRICE_MUL[t.tier] || 1;
+  return Math.max(4, Math.round(t.recruit * tierMul * typeMul * (site.priceIndex || 1)));
 }
 
 function canRecruit(state, site, troopId) {

@@ -1,0 +1,184 @@
+/**
+ * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
+ * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
+ */
+
+const { text, panel, wrap } = require('../render/ui.js');
+const { UI_COLORS } = require('../render/pixel.js');
+const stateLib = require('../core/state.js');
+const army = require('../core/army.js');
+const { FACTIONS } = require('../data/china.js');
+
+function lordOf(app) {
+  const d = app.lordTalk;
+  if (!d) return null;
+  return app.state.lords.filter(function (l) { return l.id === d.lordId; })[0] || null;
+}
+
+const OPTIONS = [
+  { id: 'bio', label: '了解生平' },
+  { id: 'troops', label: '查看兵力' },
+  { id: 'gift', label: '送礼结交' },
+  { id: 'war', label: '当场开战' },
+  { id: 'idle', label: '你在做什么' },
+  { id: 'leave', label: '离开' },
+];
+
+const LordScene = {
+  enter(app, params) {
+    const lord = app.state.lords.filter(function (l) { return l.id === params.lordId; })[0];
+    app.lordTalk = {
+      lordId: params.lordId,
+      page: 'menu',
+      line: lord ? stateLib.lordGreet(app.state, lord) + '\n' + stateLib.lordIdle(app.state, lord) : '……',
+    };
+  },
+
+  update(app) {
+    const lord = lordOf(app);
+    if (!lord || !lord.alive) {
+      app.pop();
+    }
+  },
+
+  render(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const d = app.lordTalk;
+    const lord = lordOf(app);
+    if (!lord) return;
+
+    const fac = FACTIONS[lord.faction];
+    const col = fac ? fac.color : '#8f8f86';
+
+    ctx.fillStyle = '#0d0a07';
+    ctx.fillRect(0, 0, w, h);
+
+    // 背景条：势力色
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.25;
+    ctx.fillRect(0, 0, w, 300);
+    ctx.globalAlpha = 1;
+
+    // 立绘：按原始比例放大，吕布用自己的双翎造型
+    const variant = lord.id === 'lvbu' ? 'lvbu' : 'normal';
+    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, variant) : null) || app.assets.lord;
+    const sw0 = sprite.width || 20;
+    const sh0 = sprite.height || 20;
+    let spW = Math.min(300, w * 0.72);
+    let spH = spW * (sh0 / sw0);
+    const maxH = h * 0.28;
+    if (spH > maxH) {
+      spH = maxH;
+      spW = spH * (sw0 / sh0);
+    }
+    ctx.drawImage(sprite, w / 2 - spW / 2, 56, spW, spH);
+
+    // 名字与身份
+    text(ctx, lord.name, w / 2, 40, { size: 42, align: 'center', color: '#f5e9cf', shadow: true });
+    text(ctx, (lord.title || '') + ' · ' + (fac ? fac.full : '无主'), w / 2, 94, {
+      size: 18, align: 'center', color: '#c9bda2', shadow: true,
+    });
+
+    // 话框
+    const boxY = Math.max(h * 0.30, 200);
+    const boxH = Math.min(260, h - boxY - 250);
+    panel(ctx, 20, boxY, w - 40, boxH, { fill: '#201a14' });
+    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' + stateLib.lordRank(lord),
+      w - 36, boxY + 10, { size: 16, align: 'right', color: '#a2947a' });
+    const size = 21;
+    const lines = wrap(ctx, d.line, w - 96, size, 'bold');
+    lines.slice(0, 8).forEach(function (ln, i) {
+      text(ctx, ln, 48, boxY + 24 + i * 32, { size, color: '#efe3c6' });
+    });
+
+    const bottomY = boxY + boxH + 16;
+
+    if (d.page === 'menu') {
+      OPTIONS.forEach(function (op, i) {
+        const bw = (w - 60) / 3;
+        const bx = 20 + (i % 3) * (bw + 10);
+        const by = bottomY + Math.floor(i / 3) * 78;
+        app.ui.button(ctx, bx, by, bw, 68, op.label, {
+          id: 'ld_' + op.id,
+          size: 22,
+          fill: op.id === 'war' ? '#43201a' : '#33271b',
+          onTap: function () { act(app, op.id); },
+        });
+      });
+    } else if (d.page === 'gift') {
+      text(ctx, '送礼：君主 100 金换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
+        size: 18, color: '#a2947a',
+      });
+      [100, 300, 500].forEach(function (g, i) {
+        const bw = (w - 60) / 3;
+        app.ui.button(ctx, 20 + i * (bw + 10), bottomY + 34, bw, 70, g + ' 金', {
+          id: 'gift_' + g, size: 24, fill: '#3a2a12', onTap: function () {
+            const r = stateLib.giftLord(st, lord, g);
+            app.showToast(r.msg, 2);
+            d.line = r.ok ? lord.name + '收下了这份礼。\n（' + r.msg + '）' : r.msg;
+            d.page = 'menu';
+          },
+        });
+      });
+      app.ui.button(ctx, 20, bottomY + 116, w - 40, 62, '算了', {
+        id: 'gift_back', size: 22, fill: '#241c14', onTap: function () { d.page = 'menu'; },
+      });
+    } else {
+      app.ui.button(ctx, 20, bottomY, w - 40, 68, '回到话头', {
+        id: 'ld_back', size: 24, fill: '#241c14', onTap: function () { d.page = 'menu'; },
+      });
+    }
+  },
+};
+
+function act(app, id) {
+  const st = app.state;
+  const d = app.lordTalk;
+  const lord = lordOf(app);
+  if (!lord) return;
+
+  if (id === 'bio') {
+    const t = stateLib.lordLines(lord);
+    d.line = t.bio || ('关于' + lord.name + '，你能知道的只有他现在的样子。');
+    d.page = 'bio';
+    return;
+  }
+  if (id === 'troops') {
+    const rows = stateLib.lordTroopLine(lord);
+    d.line = '“我的家底？”\n' + (rows.length ? rows.join(' · ') : '人已经打光了') +
+      '\n合计 ' + army.troopCount(lord.troops) + ' 人，士气 ' + Math.round(lord.morale) +
+      (stateLib.isHostileFaction(st, lord.faction) ? '。他手按着刀柄。' : '。');
+    d.page = 'troops';
+    return;
+  }
+  if (id === 'gift') {
+    d.page = 'gift';
+    return;
+  }
+  if (id === 'idle') {
+    d.line = '“' + stateLib.lordIdle(st, lord) + '”\n（他把手里的东西放下，看了你一眼。）';
+    d.page = 'idle';
+    return;
+  }
+  if (id === 'war') {
+    const r = stateLib.provokeLord(st, lord);
+    app.showToast(r.msg + '，他拔了刀。', 2);
+    stateLib.startLordBattle(st, lord);
+    app.push('battle', { mode: 'lord' });
+    return;
+  }
+  if (id === 'leave') {
+    if (stateLib.isHostileFaction(st, lord.faction)) {
+      app.showToast('他不打算让你走。', 2);
+      stateLib.startLordBattle(st, lord);
+      app.push('battle', { mode: 'lord' });
+      return;
+    }
+    app.pop();
+  }
+}
+
+module.exports = LordScene;

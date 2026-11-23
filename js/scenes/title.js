@@ -6,7 +6,7 @@ const { text, panel } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 
-const SAVE_KEY = 'bw_save_v3';
+const SAVE_KEY = 'bw_save_v4';
 
 function hasSave(app) {
   const raw = app.runtime.storage.get(SAVE_KEY);

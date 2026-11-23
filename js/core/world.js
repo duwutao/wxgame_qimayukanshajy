@@ -4,6 +4,8 @@
 
 const { RNG } = require('../rng.js');
 const {
+  BASE_W,
+  BASE_H,
   MAP_W,
   MAP_H,
   TERRAIN,
@@ -18,6 +20,23 @@ const {
   ROADS,
   FACTIONS,
 } = require('../data/china.js');
+
+/**
+ * 设计稿 40x48 → 实图 64x77。所有静态坐标统一乘这个系数，
+ * 地图更大，城与城之间自然拉开，格子的像素尺寸不变。
+ */
+const SCALE = MAP_W / BASE_W;
+
+/** 设计稿坐标 → 实际格子坐标 */
+function S(v) {
+  const r = Math.round(v * SCALE);
+  return r < 0 ? 0 : r;
+}
+
+function SV(v, max) {
+  const r = S(v);
+  return r > max ? max : r;
+}
 
 function idx(x, y) {
   return y * MAP_W + x;
@@ -88,17 +107,18 @@ function bresenham(x0, y0, x1, y1, cb) {
   }
 }
 
-/** 海岸线插值 */
+/** 海岸线插值（入参是实图行号，内部换算回设计稿） */
 function coastX(y) {
+  const sy = y / SCALE;
   for (let i = 0; i < COAST.length - 1; i++) {
     const a = COAST[i];
     const b = COAST[i + 1];
-    if (y >= a[0] && y <= b[0]) {
-      const t = (y - a[0]) / (b[0] - a[0] || 1);
-      return a[1] + (b[1] - a[1]) * t;
+    if (sy >= a[0] && sy <= b[0]) {
+      const t = (sy - a[0]) / (b[0] - a[0] || 1);
+      return SV(a[1] + (b[1] - a[1]) * t, MAP_W - 1);
     }
   }
-  return COAST[COAST.length - 1][1];
+  return SV(COAST[COAST.length - 1][1], MAP_W - 1);
 }
 
 function createWorld(seed) {
@@ -122,7 +142,8 @@ function createWorld(seed) {
     'ssb', 'liangzhou', 'bingzhou', 'youyan', 'jizhou', 'guanzhong',
     'zhongyuan', 'xuzhou', 'yizhou', 'jingzhou', 'jiangdong', 'jiaozhou',
   ];
-  const boxes = {
+  // 设计稿里的区域矩形，统一换算到放大后的坐标
+  const rawBoxes = {
     ssb: [0, 0, 21, 8],
     liangzhou: [0, 9, 12, 26],
     bingzhou: [13, 6, 24, 16],
@@ -136,6 +157,11 @@ function createWorld(seed) {
     jiangdong: [30, 29, 38, 42],
     jiaozhou: [18, 42, 30, 47],
   };
+  const boxes = {};
+  Object.keys(rawBoxes).forEach(function (k) {
+    const b = rawBoxes[k];
+    boxes[k] = [S(b[0]), S(b[1]), S(b[2]), S(b[3])];
+  });
   regionOrder.forEach(function (rid) {
     const b = boxes[rid];
     if (!b) return;
@@ -159,17 +185,18 @@ function createWorld(seed) {
     }
   }
 
-  // 3. 山脉（折线加粗）
+  // 3. 山脉（折线加粗；放大后按比例补宽，保持视觉厚度）
   MOUNTAINS.forEach(function (line) {
     for (let i = 0; i < line.length - 1; i++) {
-      const a = line[i];
-      const b = line[i + 1];
+      const a = [S(line[i][0]), SV(line[i][1], MAP_H - 1)];
+      const b = [S(line[i + 1][0]), SV(line[i + 1][1], MAP_H - 1)];
       bresenham(a[0], a[1], b[0], b[1], function (x, y) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
         world.tiles[idx(x, y)] = 'mountain';
-        if (rng.chance(0.45)) setTile(world, x + 1, y, 'mountain');
-        if (rng.chance(0.3)) setTile(world, x, y + 1, 'mountain');
+        if (rng.chance(0.62)) setTile(world, x + 1, y, 'mountain');
+        if (rng.chance(0.5)) setTile(world, x, y + 1, 'mountain');
+        if (rng.chance(0.2)) setTile(world, x + 1, y + 1, 'mountain');
       });
     }
   });
@@ -177,13 +204,13 @@ function createWorld(seed) {
   // 4. 河流
   function drawRiver(points, wide) {
     for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i];
-      const b = points[i + 1];
+      const a = [S(points[i][0]), SV(points[i][1], MAP_H - 1)];
+      const b = [S(points[i + 1][0]), SV(points[i + 1][1], MAP_H - 1)];
       bresenham(a[0], a[1], b[0], b[1], function (x, y) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
         world.tiles[idx(x, y)] = 'river';
-        if (wide && rng.chance(0.35)) setTile(world, x, y + 1, 'river');
+        if (wide && rng.chance(0.5)) setTile(world, x, y + 1, 'river');
       });
     }
   }
@@ -213,7 +240,8 @@ function createWorld(seed) {
   // 6. 据点
   SITE_ROWS.forEach(function (row) {
     const def = {
-      id: row[0], name: row[1], type: row[2], faction: row[3], x: row[4], y: row[5],
+      id: row[0], name: row[1], type: row[2], faction: row[3],
+      x: S(row[4]), y: SV(row[5], MAP_H - 1),
       priceBase: row[6], garrison: row[7], troopSet: row[8], blurb: row[9],
     };
     const site = {
@@ -241,7 +269,7 @@ function createWorld(seed) {
       color: FACTIONS[def.faction] ? FACTIONS[def.faction].color : '#8f8f86',
     };
     // 清出场地（只清山与海，保留河流作为渡口）
-    const clearR = def.type === 'town' || def.type === 'castle' ? 1 : 0;
+    const clearR = def.type === 'town' || def.type === 'castle' ? 2 : 1;
     const base = REGIONS[site.region] ? REGIONS[site.region].base : 'plain';
     for (let y = site.y - clearR; y <= site.y + clearR; y++) {
       for (let x = site.x - clearR; x <= site.x + clearR; x++) {
@@ -316,6 +344,51 @@ function reachableTiles(world, sx, sy) {
   return seen;
 }
 
+/** 二叉最小堆：A* 的 open 表。地图放大到 64x77 后线性扫太慢 */
+function MinHeap() {
+  this.items = [];
+  this.keys = [];
+}
+MinHeap.prototype.push = function (item, key) {
+  const items = this.items;
+  const keys = this.keys;
+  let i = items.length;
+  items.push(item);
+  keys.push(key);
+  while (i > 0) {
+    const p = (i - 1) >> 1;
+    if (keys[p] <= key) break;
+    items[i] = items[p];
+    keys[i] = keys[p];
+    i = p;
+  }
+  items[i] = item;
+  keys[i] = key;
+};
+MinHeap.prototype.pop = function () {
+  const items = this.items;
+  const keys = this.keys;
+  const top = items[0];
+  const lastItem = items.pop();
+  const lastKey = keys.pop();
+  if (items.length === 0) return top;
+  let i = 0;
+  const n = items.length;
+  while (true) {
+    const l = i * 2 + 1;
+    if (l >= n) break;
+    const r = l + 1;
+    const c = r < n && keys[r] < keys[l] ? r : l;
+    if (keys[c] >= lastKey) break;
+    items[i] = items[c];
+    keys[i] = keys[c];
+    i = c;
+  }
+  items[i] = lastItem;
+  keys[i] = lastKey;
+  return top;
+};
+
 /**
  * A* 8 向寻路，返回不含起点的路径；不可达返回 null
  */
@@ -330,29 +403,17 @@ function findPath(world, from, to) {
   const dist = new Float32Array(N).fill(Infinity);
   const prev = new Int32Array(N).fill(-1);
   const closed = new Uint8Array(N);
-  const open = [startI];
+  const heap = new MinHeap();
   dist[startI] = 0;
+  heap.push(startI, 0);
 
   const dirs = [
     [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
     [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142],
   ];
 
-  while (open.length) {
-    let bestK = 0;
-    let bestScore = Infinity;
-    for (let k = 0; k < open.length; k++) {
-      const n = open[k];
-      const nx = n % MAP_W;
-      const ny = Math.floor(n / MAP_W);
-      const h = Math.abs(nx - to.x) + Math.abs(ny - to.y);
-      const score = dist[n] + h;
-      if (score < bestScore) {
-        bestScore = score;
-        bestK = k;
-      }
-    }
-    const cur = open.splice(bestK, 1)[0];
+  while (heap.items.length) {
+    const cur = heap.pop();
     if (closed[cur]) continue;
     closed[cur] = 1;
     if (cur === goalI) break;
@@ -376,7 +437,7 @@ function findPath(world, from, to) {
       if (nd < dist[ni]) {
         dist[ni] = nd;
         prev[ni] = cur;
-        open.push(ni);
+        heap.push(ni, nd + Math.abs(nx - to.x) + Math.abs(ny - to.y));
       }
     }
   }

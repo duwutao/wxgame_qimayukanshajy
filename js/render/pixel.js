@@ -300,42 +300,76 @@ function makePlayerSprite(runtime) {
   return c;
 }
 
-/** 领主棋子：小骑马剪影，颜色由势力决定，运行时着色 */
-function makeLordSprite(runtime) {
-  const size = 18;
+/**
+ * 领主棋子：小骑马剪影
+ * color 为势力色，variant 为 'lvbu' 时加双翎与方天戟（一眼能认出来）
+ */
+function makeLordSprite(runtime, color, variant) {
+  const size = 20;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   g.clearRect(0, 0, size, size);
+  const main = color || '#e6e2d6';
+
   // 马
-  px(g, 4, 11, '#2a2320', 10, 5);
-  px(g, 4, 11, '#3f3530', 10, 1);
-  px(g, 13, 8, '#2a2320', 3, 4);
-  px(g, 5, 15, '#2a2320', 2, 3);
-  px(g, 11, 15, '#2a2320', 2, 3);
+  px(g, 3, 12, '#2a2320', 12, 5);
+  px(g, 3, 12, '#443a33', 12, 1);
+  px(g, 14, 9, '#2a2320', 3, 4);
+  px(g, 4, 16, '#2a2320', 2, 3);
+  px(g, 12, 16, '#2a2320', 2, 3);
+  px(g, 3, 13, '#5a4a3c', 2, 1);
+
   // 骑手
-  px(g, 7, 5, '#e6e2d6', 5, 6);
-  px(g, 8, 2, '#cfc9ba', 3, 3);
-  // 旗
-  px(g, 15, 0, '#6a5a3a', 1, 10);
-  px(g, 15, 0, '#e0e0e0', 3, 3);
+  px(g, 7, 6, main, 6, 6);
+  px(g, 7, 6, 'rgba(0,0,0,0.25)', 6, 1);
+  px(g, 8, 3, '#d8cdb6', 4, 3);
+  px(g, 8, 2, '#3a3a44', 4, 1);
+
+  if (variant === 'lvbu') {
+    // 双翎
+    px(g, 7, 0, '#c03830', 1, 4);
+    px(g, 12, 0, '#c03830', 1, 4);
+    // 方天戟
+    px(g, 17, 2, '#8a8f99', 1, 14);
+    px(g, 16, 2, '#d8dde6', 3, 2);
+    px(g, 16, 5, '#d8dde6', 2, 1);
+  } else {
+    // 刀
+    px(g, 16, 4, '#b8bcc4', 1, 11);
+    px(g, 15, 3, '#e2e6ee', 2, 2);
+  }
+
+  // 小旗
+  px(g, 18, 0, '#5f4830', 1, 9);
+  px(g, 18, 1, main, 2, 4);
   return c;
 }
 
-/** 匪团棋子 */
-function makeBanditSprite(runtime) {
+/** 匪团棋子：按等级换衣色，青/蓝/橙/红一眼分得开 */
+function makeBanditSprite(runtime, color) {
   const size = 14;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
-  const body = '#7d2f28';
-  const dark = '#54201b';
+  const body = color || '#7d2f28';
+  const dark = shade(body, -0.35);
   px(g, 4, 6, body, 5, 6);
   px(g, 4, 6, dark, 1, 6);
   px(g, 5, 3, '#8a6a44', 3, 3);
-  px(g, 4, 2, '#4a2018', 5, 2);
+  px(g, 4, 2, dark, 5, 2);
   px(g, 9, 5, '#c9c9d2', 1, 6);
   px(g, 5, 12, dark, 1, 2);
   px(g, 8, 12, dark, 1, 2);
   return c;
+}
+
+/** 颜色明暗调整 */
+function shade(hex, amt) {
+  const s = hex.replace('#', '');
+  const r = Math.max(0, Math.min(255, Math.round(parseInt(s.substring(0, 2), 16) * (1 + amt))));
+  const gg = Math.max(0, Math.min(255, Math.round(parseInt(s.substring(2, 4), 16) * (1 + amt))));
+  const b = Math.max(0, Math.min(255, Math.round(parseInt(s.substring(4, 6), 16) * (1 + amt))));
+  const pad = function (n) { return (n < 16 ? '0' : '') + n.toString(16); };
+  return '#' + pad(r) + pad(gg) + pad(b);
 }
 
 /** 小旗 */
@@ -367,9 +401,23 @@ function buildAssets(runtime) {
     terrainCache,
     site,
     player: makePlayerSprite(runtime),
-    lord: makeLordSprite(runtime),
-    bandit: makeBanditSprite(runtime),
+    lord: makeLordSprite(runtime, '#e6e2d6', 'normal'),
+    bandit: makeBanditSprite(runtime, '#7d2f28'),
     flag: { player: makeFlagSprite(runtime, '#d9a441') },
+    /** 按势力色生成领主棋子（带缓存） */
+    lordIconFor: function (color, variant) {
+      const key = (color || 'x') + '|' + (variant || 'n');
+      if (!this.lordCache) this.lordCache = {};
+      if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, variant);
+      return this.lordCache[key];
+    },
+    /** 按等级色生成匪团棋子 */
+    banditIconFor: function (color) {
+      if (!this.banditCache) this.banditCache = {};
+      const key = color || '#7d2f28';
+      if (!this.banditCache[key]) this.banditCache[key] = makeBanditSprite(runtime, key);
+      return this.banditCache[key];
+    },
     /** 按区域 + 地形取贴图（懒生成并缓存） */
     terrainFor: function (region, terrain) {
       const key = region + '_' + terrain;

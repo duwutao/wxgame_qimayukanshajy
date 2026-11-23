@@ -34,8 +34,12 @@ function process(app) {
     if (ev.type === 'lord') {
       const lord = st.lords.filter(function (l) { return l.id === ev.lordId; })[0];
       if (!lord || !lord.alive) continue;
-      stateLib.startLordBattle(st, lord);
-      app.push('battle', { mode: 'lord' });
+      // 先碰面说话：对话里再决定送礼、看兵、还是直接翻脸
+      app.push('lord', { lordId: ev.lordId });
+      return;
+    }
+    if (ev.type === 'revive') {
+      app.push('revive', { count: ev.count });
       return;
     }
     if (ev.type === 'chapter') {

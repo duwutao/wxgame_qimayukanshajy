@@ -34,7 +34,7 @@ function group(title) {
 
 group('世界生成');
 const world = worldLib.createWorld(20260101);
-ok('地图尺寸 40x48', world.w === 40 && world.h === 48, world.w + 'x' + world.h);
+ok('地图尺寸 64x77', world.w === 64 && world.h === 77, world.w + 'x' + world.h);
 ok('据点 55 个', world.sites.length === 55, String(world.sites.length));
 ok('据点数组与定义一致', world.sites.length === SITE_ROWS.length);
 
@@ -62,7 +62,7 @@ ok('所有据点可达', unreachable.length === 0, unreachable.join(','));
 group('开局');
 const st = stateLib.createGame({ seed: 20260101 });
 ok('玩家 30 民兵', armyLib.troopCount(st.player.troops) === 30, JSON.stringify(st.player.troops));
-ok('金 60 / 粮 40', st.player.gold === 60 && st.player.food === 40, st.player.gold + '/' + st.player.food);
+ok('金 80 / 粮 45', st.player.gold === 80 && st.player.food === 45, st.player.gold + '/' + st.player.food);
 ok('史简 1 支', st.player.shi === 1, String(st.player.shi));
 ok('领主 21 位', st.lords.length === 21, String(st.lords.length));
 ok('无旗', st.player.banner === false);
@@ -77,7 +77,10 @@ ok('追兵是 60 骑', chase && armyLib.strength(chase.troops).cavRatio === 1);
 /* ---------------------------------------------------------------- 行军 */
 
 group('行军与序章');
-const go = stateLib.goTo(st, 25, 23);
+// 开局的章节弹窗事件在真实游戏里由 flows.process 消费掉，这里先清空再测行军
+st.events.length = 0;
+const goTarget = worldLib.siteById(st.world, 'chenliu');
+const go = stateLib.goTo(st, goTarget.x, goTarget.y);
 ok('可下达行军命令', go.ok, go.msg);
 let frames = 0;
 while (st.player.route.length && frames < 2000 && !st.events.length) {
@@ -228,7 +231,7 @@ const g0 = st3.player.gold;
 const f0 = st3.player.food;
 const raid = stateLib.raidVillage(st3, village);
 ok('劫掠有收获', raid.ok && st3.player.gold > g0 && st3.player.food > f0, raid.msg);
-ok('劫掠掉关系', village.ownerFaction && st3.relations[village.ownerFaction] <= -30,
+ok('劫掠掉关系', village.ownerFaction && st3.relations[village.ownerFaction] <= -5,
   village.ownerFaction + ':' + st3.relations[village.ownerFaction]);
 ok('劫掠掉声望', st3.player.renown === 0);
 
