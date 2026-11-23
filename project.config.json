@@ -1,7 +1,7 @@
 {
-  "description": "边境战团 - 骑马与砍杀式战略经营小游戏",
+  "description": "骑砍大师 · 三国 - 骑马与砍杀式战略经营小游戏",
   "appid": "touristappid",
-  "projectname": "border-warband",
+  "projectname": "qikandashi-sanguo",
   "compileType": "game",
   "libVersion": "3.3.0",
   "setting": {
@@ -21,6 +21,10 @@
       {
         "type": "folder",
         "value": "web"
+      },
+      {
+        "type": "folder",
+        "value": ".git"
       },
       {
         "type": "file",
