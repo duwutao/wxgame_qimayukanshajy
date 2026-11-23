@@ -1,0 +1,10 @@
+{
+  "appid": "填写你在抖音开放平台的小游戏 AppID",
+  "projectname": "border-warband",
+  "compileType": "game",
+  "setting": {
+    "es6": true,
+    "urlCheck": false,
+    "minified": false
+  }
+}

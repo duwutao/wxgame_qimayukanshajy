@@ -1,0 +1,229 @@
+/**
+ * 平台适配层
+ * 同时支持 微信小游戏(wx) / 抖音小游戏(tt) / 浏览器(web)
+ * 对外只暴露一套 API：canvas、设计坐标、触摸、存储、raf。
+ */
+
+const DESIGN_WIDTH = 750;
+
+function detectHost() {
+  if (typeof tt !== 'undefined' && typeof tt.createCanvas === 'function') return 'tt';
+  if (typeof wx !== 'undefined' && typeof wx.createCanvas === 'function') return 'wx';
+  return 'web';
+}
+
+function createRuntime() {
+  const host = detectHost();
+  const api = host === 'tt' ? tt : host === 'wx' ? wx : null;
+
+  let canvas;
+  let screenW;
+  let screenH;
+  let dpr;
+  let topInset = 0;
+
+  if (api) {
+    canvas = api.createCanvas();
+    const info = api.getWindowInfo ? api.getWindowInfo() : api.getSystemInfoSync();
+    screenW = info.windowWidth;
+    screenH = info.windowHeight;
+    dpr = info.pixelRatio || 2;
+    if (info.safeArea && info.safeArea.top) {
+      topInset = Math.max(0, info.safeArea.top - (info.statusBarHeight || 0));
+    }
+  } else {
+    const stage = document.getElementById('stage');
+    const host = stage || document.body;
+    canvas = document.createElement('canvas');
+    canvas.style.display = 'block';
+    canvas.style.position = 'absolute';
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    document.body.style.margin = '0';
+    document.body.style.background = '#100d0a';
+    document.body.style.overflow = 'hidden';
+    host.appendChild(canvas);
+    screenW = host.clientWidth || window.innerWidth || 375;
+    screenH = host.clientHeight || window.innerHeight || 667;
+    dpr = window.devicePixelRatio || 1;
+    // 页面首帧可能还没完成布局，尺寸为 0 时用保底值，避免除零产生 NaN
+    if (!screenW || screenW <= 0) screenW = 375;
+    if (!screenH || screenH <= 0) screenH = 667;
+  }
+
+  if (!dpr || dpr <= 0) dpr = 1;
+
+  const scale = screenW / DESIGN_WIDTH;
+  const vw = DESIGN_WIDTH;
+  let vh = screenH / scale;
+  if (!isFinite(vh) || vh <= 0) vh = 1334;
+
+  canvas.width = Math.floor(screenW * dpr);
+  canvas.height = Math.floor(screenH * dpr);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
+
+  const runtime = {
+    host,
+    api,
+    canvas,
+    ctx,
+    width: vw,
+    height: vh,
+    screenW,
+    screenH,
+    dpr,
+    scale,
+    topInset: topInset * (DESIGN_WIDTH / screenW),
+    createCanvas: function () {
+      if (api) return api.createCanvas();
+      const c = document.createElement('canvas');
+      return c;
+    },
+    now: function () {
+      return Date.now();
+    },
+    raf: function (cb) {
+      if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(cb);
+      if (api && typeof api.requestAnimationFrame === 'function') {
+        return api.requestAnimationFrame(cb);
+      }
+      return setTimeout(function () {
+        cb(Date.now());
+      }, 16);
+    },
+    /** 绑定触摸 / 鼠标，回调参数为设计坐标 */
+    onTouch: function (handlers) {
+      const toDesign = function (pxRaw) {
+        return pxRaw * (DESIGN_WIDTH / screenW);
+      };
+
+      const fire = function (name, x, y) {
+        const fn = handlers[name];
+        if (fn) fn(toDesign(x), toDesign(y));
+      };
+
+      if (api) {
+        api.onTouchStart(function (res) {
+          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          if (t) fire('start', t.clientX, t.clientY);
+        });
+        api.onTouchMove(function (res) {
+          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          if (t) fire('move', t.clientX, t.clientY);
+        });
+        api.onTouchEnd(function (res) {
+          const t = (res.changedTouches && res.changedTouches[0]) || (res.touches && res.touches[0]);
+          if (t) fire('end', t.clientX, t.clientY);
+          else fire('end', -999, -999);
+        });
+        return;
+      }
+
+      const rectPoint = function (e) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        return [cx * (screenW / rect.width), cy * (screenH / rect.height)];
+      };
+
+      let mouseDown = false;
+      canvas.addEventListener('mousedown', function (e) {
+        mouseDown = true;
+        const p = rectPoint(e);
+        fire('start', p[0], p[1]);
+      });
+      canvas.addEventListener('mousemove', function (e) {
+        if (!mouseDown) return;
+        const p = rectPoint(e);
+        fire('move', p[0], p[1]);
+      });
+      canvas.addEventListener('mouseup', function (e) {
+        mouseDown = false;
+        const p = rectPoint(e);
+        fire('end', p[0], p[1]);
+      });
+      canvas.addEventListener('mouseleave', function () {
+        if (!mouseDown) return;
+        mouseDown = false;
+        fire('end', -999, -999);
+      });
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        const p = rectPoint(e.touches[0]);
+        fire('start', p[0], p[1]);
+      }, { passive: false });
+      canvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        const p = rectPoint(e.touches[0]);
+        fire('move', p[0], p[1]);
+      }, { passive: false });
+      canvas.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        const p = rectPoint(t);
+        fire('end', p[0], p[1]);
+      }, { passive: false });
+    },
+    storage: {
+      get: function (key) {
+        try {
+          if (api) return api.getStorageSync(key);
+          return window.localStorage.getItem(key);
+        } catch (e) {
+          return null;
+        }
+      },
+      set: function (key, value) {
+        try {
+          if (api) {
+            api.setStorageSync(key, value);
+            return true;
+          }
+          window.localStorage.setItem(key, value);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      },
+      remove: function (key) {
+        try {
+          if (api) api.removeStorageSync(key);
+          else window.localStorage.removeItem(key);
+        } catch (e) {
+          // ignore
+        }
+      },
+    },
+  };
+
+  if (!api) {
+    // 浏览器里首帧可能还没完成布局，50ms 后再校正一次画布尺寸
+    setTimeout(function () {
+      const hostEl = document.getElementById('stage') || document.body;
+      const sw = hostEl.clientWidth || window.innerWidth || 0;
+      const sh = hostEl.clientHeight || window.innerHeight || 0;
+      if (!sw || !sh) return;
+      if (Math.abs(sw - screenW) < 2 && Math.abs(sh - screenH) < 2) return;
+      screenW = sw;
+      screenH = sh;
+      runtime.screenW = sw;
+      runtime.screenH = sh;
+      runtime.scale = sw / DESIGN_WIDTH;
+      runtime.height = sh / runtime.scale;
+      canvas.width = Math.floor(sw * dpr);
+      canvas.height = Math.floor(sh * dpr);
+      ctx.setTransform(dpr * runtime.scale, 0, 0, dpr * runtime.scale, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+    }, 50);
+  }
+
+  return runtime;
+}
+
+module.exports = { createRuntime, DESIGN_WIDTH, detectHost };

@@ -1,0 +1,36 @@
+{
+  "description": "边境战团 - 骑马与砍杀式战略经营小游戏",
+  "appid": "touristappid",
+  "projectname": "border-warband",
+  "compileType": "game",
+  "libVersion": "3.3.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "tools"
+      },
+      {
+        "type": "folder",
+        "value": "web"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "project.tt.json"
+      }
+    ]
+  },
+  "condition": {}
+}
