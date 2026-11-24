@@ -63,6 +63,8 @@ function atWar(state, a, b) {
   if (!a || !b || a === b) return false;
   if (a === 'bandit' || b === 'bandit') return true;
   if (!FACTIONS[a] || !FACTIONS[b]) return false;
+  if (a === 'player' && state.wars && state.wars[b]) return true;
+  if (b === 'player' && state.wars && state.wars[a]) return true;
   const m = state.factionWars || init(state);
   return !!m[key(a, b)];
 }
@@ -104,7 +106,20 @@ function declare(state, a, b, quiet) {
 function makePeace(state, a, b, quiet) {
   const m = state.factionWars || {};
   const k = key(a, b);
-  if (!m[k]) return false;
+  if (!m[k]) {
+    // 旧档的玩家战争只记在 state.wars 里；这里补一条收兵通道
+    if (a === 'player' && state.wars && state.wars[b]) {
+      state.wars[b] = false;
+      state.relations[b] = 0;
+      return true;
+    }
+    if (b === 'player' && state.wars && state.wars[a]) {
+      state.wars[a] = false;
+      state.relations[a] = 0;
+      return true;
+    }
+    return false;
+  }
   // 阵前杀过人家的人：一个月内谈不成；满一个月才允许翻过这一页
   if (state.noPeace && (state.noPeace[a] || state.noPeace[b])) {
     const day = state.killRecords && state.killRecords[a] !== undefined
@@ -112,6 +127,14 @@ function makePeace(state, a, b, quiet) {
     if (day === undefined || state.clock.day - day < 30) return false;
   }
   delete m[k];
+  // 与玩家议和：旧账一笔勾销，关系回到零（不论谁先提的）
+  if (a === 'player' && FACTIONS[b]) {
+    state.relations[b] = 0;
+    if (state.wars) state.wars[b] = false;
+  } else if (b === 'player' && FACTIONS[a]) {
+    state.relations[a] = 0;
+    if (state.wars) state.wars[a] = false;
+  }
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '遣使议和，两家把刀收回鞘里，边界的鼓角停了一阵。', 'war');
     if (state.campaign && state.campaign.stage >= 1) {
@@ -154,6 +177,53 @@ function diplomacyTick(state) {
       makePeace(state, parts[0], parts[1], false);
     }
   });
+}
+
+/** 敌国主动向玩家求和：开战满 30 天才可能发；杀过对方将领则要等 60 天。
+ * 每天一次概率判定，同一势力两次求和至少隔 7 天。 */
+const PEACE_OFFER_MIN_WAR = 30;
+const PEACE_OFFER_MIN_KILL = 60;
+const PEACE_OFFER_CHANCE = 0.08;
+const PEACE_OFFER_GAP = 7;
+
+function peaceOfferTick(state) {
+  if (!state || state.peaceOfferPending) return false;
+  const rng = state.rng;
+  const now = state.clock.day;
+  const ids = Object.keys(FACTIONS).filter(function (id) {
+    return id !== 'bandit' && id !== 'player';
+  });
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    if (!atWar(state, 'player', id)) continue;
+    if ((state.factionState[id] || {}).dead) continue;
+    const w = (state.factionWars || {})[key('player', id)];
+    const since = (w && w.since) ||
+      (state.playerWarSince && state.playerWarSince[id]) || now;
+    const warDays = now - since;
+    if (warDays < PEACE_OFFER_MIN_WAR) continue;
+    const killDay = state.killRecords && state.killRecords[id];
+    if (killDay !== undefined && now - killDay < PEACE_OFFER_MIN_KILL) continue;
+    const cool = state.peaceOfferCooldown && state.peaceOfferCooldown[id];
+    if (cool && now < cool) continue;
+    if (rng.next() >= PEACE_OFFER_CHANCE) continue;
+
+    state.peaceOfferPending = id;
+    state.peaceOfferCooldown = state.peaceOfferCooldown || {};
+    state.peaceOfferCooldown[id] = now + PEACE_OFFER_GAP;
+    state.events.push({
+      type: 'peace-offer',
+      factionId: id,
+      title: '议和使者',
+      lines: [
+        FACTIONS[id].full + '的使者来到帐前，说两家再打下去只会让旁人捡便宜。',
+        '他愿意把此前的旧账一笔勾销，只求你把围城的兵撤回去。',
+        '接受议和，可得一支天机简；不接受，使者即刻就走。',
+      ],
+    });
+    return true;
+  }
+  return false;
 }
 
 /* ------------------------------------------------------------ 战斗 */
@@ -1032,7 +1102,7 @@ function summaryLines(state) {
 }
 
 module.exports = {
-  init, atWar, declare, makePeace, diplomacyTick,
+  init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,

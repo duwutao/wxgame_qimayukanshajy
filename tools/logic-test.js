@@ -1298,6 +1298,81 @@ ok('存档保留据点封主', !!backFief && backFief.world.sites.filter(functio
 const backLord = backFief && backFief.lords.filter(function (l) { return l.id === lord2.id; })[0];
 ok('存档保留领主等级', !!backLord && backLord.level === 6, backLord ? String(backLord.level) : '无存档');
 
+
+/* ---------------------------------------------------------------- 行军速度 · 议和 */
+
+group('行军速度随兵力');
+{
+  const sp = stateLib.createGame({ seed: 8123 });
+  const speedAt = function (n) {
+    sp.player.troops = { militia: n };
+    return stateLib.playerSpeed(sp);
+  };
+  const s0 = speedAt(0);
+  const s50 = speedAt(50);
+  const s200 = speedAt(200);
+  const s400 = speedAt(400);
+  const s600 = speedAt(600);
+  ok('兵越多速度越慢', s0 > s50 && s50 > s200 && s200 > s400 && s400 > s600,
+    [s0, s50, s200, s400, s600].map(function (v) { return v.toFixed(3); }).join('/'));
+  ok('满编不会慢到走不动', s600 >= 0.35, s600.toFixed(3));
+  ok('带兵越多行军耗时越长', (1000 / s200) > (1000 / s50));
+}
+
+group('敌国求和');
+{
+  const g = stateLib.createGame({ seed: 8124 });
+  g.wars.wei = true;
+  g.playerWarSince = { wei: 1 };
+  g.clock.day = 30;
+  warLib.peaceOfferTick(g);
+  ok('开战不满三十天不求和', !g.peaceOfferPending);
+  g.clock.day = 31;
+  let tries = 0;
+  while (!g.peaceOfferPending && tries++ < 300) warLib.peaceOfferTick(g);
+  ok('三十天后会收到求和', !!g.peaceOfferPending, tries);
+  const shiBefore = g.player.shi || 0;
+  const relBefore = stateLib.relationOf(g, 'wei');
+  const weiTown = g.world.sites.filter(function (s) { return s.ownerFaction === 'wei' && s.type === 'town'; })[0];
+  g.playerSiege = weiTown ? { siteId: weiTown.id, stage: 'ready' } : null;
+  const accept = stateLib.acceptPeaceOffer(g, 'wei');
+  ok('接受求和成功', accept.ok, accept.msg);
+  ok('接受后得一支天机简', (g.player.shi || 0) === shiBefore + 1, shiBefore + '→' + g.player.shi);
+  ok('接受后关系归零', stateLib.relationOf(g, 'wei') === 0, String(stateLib.relationOf(g, 'wei')));
+  ok('接受后战争结束', !stateLib.atWarWith(g, 'wei') && !g.wars.wei);
+  ok('接受后关系原值也归零', g.relations.wei === 0, String(g.relations.wei));
+  ok('接受后撤掉对对方的围城', g.playerSiege === null, g.playerSiege && g.playerSiege.siteId);
+
+  const r = stateLib.createGame({ seed: 8125 });
+  r.wars.wei = true;
+  r.playerWarSince = { wei: 1 };
+  r.clock.day = 31;
+  let tr = 0;
+  while (!r.peaceOfferPending && tr++ < 300) warLib.peaceOfferTick(r);
+  const shiR = r.player.shi || 0;
+  const relR = stateLib.relationOf(r, 'wei');
+  const reject = stateLib.rejectPeaceOffer(r, 'wei');
+  ok('拒绝求和成功', reject.ok, reject.msg);
+  ok('拒绝不扣天机简', (r.player.shi || 0) === shiR);
+  ok('拒绝不改变关系', stateLib.relationOf(r, 'wei') === relR);
+  ok('拒绝后战争继续', stateLib.atWarWith(r, 'wei'));
+}
+
+group('求和门槛');
+{
+  const k = stateLib.createGame({ seed: 8126 });
+  k.wars.wei = true;
+  k.playerWarSince = { wei: 1 };
+  k.killRecords.wei = 10;
+  k.clock.day = 60;
+  warLib.peaceOfferTick(k);
+  ok('杀将未满六十天不求和', !k.peaceOfferPending);
+  k.clock.day = 71;
+  let n = 0;
+  while (!k.peaceOfferPending && n++ < 300) warLib.peaceOfferTick(k);
+  ok('杀将满六十天后按概率求和', !!k.peaceOfferPending, n);
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));

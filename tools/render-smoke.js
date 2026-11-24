@@ -426,6 +426,28 @@ smoke('天下通报页（国亡弹窗）', function () {
   app.pop();
 });
 
+smoke('议和使者：接受 / 拒绝双按钮', function () {
+  app.state = stateLib.createGame({ seed: 4243 });
+  app.state.wars.wei = true;
+  app.state.playerWarSince = { wei: 1 };
+  app.state.clock.day = 31;
+  app.state.peaceOfferPending = { factionId: 'wei', sinceDay: 1 };
+  app.replace('map');
+  app.push('news', {
+    mode: 'peace-offer',
+    factionId: 'wei',
+    title: '议和使者',
+    lines: ['曹操派使者来，愿两家罢兵。', '接受可收下一支天机简；拒绝也不损两家颜面。'],
+  });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('求和弹窗有接受按钮', ids.indexOf('peace_offer_accept') >= 0, ids.join(','));
+  ok('求和弹窗有拒绝按钮', ids.indexOf('peace_offer_reject') >= 0, ids.join(','));
+  ok('求和弹窗不是普通知道了', ids.indexOf('news_ok') < 0, ids.join(','));
+  app.pop();
+});
+
 smoke('村庄：村中隐者入口与页面', function () {
   const st = app.state;
   const village = st.world.sites.filter(function (s) { return s.type === 'village'; })[0];
@@ -622,6 +644,10 @@ smoke('双指缩放：大地图与天下图', function () {
   app.replace('atlas');
   app.atlasZoom = 1;
   app.atlasCenter = null;
+  app.ui.begin();
+  app.top().scene.render(app);
+  const atlasButtons = app.ui.items.map(function (b) { return b.id; });
+  ok('天下大势仍能正常画完', atlasButtons.indexOf('atlas_back') >= 0, atlasButtons.join(','));
   const atlasScene = app.top().scene;
   atlasScene.onPinchStart(app, 375, 500);
   atlasScene.onPinch(app, 2.4, 375, 500);

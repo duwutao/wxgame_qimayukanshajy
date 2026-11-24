@@ -78,6 +78,16 @@ function process(app) {
       app.push('news', { title: ev.title, lines: ev.lines, factionId: ev.factionId });
       return;
     }
+    if (ev.type === 'peace-offer') {
+      app.push('news', {
+        mode: 'peace-offer',
+        factionId: ev.factionId,
+        title: ev.title || '议和使者',
+        lines: ev.lines || [],
+        tag: '议和',
+      });
+      return;
+    }
     if (ev.type === 'diplomacy') {
       // 宣战/议和不打断操作，只弹几息；点一下也能提前收起
       app.push('news', {

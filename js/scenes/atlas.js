@@ -12,6 +12,15 @@ const MAP_LEFT = 10;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3.2;
 
+/** 左边是天下主图，右边是一条全屏高的关系栏；底部势力色并入关系栏。 */
+function atlasLayout(w, h) {
+  const sidebarW = Math.min(230, Math.max(188, Math.round(w * 0.25)));
+  const gap = 14;
+  const mapW = w - sidebarW - gap;
+  const viewH = h - MAP_TOP - 14;
+  return { sidebarW: sidebarW, gap: gap, mapW: mapW, viewH: viewH };
+}
+
 function cellColor(t, region) {
   if (t === 'sea') return '#1e4166';
   if (t === 'river') return '#356a94';
@@ -111,11 +120,13 @@ const AtlasScene = {
       id: 'atlas_back', size: 22, onTap: function () { app.pop(); },
     });
 
+    const layout = atlasLayout(w, h);
+    const mapW = layout.mapW;
     const zoom = app.atlasZoom || 1;
-    const baseCell = Math.min((w - MAP_LEFT * 2) / world.w, (h - MAP_TOP - 150) / world.h);
+    const baseCell = Math.min((mapW - MAP_LEFT * 2) / world.w, layout.viewH / world.h);
     const cell = baseCell * zoom;
-    const viewH = h - MAP_TOP - 150;
-    const viewW = w;
+    const viewH = layout.viewH;
+    const viewW = mapW;
 
     // 视野中心（格坐标）；未拖过就对准玩家
     if (!app.atlasCenter) {
@@ -127,7 +138,7 @@ const AtlasScene = {
     c.x = Math.max(halfW, Math.min(world.w - halfW, c.x));
     c.y = Math.max(halfH, Math.min(world.h - halfH, c.y));
 
-    const ox = w / 2 - c.x * cell;
+    const ox = mapW / 2 - c.x * cell;
     const oy = MAP_TOP + 6 + Math.min(viewH, cell * world.h) / 2 - c.y * cell;
 
     const grid = buildFactionGrid(world);
@@ -136,12 +147,12 @@ const AtlasScene = {
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, MAP_TOP, w, Math.min(viewH, cell * world.h) + 12);
+    ctx.rect(0, MAP_TOP, mapW, Math.min(viewH, cell * world.h) + 12);
     ctx.clip();
 
     // 底图层
     const x0 = Math.max(0, Math.floor(-ox / cell) - 1);
-    const x1 = Math.min(world.w - 1, Math.ceil((w - ox) / cell) + 1);
+    const x1 = Math.min(world.w - 1, Math.ceil((mapW - ox) / cell) + 1);
     const y0 = Math.max(0, Math.floor((MAP_TOP - oy) / cell) - 1);
     const y1 = Math.min(world.h - 1, Math.ceil((MAP_TOP + viewH - oy) / cell) + 1);
 
@@ -273,10 +284,10 @@ const AtlasScene = {
 
     ctx.restore();
 
-    this.drawRelations(app, ctx, w, h, st);
+    this.drawRelations(app, ctx, w, h, st, layout);
 
     // 缩放按钮
-    const bx0 = w - 84;
+    const bx0 = mapW - 84;
     const by0 = MAP_TOP + Math.min(viewH, cell * world.h) - 74;
     app.ui.button(ctx, bx0, by0, 66, 30, '＋', {
       id: 'atlas_zoom_in', size: 22, onTap: function () {
@@ -289,71 +300,92 @@ const AtlasScene = {
       },
     });
 
-    // 图例
-    const legendY = MAP_TOP + Math.min(viewH, cell * world.h) + 12;
-    const ids = Object.keys(FACTIONS);
-    const cols = 6;
-    const cw = (w - MAP_LEFT * 2) / cols;
-    ids.forEach(function (id, i) {
-      const lx = MAP_LEFT + (i % cols) * cw;
-      const ly = legendY + Math.floor(i / cols) * 26;
-      ctx.fillStyle = FACTIONS[id].color;
-      ctx.fillRect(lx, ly + 3, 12, 12);
-      text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, { size: 13, color: '#c9bda2' });
-    });
+    // 左图下方只留一行操作提示，势力色图例挪进右侧关系栏
+    const hintY = Math.min(h - 26, MAP_TOP + Math.min(viewH, cell * world.h) + 16);
+    text(ctx, '双指缩放 · ×' + zoom.toFixed(1) + ' · 城名常显',
+      MAP_LEFT, hintY, { size: 13, color: '#8a8070' });
+  },
 
-    // 国战动态：围城比州界更值得看
+  drawRelations(app, ctx, w, h, st, layout) {
+    const px = layout.mapW + layout.gap;
+    const pw = w - px - 10;
+    const py = MAP_TOP + 8;
+    const ph = h - py - 14;
+    panel(ctx, px, py, pw, ph, { fill: 'rgba(14,11,8,0.94)' });
+
+    text(ctx, '列国 · 与你', px + 14, py + 14, { size: 19, color: '#f0c060' });
+    const warCount = Object.keys(FACTIONS).filter(function (id) {
+      return id !== 'player' && id !== 'bandit' && stateLib.atWarWith(st, id);
+    }).length;
+    text(ctx, warCount ? '交战中 ' + warCount + ' 国' : '四境暂安',
+      px + 14, py + 38, { size: 13, color: warCount ? '#e08a70' : '#8a8070' });
+
+    // 国战动态保留在右侧，不再占地图下方的位置
     const cps = st.warCampaigns || {};
     const sieges = Object.keys(cps).filter(function (k) {
       return cps[k] && cps[k].stage === 'siege';
     }).map(function (k) {
       const cp = cps[k];
-      const site = world.sites.filter(function (s) { return s.id === cp.targetId; })[0];
+      const site = (st.world.sites || []).filter(function (s) { return s.id === cp.targetId; })[0];
       return (FACTIONS[k] ? FACTIONS[k].name : k) + '围' + (site ? site.name : '敌城');
     });
     const marches = Object.keys(cps).filter(function (k) {
       return cps[k] && cps[k].stage === 'march';
     }).length;
     const warLine = sieges.length
-      ? '围城中：' + sieges.slice(0, 2).join(' · ') + (sieges.length > 2 ? ' 等 ' + sieges.length + ' 处' : '')
-      : (marches ? marches + ' 路诸侯正在开拔 · 城名常显' : '四境暂无围城 · 城名常显');
-    text(ctx, warLine, MAP_LEFT, legendY + 56, { size: 14, color: sieges.length ? '#e0a050' : '#8a8070' });
+      ? '围城中：' + sieges.slice(0, 1).join('') + (sieges.length > 1 ? ' 等 ' + sieges.length + ' 处' : '')
+      : (marches ? marches + ' 路诸侯开拔' : '暂无围城');
+    text(ctx, warLine, px + 14, py + 56, { size: 12, color: sieges.length ? '#e0a050' : '#8a8070' });
 
-    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色与城名常显 · 放大看州界', MAP_LEFT, legendY + 80, {
-      size: 13, color: '#8a8070',
-    });
-  },
-
-  drawRelations(app, ctx, w, h, st) {
     const ids = Object.keys(FACTIONS).filter(function (id) {
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
-    const pw = Math.min(300, Math.round(w * 0.38));
-    const px = w - pw - 10;
-    const rows = ids.length;
-    const ph = 62 + rows * 36;
-    panel(ctx, px, MAP_TOP + 8, pw, ph, { fill: 'rgba(14,11,8,0.92)' });
-    text(ctx, '与你的关系', px + 14, MAP_TOP + 20, { size: 20, color: '#f0c060' });
+    // 让关系名单尽量铺满全屏栏，名字之间的间距随屏高变化
+    const legendIds = Object.keys(FACTIONS);
+    const legendRows = Math.ceil(legendIds.length / 2);
+    const legendH = legendRows * 30;
+    const rowH = Math.max(34, Math.min(46,
+      Math.floor((ph - 86 - legendH - 50) / Math.max(1, ids.length))));
+    const rowTop = py + 86;
     ids.forEach(function (id, i) {
-      const y = MAP_TOP + 52 + i * 36;
+      const y = rowTop + i * rowH;
       const fac = FACTIONS[id];
       const rel = stateLib.relationOf(st, id);
       const war = stateLib.atWarWith(st, id);
       const fs = st.factionState[id] || {};
       ctx.fillStyle = fac.color;
-      ctx.fillRect(px + 14, y + 6, 5, 20);
-      text(ctx, fac.name || fac.full, px + 26, y + 1, { size: 18, color: fs.dead ? '#6a6050' : '#e6dbc2' });
+      ctx.fillRect(px + 14, y + 5, 5, 19);
+      text(ctx, fac.name || fac.full, px + 26, y, { size: 17, color: fs.dead ? '#6a6050' : '#e6dbc2' });
       text(ctx, fs.dead ? '亡' : rel > 0 ? '+' + rel : String(rel),
-        px + pw - 14, y + 1, { size: 18, align: 'right', color: fs.dead ? '#6a6050' : rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#c9bda2' });
+        px + pw - 12, y, { size: 17, align: 'right', color: fs.dead ? '#6a6050' : rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#c9bda2' });
       if (war) {
-        ctx.fillStyle = 'rgba(210,70,50,0.8)';
-        ctx.fillRect(px + 14, y + 24, 5, 5);
-        text(ctx, '战', px + 26, y + 20, { size: 12, color: '#e08070' });
+        ctx.fillStyle = 'rgba(210,70,50,0.85)';
+        ctx.fillRect(px + 14, y + 23, 5, 5);
+        text(ctx, '战', px + 26, y + 19, { size: 11, color: '#e08070' });
       }
+    });
+
+    // 势力色图例：原本在地图下方，现在合并到右侧关系栏底部
+    const legendTop = Math.max(rowTop + ids.length * rowH + 18, py + ph - legendH - 40);
+    ctx.fillStyle = 'rgba(120,92,54,0.45)';
+    ctx.fillRect(px + 14, legendTop - 14, pw - 28, 1);
+    text(ctx, '势力旗色', px + 14, legendTop, { size: 13, color: '#a2947a' });
+    legendIds.forEach(function (id, i) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const lx = px + 14 + col * (pw / 2 - 8);
+      const ly = legendTop + 22 + row * 30;
+      ctx.fillStyle = FACTIONS[id].color;
+      ctx.fillRect(lx, ly + 3, 12, 12);
+      text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, {
+        size: 13, color: '#c9bda2',
+      });
     });
   },
 
   onTouchStart(app, x, y) {
+    const layout = atlasLayout(app.runtime.width, app.runtime.height);
+    if (x > layout.mapW + 8) { app.atlasDrag = null; return; }
     app.atlasDrag = { x, y, cx: (app.atlasCenter || {}).x, cy: (app.atlasCenter || {}).y };
   },
 
@@ -361,7 +393,8 @@ const AtlasScene = {
     const d = app.atlasDrag;
     if (!d || !app.atlasCenter) return;
     const zoom = app.atlasZoom || 1;
-    const baseCell = Math.min((app.runtime.width - MAP_LEFT * 2) / app.state.world.w, (app.runtime.height - MAP_TOP - 150) / app.state.world.h);
+    const layout = atlasLayout(app.runtime.width, app.runtime.height);
+    const baseCell = Math.min((layout.mapW - MAP_LEFT * 2) / app.state.world.w, layout.viewH / app.state.world.h);
     const cell = baseCell * zoom;
     if (Math.abs(x - d.x) + Math.abs(y - d.y) < 8) return;
     app.atlasCenter.x = (d.cx || app.atlasCenter.x) - (x - d.x) / cell;
@@ -395,8 +428,10 @@ const AtlasScene = {
     const w = app.runtime.width;
     const h = app.runtime.height;
     const world = app.state.world;
-    const baseCell = Math.min((w - MAP_LEFT * 2) / world.w, (h - MAP_TOP - 150) / world.h);
-    const viewH = h - MAP_TOP - 150;
+    const layout = atlasLayout(w, h);
+    const mapW = layout.mapW;
+    const baseCell = Math.min((mapW - MAP_LEFT * 2) / world.w, layout.viewH / world.h);
+    const viewH = layout.viewH;
     const oldCell = baseCell * (app.atlasZoom || 1);
     const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, app.atlasPinch.zoom * scale));
     const newCell = baseCell * next;
@@ -404,10 +439,11 @@ const AtlasScene = {
     const c = app.atlasCenter;
 
     // 指下那一点不动：按新旧格宽把视野中心挪回去
-    const gx = c.x + (cx - w / 2) / oldCell;
+    const px = Math.max(0, Math.min(mapW, cx));
+    const gx = c.x + (px - mapW / 2) / oldCell;
     const gy = c.y + (cy - (MAP_TOP + 6 + Math.min(viewH, oldCell * world.h) / 2)) / oldCell;
     app.atlasZoom = next;
-    c.x = gx - (cx - w / 2) / newCell;
+    c.x = gx - (px - mapW / 2) / newCell;
     c.y = gy - (cy - (MAP_TOP + 6 + Math.min(viewH, newCell * world.h) / 2)) / newCell;
   },
 

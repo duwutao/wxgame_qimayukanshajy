@@ -282,6 +282,9 @@ function createGame(opts) {
     foodWarning: null,
     postBattleLord: null,
     killRecords: {},
+    peaceOfferCooldown: {},
+    peaceOfferPending: null,
+    playerWarSince: {},
     fiefTaxDay: 0,
     arc: null,
   };
@@ -696,10 +699,16 @@ function changeRelation(state, factionId, delta) {
   state.relations[factionId] = next;
   if (next <= -25 && !state.wars[factionId]) {
     state.wars[factionId] = true;
+    state.playerWarSince = state.playerWarSince || {};
+    state.playerWarSince[factionId] = state.clock.day;
+    // 同时写进国战表，否则天下大势的“战”和议和流程会看不到这场仗
+    if (war && war.declare) war.declare(state, 'player', factionId, true);
     pushLog(state, FACTIONS[factionId].name + '把你列为逆贼，其领主见到你就会动手。');
   }
   if (delta < 0 && before > -25 && next <= -25) {
     state.wars[factionId] = true;
+    state.playerWarSince = state.playerWarSince || {};
+    state.playerWarSince[factionId] = state.playerWarSince[factionId] || state.clock.day;
   }
 }
 
@@ -727,8 +736,11 @@ function playerSpeed(state) {
   const bonus = economy.equipmentBonus(state);
   const hb = heroes.heroBonus(state);
   const count = army.troopCount(state.player.troops);
-  const sizePenalty = Math.min(0.45, count / 240);
-  return Math.max(0.55, 1 + bonus.speedPct + hb.speedPct - sizePenalty);
+  // 兵越多，辎重越长，行军越慢。用饱和曲线而不是分段截断：
+  // 50/200/400/600 人会一路变慢，只有极大规模才落到 0.35 的下限。
+  const n = Math.max(0, count);
+  const sizePenalty = Math.min(0.75, 0.80 * (n / (n + 220)));
+  return Math.max(0.35, 1 + bonus.speedPct + hb.speedPct - sizePenalty);
 }
 
 function capacity(state) {
@@ -944,6 +956,7 @@ function dailyTick(state) {
   refillBandits(state);
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
+  war.peaceOfferTick(state);
   war.prisonerTick(state);
   // 国战 AI：各家的集结、开拔、围城与守城，一天只做一次决策
   if (war.strategyTick) war.strategyTick(state);
@@ -2568,12 +2581,24 @@ function declareWarFaction(state, faction) {
   if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了' };
   if (war.atWar(state, 'player', faction)) return { ok: false, msg: '你已经在和他们打仗' };
   war.declare(state, 'player', faction, false);
+  state.wars[faction] = true;
+  state.playerWarSince = state.playerWarSince || {};
+  state.playerWarSince[faction] = state.playerWarSince[faction] || state.clock.day;
   state.relations[faction] = Math.min(state.relations[faction] || 0, -35);
   pushLog(state, '你向' + FACTIONS[faction].full + '递了战书。使者出门时，两家的边关已经点起了烽火。', 'war');
   return { ok: true, msg: '已向' + FACTIONS[faction].full + '宣战' };
 }
 
 /** 花钱议和：关系、杀将冷却和赔款都在 peaceTerms 里算 */
+function cancelSiegeAgainstPeace(state, faction) {
+  const ps = state && state.playerSiege;
+  if (!ps) return false;
+  const site = siteById(state.world, ps.siteId);
+  if (!site || site.ownerFaction !== faction) return false;
+  const r = cancelPlayerSiege(state);
+  return !!(r && r.ok);
+}
+
 function makePeaceWith(state, faction) {
   const terms = peaceTerms(state, faction);
   if (!terms.ok) return terms;
@@ -2584,15 +2609,49 @@ function makePeaceWith(state, faction) {
     return { ok: false, msg: '对方把文书退了回来：这笔血债，不是钱能了的。' };
   }
   state.player.gold -= terms.cost;
-  state.relations[faction] = Math.max(-100, Math.min(100, (state.relations[faction] || 0) + 8));
+  cancelSiegeAgainstPeace(state, faction);
+  state.relations[faction] = 0;
   pushLog(state, '你付出 ' + terms.cost + ' 金钱，与' + FACTIONS[faction].full + '议和。边关的鼓角停了一阵。', 'war');
   return { ok: true, msg: '已与' + FACTIONS[faction].full + '议和，赔付 ' + terms.cost + ' 金钱', cost: terms.cost };
+}
+
+/** 敌国主动求和：玩家接受得一支天机简，关系归零；拒绝不留任何惩罚。 */
+function acceptPeaceOffer(state, faction) {
+  if (!state || !state.peaceOfferPending || state.peaceOfferPending !== faction) {
+    return { ok: false, msg: '这封求和书已经过期了。' };
+  }
+  const hadWar = war.atWar(state, 'player', faction) || !!(state.wars && state.wars[faction]);
+  if (!hadWar) return { ok: false, msg: '两家已经不在交战了。' };
+  // 旧档可能只有 state.wars，没有 factionWars 里的记录：能收兵就直接收
+  if (war.atWar(state, 'player', faction) && !war.makePeace(state, 'player', faction, true)) {
+    return { ok: false, msg: '对方的使者已经走了。' };
+  }
+  if (state.wars) state.wars[faction] = false;
+  cancelSiegeAgainstPeace(state, faction);
+  state.peaceOfferPending = null;
+  state.relations[faction] = 0;
+  state.player.shi = (state.player.shi || 0) + 1;
+  pushLog(state, '你接了' + FACTIONS[faction].full + '的求和书。两家罢兵，关系归零；使者留下一支天机简。', 'war');
+  return { ok: true, msg: '已议和 · 天机简 +1 · 关系归零' };
+}
+
+/** 拒绝求和：不扣关系、不掉声望，只是这封文书作废。 */
+function rejectPeaceOffer(state, faction) {
+  if (!state || !state.peaceOfferPending || state.peaceOfferPending !== faction) {
+    return { ok: false, msg: '这封求和书已经过期了。' };
+  }
+  state.peaceOfferPending = null;
+  pushLog(state, '你把' + FACTIONS[faction].full + '的求和书退了回去。使者收拾行装，出了营门。', 'war');
+  return { ok: true, msg: '已拒绝议和' };
 }
 
 function declareWar(state, site) {  const f = site.ownerFaction;
   if (!f || f === 'bandit') return { ok: false, msg: '这里没有可宣战的对象' };
   if (state.player.faction === f) return { ok: false, msg: '你不能对自己的国宣战' };
   state.wars[f] = true;
+  state.playerWarSince = state.playerWarSince || {};
+  state.playerWarSince[f] = state.playerWarSince[f] || state.clock.day;
+  if (war && war.declare) war.declare(state, 'player', f, true);
   changeRelation(state, f, -45);
   pushLog(state, '你与' + FACTIONS[f].full + '撕破了脸。');
   return { ok: true, msg: '已与' + FACTIONS[f].full + '开战' };
@@ -2731,6 +2790,9 @@ function giftLord(state, lord, gold) {
 function provokeLord(state, lord) {
   changeRelation(state, lord.faction, -25);
   state.wars[lord.faction] = true;
+  state.playerWarSince = state.playerWarSince || {};
+  state.playerWarSince[lord.faction] = state.playerWarSince[lord.faction] || state.clock.day;
+  if (war && war.declare) war.declare(state, 'player', lord.faction, true);
   const rel = relationOf(state, lord.faction);
   pushLog(state, '你和' + lord.name + '翻了脸，关系 ' + rel + '。');
   return { ok: true, msg: '关系 -25（现在 ' + rel + '）' };
@@ -3689,6 +3751,9 @@ function serialize(state) {
     foodWarning: state.foodWarning || null,
     postBattleLord: state.postBattleLord || null,
     killRecords: state.killRecords || {},
+    peaceOfferCooldown: state.peaceOfferCooldown || {},
+    peaceOfferPending: state.peaceOfferPending || null,
+    playerWarSince: state.playerWarSince || {},
     fiefTaxDay: state.fiefTaxDay || 0,
     arc: state.arc || null,
   };
@@ -3747,6 +3812,9 @@ function deserialize(json) {
     foodWarning: data.foodWarning || null,
     postBattleLord: data.postBattleLord || null,
     killRecords: data.killRecords || {},
+    peaceOfferCooldown: data.peaceOfferCooldown || {},
+    peaceOfferPending: null,
+    playerWarSince: data.playerWarSince || {},
     fiefTaxDay: data.fiefTaxDay || 0,
     arc: data.arc || null,
     battle: null,
@@ -3888,6 +3956,8 @@ module.exports = {
   factionWars,
   atWarWith,
   peaceTerms,
+  acceptPeaceOffer,
+  rejectPeaceOffer,
   declareWarFaction,
   makePeaceWith,
   raidVillage,

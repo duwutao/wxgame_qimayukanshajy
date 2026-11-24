@@ -5,6 +5,7 @@
 
 const { text, wrap, panel } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
+const stateLib = require('../core/state.js');
 
 const NewsScene = {
   enter(app, params) {
@@ -13,6 +14,8 @@ const NewsScene = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
+      mode: ev.mode || 'notice',
+      factionId: ev.factionId || null,
       auto: ev.auto || 0,
       t: 0,
     };
@@ -22,7 +25,7 @@ const NewsScene = {
     const v = app.newsView;
     if (!v) return;
     v.t += dt;
-    if (v.auto > 0 && v.t >= v.auto) {
+    if (v.mode !== 'peace-offer' && v.auto > 0 && v.t >= v.auto) {
       app.newsView = null;
       app.pop();
     }
@@ -75,24 +78,50 @@ const NewsScene = {
       y += 6;
     });
 
-    text(ctx, v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。',
-      cx + cw / 2, cy + chHeight - 74, {
-        size: 15, align: 'center', color: '#8a8070',
+    if (v.mode === 'peace-offer') {
+      text(ctx, '接受：两家罢兵，关系归零，天机简 +1。  拒绝：不留任何影响。',
+        cx + cw / 2, cy + chHeight - 78, {
+          size: 15, align: 'center', color: '#a2947a',
+        });
+      const bw = (cw - 120 - 14) / 2;
+      const by = cy + chHeight - 58;
+      app.ui.button(ctx, cx + 60, by, bw, 46, '接受议和 · +1 天机简', {
+        id: 'peace_offer_accept', size: 19, fill: '#3a4a2e', onTap: function () {
+          const r = stateLib.acceptPeaceOffer(app.state, v.factionId);
+          if (!r.ok) { app.showToast(r.msg, 2.4); return; }
+          app.newsView = null;
+          app.pop();
+          app.showToast(r.msg, 3);
+        },
       });
+      app.ui.button(ctx, cx + 60 + bw + 14, by, bw, 46, '拒绝', {
+        id: 'peace_offer_reject', size: 19, fill: '#4a241c', onTap: function () {
+          const r = stateLib.rejectPeaceOffer(app.state, v.factionId);
+          app.newsView = null;
+          app.pop();
+          if (r.ok) app.showToast(r.msg, 2.4);
+        },
+      });
+    } else {
+      text(ctx, v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。',
+        cx + cw / 2, cy + chHeight - 74, {
+          size: 15, align: 'center', color: '#8a8070',
+        });
 
-    const bx = cx + 60;
-    const by = cy + chHeight - 58;
-    const bw = cw - 120;
-    ctx.fillStyle = '#3a2c1e';
-    ctx.fillRect(bx, by, bw, 46);
-    ctx.fillStyle = '#6b5540';
-    ctx.fillRect(bx, by, bw, 2);
-    text(ctx, v.auto > 0 ? '知道了（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）' : '知道了',
-      cx + cw / 2, by + 12, { size: 22, align: 'center', color: '#f0c060' });
-    app.ui.rect('news_ok', bx, by, bw, 46, function () {
-      app.newsView = null;
-      app.pop();
-    });
+      const bx = cx + 60;
+      const by = cy + chHeight - 58;
+      const bw = cw - 120;
+      ctx.fillStyle = '#3a2c1e';
+      ctx.fillRect(bx, by, bw, 46);
+      ctx.fillStyle = '#6b5540';
+      ctx.fillRect(bx, by, bw, 2);
+      text(ctx, v.auto > 0 ? '知道了（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）' : '知道了',
+        cx + cw / 2, by + 12, { size: 22, align: 'center', color: '#f0c060' });
+      app.ui.rect('news_ok', bx, by, bw, 46, function () {
+        app.newsView = null;
+        app.pop();
+      });
+    }
   },
 
   onTouchStart() {},
