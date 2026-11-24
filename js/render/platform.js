@@ -140,6 +140,16 @@ function createRuntime() {
         const fn = handlers[name];
         if (fn) fn(toDesignX(x), toDesignY(y));
       };
+      // 缩放事件参数不是坐标，不能走 fire（否则倍率会被当成 x 坐标再换算一次）
+      const firePinchStart = function (x, y) {
+        if (handlers.pinchStart) handlers.pinchStart(toDesignX(x), toDesignY(y));
+      };
+      const firePinch = function (scale, x, y) {
+        if (handlers.pinch) handlers.pinch(scale, toDesignX(x), toDesignY(y));
+      };
+      const firePinchEnd = function () {
+        if (handlers.pinchEnd) handlers.pinchEnd();
+      };
 
       // 双指缩放：两指落下后，单指的点击/拖动全部让位给缩放
       let pinch = null;
@@ -159,19 +169,19 @@ function createRuntime() {
         pinch = { startDist: distOf(ts) };
         blocked = true;
         const c = centerOf(ts);
-        fire('pinchStart', c.x, c.y);
+        firePinchStart(c.x, c.y);
       };
       const movePinch = function (ts) {
         if (!pinch) beginPinch(ts);
         else {
           const c = centerOf(ts);
-          fire('pinch', distOf(ts) / pinch.startDist, c.x, c.y);
+          firePinch(distOf(ts) / pinch.startDist, c.x, c.y);
         }
       };
       const endPinch = function (remain) {
         if (pinch) {
           pinch = null;
-          fire('pinchEnd', -999, -999);
+          firePinchEnd();
         }
         if (remain === 0) blocked = false;
       };
@@ -211,7 +221,7 @@ function createRuntime() {
           api.onTouchCancel(function () {
             pinch = null;
             blocked = false;
-            fire('pinchEnd', -999, -999);
+            firePinchEnd();
           });
         }
         return;

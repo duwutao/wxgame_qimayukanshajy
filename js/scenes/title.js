@@ -118,10 +118,6 @@ const TitleScene = {
     text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 史简改命', w / 2, h - 40, {
       size: 15, align: 'center', color: '#6a6050',
     });
-
-    text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 史简改命', w / 2, h - 46, {
-      size: 15, align: 'center', color: '#6a6050',
-    });
   },
 
   onTouchStart() {},
