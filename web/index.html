@@ -25,16 +25,15 @@
       -webkit-user-select: none;
       user-select: none;
     }
-    /* 手机满屏（竖屏时铺满屏）；屏幕变宽时按 3:4 上限居中，避免界面被压扁 */
+    /* 手机满屏（竖屏铺满，避开刘海与底部横条）；屏幕变宽时按 3:4 上限居中，避免界面被压扁 */
     #stage {
       position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      bottom: env(safe-area-inset-bottom, 0px);
       left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      transform: translateX(-50%);
       width: min(100vw, 75vh);
       width: min(100vw, 75dvh);
-      height: 100vh;
-      height: 100dvh;
       background: #14100c;
       overflow: hidden;
       touch-action: none;
