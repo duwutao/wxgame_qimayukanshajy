@@ -55,13 +55,27 @@ function createRuntime() {
 
   if (!dpr || dpr <= 0) dpr = 1;
 
+  // 手游端性能保护：像素风对像素密度不敏感，dpr 封顶 2 倍，避免 3 倍屏填充率过高掉帧
+  if (dpr > 2) dpr = 2;
+
   const scale = screenW / DESIGN_WIDTH;
   const vw = DESIGN_WIDTH;
   let vh = screenH / scale;
   if (!isFinite(vh) || vh <= 0) vh = 1334;
 
-  canvas.width = Math.floor(screenW * dpr);
-  canvas.height = Math.floor(screenH * dpr);
+  // 部分安卓机 canvas 单边上限 4096，超限时降低有效 dpr 而不是让画布失真
+  const MAX_SIDE = 4096;
+  let cw = Math.floor(screenW * dpr);
+  let ch = Math.floor(screenH * dpr);
+  if (cw > MAX_SIDE || ch > MAX_SIDE) {
+    const k = MAX_SIDE / Math.max(cw, ch);
+    dpr = Math.max(0.5, dpr * k);
+    cw = Math.floor(screenW * dpr);
+    ch = Math.floor(screenH * dpr);
+  }
+
+  canvas.width = cw;
+  canvas.height = ch;
 
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
@@ -203,11 +217,8 @@ function createRuntime() {
   };
 
   if (!api) {
-    // 浏览器里首帧可能还没完成布局，50ms 后再校正一次画布尺寸
-    setTimeout(function () {
-      const hostEl = document.getElementById('stage') || document.body;
-      const sw = hostEl.clientWidth || window.innerWidth || 0;
-      const sh = hostEl.clientHeight || window.innerHeight || 0;
+    // 浏览器里首帧可能还没完成布局；手机还会有地址栏收放 / 横竖屏切换，故做成可重算
+    const applySize = function (sw, sh) {
       if (!sw || !sh) return;
       if (Math.abs(sw - screenW) < 2 && Math.abs(sh - screenH) < 2) return;
       screenW = sw;
@@ -220,7 +231,28 @@ function createRuntime() {
       canvas.height = Math.floor(sh * dpr);
       ctx.setTransform(dpr * runtime.scale, 0, 0, dpr * runtime.scale, 0, 0);
       ctx.imageSmoothingEnabled = false;
-    }, 50);
+      if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
+    };
+
+    const measure = function () {
+      const hostEl = document.getElementById('stage') || document.body;
+      applySize(
+        hostEl.clientWidth || window.innerWidth || 0,
+        hostEl.clientHeight || window.innerHeight || 0
+      );
+    };
+
+    // 首帧布局未完成，50ms 后再校正一次
+    setTimeout(measure, 50);
+
+    let resizeTimer = null;
+    const onResize = function () {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(measure, 240);
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   }
 
   return runtime;

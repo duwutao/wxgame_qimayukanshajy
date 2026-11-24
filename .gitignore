@@ -1,0 +1,5 @@
+node_modules/
+.qrtmp/
+serve.log
+serve.err
+*.zip

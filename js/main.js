@@ -48,6 +48,18 @@ class App {
     this.toast = null;
     this.lastHit = null;
 
+    // 试手感用的帧率叠加层：地址栏加 ?fps=1 打开
+    this.debugHud = false;
+    try {
+      if (typeof location !== 'undefined' && location.search && /fps=1/.test(location.search)) {
+        this.debugHud = true;
+      }
+    } catch (e) {
+      this.debugHud = false;
+    }
+    this._fps = 60;
+    this._frameMs = 0;
+
     const self = this;
     runtime.onTouch({
       start: function (x, y) {
@@ -153,7 +165,13 @@ class App {
     let dt = (now - this.last) / 1000;
     this.last = now;
     if (!isFinite(dt) || dt < 0) dt = 0;
+    const rawDt = dt;
     if (dt > 0.06) dt = 0.06;
+
+    if (this.debugHud && rawDt > 0) {
+      const inst = 1 / rawDt;
+      this._fps = this._fps * 0.85 + Math.min(inst, 120) * 0.15;
+    }
 
     const r = this.runtime;
     r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, 0);
@@ -188,6 +206,25 @@ class App {
         store.set(AUTO_KEY, stateLib.serialize(this.state));
       }
     }
+
+    if (this.debugHud) {
+      const t1 = this.runtime.now();
+      const ms = t1 - now;
+      this._frameMs = this._frameMs ? this._frameMs * 0.85 + ms * 0.15 : ms;
+      this.drawHud();
+    }
+  }
+
+  drawHud() {
+    const ctx = this.runtime.ctx;
+    const hud = 'FPS ' + Math.round(this._fps) + '  帧 ' + this._frameMs.toFixed(1) + 'ms';
+    ctx.save();
+    ctx.font = 'bold 20px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, 240, 30);
+    ctx.fillStyle = this._fps >= 50 ? '#8fe08f' : this._fps >= 30 ? '#e0c060' : '#e06060';
+    ctx.fillText(hud, 8, 22);
+    ctx.restore();
   }
 
   drawToast() {
