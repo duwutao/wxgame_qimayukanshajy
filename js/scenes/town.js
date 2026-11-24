@@ -204,6 +204,7 @@ function renderMenu(app, site) {
 
   app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {
     id: 'leave', size: 28, fill: '#241c14', onTap: function () {
+      if (app.state.player.resting) stateLib.stopRest(app.state);
       app.state.player.atSiteId = null;
       app.pop();
     },
