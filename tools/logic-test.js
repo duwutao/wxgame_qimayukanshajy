@@ -1137,7 +1137,7 @@ stateLib.update(stTime, 6.5);
 ok('围城时大地图时辰流动', stTime.clock.day > dayBefore, 'day ' + dayBefore + '→' + stTime.clock.day);
 ok('围满后自动标记可决战', stTime.playerSiege && stTime.playerSiege.stage === 'ready' &&
   stTime.playerSiege.readyAnnounced === true, stTime.playerSiege && stTime.playerSiege.stage);
-ok('围城成就会推到大地图', stTime.events.some(function (e) {
+ok('围城成就不再推普通提示，交给大地图弹进攻选择', !stTime.events.some(function (e) {
   return e.type === 'warning' && e.title === '围城已成';
 }));
 

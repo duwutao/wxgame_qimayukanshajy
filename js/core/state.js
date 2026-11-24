@@ -1844,6 +1844,7 @@ function beginPlayerSiege(state, site) {
       days: days,
       stage: 'camp',
       readyAnnounced: false,
+      promptShown: false,
     };
     stopMoving(state);
     state.player.atSiteId = site.id;
@@ -1901,11 +1902,8 @@ function checkPlayerSiegeReady(state) {
   ps.readyAnnounced = true;
   pushLog(state, (site ? site.name : '敌城') +
     '城头开始挂白旗。围城的壕沟已经推到城门下，可以决战了。', 'siege');
-  state.events.push({
-    type: 'warning',
-    title: '围城已成',
-    text: (site ? site.name : '敌城') + '已经围成，随时可以决战。',
-  });
+  // 不在这里弹轻提示：大地图检测到 stage==='ready' 后会暂停时辰，
+  // 直接开“进攻城池 / 拔营离开”的选择框。
   return true;
 }
 

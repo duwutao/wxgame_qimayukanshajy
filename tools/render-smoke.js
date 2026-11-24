@@ -876,7 +876,40 @@ smoke('立国页：自定义国号入口', function () {
   ok('没有系统键盘时能降级提示', !!app.toast, app.toast && app.toast.text);
 });
 
-/* ---------------------------------------------------------------- 长跑 */
+/* ---------------------------------------------------------------- 围城抵达 */
+
+smoke('围城时辰到点：自动弹出进攻选择并暂停时间', function () {
+  const stSiege = stateLib.createGame({ seed: 9911 });
+  stSiege.events.length = 0;
+  const site = stSiege.world.sites.filter(function (x) {
+    return (x.type === 'town' || x.type === 'castle') && !x.playerOwned;
+  })[0];
+  stSiege.player.x = site.x;
+  stSiege.player.y = site.y;
+  const r = stateLib.beginPlayerSiege(stSiege, site);
+  ok('能扎下围营', !!r.ok, r.msg);
+  app.state = stSiege;
+  app.replace('map');
+  stSiege.playerSiege.stage = 'ready';
+  stSiege.playerSiege.readyHour = stateLib.gameHours(stSiege);
+  app.tick();
+  ok('围满自动开选择框', !!app.siegePrompt && app.siegePrompt.mode === 'ready',
+    app.siegePrompt && app.siegePrompt.mode);
+  const frozen = stateLib.gameHours(stSiege);
+  app.tick();
+  app.tick();
+  ok('选择期间时辰暂停', stateLib.gameHours(stSiege) === frozen,
+    'h ' + frozen + '→' + stateLib.gameHours(stSiege));
+  app.ui.begin();
+  app.top().scene.render(app);
+  const attack = app.ui.items.filter(function (it) { return it.id === 'siege_prompt_attack'; })[0];
+  ok('选择框有进攻城池按钮', !!attack);
+  if (attack) attack.onTap();
+  ok('点进攻进入攻城战', app.top() && app.top().name === 'battle',
+    app.top() && app.top().name);
+});
+
+/* ---------------------------------------------------------------- 长跑 *//* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {
   app.state = stateLib.createGame({ seed: 777 });

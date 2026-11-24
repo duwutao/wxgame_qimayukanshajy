@@ -7723,6 +7723,7 @@ function beginPlayerSiege(state, site) {
       days: days,
       stage: 'camp',
       readyAnnounced: false,
+      promptShown: false,
     };
     stopMoving(state);
     state.player.atSiteId = site.id;
@@ -7780,11 +7781,8 @@ function checkPlayerSiegeReady(state) {
   ps.readyAnnounced = true;
   pushLog(state, (site ? site.name : '敌城') +
     '城头开始挂白旗。围城的壕沟已经推到城门下，可以决战了。', 'siege');
-  state.events.push({
-    type: 'warning',
-    title: '围城已成',
-    text: (site ? site.name : '敌城') + '已经围成，随时可以决战。',
-  });
+  // 不在这里弹轻提示：大地图检测到 stage==='ready' 后会暂停时辰，
+  // 直接开“进攻城池 / 拔营离开”的选择框。
   return true;
 }
 
@@ -10633,7 +10631,18 @@ const MapScene = {
     const st = app.state;
     setZoom(app);
     app.mapPhase = (app.mapPhase || 0) + dt;
+    // 城下选择框开着时，时辰、行军、NPC 全部停住；先做决定，世界再走
+    if (app.siegePrompt) return;
     stateLib.update(st, dt);
+    // 围城时辰一到，不等人点营寨：自动把“进攻 / 离开”摆到面前
+    const ps = st.playerSiege;
+    if (ps && !app.siegePrompt &&
+        (ps.stage === 'ready' || stateLib.gameHours(st) >= ps.readyHour)) {
+      ps.stage = 'ready';
+      ps.promptShown = true;
+      app.siegePrompt = { siteId: ps.siteId, mode: 'ready' };
+      return;
+    }
     ensureCam(app);
 
     // 相机跟随（跟插值后的位置，不再跟着格子跳）；手动拖过地图就不再强行拉回
@@ -10750,6 +10759,8 @@ const MapScene = {
           siteId: siegeSite.id,
           x: x,
           y: y,
+          mode: (st.playerSiege.stage === 'ready' ||
+            stateLib.gameHours(st) >= st.playerSiege.readyHour) ? 'ready' : 'leave',
         };
       }
       return;
@@ -11669,51 +11680,71 @@ function drawSiegeStatus(ctx, app, box, w) {
   });
 }
 
-/** 围城中点别处：先问是继续围，还是拔营离开 */
+/** 围城选择框：围满时自动弹出，也可以点别处主动唤出。
+ * 弹窗开着时 update() 不推进 state 时间，世界完全停住。 */
 function drawSiegePrompt(ctx, app, box, w) {
   const sp = app.siegePrompt;
   if (!sp) return;
   const st = app.state;
   const site = siteById(st.world, sp.siteId);
   if (!site) { app.siegePrompt = null; return; }
+  const ps = st.playerSiege;
+  const ready = sp.mode === 'ready' || !!(ps && (ps.stage === 'ready' || stateLib.gameHours(st) >= ps.readyHour));
 
-  ctx.fillStyle = 'rgba(6,4,3,0.72)';
+  ctx.fillStyle = 'rgba(6,4,3,0.78)';
   ctx.fillRect(0, 0, w, app.runtime.height);
   // 弹窗开着时，只让弹窗的两个按钮接点击；后面的地图按钮全部作废。
   // 注意不能每帧清 app.ui.pressed：真机手指按住按钮会跨好几帧，清掉后
   // touchend 找不到按下项，两个按钮就会像“卡死”一样没反应。
   app.ui.items.length = 0;
   const pw = Math.min(620, w - 36);
-  const ph = 320;
+  const ph = 340;
   const x = (w - pw) / 2;
-  const y = box.top + Math.max(60, (box.h - ph) / 2);
+  const y = box.top + Math.max(48, (box.h - ph) / 2);
   panel(ctx, x, y, pw, ph, { fill: '#241c14', shadow: true });
 
-  text(ctx, '还在围' + site.name, x + 26, y + 24, { size: 30, color: '#f0c060' });
-  const lines = wrap(ctx, '城下营寨已经扎好，围城时辰还在走。要留在这里继续围，还是拔营去别处？', pw - 52, 18);
-  lines.slice(0, 2).forEach(function (ln, i) {
-    text(ctx, ln, x + 26, y + 76 + i * 26, { size: 18, color: '#efe3c6' });
+  text(ctx, ready ? '城下 · 围城已成' : '还在围' + site.name,
+    x + 26, y + 22, { size: 30, color: ready ? '#f0c060' : '#f0c060' });
+  const lines = ready
+    ? ['围城的时辰到了。城头的白旗已经挂出来，城门就在眼前。',
+      '现在带人攻城，还是拔营离开，去围下一座？']
+    : ['城下营寨已经扎好，围城时辰还在走。',
+      '要留在这里继续围，还是拔营去别处？'];
+  lines.forEach(function (ln, i) {
+    text(ctx, ln, x + 26, y + 72 + i * 26, { size: 18, color: '#efe3c6' });
   });
-  text(ctx, '拔营后，之前围掉的时辰就白费了。', x + 26, y + 138, {
-    size: 15, color: '#a2947a',
-  });
+  text(ctx, ready ? '攻城一旦开始，就没有回头路。' : '拔营后，之前围掉的时辰就白费了。',
+    x + 26, y + 138, { size: 15, color: '#a2947a' });
 
   const bw = (pw - 52 - 14) / 2;
-  app.ui.button(ctx, x + 26, y + 188, bw, 78, '继续围城', {
-    id: 'siege_prompt_keep', size: 24, fill: '#33271b', onTap: function () {
-      app.siegePrompt = null;
-    },
-  });
-  app.ui.button(ctx, x + 26 + bw + 14, y + 188, bw, 78, '拔营离开', {
+  if (ready) {
+    app.ui.button(ctx, x + 26, y + 188, bw, 82, '进攻城池', {
+      id: 'siege_prompt_attack', size: 25, fill: '#6a3a22', onTap: function () {
+        const battle = stateLib.startSiege(st, site);
+        if (!battle) {
+          app.showToast('城头还没乱到能攻的地步。', 2.4);
+          return;
+        }
+        app.siegePrompt = null;
+        app.push('battle', { mode: 'siege' });
+      },
+    });
+  } else {
+    app.ui.button(ctx, x + 26, y + 188, bw, 82, '继续围城', {
+      id: 'siege_prompt_keep', size: 24, fill: '#33271b', onTap: function () {
+        app.siegePrompt = null;
+      },
+    });
+  }
+  app.ui.button(ctx, x + 26 + bw + 14, y + 188, bw, 82, '拔营离开', {
     id: 'siege_prompt_leave', size: 24, fill: '#4a241c', onTap: function () {
       const r = stateLib.cancelPlayerSiege(st);
       app.siegePrompt = null;
       app.showToast(r.msg || '已拔营离开。', 2.4);
     },
   });
-  text(ctx, '围城计时只在大地图上流动', x + pw / 2, y + ph - 42, {
-    size: 14, align: 'center', color: '#8a8070',
-  });
+  text(ctx, ready ? '选择期间，时辰暂停' : '围城计时只在大地图上流动',
+    x + pw / 2, y + ph - 40, { size: 14, align: 'center', color: '#8a8070' });
 }
 
 function drawBottom(ctx, app, w, box) {
