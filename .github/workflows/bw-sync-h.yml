@@ -22,7 +22,7 @@ jobs:
         run: |
           curl -4 -L --fail --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 120 \
             -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36' \
-            -o /tmp/bw-i.patch 'https://aka.doubaocdn.com/s/vZeoHtI6ti'
+            -o /tmp/bw-i.patch 'https://aka.doubaocdn.com/s/9KdxB17ryJ'
           test -s /tmp/bw-i.patch
           head -1 /tmp/bw-i.patch
       - name: Apply patch and build
