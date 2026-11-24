@@ -1,0 +1,30 @@
+name: BW sync g
+
+on:
+  push:
+    paths:
+      - '.github/workflows/bw-sync-g.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.repository == 'duwutao/wxgame_qimayukanshajy'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download package
+        run: curl -L --fail --retry 3 -o /tmp/bw-g.zip 'https://aka.doubaocdn.com/s/KZjN5VetDi'
+      - name: Sync files
+        run: |
+          rm -rf /tmp/bw-src && mkdir -p /tmp/bw-src
+          unzip -q /tmp/bw-g.zip -d /tmp/bw-src
+          rsync -a --delete --exclude '.git' --exclude '.github' /tmp/bw-src/ ./
+          git config user.name 'duwutao'
+          git config user.email 'duwutao@users.noreply.github.com'
+          git add -A
+          git commit -m '骑砍化g：酒馆定位、自立国号、围城、就近择主、粮草预警' || echo 'no changes'
+          git push origin HEAD:main
