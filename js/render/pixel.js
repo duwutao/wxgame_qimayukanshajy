@@ -439,6 +439,393 @@ function makeFlagSprite(runtime, color) {
 
 let CACHE = null;
 
+/* ================================================================
+ * 队伍 / 人物模型：一套网格画法，放大倍数不同 → 地图棋子 / 对话立绘
+ * 网格参考 42 × 40：一匹马加骑手，再带两名步卒
+ * ================================================================ */
+
+function sp(g, s, ox, oy, x, y, color, w, h) {
+  g.fillStyle = color;
+  g.fillRect(Math.round(ox + x * s), Math.round(oy + y * s),
+    Math.max(1, Math.round((w || 1) * s)), Math.max(1, Math.round((h || 1) * s)));
+}
+
+/** 骑手：马 + 人 + 披风 + 兵器 + 旗 */
+function drawKnight(g, s, ox, oy, look, color) {
+  const L = look || {};
+  const main = color || '#e6e2d6';
+  const dark = shade(main, -0.34);
+  const cape = L.cape || shade(main, -0.2);
+  const horse = L.horse || '#2a2320';
+  const hHi = shade(horse, 0.26);
+  const hDk = shade(horse, -0.3);
+  const skin = '#dcd0b6';
+  const skinDk = shade(skin, -0.28);
+
+  // 马：躯干、颈、头、尾、四腿
+  sp(g, s, ox, oy, 8, 26, horse, 24, 7);
+  sp(g, s, ox, oy, 8, 26, hHi, 24, 1);
+  sp(g, s, ox, oy, 30, 18, horse, 5, 8);
+  sp(g, s, ox, oy, 30, 18, hHi, 1, 8);
+  sp(g, s, ox, oy, 34, 18, hDk, 5, 4);
+  sp(g, s, ox, oy, 34, 17, hDk, 2, 1);
+  sp(g, s, ox, oy, 4, 27, hDk, 3, 6);
+  sp(g, s, ox, oy, 10, 33, hDk, 3, 6);
+  sp(g, s, ox, oy, 26, 33, hDk, 3, 6);
+  sp(g, s, ox, oy, 9, 38, '#1a1614', 5, 2);
+  sp(g, s, ox, oy, 25, 38, '#1a1614', 5, 2);
+  sp(g, s, ox, oy, 33, 22, '#3a2c20', 1, 4);   // 缰绳
+
+  // 马鞍
+  sp(g, s, ox, oy, 14, 24, '#4a3a28', 9, 3);
+  sp(g, s, ox, oy, 14, 24, '#6a5236', 9, 1);
+
+  // 披风（骑手背后）
+  sp(g, s, ox, oy, 9, 14, cape, 5, 12);
+  sp(g, s, ox, oy, 9, 14, shade(cape, 0.28), 1, 12);
+
+  // 身体、腰带、甲片
+  const main2 = L.tall ? 11 : 10;
+  sp(g, s, ox, oy, 14, 13, main, 8, main2);
+  sp(g, s, ox, oy, 14, 13, dark, 1, main2);
+  sp(g, s, ox, oy, 15, 18, shade(main, -0.18), 6, 1);
+  sp(g, s, ox, oy, 14, 22, '#4a3a28', 8, 1);
+
+  // 头、胡须
+  sp(g, s, ox, oy, 16, 8, skin, 5, 5);
+  sp(g, s, ox, oy, 16, 12, skinDk, 5, 1);
+  sp(g, s, ox, oy, 17, 9, '#2a2018', 1, 1);   // 眼
+  if (L.beard) sp(g, s, ox, oy, 16, 12, shade(skin, -0.55), 4, 2);
+
+  // 头饰
+  const helm = L.helm || 'band';
+  if (helm === 'plume') {
+    sp(g, s, ox, oy, 15, 6, '#2f2f38', 7, 2);
+    sp(g, s, ox, oy, 14, 1, '#c03830', 2, 5);
+    sp(g, s, ox, oy, 22, 1, '#c03830', 2, 5);
+  } else if (helm === 'horn') {
+    sp(g, s, ox, oy, 15, 6, '#2f2f38', 7, 2);
+    sp(g, s, ox, oy, 18, 4, '#c03830', 2, 2);
+    sp(g, s, ox, oy, 19, 3, '#e05a42', 1, 1);
+  } else if (helm === 'crown') {
+    sp(g, s, ox, oy, 15, 5, '#2a2a30', 7, 3);
+    sp(g, s, ox, oy, 15, 5, '#d9a441', 7, 1);
+    sp(g, s, ox, oy, 17, 3, '#d9a441', 1, 2);
+    sp(g, s, ox, oy, 20, 3, '#d9a441', 1, 2);
+  } else {
+    sp(g, s, ox, oy, 15, 6, dark, 7, 2);
+    sp(g, s, ox, oy, 15, 7, shade(dark, 0.3), 7, 1);
+  }
+
+  // 兵器
+  const weapon = L.weapon || 'dao';
+  if (weapon === 'ji') {
+    sp(g, s, ox, oy, 27, 6, '#8a6a44', 1, 20);
+    sp(g, s, ox, oy, 26, 4, '#d8dde6', 3, 2);
+    sp(g, s, ox, oy, 25, 6, '#d8dde6', 2, 1);
+  } else if (weapon === 'qiang') {
+    sp(g, s, ox, oy, 27, 5, '#7a6a52', 1, 21);
+    sp(g, s, ox, oy, 27, 2, '#e2e8f0', 1, 3);
+    sp(g, s, ox, oy, 26, 5, '#b03a30', 3, 1);
+  } else if (weapon === 'gong') {
+    sp(g, s, ox, oy, 27, 8, '#6a4a2c', 1, 12);
+    sp(g, s, ox, oy, 28, 9, '#8a7a5c', 1, 10);
+    sp(g, s, ox, oy, 26, 9, '#d8d2c0', 1, 10);
+  } else if (weapon === 'jian') {
+    sp(g, s, ox, oy, 27, 8, '#c8ccd6', 1, 12);
+    sp(g, s, ox, oy, 26, 19, '#4a3a28', 2, 2);
+  } else {
+    sp(g, s, ox, oy, 27, 8, '#b8bcc4', 1, 13);
+    sp(g, s, ox, oy, 26, 7, '#e2e6ee', 2, 2);
+  }
+
+  // 旗帜（骑手身后右侧）
+  sp(g, s, ox, oy, 38, 1, '#5f4830', 1, 18);
+  sp(g, s, ox, oy, 39, 2, main, 3, 6);
+  sp(g, s, ox, oy, 39, 2, shade(main, 0.3), 3, 1);
+  px(g, ox + 39 * s, oy + 8 * s, '#0d0b08', 3 * s, 1 * s);
+}
+
+/** 步卒：身体 + 头 + 兵器，举盾可选 */
+function drawFoot(g, s, ox, oy, color, opt) {
+  const o = opt || {};
+  const main = color || '#7a6a52';
+  const dark = shade(main, -0.35);
+  const skin = '#d6c9a8';
+  const skinDk = shade(skin, -0.3);
+  const h = o.tall ? 16 : 14;
+  const y0 = o.tall ? 4 : 6;
+
+  // 腿
+  sp(g, s, ox, oy, 3, y0 + h - 4, dark, 2, 4);
+  sp(g, s, ox, oy, 7, y0 + h - 4, dark, 2, 4);
+  // 身体
+  sp(g, s, ox, oy, 2, y0, main, 7, h - 4);
+  sp(g, s, ox, oy, 2, y0, dark, 1, h - 4);
+  sp(g, s, ox, oy, 3, y0 + 3, shade(main, -0.16), 5, 1);
+  // 头
+  sp(g, s, ox, oy, 3, y0 - 5, skin, 4, 4);
+  sp(g, s, ox, oy, 3, y0 - 6, o.band || dark, 4, 2);
+  sp(g, s, ox, oy, 4, y0 - 4, '#2a2018', 1, 1);
+  if (o.beard) sp(g, s, ox, oy, 3, y0 - 1, skinDk, 4, 1);
+
+  // 兵器
+  if (o.weapon === 'gong') {
+    sp(g, s, ox, oy, 9, y0 - 2, '#6a4a2c', 1, 10);
+    sp(g, s, ox, oy, 10, y0 - 1, '#8a7a5c', 1, 8);
+  } else if (o.weapon === 'qiang') {
+    sp(g, s, ox, oy, 9, y0 - 6, '#7a6a52', 1, 16);
+    sp(g, s, ox, oy, 9, y0 - 8, '#dfe6ee', 1, 2);
+  } else {
+    sp(g, s, ox, oy, 9, y0 + 1, '#b8bcc4', 1, 6);
+  }
+  if (o.shield) {
+    sp(g, s, ox, oy, 0, y0 + 1, '#4a3a28', 2, 6);
+    sp(g, s, ox, oy, 0, y0 + 2, shade(main, 0.2), 2, 4);
+  }
+}
+
+/**
+ * 一支队伍（领主）：骑手居中，两名步卒在两侧，脚下有影子
+ * 返回 42 × 40 的图
+ */
+function makePartySprite(runtime, color, look) {
+  const c = newCanvas(runtime, 42, 40);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 42, 40);
+  const main = color || '#e6e2d6';
+  // 阴影
+  g.fillStyle = 'rgba(0,0,0,0.38)';
+  g.beginPath();
+  g.ellipse(21, 38, 19, 3, 0, 0, Math.PI * 2);
+  g.fill();
+  // 两翼步卒
+  const footCol = shade(main, -0.12);
+  drawFoot(g, 1, 1, 22, footCol, { weapon: 'qiang', shield: true, band: shade(main, -0.4) });
+  drawFoot(g, 1, 31, 22, footCol, { weapon: 'dao', band: shade(main, -0.4) });
+  // 骑手（稍微抬高，显得在后面）
+  drawKnight(g, 1, 0, 0, look || {}, main);
+  return c;
+}
+
+/**
+ * 一支匪团：按档位换人数与装备
+ * qing 三个破衣步卒；lan 四个黄巾步卒带旗；cheng 两卒一骑；hong 两骑三卒
+ */
+function makeBanditPartySprite(runtime, tier) {
+  const c = newCanvas(runtime, 46, 42);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 46, 42);
+  g.fillStyle = 'rgba(0,0,0,0.35)';
+  g.beginPath();
+  g.ellipse(22, 40, 21, 3, 0, 0, Math.PI * 2);
+  g.fill();
+
+  const t = tier || 'qing';
+  if (t === 'qing') {
+    drawFoot(g, 1, 8, 20, '#5a4a3a', { weapon: 'dao', band: '#3a3028' });
+    drawFoot(g, 1, 18, 18, '#6a5642', { weapon: 'dao', band: '#3a3028', tall: true });
+    drawFoot(g, 1, 30, 20, '#4e4032', { weapon: 'gong', band: '#3a3028' });
+    // 一根木棍当旗
+    sp(g, 1, 0, 24, 6, '#5f4830', 1, 12);
+    px(g, 25, 7, '#8a3a30', 4, 3);
+  } else if (t === 'lan') {
+    const cloth = '#8a6a3a';
+    const band = '#d8b24a';
+    drawFoot(g, 1, 3, 19, cloth, { weapon: 'qiang', band: band, shield: true });
+    drawFoot(g, 1, 13, 17, '#7a5a34', { weapon: 'dao', band: band, tall: true });
+    drawFoot(g, 1, 24, 19, cloth, { weapon: 'gong', band: band });
+    drawFoot(g, 1, 34, 20, '#6a4a2c', { weapon: 'dao', band: band });
+    // 黄旗
+    sp(g, 1, 0, 22, 6, '#5f4830', 1, 14);
+    px(g, 23, 2, band, 7, 6);
+    px(g, 23, 2, '#e8c96a', 7, 1);
+  } else if (t === 'cheng') {
+    drawFoot(g, 1, 2, 21, '#6a6a72', { weapon: 'qiang', band: '#8a8f99', shield: true });
+    drawFoot(g, 1, 34, 21, '#5a5a62', { weapon: 'dao', band: '#8a8f99' });
+    drawKnight(g, 1, 2, 0, { weapon: 'qiang', helm: 'horn', cape: '#8a4a30', horse: '#4a4440' }, '#7a7a84');
+    px(g, 0, 0, 'rgba(0,0,0,0)', 1, 1);
+    sp(g, 1, 0, 30, 2, '#5f4830', 1, 12);
+    px(g, 31, 3, '#c07a3c', 5, 4);
+  } else {
+    drawFoot(g, 1, 2, 22, '#5a2a24', { weapon: 'qiang', band: '#2a2020', shield: true });
+    drawFoot(g, 1, 11, 24, '#6a3430', { weapon: 'dao', band: '#2a2020' });
+    drawFoot(g, 1, 38, 22, '#5a2a24', { weapon: 'dao', band: '#2a2020' });
+    drawKnight(g, 1, 0, 0, { weapon: 'dao', helm: 'horn', cape: '#a8403a', horse: '#3a2a26' }, '#8a3430');
+    drawKnight(g, 1, 4, 2, { weapon: 'qiang', helm: 'band', cape: '#7a2a26', horse: '#2a2320' }, '#9a3a34');
+    sp(g, 1, 0, 32, 2, '#5f4830', 1, 12);
+    px(g, 33, 3, '#a8403a', 6, 5);
+    px(g, 33, 3, '#d05a4a', 6, 1);
+  }
+  return c;
+}
+
+/** 兵种小图：16 × 16，队伍页 / 招兵页用 */
+function makeUnitSprite(runtime, troopId, color) {
+  const c = newCanvas(runtime, 16, 16);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 16, 16);
+  const main = color || '#8a7a5a';
+  const kind = troopId || '';
+  const naval = /boat|huochuan/.test(kind);
+  const mounted = !naval && /cav|qishe|tiefu|tengri|xianbei|jinjun/.test(kind);
+  const archer = /archer|crossbow/.test(kind);
+  if (mounted && !naval) {
+    // 骑
+    sp(g, 1, 0, 0, 2, 8, shade(main, -0.5), 10, 4);
+    sp(g, 1, 0, 0, 10, 5, shade(main, -0.5), 3, 4);
+    sp(g, 1, 0, 0, 2, 12, shade(main, -0.6), 2, 4);
+    sp(g, 1, 0, 0, 9, 12, shade(main, -0.6), 2, 4);
+    sp(g, 1, 0, 0, 5, 3, main, 4, 5);
+    sp(g, 1, 0, 0, 6, 0, '#d6c9a8', 3, 3);
+    sp(g, 1, 0, 0, 12, 2, '#cfd4dc', 1, 8);
+  } else if (naval) {
+    // 船
+    sp(g, 1, 0, 0, 1, 10, '#5a3a22', 14, 4);
+    sp(g, 1, 0, 0, 1, 10, '#7a5230', 14, 1);
+    sp(g, 1, 0, 0, 7, 1, '#6a4a2c', 1, 9);
+    px(g, 8, 2, main, 5, 6);
+  } else {
+    // 步
+    sp(g, 1, 0, 0, 5, 6, main, 5, 7);
+    sp(g, 1, 0, 0, 5, 6, shade(main, -0.35), 1, 7);
+    sp(g, 1, 0, 0, 6, 2, '#d6c9a8', 3, 4);
+    sp(g, 1, 0, 0, 6, 1, shade(main, -0.45), 3, 2);
+    sp(g, 1, 0, 0, 4, 13, shade(main, -0.5), 2, 3);
+    sp(g, 1, 0, 0, 8, 13, shade(main, -0.5), 2, 3);
+    if (archer) {
+      sp(g, 1, 0, 0, 11, 3, '#6a4a2c', 1, 8);
+      sp(g, 1, 0, 0, 10, 4, '#8a7a5c', 1, 6);
+    } else {
+      sp(g, 1, 0, 0, 11, 2, '#c8ccd6', 1, 9);
+      sp(g, 1, 0, 0, 2, 6, shade(main, 0.15), 2, 5);
+    }
+  }
+  return c;
+}
+
+/** 对话立绘（骑砍式半身像）：头、盔、肩甲、胸甲、披风、兵器 */
+function makeBustPortrait(runtime, color, look, s) {
+  const k = s || 10;
+  const GW = 26;
+  const GH = 32;
+  const c = newCanvas(runtime, GW * k, GH * k);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, GW * k, GH * k);
+  const L = look || {};
+  const main = color || '#e6e2d6';
+  const dark = shade(main, -0.42);
+  const mid = shade(main, -0.18);
+  const steel = '#b8b0a0';
+  const steelDk = '#7e7768';
+  const skin = '#d6a173';
+  const cape = L.cape || mid;
+
+  // 披风两片
+  sp(g, k, 0, 0, 3, 17, cape, 3, 14);
+  sp(g, k, 0, 0, 20, 17, cape, 3, 14);
+  sp(g, k, 0, 0, 2, 19, shade(cape, -0.35), 2, 11);
+
+  // 肩甲
+  sp(g, k, 0, 0, 4, 16, steel, 7, 3);
+  sp(g, k, 0, 0, 15, 16, steel, 7, 3);
+  sp(g, k, 0, 0, 4, 16, shade(steel, 0.28), 7, 1);
+  sp(g, k, 0, 0, 15, 16, shade(steel, 0.28), 7, 1);
+  sp(g, k, 0, 0, 4, 19, steelDk, 3, 2);
+  sp(g, k, 0, 0, 19, 19, steelDk, 3, 2);
+
+  // 胸甲
+  sp(g, k, 0, 0, 7, 19, mid, 12, 11);
+  sp(g, k, 0, 0, 7, 19, main, 12, 1);
+  sp(g, k, 0, 0, 8, 21, shade(main, 0.16), 10, 1);
+  sp(g, k, 0, 0, 7, 28, dark, 12, 2);
+  sp(g, k, 0, 0, 9, 23, 'rgba(0,0,0,0.28)', 1, 1);
+  sp(g, k, 0, 0, 16, 23, 'rgba(0,0,0,0.28)', 1, 1);
+  sp(g, k, 0, 0, 12, 24, '#d9a441', 2, 4);
+
+  // 脖子
+  sp(g, k, 0, 0, 11, 14, shade(skin, -0.18), 4, 2);
+
+  // 脸
+  sp(g, k, 0, 0, 10, 8, skin, 6, 7);
+  sp(g, k, 0, 0, 10, 8, shade(skin, 0.16), 6, 1);
+  sp(g, k, 0, 0, 10, 11, shade(skin, -0.24), 1, 3);
+  sp(g, k, 0, 0, 15, 11, shade(skin, -0.24), 1, 3);
+  // 眼、眉
+  sp(g, k, 0, 0, 11, 10, '#2a1c14', 1, 1);
+  sp(g, k, 0, 0, 14, 10, '#2a1c14', 1, 1);
+  sp(g, k, 0, 0, 11, 9, '#3a2a20', 1, 1);
+  sp(g, k, 0, 0, 14, 9, '#3a2a20', 1, 1);
+  // 胡须
+  if (L.beard) {
+    sp(g, k, 0, 0, 11, 12, '#3a2a20', 4, 2);
+    sp(g, k, 0, 0, 12, 14, '#2e2118', 2, 1);
+  } else {
+    sp(g, k, 0, 0, 12, 13, '#8a5a3a', 2, 1);
+  }
+
+  // 盔 / 冠 / 巾
+  const helm = L.helm || 'band';
+  if (helm === 'plume') {
+    sp(g, k, 0, 0, 9, 3, steel, 8, 4);
+    sp(g, k, 0, 0, 9, 6, steelDk, 8, 1);
+    sp(g, k, 0, 0, 11, 0, '#b8382a', 4, 3);
+    sp(g, k, 0, 0, 12, -1, '#e05a3a', 2, 1);
+  } else if (helm === 'horn') {
+    sp(g, k, 0, 0, 9, 3, steel, 8, 4);
+    sp(g, k, 0, 0, 9, 6, steelDk, 8, 1);
+    sp(g, k, 0, 0, 6, 2, '#e8dcc0', 2, 3);
+    sp(g, k, 0, 0, 18, 2, '#e8dcc0', 2, 3);
+  } else if (helm === 'crown') {
+    sp(g, k, 0, 0, 9, 3, '#c9973a', 8, 4);
+    sp(g, k, 0, 0, 9, 2, '#f0c060', 2, 2);
+    sp(g, k, 0, 0, 12, 1, '#f0c060', 2, 3);
+    sp(g, k, 0, 0, 15, 2, '#f0c060', 2, 2);
+  } else {
+    sp(g, k, 0, 0, 9, 3, mid, 8, 4);
+    sp(g, k, 0, 0, 9, 6, dark, 8, 1);
+  }
+  // 护颈
+  sp(g, k, 0, 0, 8, 7, shade(main, -0.55), 10, 1);
+
+  // 兵器：右侧一根
+  const wp = L.weapon || 'qiang';
+  if (wp === 'gong') {
+    sp(g, k, 0, 0, 22, 8, '#6a4a2a', 1, 15);
+    sp(g, k, 0, 0, 23, 10, '#6a4a2a', 1, 11);
+  } else if (wp === 'dao') {
+    sp(g, k, 0, 0, 22, 4, '#8a7a5a', 2, 18);
+    sp(g, k, 0, 0, 22, 2, steel, 2, 3);
+  } else {
+    sp(g, k, 0, 0, 22, 2, '#8a7448', 1, 27);
+    if (wp === 'ji') sp(g, k, 0, 0, 20, 3, steel, 3, 2);
+    else if (wp === 'qiang') sp(g, k, 0, 0, 21, 1, steel, 2, 3);
+    else sp(g, k, 0, 0, 22, 3, steel, 1, 4);
+  }
+
+  // 底座影
+  g.fillStyle = 'rgba(0,0,0,0.38)';
+  g.beginPath();
+  g.ellipse(13 * k, 31.2 * k, 10 * k, 1.5 * k, 0, 0, Math.PI * 2);
+  g.fill();
+  return c;
+}
+
+/** 对话立绘：只画这一位骑手，按 s 倍放大成一幅画（骑砍式单人像） */
+function makeLordPortrait(runtime, color, look, s) {
+  const k = s || 6;
+  const c = newCanvas(runtime, 42 * k, 40 * k);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 42 * k, 40 * k);
+  const main = color || '#e6e2d6';
+  g.fillStyle = 'rgba(0,0,0,0.45)';
+  g.beginPath();
+  g.ellipse(21 * k, 39 * k, 17 * k, 3 * k, 0, 0, Math.PI * 2);
+  g.fill();
+  drawKnight(g, k, 0, 0, look || {}, main);
+  return c;
+}
+
 function buildAssets(runtime) {
   if (CACHE) return CACHE;
   const terrainCache = {};
@@ -463,6 +850,36 @@ function buildAssets(runtime) {
       if (!this.lordCache) this.lordCache = {};
       if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, look);
       return this.lordCache[key];
+    },
+    /** 领主队伍模型（骑马 + 两卒 + 旗） */
+    partyIconFor: function (color, look) {
+      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
+      const key = (color || 'x') + '|' + lookKey;
+      if (!this.partyCache) this.partyCache = {};
+      if (!this.partyCache[key]) this.partyCache[key] = makePartySprite(runtime, color, look);
+      return this.partyCache[key];
+    },
+    /** 匪团队伍模型（按档位） */
+    banditPartyFor: function (tier, color) {
+      if (!this.banditPartyCache) this.banditPartyCache = {};
+      const key = (tier || 'qing') + '|' + (color || '');
+      if (!this.banditPartyCache[key]) this.banditPartyCache[key] = makeBanditPartySprite(runtime, tier);
+      return this.banditPartyCache[key];
+    },
+    /** 对话立绘 */
+    portraitFor: function (color, look) {
+      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
+      const key = (color || 'x') + '|' + lookKey;
+      if (!this.portraitCache) this.portraitCache = {};
+      if (!this.portraitCache[key]) this.portraitCache[key] = makeBustPortrait(runtime, color, look, 10);
+      return this.portraitCache[key];
+    },
+    /** 兵种小图 */
+    unitIconFor: function (troopId, color) {
+      if (!this.unitCache) this.unitCache = {};
+      const key = (troopId || 'x') + '|' + (color || '');
+      if (!this.unitCache[key]) this.unitCache[key] = makeUnitSprite(runtime, troopId, color);
+      return this.unitCache[key];
     },
     /** 按等级色生成匪团棋子 */
     banditIconFor: function (color) {

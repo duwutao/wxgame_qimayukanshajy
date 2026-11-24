@@ -12,6 +12,7 @@ const economy = require('../core/economy.js');
 const trade = require('../core/trade.js');
 const heroes = require('../core/heroes.js');
 const army = require('../core/army.js');
+const tourney = require('../core/tourney.js');
 const { siteById, regionDef } = require('../core/world.js');
 const { TROOPS } = require('../data/troops.js');
 const { FACTIONS, EQUIPMENT } = require('../data/china.js');
@@ -150,6 +151,10 @@ function renderMenu(app, site) {
     y = menuButton(app, y, '领主府', '效忠 · 宣战 · 情报', function () {
       app.townView.view = 'hall';
     }, { id: 'm_hall', right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主' });
+
+    y = menuButton(app, y, '比武大会', '报名连打三场 · 赢钱赢名声，不杀人', function () {
+      app.push('tourney', { siteId: site.id });
+    }, { id: 'm_tourney', fill: '#3a2c1e', right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金' });
   }
 
   app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {

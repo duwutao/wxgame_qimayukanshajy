@@ -30,7 +30,7 @@ for (let d = 0; d < 10; d++) {
   st.parties.forEach(function (p) { t[p.banditTier] = (t[p.banditTier] || 0) + 1; });
   console.log('  第 ' + st.clock.day + ' 天  匪团 ' + st.parties.length +
     '  劫匪 ' + t.qing + ' 黄巾 ' + t.lan + ' 乱军 ' + t.cheng + ' 叛军 ' + t.hong +
-    '  领主阵亡 ' + st.lords.filter(function (l) { return !l.alive; }).length);
+    '  领主阵亡 ' + st.lords.filter(function (l) { return !l.alive && !l.prisoner; }).length + '  在押 ' + (st.prisoners || []).length);
 }
 console.log('  期间发生过交战的匪团：' + seenScuffle.length);
 

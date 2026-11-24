@@ -19,6 +19,7 @@ const army = require('./army.js');
 const economy = require('./economy.js');
 const trade = require('./trade.js');
 const heroes = require('./heroes.js');
+const war = require('./war.js');
 const { Battle } = require('./battle.js');
 const {
   FACTIONS, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
@@ -27,6 +28,7 @@ const { TROOPS } = require('../data/troops.js');
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
+const { LORD_BIOS } = require('../data/bios.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -138,6 +140,9 @@ function createGame(opts) {
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, 8);
   spawnChaseParty(state, spawn);
+  war.init(state);
+  war.bindLogger(pushLog);
+  war.bindPassable(isPassable);
 
   pushLog(state, '洛阳城破了。你带着三十名溃兵往东走，身后是西凉铁骑。');
   pushLog(state, '别回头。跑到陈留，就还有二十个人跟你。');
@@ -463,9 +468,13 @@ function dailyTick(state) {
 
   // 匪团补充：维持全图常驻数量（太少没得打，太多寸步难行）
   refillBandits(state);
-  // 领主重生
+  // 国战：谁跟谁翻了脸；牢里的人熬过一天
+  war.diplomacyTick(state);
+  war.prisonerTick(state);
+  // 领主重生（关在牢里的不算，等着被赎、被救或自己跑）
   state.lords.forEach(function (lord) {
-    if (!lord.alive && state.clock.day >= lord.respawnDay) {
+    if (lord.alive || lord.prisoner) return;
+    if (state.clock.day >= lord.respawnDay) {
       lord.alive = true;
       const home = siteById(state.world, lord.home);
       if (home) {
@@ -541,6 +550,7 @@ function update(state, dtSeconds) {
     state.npcClock -= NPC_STEP_HOURS;
     moveParties(state);
     moveLords(state);
+    war.fieldTick(state);
     checkPursuit(state);
     advanceCampaign(state);
     if (state.events.length) return;
@@ -643,16 +653,23 @@ function moveLords(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
     let target;
+    const home = siteById(state.world, lord.home);
     const dist = gridDistance(lord, p);
     if (isHostileFaction(state, lord.faction) && dist <= lord.sight) {
       target = { x: p.x, y: p.y };
       lord.chasing = true;
     } else {
       lord.chasing = false;
-      const home = siteById(state.world, lord.home);
-      if (home && gridDistance(lord, home) > 3) {
+      // 国战：看见死敌的旗，先扑过去打人，老家的事放一放
+      const foe = war.nearestFoe(state, lord, 5);
+      if (foe && !(lord.scuffle > 0)) {
+        target = { x: foe.x, y: foe.y };
+        lord.foeChasing = foe.id;
+      } else if (home && gridDistance(lord, home) > 3) {
+        lord.foeChasing = null;
         target = { x: home.x, y: home.y };
       } else {
+        lord.foeChasing = null;
         if (!lord.wander || gridDistance(lord, lord.wander) < 1) {
           lord.wander = findFreeSpotNear(state, lord.x, lord.y, 3);
         }
@@ -1042,11 +1059,13 @@ function resolveBattle(state, battle) {
     } else if (ctx.kind === 'lord') {
       const lord = state.lords.filter(function (x) { return x.id === ctx.lordId; })[0];
       if (lord) {
-        lord.alive = false;
-        lord.respawnDay = state.clock.day + LORD_RESPAWN_DAYS;
-        lord.troops = {};
+        const res = war.onPlayerBeatLord(state, lord);
         changeRelation(state, lord.faction, -35);
-        pushLog(state, '你击败了' + lord.name + '！' + (FACTIONS[lord.faction] ? FACTIONS[lord.faction].name : '') + '与你结下死仇。');
+        if (res.captured) {
+          pushLog(state, '你生擒了' + lord.name + '，捆在营后。牢里等着家人拿 ' + res.ransom + ' 金来赎。');
+        } else {
+          pushLog(state, '你击败了' + lord.name + '！他带残部往野地里跑了。' + (FACTIONS[lord.faction] ? FACTIONS[lord.faction].name : '') + '与你结下死仇。');
+        }
         if (lord.id === 'lvbu') {
           state.flags.lvbuBeaten = true;
           advanceCampaign(state);
@@ -1105,6 +1124,7 @@ function takeSite(state, site) {
     if (oldFaction && oldFaction !== 'bandit') {
       changeRelation(state, oldFaction, -60);
     }
+    war.onSiteTaken(state, site, oldFaction);
     pushLog(state, '你拿下了' + site.name + '。从今天起，这里归你。');
     checkVictory(state);
     advanceCampaign(state);
@@ -1224,8 +1244,44 @@ function joinFaction(state, site) {
   return { ok: true, msg: '你现在是' + FACTIONS[f].full + '的人了' };
 }
 
-function declareWar(state, site) {
-  const f = site.ownerFaction;
+/* ---------------------------------------------------------------- 俘虏 */
+
+function prisonersOf(state) {
+  const list = war.listPrisoners(state).map(function (p) {
+    const lord = state.lords.filter(function (l) { return l.id === p.lordId; })[0];
+    const site = siteById(state.world, p.siteId);
+    return {
+      lordId: p.lordId,
+      name: lord ? lord.name : p.lordId,
+      title: lord ? lord.title : '',
+      faction: lord ? lord.faction : '',
+      by: p.by,
+      byName: p.byName || (p.by === 'player' ? '你' : ''),
+      place: site ? site.name : '某处牢里',
+      days: p.days || 0,
+      ransom: p.ransom || (60 + Math.round(war.weight(lord ? lord.defTroops : {}) / 5)),
+      chance: Math.min(1, war.ESCAPE_BASE + war.ESCAPE_STEP * (p.days || 0)),
+    };
+  });
+  return list;
+}
+
+function ransomPrisoner(state, lordId) {
+  const p = (state.prisoners || []).filter(function (x) { return x.lordId === lordId; })[0];
+  const lord = state.lords.filter(function (l) { return l.id === lordId; })[0];
+  if (p && lord && !p.ransom) p.ransom = 60 + Math.round(war.weight(lord.defTroops) / 5);
+  return war.ransom(state, lordId);
+}
+
+function releasePrisoner(state, lordId) {
+  return war.release(state, lordId);
+}
+
+function factionWars(state) {
+  return war.summaryLines(state);
+}
+
+function declareWar(state, site) {  const f = site.ownerFaction;
   if (!f || f === 'bandit') return { ok: false, msg: '这里没有可宣战的对象' };
   if (state.player.faction === f) return { ok: false, msg: '你不能对自己的国宣战' };
   state.wars[f] = true;
@@ -1291,7 +1347,7 @@ function lordLines(lord) {
   const base = LORD_TALK[lord.id] || {};
   const pool = FACTION_TALK[lord.faction] || { greet: [], idle: [] };
   const factionName = FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世';
-  const bio = base.bio || LORD_EXTRA_BIO[lord.id] || (lord.name + '，' + factionName + '。');
+  const bio = LORD_BIOS[lord.id] || base.bio || LORD_EXTRA_BIO[lord.id] || (lord.name + '，' + factionName + '。');
   const greet = base.greet || (pool.greet && pool.greet[0]) || '有什么事？';
   const idle = (base.idle || []).concat(pool.idle || []);
   return {
@@ -1558,6 +1614,9 @@ function serialize(state) {
     player: state.player,
     relations: state.relations,
     wars: state.wars,
+    factionWars: state.factionWars || {},
+    diplomacySeeded: !!state.diplomacySeeded,
+    prisoners: (state.prisoners || []).filter(function (p) { return !p.escaped; }),
     lords: state.lords,
     parties: state.parties,
     quests: state.quests,
@@ -1598,6 +1657,9 @@ function deserialize(json) {
     player: data.player,
     relations: data.relations,
     wars: data.wars || {},
+    factionWars: data.factionWars || {},
+    diplomacySeeded: !!data.diplomacySeeded,
+    prisoners: data.prisoners || [],
     lords: data.lords || [],
     parties: data.parties || [],
     quests: data.quests || [],
@@ -1637,6 +1699,9 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  war.init(state);
+  war.bindLogger(pushLog);
+  war.bindPassable(isPassable);
   return state;
 }
 
@@ -1670,6 +1735,10 @@ module.exports = {
   completeQuests,
   joinFaction,
   declareWar,
+  prisonersOf,
+  ransomPrisoner,
+  releasePrisoner,
+  factionWars,
   raidVillage,
   campaignState,
   campaignInfo,

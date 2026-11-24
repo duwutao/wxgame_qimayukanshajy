@@ -270,6 +270,43 @@ smoke('英雄对话页', function () {
   ok('确认离开时有第二套按钮', heroScene.confirm === true);
 });
 
+smoke('牢房页（俘虏能收赎金/放人）', function () {
+  const st = app.state;
+  const war = require(R + '/core/war.js');
+  const victim = st.lords.filter(function (l) { return l.faction !== 'wei' && l.alive; })[0];
+  war.capture(st, victim, 'player', '你');
+  st.prisoners[st.prisoners.length - 1].ransom = 180;
+  app.push('prison');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const sc = app.top().scene;
+  ok('牢房列出俘虏', (sc.rows || []).length >= 1, '行数 ' + (sc.rows || []).length);
+  app.pop();
+});
+
+smoke('比武大会页（报名 / 名单 / 打完）', function () {
+  const st = app.state;
+  st.player.gold = 800;
+  st.tourney = null;
+  app.push('tourney', { siteId: 'chenliu' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const sc = app.top().scene;
+  const tourney = require(R + '/core/tourney.js');
+  const r = tourney.enter(st, st.world.sites[0]);
+  ok('能报名', r.ok, r.msg);
+  app.ui.begin();
+  sc.render(app);
+  ok('名单三行', st.tourney.foes.length === 3);
+  let guard = 0;
+  while (st.tourney && !st.tourney.done && guard++ < 4) tourney.fightRound(st);
+  app.ui.begin();
+  sc.render(app);
+  ok('打完能出结果', st.tourney && st.tourney.done);
+  tourney.close(st);
+  app.pop();
+});
+
 smoke('史册页', function () {
   app.push('journal');
   app.ui.begin();

@@ -70,40 +70,53 @@ const TitleScene = {
 
     // 标题
     ctx.fillStyle = 'rgba(10,8,6,0.55)';
-    ctx.fillRect(0, h * 0.58, w, 150);
-    text(ctx, '骑砍大师', w / 2, h * 0.60, { size: 86, align: 'center', color: '#f0c060', shadow: true });
-    text(ctx, '三 国 · 群 雄 割 据', w / 2, h * 0.60 + 96, {
+    ctx.fillRect(0, h * 0.49, w, 140);
+    text(ctx, '骑砍大师', w / 2, h * 0.505, { size: 86, align: 'center', color: '#f0c060', shadow: true });
+    text(ctx, '三 国 · 群 雄 割 据', w / 2, h * 0.505 + 92, {
       size: 24, align: 'center', color: '#c9bda2',
     });
 
-    // 按钮
-    const by = h * 0.76;
+    // 按钮：新的开始 / 最近存档 / 保存的存档 / 玩法
+    const by = h * 0.615;
+    const bh = 84;
+    const gapY = 94;
     const bw = w - 160;
-    app.ui.button(ctx, 80, by, bw, 96, '新的开始 · 洛阳溃兵', {
-      id: 'new', size: 30, fill: '#3a2c1e', onTap: function () {
+    app.ui.button(ctx, 80, by, bw, bh, '新的开始 · 洛阳溃兵', {
+      id: 'new', size: 28, fill: '#3a2c1e', onTap: function () {
         app.state = stateLib.createGame({});
         app.replace('map');
       },
     });
 
     const meta = app.saveMeta;
-    app.ui.button(ctx, 80, by + 116, bw, 96, meta ? '继续 · 第 ' + meta.clock.day + ' 天 ' + (meta.player.flagName === '无旗' ? meta.player.name : meta.player.flagName) : '继续（暂无存档）', {
-      id: 'cont', size: 28, disabled: !meta, fill: '#241c14', onTap: function () {
-        const raw = app.runtime.storage.get(SAVE_KEY);
-        const st = stateLib.deserialize(raw);
-        if (!st) {
-          app.showToast('存档读不出来，只能重开。');
-          return;
-        }
-        app.state = st;
-        app.replace('map');
+    app.ui.button(ctx, 80, by + gapY, bw, bh,
+      meta ? '加载最近存档 · 第 ' + meta.clock.day + ' 天' : '加载最近存档（空）', {
+        id: 'cont', size: 26, disabled: !meta, fill: '#241c14', onTap: function () {
+          const raw = app.runtime.storage.get(SAVE_KEY);
+          const st = stateLib.deserialize(raw);
+          if (!st) {
+            app.showToast('存档读不出来，只能重开。');
+            return;
+          }
+          app.state = st;
+          app.replace('map');
+        },
+      });
+
+    app.ui.button(ctx, 80, by + gapY * 2, bw, bh, '加载保存存档 · 九个槽', {
+      id: 'slots', size: 26, fill: '#241c14', onTap: function () {
+        app.push('saves', { mode: 'load', from: 'title' });
       },
     });
 
-    app.ui.button(ctx, 80, by + 232, bw, 88, '玩法 · 战役 · 兵种', {
-      id: 'help', size: 26, fill: '#201a14', onTap: function () {
+    app.ui.button(ctx, 80, by + gapY * 3, bw, bh - 4, '玩法 · 战役 · 兵种', {
+      id: 'help', size: 24, fill: '#201a14', onTap: function () {
         app.push('help');
       },
+    });
+
+    text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 史简改命', w / 2, h - 40, {
+      size: 15, align: 'center', color: '#6a6050',
     });
 
     text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 史简改命', w / 2, h - 46, {

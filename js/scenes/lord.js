@@ -76,37 +76,42 @@ const LordScene = {
     ctx.fillRect(0, 0, w, 300);
     ctx.globalAlpha = 1;
 
-    // 立绘：按原始比例放大，每人一套兵器/头饰/马色
+    // 立绘：一整队人马放大（骑手 + 两卒 + 旗），按势力上色
     const look = lookFor(lord.id);
-    const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, look) : null) || app.assets.lord;
-    const sw0 = sprite.width || 20;
-    const sh0 = sprite.height || 20;
-    let spW = Math.min(300, w * 0.72);
+    const sprite = (app.assets.portraitFor ? app.assets.portraitFor(col, look) : null) || app.assets.lord;
+    const sw0 = sprite.width || 42;
+    const sh0 = sprite.height || 40;
+    let spW = Math.min(310, w * 0.74);
     let spH = spW * (sh0 / sw0);
-    const maxH = h * 0.28;
+    const maxH = Math.max(170, h * 0.235);
     if (spH > maxH) {
       spH = maxH;
       spW = spH * (sw0 / sh0);
     }
-    ctx.drawImage(sprite, w / 2 - spW / 2, 56, spW, spH);
+    ctx.drawImage(sprite, w / 2 - spW / 2, 88, spW, spH);
 
     // 名字与身份
-    text(ctx, lord.name, w / 2, 40, { size: 42, align: 'center', color: '#f5e9cf', shadow: true });
-    text(ctx, (lord.title || '') + ' · ' + (fac ? fac.full : '无主'), w / 2, 94, {
+    text(ctx, lord.name, w / 2, 26, { size: 42, align: 'center', color: '#f5e9cf', shadow: true });
+    text(ctx, (lord.title || '') + ' · ' + (fac ? fac.full : '无主'), w / 2, 76, {
       size: 18, align: 'center', color: '#c9bda2', shadow: true,
     });
 
     // 话框
-    const boxY = Math.max(h * 0.30, 200);
-    const boxH = Math.min(260, h - boxY - 250);
+    const boxY = Math.max(h * 0.315, 240);
+    const isBio = d.page === 'bio';
+    const boxH = isBio ? (h - boxY - 116) : Math.min(260, h - boxY - 250);
     panel(ctx, 20, boxY, w - 40, boxH, { fill: '#201a14' });
     text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' +
       (RANK_LABEL[stateLib.lordRank(lord)] || '将领'),
       w - 36, boxY + 10, { size: 16, align: 'right', color: '#a2947a' });
-    const size = 21;
+    if (isBio) text(ctx, '生平', 40, boxY + 10, { size: 16, color: '#c9bda2' });
+    const size = isBio ? 18 : 21;
+    const lineH = isBio ? 28 : 32;
+    const top = isBio ? 46 : 26;
     const lines = wrap(ctx, d.line, w - 96, size, 'bold');
-    lines.slice(0, 8).forEach(function (ln, i) {
-      text(ctx, ln, 48, boxY + 24 + i * 32, { size, color: '#efe3c6' });
+    const maxLines = Math.floor((boxH - top - 14) / lineH);
+    lines.slice(0, maxLines).forEach(function (ln, i) {
+      text(ctx, ln, 48, boxY + top + i * lineH, { size, color: '#efe3c6' });
     });
 
     const bottomY = boxY + boxH + 16;

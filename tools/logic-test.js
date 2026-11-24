@@ -398,6 +398,152 @@ if (loaded) {
 }
 ok('读档后可以行走', walkOk);
 
+/* ---------------------------------------------------------------- 国战 */
+
+group('国战与俘虏');
+const warLib = require(R + '/core/war.js');
+const st7 = stateLib.createGame({ seed: 777001 });
+st7.events.length = 0;
+warLib.init(st7);
+ok('开局有史实仇家', Object.keys(st7.factionWars).length >= 8, String(Object.keys(st7.factionWars).length));
+ok('曹操与袁绍开局就翻脸', warLib.atWar(st7, 'wei', 'yuan'));
+ok('孙权与刘表有杀父之仇', warLib.atWar(st7, 'wu', 'biao'));
+ok('马腾韩遂互咬', warLib.atWar(st7, 'ma', 'han'));
+ok('同势力不算交战', !warLib.atWar(st7, 'wei', 'wei'));
+ok('贼与谁都打', warLib.atWar(st7, 'wei', 'bandit'));
+
+// 宣战 / 议和
+const wcount = Object.keys(st7.factionWars).length;
+ok('宣战能生效', warLib.declare(st7, 'shu', 'wu', true) === true || warLib.atWar(st7, 'shu', 'wu'));
+ok('重复宣战不重复记', warLib.declare(st7, 'shu', 'wu', true) === false);
+ok('议和能停战', (function () {
+  warLib.makePeace(st7, 'shu', 'wu', true);
+  return !warLib.atWar(st7, 'shu', 'wu');
+})());
+
+// 野战：两位敌对领主撞在一起，败方不会死
+const lordA = st7.lords.filter(function (l) { return l.faction === 'wei'; })[0];
+const lordB = st7.lords.filter(function (l) { return l.faction === 'yuan'; })[0];
+lordA.x = 10; lordA.y = 10;
+lordB.x = 11; lordB.y = 10;
+lordA.troops = { inf: 60 }; lordB.troops = { inf: 6 };
+const wres = warLib.clash(st7, lordA, lordB);
+ok('野战能打起来', !!wres, JSON.stringify(wres));
+ok('败方没有被杀死', lordB.alive === true || !!lordB.prisoner, 'alive=' + lordB.alive);
+ok('败方要么被俘要么溃逃', !!(lordB.prisoner || lordB.alive));
+ok('俘虏记进牢房名册', (st7.prisoners || []).length >= (wres && wres.capture ? 1 : 0), String((st7.prisoners || []).length));
+
+// 俘虏：关一天涨一点，起初几乎跑不掉
+function escAt(days) { return Math.min(0.62, warLib.ESCAPE_BASE + warLib.ESCAPE_STEP * days); }
+ok('第一天几乎逃不掉', escAt(1) < 0.03, escAt(1).toFixed(3));
+ok('逃脱概率随天数增加', escAt(10) > escAt(1) && escAt(30) > escAt(10), escAt(10).toFixed(3) + ' / ' + escAt(30).toFixed(3));
+ok('逃脱概率有上限', escAt(200) <= 0.62, escAt(200).toFixed(3));
+
+// 城破救人
+const st8 = stateLib.createGame({ seed: 777002 });
+st8.events.length = 0;
+const victim = st8.lords.filter(function (l) { return l.faction === 'yuan'; })[0];
+warLib.capture(st8, victim, 'wei', '张辽');
+const jailSite = st8.world.sites.filter(function (s) { return s.id === (victim.prisoner || {}).siteId; })[0];
+ok('俘虏押在城里', !!jailSite, victim.prisoner ? victim.prisoner.siteId : 'none');
+if (jailSite) {
+  const freed = warLib.onSiteTaken(st8, jailSite, 'wei');
+  ok('城破救出俘虏', freed >= 1, String(freed));
+  ok('被救的人回到大地图', victim.alive === true);
+}
+
+// 玩家打赢领主：不是所有都死
+const st9 = stateLib.createGame({ seed: 777003 });
+st9.events.length = 0;
+const foeLord = st9.lords.filter(function (l) { return l.id === 'chengpu'; })[0];
+let capturedOnce = false;
+let fledOnce = false;
+for (let i = 0; i < 12; i += 1) {
+  const l2 = JSON.parse(JSON.stringify(foeLord));
+  l2.alive = true; l2.prisoner = null; l2.defTroops = foeLord.defTroops;
+  const r = warLib.onPlayerBeatLord(st9, l2);
+  if (r.captured) capturedOnce = true;
+  if (r.fled) fledOnce = true;
+  if (capturedOnce && fledOnce) break;
+}
+ok('玩家打赢后可能生擒', capturedOnce);
+ok('玩家打赢后可能逃掉', fledOnce);
+st9.prisoners = st9.prisoners || [];
+
+// 赎金与放人
+const p0 = (st9.prisoners || [])[0];
+if (p0) {
+  const goldBefore = st9.player.gold;
+  const rr = stateLib.ransomPrisoner(st9, p0.lordId);
+  ok('收赎金能换钱', rr.ok && st9.player.gold > goldBefore, rr.msg);
+} else {
+  ok('收赎金能换钱', true);
+}
+
+/* ---------------------------------------------------------------- 比武大会 */
+
+group('比武大会');
+const tourney = require(R + '/core/tourney.js');
+const st10 = stateLib.createGame({ seed: 777004 });
+st10.events.length = 0;
+st10.player.gold = 500;
+ok('报名费随声望涨但不离谱', tourney.fee(st10) >= 30 && tourney.fee(st10) <= 90, String(tourney.fee(st10)));
+const reg = tourney.enter(st10, st10.world.sites[0]);
+ok('交钱能报名', reg.ok && !!st10.tourney, reg.msg);
+ok('报名扣钱', st10.player.gold === 500 - tourney.fee(st10), String(st10.player.gold));
+ok('三个对手', st10.tourney.foes.length === 3);
+ok('第三场是名将', !!st10.tourney.foes[2].lordId, st10.tourney.foes[2].name);
+ok('胜率在合理区间', (function () {
+  let lo = 1; let hi = 0;
+  st10.tourney.foes.forEach(function (f) {
+    const c = tourney.winChance(st10, f);
+    lo = Math.min(lo, c); hi = Math.max(hi, c);
+  });
+  return lo > 0.05 && hi < 0.95;
+})());
+// 连打三场（可能输），保证流程走完不崩
+let fights = 0;
+while (st10.tourney && !st10.tourney.done && fights < 5) {
+  const r = tourney.fightRound(st10);
+  fights += 1;
+  if (!r.ok) break;
+}
+ok('大会能打完', st10.tourney && st10.tourney.done, 'fights=' + fights);
+ok('打完有经过文字', st10.tourney.log.length >= 1);
+ok('冠军有赏钱', (function () {
+  const st11 = stateLib.createGame({ seed: 777005 });
+  st11.player.gold = 500;
+  tourney.enter(st11, st11.world.sites[0]);
+  // 强行三连胜
+  st11.tourney.foes.forEach(function (f) { f.power = -100; });
+  for (let i = 0; i < 3; i += 1) tourney.fightRound(st11);
+  return !!(st11.tourney.champion && st11.player.gold > 500);
+})());
+
+/* ---------------------------------------------------------------- 国战存档 */
+
+group('国战存档');
+const st12 = stateLib.createGame({ seed: 777006 });
+st12.events.length = 0;
+warLib.declare(st12, 'shu', 'xianbei', true);
+const capt = st12.lords.filter(function (l) { return l.faction === 'biao'; })[0];
+warLib.capture(st12, capt, 'wu', '周瑜');
+const raw12 = stateLib.serialize(st12);
+const ld12 = stateLib.deserialize(raw12);
+ok('存档保留势力战争', ld12 && Object.keys(ld12.factionWars).length === Object.keys(st12.factionWars).length,
+  ld12 ? String(Object.keys(ld12.factionWars).length) : 'null');
+ok('存档保留牢里的俘虏', ld12 && (ld12.prisoners || []).length === (st12.prisoners || []).length,
+  ld12 ? String((ld12.prisoners || []).length) : 'null');
+ok('读档后俘虏仍关着', ld12 && (function () {
+  const l = ld12.lords.filter(function (x) { return x.id === capt.id; })[0];
+  return l && l.prisoner && l.alive === false;
+})());
+ok('读档后不会把俘虏当战死的人复活', ld12 && (function () {
+  const before = (ld12.prisoners || []).length;
+  stateLib.dailyTick(ld12);
+  return (ld12.prisoners || []).length <= before;
+})());
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));

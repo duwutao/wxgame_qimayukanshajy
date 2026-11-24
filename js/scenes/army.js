@@ -161,9 +161,11 @@ const ArmyScene = {
       } else if (r.kind === 'troop') {
         ctx.fillStyle = 'rgba(36,28,20,0.6)';
         ctx.fillRect(16, ry, w - 32, 54);
-        text(ctx, r.name, 32, ry + 8, { size: 22, color: '#efe3c6' });
+        const icon = app.assets.unitIconFor ? app.assets.unitIconFor(r.id, '#8a7a5a') : null;
+        if (icon) ctx.drawImage(icon, 30, ry + 13, 30, 30);
+        text(ctx, r.name, 68, ry + 8, { size: 22, color: '#efe3c6' });
         text(ctx, '× ' + r.n, w - 160, ry + 10, { size: 22, align: 'right', color: '#f0c060' });
-        text(ctx, '攻 ' + (r.troop.atk || 0) + ' 防 ' + (r.troop.def || 0) + ' 粮 ' + (r.troop.food || 1) + ' · T' + (r.troop.tier || 1), 32, ry + 36, {
+        text(ctx, '攻 ' + (r.troop.atk || 0) + ' 防 ' + (r.troop.def || 0) + ' 粮 ' + (r.troop.food || 1) + ' · T' + (r.troop.tier || 1), 68, ry + 36, {
           size: 15, color: '#8a8070',
         });
         // 遣返按钮
@@ -208,6 +210,13 @@ const ArmyScene = {
     app.ui.button(ctx, 20, h - 92, w - 40, 72, '返回', {
       id: 'a_back', size: 26, onTap: function () { app.pop(); },
     });
+
+    const jail = stateLib.prisonersOf(st).filter(function (x) { return x.by === 'player'; }).length;
+    if (jail > 0) {
+      app.ui.button(ctx, 20, h - 164, w - 40, 60, '营后牢里 ' + jail + ' 位领主 · 收赎金 / 放人', {
+        id: 'a_prison', size: 22, fill: '#3a2c1e', onTap: function () { app.push('prison'); },
+      });
+    }
 
     // 记录命中区（屏幕坐标）
     this.hitRows = rowRects;

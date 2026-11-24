@@ -30,6 +30,8 @@ class App {
       contact: require('./scenes/contact.js'),
       army: require('./scenes/army.js'),
       hero: require('./scenes/hero.js'),
+      prison: require('./scenes/prison.js'),
+      tourney: require('./scenes/tourney.js'),
       journal: require('./scenes/journal.js'),
       help: require('./scenes/help.js'),
       nested: null,
@@ -38,6 +40,7 @@ class App {
       lord: require('./scenes/lord.js'),
       revive: require('./scenes/revive.js'),
       menu: require('./scenes/menu.js'),
+      saves: require('./scenes/saves.js'),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;

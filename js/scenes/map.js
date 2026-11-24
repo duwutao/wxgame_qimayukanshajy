@@ -13,6 +13,8 @@ const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
 
 const TILE = 64;
+// 缩放后的格宽：TS = TILE × 缩放档位，render 时按当前档位刷新
+let TS = TILE;
 const TOP_H = 132;
 const BOT_H = 176;
 
@@ -35,35 +37,81 @@ function ensureCam(app) {
   const box = mapBox(app);
   if (!app.mapCam) {
     app.mapCam = {
-      x: st.player.x * TILE + TILE / 2 - app.runtime.width / 2,
-      y: st.player.y * TILE + TILE / 2 - box.h / 2,
+      x: st.player.x * TS + TS / 2 - app.runtime.width / 2,
+      y: st.player.y * TS + TS / 2 - box.h / 2,
     };
   }
-  const maxX = st.world.w * TILE - app.runtime.width;
-  const maxY = st.world.h * TILE - box.h;
+  const maxX = st.world.w * TS - app.runtime.width;
+  const maxY = st.world.h * TS - box.h;
   app.mapCam.x = clamp(app.mapCam.x, Math.min(0, maxX), Math.max(0, maxX));
   app.mapCam.y = clamp(app.mapCam.y, Math.min(0, maxY), Math.max(0, maxY));
+}
+
+/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人 */
+const ZOOM_STEPS = [0.72, 1, 1.42];
+const ZOOM_NAMES = ['远望', '常规', '近看'];
+
+function setZoom(app) {
+  if (app.mapZoom === undefined || app.mapZoom === null) app.mapZoom = 1;
+  const i = ZOOM_STEPS.indexOf(app.mapZoom);
+  app.mapZoom = i >= 0 ? ZOOM_STEPS[i] : 1;
+  TS = TILE * app.mapZoom;
+}
+
+function applyZoom(app, dir) {
+  const cur = app.mapZoom || 1;
+  const i = ZOOM_STEPS.indexOf(cur);
+  const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 1 : i) + dir));
+  app.mapZoom = ZOOM_STEPS[ni];
+  TS = TILE * app.mapZoom;
+  // 换档后重新把玩家摆到正中，别让视野莫名跳到边角
+  const box = mapBox(app);
+  const p = app.state.player;
+  app.mapCam = {
+    x: p.x * TS + TS / 2 - app.runtime.width / 2,
+    y: p.y * TS + TS / 2 - box.h / 2,
+  };
+  ensureCam(app);
+  app.showToast('地图：' + ZOOM_NAMES[ni], 1.2);
+}
+
+function drawZoomButtons(ctx, app, box, w) {
+  const bw = 54;
+  const bh = 54;
+  const x = w - bw - 12;
+  const y0 = box.top + 74;
+  app.ui.button(ctx, x, y0, bw, bh, '＋', {
+    id: 'zoom_in', size: 26, fill: 'rgba(30,24,18,0.82)',
+    onTap: function () { applyZoom(app, 1); },
+  });
+  app.ui.button(ctx, x, y0 + bh + 8, bw, bh, '－', {
+    id: 'zoom_out', size: 26, fill: 'rgba(30,24,18,0.82)',
+    onTap: function () { applyZoom(app, -1); },
+  });
+  text(ctx, ZOOM_NAMES[ZOOM_STEPS.indexOf(app.mapZoom) < 0 ? 1 : ZOOM_STEPS.indexOf(app.mapZoom)],
+    x + bw / 2, y0 + bh * 2 + 18, { size: 13, align: 'center', color: '#a2947a' });
 }
 
 /** 屏幕坐标 → 有没有点到某个人（领主优先，其次匪团） */
 function unitAt(app, x, y, cam, box) {
   const st = app.state;
+  const z = app.mapZoom || 1;
   for (let i = 0; i < st.lords.length; i++) {
     const l = st.lords[i];
     if (!l.alive) continue;
-    const sx = l.x * TILE - cam.x + TILE / 2;
-    const sy = box.top + l.y * TILE - cam.y + TILE / 2;
+    const sx = l.x * TS - cam.x + TS / 2;
+    const sy = box.top + l.y * TS - cam.y + TS / 2;
     // 棋子身子 + 底下名牌都算热区，点名字也能点中
-    if (Math.abs(x - sx) <= 30 && y >= sy - 48 && y <= sy + 40) {
+    if (Math.abs(x - sx) <= 36 * z && y >= sy - 60 * z && y <= sy + 42 * z) {
       return { kind: 'lord', id: l.id, x: l.x, y: l.y };
     }
   }
   for (let i = 0; i < st.parties.length; i++) {
     const p = st.parties[i];
     if (army.troopCount(p.troops || {}) <= 0) continue;
-    const sx = p.x * TILE - cam.x + TILE / 2;
-    const sy = box.top + p.y * TILE - cam.y + TILE / 2;
-    if (Math.abs(x - sx) <= 26 && Math.abs(y - sy) <= 30) {
+    const sx = p.x * TS - cam.x + TS / 2;
+    const sy = box.top + p.y * TS - cam.y + TS / 2;
+    if (Math.abs(x - sx) <= 30 * z && y >= sy - 46 * z && y <= sy + 26 * z) {
       return { kind: 'party', id: p.id, x: p.x, y: p.y };
     }
   }
@@ -148,6 +196,7 @@ const MapScene = {
 
   update(app, dt) {
     const st = app.state;
+    setZoom(app);
     app.mapPhase = (app.mapPhase || 0) + dt;
     stateLib.update(st, dt);
     ensureCam(app);
@@ -155,8 +204,8 @@ const MapScene = {
     // 相机跟随（跟插值后的位置，不再跟着格子跳）
     const box = mapBox(app);
     const pos = playerPixel(app);
-    const targetX = pos.gx * TILE + TILE / 2 - app.runtime.width / 2;
-    const targetY = pos.gy * TILE + TILE / 2 - box.h / 2;
+    const targetX = pos.gx * TS + TS / 2 - app.runtime.width / 2;
+    const targetY = pos.gy * TS + TS / 2 - box.h / 2;
     if (!app.mapDrag) {
       app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 9);
       app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 9);
@@ -177,6 +226,7 @@ const MapScene = {
     const st = app.state;
     const ctx = app.runtime.ctx;
     const w = app.runtime.width;
+    setZoom(app);
     const box = mapBox(app);
     const cam = app.mapCam;
     ensureCam(app);
@@ -192,6 +242,7 @@ const MapScene = {
     drawQuestCard(ctx, app, box, w);
     drawTop(ctx, app, w);
     drawBottom(ctx, app, w, box);
+    drawZoomButtons(ctx, app, box, w);
   },
 
   onTouchStart(app, x, y) {
@@ -246,8 +297,8 @@ const MapScene = {
       return;
     }
 
-    const tx = Math.floor((x + app.mapCam.x) / TILE);
-    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TILE);
+    const tx = Math.floor((x + app.mapCam.x) / TS);
+    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
     if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
 
     const t = terrainAt(st.world, tx, ty);
@@ -294,8 +345,8 @@ function drawGeography(ctx, app, cam, box, w) {
   const world = app.state.world;
   // 设计稿坐标 → 实图坐标（地图放大后折线层跟着一起放大，否则和据点错位）
   const gs = world.w / BASE_W;
-  const toX = function (gx) { return gx * TILE - cam.x; };
-  const toY = function (gy) { return box.top + gy * TILE - cam.y; };
+  const toX = function (gx) { return gx * TS - cam.x; };
+  const toY = function (gy) { return box.top + gy * TS - cam.y; };
   const sc = function (pts) {
     const out = [];
     for (let i = 0; i < pts.length; i++) out.push([pts[i][0] * gs, pts[i][1] * gs]);
@@ -320,7 +371,7 @@ function drawGeography(ctx, app, cam, box, w) {
 
   // 河流：暗岸 + 水体 + 高光
   [[sc(RIVER_HUANG), 0.72], [sc(RIVER_YANG), 0.85], [sc(RIVER_HUAI), 0.55]].forEach(function (r) {
-    const width = TILE * r[1];
+    const width = TS * r[1];
     ctx.strokeStyle = 'rgba(30,58,84,0.38)';
     ctx.lineWidth = width + 4;
     strokePolyline(ctx, r[0], toX, toY);
@@ -336,10 +387,10 @@ function drawGeography(ctx, app, cam, box, w) {
   MOUNTAINS.forEach(function (raw) {
     const line = sc(raw);
     ctx.strokeStyle = 'rgba(86,80,70,0.35)';
-    ctx.lineWidth = TILE * 1.3;
+    ctx.lineWidth = TS * 1.3;
     strokePolyline(ctx, line, toX, toY);
     ctx.strokeStyle = 'rgba(152,145,132,0.58)';
-    ctx.lineWidth = TILE * 0.56;
+    ctx.lineWidth = TS * 0.56;
     strokePolyline(ctx, line, toX, toY);
 
     for (let i = 0; i < line.length; i++) {
@@ -410,10 +461,10 @@ function drawTerrainView(ctx, app, cam, box, w) {
     const ctx2 = ctx;
     const assets = app.assets;
 
-    const startX = Math.max(0, Math.floor(cam.x / TILE));
-    const startY = Math.max(0, Math.floor(cam.y / TILE));
-    const endX = Math.min(world.w - 1, Math.ceil((cam.x + w) / TILE));
-    const endY = Math.min(world.h - 1, Math.ceil((cam.y + box.h) / TILE));
+    const startX = Math.max(0, Math.floor(cam.x / TS));
+    const startY = Math.max(0, Math.floor(cam.y / TS));
+    const endX = Math.min(world.w - 1, Math.ceil((cam.x + w) / TS));
+    const endY = Math.min(world.h - 1, Math.ceil((cam.y + box.h) / TS));
 
     ctx2.save();
     ctx2.beginPath();
@@ -422,13 +473,13 @@ function drawTerrainView(ctx, app, cam, box, w) {
 
     for (let y = startY; y <= endY; y++) {
       for (let x = startX; x <= endX; x++) {
-        const sx = x * TILE - cam.x;
-        const sy = box.top + y * TILE - cam.y;
+        const sx = x * TS - cam.x;
+        const sy = box.top + y * TS - cam.y;
         const idx = y * world.w + x;
         const t = world.tiles[idx] || 'plain';
         const region = (world.regions && world.regions[idx]) || 'zhongyuan';
         const sprite = assets.terrainFor(region, t);
-        ctx2.drawImage(sprite, sx, sy, TILE, TILE);
+        ctx2.drawImage(sprite, sx, sy, TS, TS);
       }
     }
     ctx2.restore();
@@ -444,26 +495,26 @@ function drawSites(ctx, app, cam, box, w) {
   ctx.clip();
 
   st.world.sites.forEach(function (site) {
-    const sx = site.x * TILE - cam.x;
-    const sy = box.top + site.y * TILE - cam.y;
-    if (sx < -TILE * 2 || sx > w + TILE || sy < box.top - TILE || sy > box.top + box.h + TILE) return;
+    const sx = site.x * TS - cam.x;
+    const sy = box.top + site.y * TS - cam.y;
+    if (sx < -TS * 2 || sx > w + TS || sy < box.top - TS || sy > box.top + box.h + TS) return;
 
     const sprite = assets.site[site.type] || assets.site.village;
-    ctx.drawImage(sprite, sx + 4, sy + 4, TILE - 8, TILE - 8);
+    ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
     // 势力旗
     if (site.ownerFaction) {
       const col = FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#8f8f86';
       ctx.fillStyle = col;
-      ctx.fillRect(sx + TILE - 16, sy + 4, 12, 14);
+      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(sx + TILE - 16, sy + 4, 12, 2);
-      text(ctx, FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].banner : '?', sx + TILE - 10, sy + 6, {
+      ctx.fillRect(sx + TS - 16, sy + 4, 12, 2);
+      text(ctx, FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].banner : '?', sx + TS - 10, sy + 6, {
         size: 13, align: 'center', color: '#fff',
       });
     } else {
       ctx.fillStyle = '#6a655c';
-      ctx.fillRect(sx + TILE - 16, sy + 4, 12, 14);
+      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
     }
 
     // 名牌
@@ -473,13 +524,13 @@ function drawSites(ctx, app, cam, box, w) {
     const label = site.name;
     ctx.font = 'bold ' + size + 'px "PingFang SC","Microsoft YaHei",sans-serif';
     const tw = ctx.measureText(label).width;
-    const bx = sx + TILE / 2 - tw / 2 - 8;
-    const by = sy + TILE - 4;
+    const bx = sx + TS / 2 - tw / 2 - 8;
+    const by = sy + TS - 4;
     ctx.fillStyle = 'rgba(10,8,6,0.72)';
     ctx.fillRect(bx, by, tw + 16, size + 10);
     ctx.fillStyle = site.playerOwned ? '#d9a441' : 'rgba(0,0,0,0)';
     if (site.playerOwned) ctx.fillRect(bx, by, tw + 16, 2);
-    text(ctx, label, sx + TILE / 2, by + 5, {
+    text(ctx, label, sx + TS / 2, by + 5, {
       size, align: 'center',
       color: site.playerOwned ? '#f0c060' : isTown ? '#f2e7cd' : isCastle ? '#ded2b6' : '#b9ad92',
       shadow: true,
@@ -497,40 +548,43 @@ function drawUnits(ctx, app, cam, box, w) {
   ctx.rect(0, box.top, w, box.h);
   ctx.clip();
 
-  // 匪团：颜色分等级，人能看出该不该惹
+  // 匪团：一整队人（按档位换造型），人一眼能看出该不该惹
+  const z = app.mapZoom || 1;
   st.parties.forEach(function (p) {
-    const sx = p.x * TILE - cam.x + TILE / 2;
-    const sy = box.top + p.y * TILE - cam.y + TILE / 2;
+    const sx = p.x * TS - cam.x + TS / 2;
+    const sy = box.top + p.y * TS - cam.y + TS / 2;
     if (sx < -40 || sx > w + 40 || sy < box.top - 40 || sy > box.top + box.h + 40) return;
-    const icon = assets.banditIconFor(p.color || '#7d2f28');
-    const sz = p.banditTier === 'hong' ? 34 : p.banditTier === 'cheng' ? 31 : 28;
-    ctx.drawImage(icon, sx - sz / 2, sy - sz / 2, sz, sz);
+    const icon = assets.banditPartyFor(p.banditTier || 'qing', p.color);
+    const sz = (p.banditTier === 'hong' ? 70 : p.banditTier === 'cheng' ? 64 : 56) * z;
+    ctx.drawImage(icon, sx - sz / 2, sy - sz * 0.78, sz, sz);
 
-    // 兵力小字：先看人数再决定上不上
+    // 兵力小字：先看人数再决定上不上（拉远时省掉，免得糊成一团）
     const n = army.troopCount(p.troops || {});
-    if (n > 0) {
-      text(ctx, String(n), sx + 14, sy + 8, { size: 13, color: p.color === '#4f8f6a' ? '#8fd0a8' : '#f0c9b0', shadow: true });
+    if (n > 0 && z >= 0.9) {
+      text(ctx, String(n), sx + 16 * z, sy - 6 * z, {
+        size: Math.round(14 * z), color: p.color === '#4f8f6a' ? '#8fd0a8' : '#f0c9b0', shadow: true,
+      });
     }
     if (p.chasing) {
-      text(ctx, '!', sx, sy - 34, { size: 20, align: 'center', color: '#e05a42', shadow: true });
+      text(ctx, '!', sx, sy - 52 * z, { size: Math.round(20 * z), align: 'center', color: '#e05a42', shadow: true });
     }
     if (p.scuffle > 0) {
       ctx.fillStyle = 'rgba(220,80,50,0.85)';
-      ctx.fillRect(sx - 22, sy - 40, 44, 16);
-      text(ctx, '交战', sx, sy - 39, { size: 12, align: 'center', color: '#fff' });
+      ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
+      text(ctx, '交战', sx, sy - 57 * z, { size: Math.round(12 * z), align: 'center', color: '#fff' });
     }
     if (p.scripted) {
       ctx.fillStyle = 'rgba(200,60,40,0.9)';
-      ctx.fillRect(sx - 22, sy - 56, 44, 16);
-      text(ctx, '追兵', sx, sy - 55, { size: 13, align: 'center', color: '#fff' });
+      ctx.fillRect(sx - 22 * z, sy - 76 * z, 44 * z, 16 * z);
+      text(ctx, '追兵', sx, sy - 75 * z, { size: Math.round(13 * z), align: 'center', color: '#fff' });
     }
   });
 
   // 领主
   st.lords.forEach(function (lord) {
     if (!lord.alive) return;
-    const sx = lord.x * TILE - cam.x + TILE / 2;
-    const sy = box.top + lord.y * TILE - cam.y + TILE / 2;
+    const sx = lord.x * TS - cam.x + TS / 2;
+    const sy = box.top + lord.y * TS - cam.y + TS / 2;
     if (sx < -50 || sx > w + 50 || sy < box.top - 50 || sy > box.top + box.h + 50) return;
     const hostile = stateLib.isHostileFaction(st, lord.faction);
     const col = FACTIONS[lord.faction] ? FACTIONS[lord.faction].color : '#999';
@@ -538,29 +592,38 @@ function drawUnits(ctx, app, cam, box, w) {
     if (hostile) {
       ctx.fillStyle = 'rgba(180,60,45,0.85)';
       ctx.beginPath();
-      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 22 * z, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 领主棋子：按势力上色，每人一套兵器/头饰/马色
+    // 领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
     const look = lookFor(lord.id);
-    const icon = assets.lordIconFor(col, look);
-    const isz = lord.id === 'lvbu' ? 50 : look.big ? 44 : 40;
-    ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.62, isz, isz);
+    const icon = assets.partyIconFor(col, look);
+    const isz = (lord.id === 'lvbu' ? 82 : look.big ? 74 : 68) * z;
+    ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
 
     ctx.fillStyle = col;
-    ctx.fillRect(sx + 14, sy - 22, 10, 12);
-    text(ctx, FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?', sx + 19, sy - 21, {
-      size: 11, align: 'center', color: '#fff',
+    ctx.fillRect(sx + 14 * z, sy - 22 * z, 10 * z, 12 * z);
+    text(ctx, FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?', sx + 19 * z, sy - 21 * z, {
+      size: Math.max(9, Math.round(11 * z)), align: 'center', color: '#fff',
     });
 
-    ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",sans-serif';
-    const tw = ctx.measureText(lord.name).width;
-    ctx.fillStyle = 'rgba(10,8,6,0.75)';
-    ctx.fillRect(sx - tw / 2 - 6, sy + 18, tw + 12, 20);
-    text(ctx, lord.name, sx, sy + 19, { size: 15, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
+    const nsz = Math.max(11, Math.round(15 * z));
+    if (z >= 0.9) {
+      ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      const tw = ctx.measureText(lord.name).width;
+      ctx.fillStyle = 'rgba(10,8,6,0.75)';
+      ctx.fillRect(sx - tw / 2 - 6, sy + 18 * z, tw + 12, nsz + 5);
+      text(ctx, lord.name, sx, sy + 19 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
+    }
+    // 拉近了才写兵力，远望只认旗
+    if (z >= 1.2) {
+      text(ctx, String(army.troopCount(lord.troops || {})), sx + 18 * z, sy - 46 * z, {
+        size: Math.max(11, Math.round(14 * z)), align: 'left', color: '#efe3c6', shadow: true,
+      });
+    }
 
     if (lord.chasing) {
-      text(ctx, '!', sx, sy - 44, { size: 22, align: 'center', color: '#e05a42' });
+      text(ctx, '!', sx, sy - 44 * z, { size: Math.round(22 * z), align: 'center', color: '#e05a42' });
     }
   });
   ctx.restore();
@@ -576,23 +639,23 @@ function drawRoute(ctx, app, cam, box) {
   ctx.rect(0, box.top, app.runtime.width, box.h);
   ctx.clip();
   ctx.strokeStyle = 'rgba(240,192,96,0.55)';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3 * (app.mapZoom || 1);
   ctx.setLineDash([8, 8]);
   ctx.beginPath();
-  const sx0 = p.x * TILE + TILE / 2 - cam.x;
-  const sy0 = box.top + p.y * TILE + TILE / 2 - cam.y;
+  const sx0 = p.x * TS + TS / 2 - cam.x;
+  const sy0 = box.top + p.y * TS + TS / 2 - cam.y;
   ctx.moveTo(sx0, sy0);
   p.route.forEach(function (n) {
-    ctx.lineTo(n.x * TILE + TILE / 2 - cam.x, box.top + n.y * TILE + TILE / 2 - cam.y);
+    ctx.lineTo(n.x * TS + TS / 2 - cam.x, box.top + n.y * TS + TS / 2 - cam.y);
   });
   ctx.stroke();
   ctx.setLineDash([]);
   const last = p.route[p.route.length - 1];
-  const ex = last.x * TILE + TILE / 2 - cam.x;
-  const ey = box.top + last.y * TILE + TILE / 2 - cam.y;
+  const ex = last.x * TS + TS / 2 - cam.x;
+  const ey = box.top + last.y * TS + TS / 2 - cam.y;
   ctx.strokeStyle = 'rgba(240,192,96,0.9)';
   ctx.beginPath();
-  ctx.arc(ex, ey, 10, 0, Math.PI * 2);
+  ctx.arc(ex, ey, 10 * (app.mapZoom || 1), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -613,19 +676,21 @@ function drawPlayerOnMap(ctx, app, cam, box) {
   const p = app.state.player;
   const pos = playerPixel(app);
   const walk = p.stepTo ? Math.abs(Math.sin(p.stepProgress * Math.PI)) : 0;
-  const sx = pos.gx * TILE + TILE / 2 - cam.x;
-  const sy = box.top + pos.gy * TILE + TILE / 2 - cam.y - walk * 5;
-  pixel.drawPlayer(ctx, app.assets, sx, sy, TILE, app.mapPhase || 0, p.facing || 1);
+  const sx = pos.gx * TS + TS / 2 - cam.x;
+  const sy = box.top + pos.gy * TS + TS / 2 - cam.y - walk * TS * 0.078;
+  pixel.drawPlayer(ctx, app.assets, sx, sy, TS, app.mapPhase || 0, p.facing || 1);
 
-  // 头顶旗标
+  // 头顶旗标（跟着缩放一起变大变小）
   ctx.fillStyle = '#d9a441';
   ctx.beginPath();
-  ctx.moveTo(sx - 12, sy - 52);
-  ctx.lineTo(sx + 12, sy - 52);
-  ctx.lineTo(sx, sy - 40);
+  ctx.moveTo(sx - TS * 0.19, sy - TS * 0.81);
+  ctx.lineTo(sx + TS * 0.19, sy - TS * 0.81);
+  ctx.lineTo(sx, sy - TS * 0.625);
   ctx.closePath();
   ctx.fill();
-  text(ctx, p.banner ? '旗' : '我', sx, sy - 50, { size: 13, align: 'center', color: '#2a1c08' });
+  text(ctx, p.banner ? '旗' : '我', sx, sy - TS * 0.78, {
+    size: Math.max(10, Math.round(TS * 0.2)), align: 'center', color: '#2a1c08',
+  });
 }
 
 /** 左上角常驻任务卡：现在该干什么，点开能看详情 */
@@ -759,10 +824,13 @@ function drawBottom(ctx, app, w, box) {
 
   const st = app.state;
   const p = st.player;
-  const hint = p.route && p.route.length
+  const wars = stateLib.factionWars(st);
+  const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
+  const hint = (p.route && p.route.length
     ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 拖动平移 · 长按无');
-  text(ctx, hint, w / 2, y0 + 104, { size: 17, align: 'center', color: '#8a8070' });
+    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 拖动平移 · 右上可缩放'))
+    + warTxt;
+  text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
 }
 
 module.exports = MapScene;
