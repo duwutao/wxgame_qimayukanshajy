@@ -46,7 +46,7 @@ const BANDIT_TIERS = {
     id: 'hong', name: '叛军', color: '#a8403a', rank: 4, share: 0.02,
     minSize: 45, maxSize: 70, extra: { raider: [8, 14], raider_cav: [5, 10] },
     loot: [240, 420], morale: [78, 92], sight: 8,
-    desc: '已经打出名号的叛部。只比领主差一线，碰上要么跑，要么备好史简。',
+    desc: '已经打出名号的叛部。只比领主差一线，碰上要么跑，要么备好天机简。',
   },
 };
 

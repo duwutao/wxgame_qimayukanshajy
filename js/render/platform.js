@@ -12,6 +12,8 @@ function detectHost() {
   return 'web';
 }
 
+const AD_UNIT_ID = ''; // 接入微信/抖音激励视频后，填平台后台的广告位 ID
+
 function createRuntime() {
   const host = detectHost();
   const api = host === 'tt' ? tt : host === 'wx' ? wx : null;
@@ -390,6 +392,54 @@ function createRuntime() {
         };
       }
       return null;
+    },
+
+    /**
+     * 激励视频广告：小游戏里真实拉起；浏览器里只模拟一次观看，方便开发。
+     * 真正接入时把 AD_UNIT_ID 换成平台后台的广告位 ID 即可，其余逻辑不用动。
+     */
+    showRewardedAd: function (cb) {
+      const done = function (ok, msg) {
+        try { cb(!!ok, msg || ''); } catch (e) { /* ignore */ }
+      };
+      if (!api) {
+        setTimeout(function () { done(true, 'web-sim'); }, 900);
+        return true;
+      }
+      if (typeof api.createRewardedVideoAd !== 'function' || !AD_UNIT_ID) {
+        setTimeout(function () { done(false, '广告位尚未接入'); }, 0);
+        return false;
+      }
+      let ad;
+      try {
+        ad = api.createRewardedVideoAd({ adUnitId: AD_UNIT_ID });
+      } catch (e) {
+        done(false, '广告组件初始化失败');
+        return false;
+      }
+      let settled = false;
+      const onClose = function (res) {
+        if (settled) return;
+        settled = true;
+        try { if (ad.offClose) ad.offClose(onClose); } catch (e) { /* ignore */ }
+        done(!!(res && res.isEnded), res && res.isEnded ? '' : '广告未看完');
+      };
+      ad.onClose(onClose);
+      if (ad.onError) {
+        ad.onError(function (err) {
+          if (settled) return;
+          settled = true;
+          done(false, (err && err.errMsg) || '广告加载失败');
+        });
+      }
+      try {
+        ad.load().then(function () { return ad.show(); }).catch(function () {
+          if (!settled) { settled = true; done(false, '广告暂时拉不起来'); }
+        });
+      } catch (e) {
+        done(false, '广告拉起失败');
+      }
+      return true;
     },
 
     storage: {

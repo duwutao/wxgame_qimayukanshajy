@@ -109,7 +109,7 @@ const SavesScene = {
         const p = data.player || {};
         const troopN = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
         text(ctx, troopN + ' 兵 · ' + (p.gold || 0) + ' 金钱', x + 12, y + 68, { size: 15, color: '#a2947a' });
-        text(ctx, (data.player && data.player.flagName) || '无旗', x + 12, y + 92, { size: 14, color: '#8a8070' });
+        text(ctx, (p.country && p.country.name) ? p.country.name + '国' : ((p.name || '无名溃兵') + ' · ' + (p.renown || 0) + '声望'), x + 12, y + 92, { size: 14, color: '#8a8070' });
         text(ctx, data.clock ? formatClock(data.clock) : '', x + 12, y + 116, { size: 13, color: '#6a6050' });
       } else {
         text(ctx, '（空）', x + 12, y + 52, { size: 20, color: '#5a5245' });

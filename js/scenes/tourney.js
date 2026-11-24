@@ -7,6 +7,7 @@
 const { text, wrap, panel } = require('../render/ui.js');
 const tourney = require('../core/tourney.js');
 const { siteById } = require('../core/world.js');
+const scenery = require('../render/scenery.js');
 const { lookFor } = require('../data/extra.js');
 const { FACTIONS } = require('../data/china.js');
 
@@ -46,6 +47,7 @@ const TourneyScene = {
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
+    scenery.drawBackdrop(ctx, 'tourney', w, h, 23);
 
     text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
     text(ctx, '报名 ' + tourney.FEE + ' 金钱 · 夺冠赏 ' + tourney.PRIZE + ' 金钱 · 三滴血定胜负', 20, 70, {

@@ -7,6 +7,7 @@
 const { text, panel, bar, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const pixel = require('../render/pixel.js');
+const scenery = require('../render/scenery.js');
 const stateLib = require('../core/state.js');
 const economy = require('../core/economy.js');
 const trade = require('../core/trade.js');
@@ -15,6 +16,14 @@ const army = require('../core/army.js');
 const tourney = require('../core/tourney.js');
 const { siteById, regionDef } = require('../core/world.js');
 const { TROOPS } = require('../data/troops.js');
+
+/** 每个据点一个稳定的背景种子，同类型城镇也能有不同街景 */
+function siteSeed(id) {
+  let h = 0;
+  const s = String(id || 'site');
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  return h + 7;
+}
 const { FACTIONS, EQUIPMENT } = require('../data/china.js');
 const { GOODS, VILLAGE_FOOD } = require('../data/extra.js');
 const flows = require('./flows.js');
@@ -67,7 +76,7 @@ function statusBar(app, y) {
     { k: '粮草', v: p.food, c: foodShort ? '#e06a52' : p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '声望', v: p.renown, c: '#c98f6a' },
-    { k: '史简', v: p.shi, c: '#b98fd8' },
+    { k: '天机简', v: p.shi, c: '#b98fd8' },
     { k: '士气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
   ];
   const cw = (w - PAD * 2) / cells.length;
@@ -141,11 +150,12 @@ function menuItems(app, site) {
   if (site.playerOwned) {
     const owned = app.state.world.sites.filter(function (s) { return s.playerOwned && s.type !== 'camp'; });
     const assigned = owned.filter(function (s) { return !!stateLib.siteLord(app.state, s); }).length;
+    const selfOwned = owned.filter(function (s) { return stateLib.siteSelfFief(app.state, s); }).length;
     list.push({
-      id: 'm_fief', label: '封地 · 点将',
-      sub: '把城与村封给领主；队中英雄有封地才能出镇',
-      fill: '#33291d', right: assigned + ' / ' + owned.length + ' 已封',
-      onTap: function () { app.push('fief', { siteId: site.id }); },
+      id: 'm_govern', label: '处理政务',
+      sub: '封地点将、与列国宣战议和，都在这张案上',
+      fill: '#33291d', right: selfOwned + ' 处直辖 · ' + assigned + ' 处已封',
+      onTap: function () { app.push('govern', { siteId: site.id }); },
     });
   }
 
@@ -553,7 +563,10 @@ function renderVillage(app, site) {
 
   text(ctx, '村市 · 村长', PAD, 296, { size: 26, color: '#f0c060' });
   text(ctx, '“牛不卖，除非你出得起。”', PAD, 332, { size: 17, color: '#a2947a' });
-  text(ctx, '你的粮草 ' + p.food + ' 单位', w - PAD, 336, { size: 18, align: 'right', color: '#8fbf7a' });
+  const foodCap = army.foodCap(p.troops);
+  const foodRoom = Math.max(0, foodCap - p.food);
+  text(ctx, '粮草 ' + p.food + ' / 上限 ' + foodCap + ' · 还可购 ' + foodRoom,
+    w - PAD, 336, { size: 16, align: 'right', color: p.food >= foodCap ? '#d06a4a' : '#8fbf7a' });
 
   let y = 380;
   VILLAGE_FOOD.forEach(function (f) {
@@ -615,14 +628,17 @@ function renderMarket(app, site, tab) {
   if (tab === 'food') {
     const price = economy.foodPrice(site);
     const sell = economy.foodSellPrice(site);
+    const foodCap = army.foodCap(st.player.troops);
+    const foodRoom = Math.max(0, foodCap - st.player.food);
     text(ctx, '粮价 ' + price + '金钱 · 卖出 ' + sell + '金钱', PAD, 372, { size: 24, color: '#efe3c6' });
-    text(ctx, '你的粮草：' + st.player.food + ' 单位', PAD, 410, { size: 20, color: st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
+    text(ctx, '你的粮草：' + st.player.food + ' / 上限 ' + foodCap + ' · 还可购 ' + foodRoom + ' 单位',
+      PAD, 410, { size: 19, color: st.player.food >= foodCap ? '#d06a4a' : st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
     text(ctx, '每两天吃掉 ' + Math.max(1, Math.round(army.foodPerDay(st.player.troops) * 2)) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
 
     const amounts = [10, 50];
     amounts.forEach(function (n, i) {
       app.ui.button(ctx, PAD, 486 + i * 92, 220, 72, '买 ' + n + ' 粮', {
-        id: 'buy' + n, size: 24, onTap: function () {
+        id: 'buy' + n, size: 24, disabled: foodRoom < n, onTap: function () {
           const r = economy.buyFood(st, site, n);
           app.showToast(r.msg, 2.2);
         },
@@ -634,7 +650,7 @@ function renderMarket(app, site, tab) {
         },
       });
     });
-    text(ctx, '满载上限 ' + army.foodCap(st.player.troops) + ' 单位（兵力 ' + army.troopCount(st.player.troops) + '）。长途行军前多带一点。', PAD, 690, { size: 16, color: '#8a8070' });
+    text(ctx, '满载上限 ' + foodCap + ' 单位 · 还可购 ' + foodRoom + '（兵力 ' + army.troopCount(st.player.troops) + '）。长途行军前多带一点。', PAD, 690, { size: 16, color: foodRoom <= 0 ? '#d06a4a' : '#8a8070' });
     backButton(app, 740);
     return;
   }
@@ -921,7 +937,24 @@ function renderHall(app, site) {
   }
 
   // 情报：该势力的领主
-  const lords = st.lords.filter(function (l) { return l.faction === f && l.alive; });
+  const resting = st.lords.filter(function (l) {
+    return l.alive && l.inCity === site.id;
+  });
+  if (resting.length) {
+    text(ctx, '府中歇脚 · ' + resting.length + ' 位领主', PAD, y + 6, { size: 20, color: '#d9a441' });
+    y += 34;
+    resting.slice(0, 3).forEach(function (l) {
+      const n = army.troopCount(l.troops);
+      text(ctx, '· ' + l.name + '（' + (l.title || '领主') + '）', PAD + 4, y, { size: 17, color: '#c9bda2' });
+      text(ctx, '养兵中 · ' + n + ' 兵', w - PAD, y, { size: 16, align: 'right', color: '#8fbf7a' });
+      y += 30;
+    });
+    text(ctx, '他们在大地图上收了旗，正在城里补兵。', PAD + 4, y, { size: 15, color: '#8a8070' });
+    y += 30;
+  }
+  const lords = st.lords.filter(function (l) {
+    return l.faction === f && l.alive && !l.inCity;
+  });
   text(ctx, '麾下领主', PAD, y + 6, { size: 20, color: '#a2947a' });
   y += 40;
   lords.slice(0, 3).forEach(function (l) {
@@ -1097,6 +1130,8 @@ const TownScene = {
       // 允许停留，只要没移动
     }
 
+    scenery.drawBackdrop(app.runtime.ctx, site.type === 'village' ? 'village' : 'city',
+      app.runtime.width, app.runtime.height, siteSeed(site.id));
     header(app, site);
     const y = statusBar(app, 148);
 

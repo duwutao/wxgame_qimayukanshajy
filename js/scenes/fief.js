@@ -9,6 +9,7 @@
 
 const { text, wrap } = require('../render/ui.js');
 const stateLib = require('../core/state.js');
+const scenery = require('../render/scenery.js');
 const army = require('../core/army.js');
 const heroes = require('../core/heroes.js');
 const { siteById, regionDef } = require('../core/world.js');
@@ -84,6 +85,7 @@ const FiefScene = {
 
     ctx.fillStyle = '#12100c';
     ctx.fillRect(0, 0, w, h);
+    scenery.drawBackdrop(ctx, 'hall', w, h, 41);
 
     if (this.mode === 'lords') return this.renderLordPick(app, ctx, w, h);
     if (this.mode === 'pickHero') return this.renderHeroSites(app, ctx, w, h);
@@ -146,6 +148,7 @@ const FiefScene = {
     rows.forEach(function (site, i) {
       const y = y0 + i * (rowH + gap);
       const lord = stateLib.siteLord(st, site);
+      const isSelf = stateLib.siteSelfFief(st, site);
       app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
         id: 'fief_site_' + site.id, fill: site.id === app.state.player.atSiteId ? '#2f291f' : '#241c14',
         onTap: function () {
@@ -156,8 +159,8 @@ const FiefScene = {
       });
       text(ctx, site.name, PAD + 22, y + 16, { size: 30, color: '#efe3c6' });
       text(ctx, siteLine(site), PAD + 22, y + 56, { size: 16, color: '#a2947a' });
-      text(ctx, lord ? '封主：' + lord.name + ' · ' + lordLine(st, lord) : '未封 · 可点将',
-        PAD + 22, y + 86, { size: 16, color: lord ? '#d8c79e' : '#8fbf7a' });
+      text(ctx, isSelf ? '封主：你自己 · 每周进税' : lord ? '封主：' + lord.name + ' · ' + lordLine(st, lord) : '未封 · 可点将',
+        PAD + 22, y + 86, { size: 16, color: isSelf ? '#f0c060' : lord ? '#d8c79e' : '#8fbf7a' });
       text(ctx, '点将 →', w - PAD - 20, y + 42, { size: 20, align: 'right', color: '#f0c060' });
     });
 
@@ -165,7 +168,7 @@ const FiefScene = {
       app.top().scene.page = n;
     });
     const helpY = all.length > PER_PAGE ? h - 252 : h - 148;
-    text(ctx, '封地不占编制。一个领主可以管多处城村；队中英雄必须先有封地，才能出镇。',
+    text(ctx, '封地不占编制。一位领主最多管一处城村；自己可以直辖多处，按周收税。',
       PAD, helpY, { size: 15, color: '#8a8070' });
     this.footerButton(app, ctx, w, h, '返回城池', 'fief_back', function () { app.pop(); }, '#241c14');
   },
@@ -179,7 +182,7 @@ const FiefScene = {
     }
     const def = heroes.heroById(hero.id) || {};
     const name = def.name || hero.name || hero.id;
-    const free = this.ownedSites(app).filter(function (s) { return !stateLib.siteLord(st, s); });
+    const free = this.ownedSites(app).filter(function (s) { return !stateLib.siteLord(st, s) && !stateLib.siteSelfFief(st, s); });
     this.header(ctx, w, '为 ' + name + ' 选封地',
       'Lv' + (hero.level || 1) + ' · 选定一块空城/村后，他才会离开队伍，成为独立领主。');
 
@@ -231,14 +234,18 @@ const FiefScene = {
       return;
     }
     const current = stateLib.siteLord(st, site);
+    const selfCurrent = stateLib.siteSelfFief(st, site);
     this.header(ctx, w, '点将 · ' + site.name,
-      siteLine(site) + ' · ' + (current ? '现封主：' + current.name : '尚无封主'));
-    text(ctx, '领主等级只决定带兵上限：Lv1 七十、Lv6 一百七十、Lv10 二百五十。',
+      siteLine(site) + ' · ' + (selfCurrent ? '现由你自己直辖' : current ? '现封主：' + current.name : '尚无封主'));
+    text(ctx, '一位领主最多一处封地；改封会自动收回他原来的那处。自己直辖的城每周进税。',
       PAD, 132, { size: 15, color: '#8a8070' });
 
     const lords = this.playerLords(app);
     const heroesInParty = (st.player.heroes || []).slice();
-    const rows = [];
+    const rows = [{
+      kind: 'self', id: 'self', name: '你自己（主公直辖）',
+      sub: '不派领主 · 每周结算税赋 · 可持有多处',
+    }];
     lords.forEach(function (l) {
       rows.push({
         kind: 'lord', id: l.id, name: l.name,
@@ -269,13 +276,16 @@ const FiefScene = {
     if (this.page < 0) this.page = 0;
     rows.slice(this.page * PER_PAGE, (this.page + 1) * PER_PAGE).forEach(function (row, i) {
       const y = y0 + i * (rowH + gap);
-      const isCurrent = row.kind === 'lord' && current && current.id === row.id;
+      const isCurrent = (row.kind === 'self' && selfCurrent) ||
+        (row.kind === 'lord' && current && current.id === row.id);
       app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
         id: 'fief_lord_' + row.kind + '_' + row.id,
         fill: isCurrent ? '#33291d' : '#241c14',
         onTap: function () {
           let r;
-          if (row.kind === 'hero') {
+          if (row.kind === 'self') {
+            r = stateLib.assignFiefSelf(st, site.id);
+          } else if (row.kind === 'hero') {
             r = stateLib.promoteHero(st, row.id, site.id);
           } else {
             r = stateLib.assignFief(st, site.id, row.id);
@@ -289,7 +299,7 @@ const FiefScene = {
       });
       text(ctx, row.name, PAD + 22, y + 14, { size: 28, color: '#efe3c6' });
       text(ctx, row.sub, PAD + 22, y + 52, { size: 16, color: '#a2947a' });
-      text(ctx, isCurrent ? '当前封主' : (row.kind === 'hero' ? '封地出镇 →' : '封给他 →'),
+      text(ctx, isCurrent ? '当前封主' : (row.kind === 'self' ? '收归自己 →' : row.kind === 'hero' ? '封地出镇 →' : '封给他 →'),
         w - PAD - 20, y + 38, { size: 18, align: 'right', color: isCurrent ? '#8fbf7a' : '#f0c060' });
     });
 
@@ -299,9 +309,10 @@ const FiefScene = {
       });
     }
 
-    if (current) {
+    if (current || selfCurrent) {
       const clearY = rows.length > PER_PAGE ? h - 276 : h - 190;
-      app.ui.button(ctx, PAD, clearY, w - PAD * 2, 64, '收回 ' + current.name + ' 的这块封地', {
+      app.ui.button(ctx, PAD, clearY, w - PAD * 2, 64,
+        current ? '收回 ' + current.name + ' 的这块封地' : '收回自己直辖（改封他人）', {
         id: 'fief_clear', size: 19, fill: '#3a2418',
         onTap: function () {
           const r = stateLib.assignFief(st, site.id, null);

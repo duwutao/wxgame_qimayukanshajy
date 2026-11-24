@@ -49,18 +49,20 @@ const EndingScene = {
         '胜 ' + st.stats.battlesWon + ' · 败 ' + st.stats.battlesLost,
         '城 ' + st.stats.sitesTaken + ' · 村 ' + st.stats.villagesRaided,
         '兵 ' + armyLib.troopCount(st.player.troops),
-        '史简 ' + st.player.shiUsed,
+        '天机简 ' + st.player.shiUsed,
       ];
       text(ctx, lines.join('　'), w / 2, y, { size: 16, align: 'center', color: '#8a8070' });
     }
 
-    app.ui.button(ctx, 40, h - 200, w - 80, 82, '再走一遍', {
-      id: 'again', size: 28, fill: '#33271b', onTap: function () {
-        app.runtime.storage.remove('bw_save_v3');
-        app.state = stateLib.createGame({});
-        app.replace('map');
-      },
-    });
+    if (ending.type !== 'arc') {
+      app.ui.button(ctx, 40, h - 200, w - 80, 82, '再走一遍', {
+        id: 'again', size: 28, fill: '#33271b', onTap: function () {
+          app.runtime.storage.remove('bw_save_v3');
+          app.state = stateLib.createGame({});
+          app.replace('map');
+        },
+      });
+    }
     app.ui.button(ctx, 40, h - 104, w - 80, 70, '回到标题', {
       id: 'to_title', size: 26, fill: '#201a14', onTap: function () {
         app.saveMeta = null;

@@ -1,6 +1,6 @@
 /**
- * 天下通报：国亡、君主下落这类大事，全屏弹一张榜文
- * 点"知道了"收起，不自动消失（这种消息得让人看完）
+ * 天下通报：国亡、君主下落、两国宣战/议和这类大事，全屏弹一张榜文。
+ * 国亡等大事要点"知道了"；宣战议和这类军情只停几息，自己散。
  */
 
 const { text, wrap, panel } = require('../render/ui.js');
@@ -12,7 +12,8 @@ const NewsScene = {
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
-      tag: ev.factionId ? '天下' : '军情',
+      tag: ev.tag || (ev.factionId ? '天下' : '军情'),
+      auto: ev.auto || 0,
       t: 0,
     };
   },
@@ -21,6 +22,10 @@ const NewsScene = {
     const v = app.newsView;
     if (!v) return;
     v.t += dt;
+    if (v.auto > 0 && v.t >= v.auto) {
+      app.newsView = null;
+      app.pop();
+    }
   },
 
   render(app) {
@@ -70,9 +75,10 @@ const NewsScene = {
       y += 6;
     });
 
-    text(ctx, '榜文贴在各城门口，来往的人都在看。', cx + cw / 2, cy + chHeight - 74, {
-      size: 15, align: 'center', color: '#8a8070',
-    });
+    text(ctx, v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。',
+      cx + cw / 2, cy + chHeight - 74, {
+        size: 15, align: 'center', color: '#8a8070',
+      });
 
     const bx = cx + 60;
     const by = cy + chHeight - 58;
@@ -81,7 +87,8 @@ const NewsScene = {
     ctx.fillRect(bx, by, bw, 46);
     ctx.fillStyle = '#6b5540';
     ctx.fillRect(bx, by, bw, 2);
-    text(ctx, '知道了', cx + cw / 2, by + 12, { size: 22, align: 'center', color: '#f0c060' });
+    text(ctx, v.auto > 0 ? '知道了（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）' : '知道了',
+      cx + cw / 2, by + 12, { size: 22, align: 'center', color: '#f0c060' });
     app.ui.rect('news_ok', bx, by, bw, 46, function () {
       app.newsView = null;
       app.pop();

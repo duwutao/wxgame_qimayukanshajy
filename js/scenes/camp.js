@@ -6,6 +6,7 @@
 const { text, panel, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
+const scenery = require('../render/scenery.js');
 const { siteById } = require('../core/world.js');
 const army = require('../core/army.js');
 const { FACTIONS } = require('../data/china.js');
@@ -28,6 +29,7 @@ const CampScene = {
 
     ctx.fillStyle = '#0f0c09';
     ctx.fillRect(0, 0, w, h);
+    scenery.drawBackdrop(ctx, 'camp', w, h, 17);
 
     // 营火的光，照亮半张幕布
     const glow = ctx.createRadialGradient(w / 2, h * 0.62, 30, w / 2, h * 0.62, h * 0.75);

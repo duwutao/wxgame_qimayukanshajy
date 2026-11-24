@@ -62,7 +62,7 @@ const JournalScene = {
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, '史册', 20, 22, { size: 36, color: '#f0c060' });
-    text(ctx, (st.player.flagName === '无旗' ? st.player.name : st.player.flagName), w - 20, 34, {
+    text(ctx, stateLib.renownTitle(st.player.renown), w - 20, 34, {
       size: 18, align: 'right', color: '#a2947a',
     });
     text(ctx, '近 ' + RECENT_DAYS + ' 日一条不落，再往前只留大事 · 按住往下拖可翻旧账',
@@ -93,7 +93,7 @@ const JournalScene = {
       ['败仗', st.stats.battlesLost],
       ['城', st.stats.sitesTaken],
       ['里程', st.stats.distance],
-      ['史简', st.player.shiUsed],
+      ['天机简', st.player.shiUsed],
     ];
     const cw = (w - 32) / stats.length;
     stats.forEach(function (s, i) {

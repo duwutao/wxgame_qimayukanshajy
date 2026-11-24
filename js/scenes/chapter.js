@@ -86,7 +86,7 @@ const ChapterScene = {
       const parts = [];
       if (ch.reward.gold) parts.push(ch.reward.gold + ' 金钱');
       if (ch.reward.renown) parts.push(ch.reward.renown + ' 声望');
-      if (ch.reward.shi) parts.push(ch.reward.shi + ' 支史简');
+      if (ch.reward.shi) parts.push(ch.reward.shi + ' 支天机简');
       if (ch.reward.banner) parts.push('一面自己的旗');
       if (parts.length) {
         text(ctx, '得：' + parts.join(' · '), cx + 32, y, { size: 16, color: '#f0c060' });

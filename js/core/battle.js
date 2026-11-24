@@ -1,7 +1,7 @@
 /**
- * 战斗层：回合制战术结算 + 史简
+ * 战斗层：回合制战术结算 + 天机简
  * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
- * 史简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
+ * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
  */
 
 const { TROOPS } = require('../data/troops.js');
@@ -138,7 +138,7 @@ class Battle {
     return troopCount(this.b.troops);
   }
 
-  /** 写一笔史简 */
+  /** 写一笔天机简 */
   applyShiMark(id) {
     this.shiMark = id;
     this.shiName = id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册';
@@ -172,14 +172,14 @@ class Battle {
     if (sa.pierceRatio > 0.12) defB *= 0.82;
     if (sb.pierceRatio > 0.12) defA *= 0.82;
 
-    // 史简效果
+    // 天机简效果：只有增益，没有反噬
     if (this.shiMark === 'wind') {
-      atkA *= 1.45;
-      if (this.fireGround) atkA *= 1.25;
+      atkA *= 1.90;
+      if (this.fireGround) atkA *= 1.50;
     }
     if (this.shiMark === 'calm' && this.shiRounds > 0) {
-      atkA *= 0.65;
-      atkB *= 0.65;
+      atkA *= 0.30;
+      atkB *= 0.30;
       this.shiRounds -= 1;
     }
 

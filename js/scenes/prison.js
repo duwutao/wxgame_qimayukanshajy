@@ -5,6 +5,7 @@
 
 const { text, wrap } = require('../render/ui.js');
 const stateLib = require('../core/state.js');
+const scenery = require('../render/scenery.js');
 const { FACTIONS } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
 
@@ -33,6 +34,7 @@ const PrisonScene = {
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
+    scenery.drawBackdrop(ctx, 'prison', w, h, 31);
 
     text(ctx, '牢房', 20, 24, { size: 36, color: '#f0c060' });
     text(ctx, '捆着 ' + mine.length + ' 人', w - 20, 34, { size: 18, align: 'right', color: '#a2947a' });
@@ -109,10 +111,12 @@ const PrisonScene = {
         size: 16, color: '#a2947a',
       });
       const recruit = p.recruit || null;
+      const wait = p.recruitWaitDays || 0;
       const recruitTxt = recruit
         ? (recruit.mode === 'none' ? '招降必被拒（你还没有旗）'
-          : recruit.mode === 'ruler' ? '君主不可招'
-            : '招降 ' + Math.round(recruit.chance * 100) + '%')
+          : recruit.mode === 'ruler' ? '君主不可招（除非他的国亡了）'
+            : '招降 ' + Math.round(recruit.chance * 100) + '%' +
+              (wait > 0 ? ' · 还需等 ' + wait + ' 天' : ''))
         : '';
       text(ctx, mineRow ? '自己逃的概率 ' + Math.round(p.chance * 100) + '%/日 · ' + recruitTxt
         : '他家的人会来赎；城破了就放', 92, ry + 62, {
@@ -122,7 +126,7 @@ const PrisonScene = {
       if (mineRow) {
         drawBtn(ctx, w - 236, ry + 78, 100, 40, '收赎金 ' + p.ransom, '#5a4a2a');
         drawBtn(ctx, w - 126, ry + 78, 100, 40, '放了', '#3a4a2a');
-        drawBtn(ctx, w - 236, ry + 124, 100, 40, '招降', '#3a3a5a');
+        drawBtn(ctx, w - 236, ry + 124, 100, 40, wait > 0 ? '等 ' + wait + ' 天' : '招降', wait > 0 ? '#2c2a24' : '#3a3a5a');
         const askKill = this.confirmKill === p.lordId;
         drawBtn(ctx, w - 126, ry + 124, 100, 40, askKill ? '真的斩了？' : '斩了', askKill ? '#8a2a1a' : '#4a241c');
         drawBtn(ctx, 92, ry + 132, 96, 40, '问话', '#2c2a24');
@@ -186,7 +190,7 @@ const PrisonScene = {
           if (this.confirmKill !== r.data.lordId) {
             this.confirmKill = r.data.lordId;
             app.showToast('再点一下，就把' + r.data.name + '斩了。杀了他，' +
-              ((FACTIONS[r.data.faction] || {}).full || '那家') + '跟你再没有议和的一天。', 3.2);
+              ((FACTIONS[r.data.faction] || {}).full || '那家') + '跟你结下血债：一个月内议和必被驳回，之后赔款翻倍。', 3.6);
             return;
           }
           this.confirmKill = null;

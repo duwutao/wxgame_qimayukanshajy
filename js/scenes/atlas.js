@@ -4,7 +4,8 @@
  */
 
 const { REGIONS, FACTIONS, CAPITAL_IDS } = require('../data/china.js');
-const { text } = require('../render/ui.js');
+const { text, panel } = require('../render/ui.js');
+const stateLib = require('../core/state.js');
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
@@ -272,6 +273,8 @@ const AtlasScene = {
 
     ctx.restore();
 
+    this.drawRelations(app, ctx, w, h, st);
+
     // 缩放按钮
     const bx0 = w - 84;
     const by0 = MAP_TOP + Math.min(viewH, cell * world.h) - 74;
@@ -318,6 +321,35 @@ const AtlasScene = {
 
     text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色与城名常显 · 放大看州界', MAP_LEFT, legendY + 80, {
       size: 13, color: '#8a8070',
+    });
+  },
+
+  drawRelations(app, ctx, w, h, st) {
+    const ids = Object.keys(FACTIONS).filter(function (id) {
+      return id !== 'bandit' && id !== (st.player.faction || 'player');
+    });
+    const pw = Math.min(300, Math.round(w * 0.38));
+    const px = w - pw - 10;
+    const rows = ids.length;
+    const ph = 62 + rows * 36;
+    panel(ctx, px, MAP_TOP + 8, pw, ph, { fill: 'rgba(14,11,8,0.92)' });
+    text(ctx, '与你的关系', px + 14, MAP_TOP + 20, { size: 20, color: '#f0c060' });
+    ids.forEach(function (id, i) {
+      const y = MAP_TOP + 52 + i * 36;
+      const fac = FACTIONS[id];
+      const rel = stateLib.relationOf(st, id);
+      const war = stateLib.atWarWith(st, id);
+      const fs = st.factionState[id] || {};
+      ctx.fillStyle = fac.color;
+      ctx.fillRect(px + 14, y + 6, 5, 20);
+      text(ctx, fac.name || fac.full, px + 26, y + 1, { size: 18, color: fs.dead ? '#6a6050' : '#e6dbc2' });
+      text(ctx, fs.dead ? '亡' : rel > 0 ? '+' + rel : String(rel),
+        px + pw - 14, y + 1, { size: 18, align: 'right', color: fs.dead ? '#6a6050' : rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#c9bda2' });
+      if (war) {
+        ctx.fillStyle = 'rgba(210,70,50,0.8)';
+        ctx.fillRect(px + 14, y + 24, 5, 5);
+        text(ctx, '战', px + 26, y + 20, { size: 12, color: '#e08070' });
+      }
     });
   },
 

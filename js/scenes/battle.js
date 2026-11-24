@@ -1,6 +1,6 @@
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
- * 战中可落一笔史简（南风起 / 风止 / 名册）
+ * 战中可落一笔天机简（南风起 / 风止 / 名册）
  */
 
 const { text, panel, bar, wrap } = require('../render/ui.js');
@@ -10,6 +10,7 @@ const army = require('../core/army.js');
 const { TROOPS } = require('../data/troops.js');
 const { TACTICS, TACTIC_LIST } = require('../core/battle.js');
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = require('../data/china.js');
+const { drawBackdrop } = require('../render/scenery.js');
 
 /** 打完/撤出后一路退回地图，不在城门口再被弹一次 */
 function backToMap(app) {
@@ -61,6 +62,8 @@ function subTitle(app) {
 
 const BattleScene = {
   enter(app, params) {
+    // 上一场没处置的败将不跨战斗残留
+    if (!params || !params.keepPostBattle) app.state.postBattleLord = null;
     app.battleView = {
       phase: 'prep',
       timer: 0,
@@ -120,7 +123,9 @@ const BattleScene = {
       return;
     }
 
-    ctx.fillStyle = '#14100c';
+    // 战场背景：烟尘、残旗与枪林，再压一层暗色保证字看得清
+    drawBackdrop(ctx, 'battle', w, h, (b.context && b.context.siteId ? b.context.siteId.length : 0) + 9);
+    ctx.fillStyle = 'rgba(12,9,7,0.72)';
     ctx.fillRect(0, 0, w, h);
 
     // 矮屏（桌面窗口）与大屏（手机竖屏）两套排法，按钮永远在屏幕里
@@ -139,7 +144,7 @@ const BattleScene = {
       size: compact ? 15 : 18, align: 'center', color: '#a2947a',
     });
     if (fire) text(ctx, '火攻', w - 20, 10, { size: 16, align: 'right', color: '#ff8f4a' });
-    if (b.shiName) text(ctx, '史简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
+    if (b.shiName) text(ctx, '天机简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
 
     const a = b.a;
     const bb = b.b;
@@ -255,7 +260,7 @@ const BattleScene = {
           app.showToast('你带人从阵后撤出，不损一兵。', 2);
         },
       });
-      app.ui.button(ctx, 16 + bw + 12, byy, bw, bh, '史简 ×' + app.state.player.shi, {
+      app.ui.button(ctx, 16 + bw + 12, byy, bw, bh, '天机简 ×' + app.state.player.shi, {
         id: 'shi', size: compact ? 19 : 22, fill: '#3a2438', disabled: app.state.player.shi <= 0 || !!b.shiMark, onTap: function () {
           bv.shiOpen = true;
         },
@@ -356,8 +361,9 @@ function renderInterim(app, sum, w, h, b) {
 
 function renderResult(app, sum, w, h, y0Top) {
   const ctx = app.runtime.ctx;
-  const y0 = y0Top || (h - 220);
+  const y0 = y0Top || (h * 0.30);
   if (!sum) return;
+  const pending = app.state.postBattleLord;
 
   const win = sum.result === 'win';
   const retreat = sum.result === 'retreat';
@@ -372,7 +378,40 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
-  if (sum.shiMark) text(ctx, '史简「' + sum.shiName + '」已生效', 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」已生效', 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+
+  if (pending) {
+    panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
+    text(ctx, '阵前跪着 ' + pending.name, 36, h - 280, { size: 26, color: '#f0c060' });
+    text(ctx, pending.arcNoCapture
+      ? '天下皆反。他是反贼，不能招降，也不能生擒；只能放他回去。'
+      : '野战不杀人。你可以放他回去，也可以押进牢里，之后再招降或斩。', 36, h - 242, {
+      size: 16, color: '#c9bda2',
+    });
+    const gap = 12;
+    const bw = pending.arcNoCapture ? (w - 32) : (w - 32 - 24 - gap) / 2;
+    const by = h - 186;
+    app.ui.button(ctx, 16, by, bw, 68, '放他回去', {
+      id: 'lord_release', size: 24, fill: '#2a3320', onTap: function () {
+        const r = stateLib.resolveDefeatedLord(app.state, 'release');
+        app.showToast(r.msg, 3);
+        if (r.ok) {
+          sum.duelNote = r.note;
+          sum.postBattleLord = false;
+        }
+      },
+    });
+    if (!pending.arcNoCapture) app.ui.button(ctx, 16 + bw + gap, by, bw, 68, '押进牢里', {
+      id: 'lord_capture', size: 24, fill: '#3a2418', onTap: function () {
+        const r = stateLib.resolveDefeatedLord(app.state, 'capture');
+        app.showToast(r.msg, 3);
+        if (r.ok) {
+          sum.duelNote = r.note;
+          sum.postBattleLord = false;
+        }
+      },
+    });
+  }
 
   // 打完可以认账，也可以退到开打前那份快照
   const preKey = 'bw_pre_v4';
@@ -381,8 +420,12 @@ function renderResult(app, sum, w, h, y0Top) {
   const leftW = Math.round((w - 32 - gap) * 0.58);
   const rightW = w - 32 - gap - leftW;
 
-  app.ui.button(ctx, 16, h - 96, leftW, 76, '继续', {
-    id: 'cont', size: 27, fill: '#33271b', onTap: function () {
+  app.ui.button(ctx, 16, h - 96, leftW, 76, pending ? '先处置败将' : '继续', {
+    id: 'cont', size: 27, fill: '#33271b', disabled: !!pending, onTap: function () {
+      if (pending) {
+        app.showToast('先决定阵前跪着的人怎么处置。', 2);
+        return;
+      }
       if (app.state.gameOver) {
         app.replace('ending');
       } else {
@@ -408,7 +451,7 @@ function renderShi(app, w, h, b) {
   const ctx = app.runtime.ctx;
   ctx.fillStyle = 'rgba(8,6,4,0.94)';
   ctx.fillRect(0, 0, w, h);
-  text(ctx, '落一笔史简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
+  text(ctx, '落一笔天机简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
   text(ctx, '这一笔会留在纸上，天下人也会记住。剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
     size: 17, align: 'center', color: '#a2947a',
   });

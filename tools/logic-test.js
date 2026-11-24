@@ -334,7 +334,7 @@ st.battle = new Battle({
 const hres = stateLib.useHistory(st, 'roll');
 ok('用史简扣一支', hres.ok && st.player.shi === 2, hres.msg + ' 剩' + st.player.shi);
 ok('史简计入已用', st.player.shiUsed === 1, String(st.player.shiUsed));
-ok('用史简会得罪所有人', st.relations.wei < 0, String(st.relations.wei));
+ok('用天机简没有副作用', st.relations.wei === 0, String(st.relations.wei));
   while (!st.battle.finished) {
     if (st.battle.batchDone) st.battle.nextBatch();
     else st.battle.step();
@@ -612,19 +612,16 @@ if (jailSite) {
 const st9 = stateLib.createGame({ seed: 777003 });
 st9.events.length = 0;
 const foeLord = st9.lords.filter(function (l) { return l.id === 'chengpu'; })[0];
-let capturedOnce = false;
-let fledOnce = false;
-for (let i = 0; i < 12; i += 1) {
-  const l2 = JSON.parse(JSON.stringify(foeLord));
-  l2.alive = true; l2.prisoner = null; l2.defTroops = foeLord.defTroops;
-  const r = warLib.onPlayerBeatLord(st9, l2);
-  if (r.captured) capturedOnce = true;
-  if (r.fled) fledOnce = true;
-  if (capturedOnce && fledOnce) break;
-}
-ok('玩家打赢后可能生擒', capturedOnce);
-ok('玩家打赢后可能逃掉', fledOnce);
-st9.prisoners = st9.prisoners || [];
+const beat = warLib.playerDefeatsLord(st9, foeLord);
+ok('打赢领主先押在阵前，不自动杀', beat.pending === true && !!st9.postBattleLord && foeLord.dead !== true,
+  JSON.stringify(beat));
+const capRes = stateLib.resolveDefeatedLord(st9, 'capture');
+ok('战果页可以押进牢里', capRes.ok && !!(st9.prisoners || []).filter(function (x) { return x.lordId === 'chengpu'; })[0],
+  capRes.msg);
+const foe2 = st9.lords.filter(function (l) { return l.id === 'gaolan'; })[0];
+warLib.playerDefeatsLord(st9, foe2);
+const relRes = stateLib.resolveDefeatedLord(st9, 'release');
+ok('战果页可以放走败将', relRes.ok && foe2.alive === true, relRes.msg);
 
 // 赎金与放人
 const p0 = (st9.prisoners || [])[0];
@@ -766,17 +763,17 @@ group('三态 · 招降 · 封领主');
 const st15 = stateLib.createGame({ seed: 777009 });
 st15.events.length = 0;
 const victim15 = st15.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
-const seen = { killed: 0, captured: 0, fled: 0 };
-for (let i = 0; i < 60; i += 1) {
+let autoKilled = 0;
+for (let i = 0; i < 20; i += 1) {
   victim15.alive = true;
   victim15.dead = false;
+  victim15.prisoner = null;
   victim15.troops = { militia: 8 };
-  const r = warLib.onPlayerBeatLord(st15, victim15);
-  if (r.killed) seen.killed += 1;
-  else if (r.captured) seen.captured += 1;
-  else seen.fled += 1;
+  const r = warLib.playerDefeatsLord(st15, victim15);
+  if (r.killed) autoKilled += 1;
+  st15.postBattleLord = null;
 }
-ok('三种结果都会出现', seen.killed > 0 && seen.captured > 0 && seen.fled > 0, JSON.stringify(seen));
+ok('野战永不自动斩将', autoKilled === 0, String(autoKilled));
 st15.noPeace = {};
 const killedOne = warLib.killLord(st15, st15.lords.filter(function (l) { return l.id === 'yanliang'; })[0]);
 ok('杀将留名', killedOne.killed === true);
@@ -1250,14 +1247,16 @@ const pro2 = stateLib.promoteHero(stFief2, 'yujin', homeA.id);
 ok('英雄先封城', pro2.ok, pro2.msg);
 const lord2 = stFief2.lords.filter(function (l) { return l.id === pro2.lordId; })[0];
 const assignB = stateLib.assignFief(stFief2, homeB.id, lord2.id);
-ok('同一领主还能管村庄', assignB.ok && homeB.lordId === lord2.id, assignB.msg);
-ok('一个领主两处封地', stateLib.lordFiefs(stFief2, lord2).length === 2,
+ok('改封会自动收回原封地', assignB.ok && homeB.lordId === lord2.id && homeA.lordId === null, assignB.msg);
+ok('一个领主最多一处封地', stateLib.lordFiefs(stFief2, lord2).length === 1,
   String(stateLib.lordFiefs(stFief2, lord2).length));
-const clearA = stateLib.assignFief(stFief2, homeA.id, null);
-ok('收回一处不误伤另一处', clearA.ok && homeA.lordId === null && homeB.lordId === lord2.id, clearA.msg);
+const clearB = stateLib.assignFief(stFief2, homeB.id, null);
+ok('收回封地', clearB.ok && homeB.lordId === null, clearB.msg);
+homeA.lordId = lord2.id; // 用一块已有封主的地来试“不能再封别人”
 stFief2.player.heroes = [{ id: 'yuejin', level: 5, exp: 0 }];
-const occupied = stateLib.promoteHero(stFief2, 'yuejin', homeB.id);
+const occupied = stateLib.promoteHero(stFief2, 'yuejin', homeA.id);
 ok('已有封主的地不能再封给别人', !occupied.ok, occupied.msg);
+stateLib.assignFief(stFief2, homeB.id, lord2.id); // 存档检查前把封主放回去
 
 // 等级带兵上限：君主按原编制不缩水，独立英雄按等级涨
 const cao = stFief.lords.filter(function (l) { return l.id === 'caocao'; })[0];

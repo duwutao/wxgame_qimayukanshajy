@@ -739,7 +739,7 @@ function drawSites(ctx, app, cam, box, w) {
     // 名牌
     const isTown = site.type === 'town';
     const isCastle = site.type === 'castle';
-    const size = isTown ? 22 : isCastle ? 19 : 16;
+    const size = isCapital ? 27 : isTown ? 22 : isCastle ? 19 : 16;
     const label = site.name;
     ctx.font = 'bold ' + size + 'px "PingFang SC","Microsoft YaHei",sans-serif';
     const tw = ctx.measureText(label).width;
@@ -766,7 +766,7 @@ function drawSites(ctx, app, cam, box, w) {
     lowZoomLabels.forEach(function (l) {
       const name = l.site.name;
       // 缩到整张天下时，城名至少保留到能认出字的尺寸；宁可略挤，也不让名字变成黑点
-      const fs = l.cap ? 16 : 14;
+      const fs = l.cap ? 20 : 15;
       ctx.font = 'bold ' + fs + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(name).width;
       const boxH = fs + 4;
@@ -810,7 +810,7 @@ function drawUnits(ctx, app, cam, box, w) {
 
   // 匪团：一整队人（按档位换造型），人一眼能看出该不该惹
   const z = app.mapZoom || 1;
-  const low = z < 0.45;
+  const low = z < 0.40;
   const nowH = stateLib.gameHours(st);
   st.parties.forEach(function (p) {
     const up = stateLib.unitAnimPos(p, nowH);
@@ -883,7 +883,7 @@ function drawUnits(ctx, app, cam, box, w) {
 
   // 领主
   st.lords.forEach(function (lord) {
-    if (!lord.alive) return;
+    if (!lord.alive || lord.inCity) return;
     const up = stateLib.unitAnimPos(lord, nowH);
     const sx = up.x * TS - cam.x + TS / 2;
     const sy = box.top + up.y * TS - cam.y + TS / 2;
@@ -931,7 +931,7 @@ function drawUnits(ctx, app, cam, box, w) {
     });
 
     const nsz = Math.max(11, Math.round(15 * z));
-    if (z >= 0.9) {
+    if (z >= 0.4) {
       ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(lord.name).width;
       ctx.fillStyle = 'rgba(10,8,6,0.75)';
@@ -1185,7 +1185,19 @@ function drawTop(ctx, app, w) {
 
   const hour = Math.floor(st.clock.hour);
   const pad = function (n) { return n < 10 ? '0' + n : '' + n; };
-  text(ctx, '第 ' + st.clock.day + ' 天 ' + pad(hour) + ' 时', 16, 12, { size: 20, color: '#c9bda2' });
+  let topLine = '第 ' + st.clock.day + ' 天 ' + pad(hour) + ' 时';
+  let topColor = '#c9bda2';
+  // 统一之后，左上角一直挂着那场还没来的大旱
+  if (st.arc && st.arc.phase === 'celebration') {
+    const leftDays = Math.max(0, (st.arc.disasterDay || st.clock.day) - st.clock.day);
+    topLine += ' · 距大旱 ' + leftDays + ' 天';
+    if (leftDays <= 5) topColor = '#e06a52';
+  } else if (st.arc && st.arc.phase === 'reconquest') {
+    const loyal = (st.arc.loyalLords || []).length;
+    topLine += ' · 与天下为敌 · 旧部 ' + loyal;
+    topColor = '#e06a52';
+  }
+  text(ctx, topLine, 16, 12, { size: st.arc ? 16 : 20, color: topColor });
 
   const fac = p.faction
     ? (p.faction === 'player'
@@ -1193,9 +1205,9 @@ function drawTop(ctx, app, w) {
       : (FACTIONS[p.faction] ? FACTIONS[p.faction].full : p.faction))
     : '无主';
   const title = stateLib.renownTitle(p.renown);
-  // 没有旗的时候，左上角挂的就是声望换来的称号：一仗一仗往上走
-  text(ctx, p.flagName === '无旗' ? title : p.flagName, 16, 40, { size: 24, color: '#f0c060' });
-  text(ctx, '· ' + (p.flagName === '无旗' ? p.name : title) + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
+  // 声望到哪一档，左上角就换哪一档的称呼；“无名溃兵”只属于开局
+  text(ctx, title, 16, 40, { size: 24, color: '#f0c060' });
+  text(ctx, '· ' + p.name + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
   // 倍速
   const speeds = [1, 2, 3];
@@ -1218,7 +1230,7 @@ function drawTop(ctx, app, w) {
     { k: '粮草', v: p.food, c: foodShort ? '#e06a52' : '#c8b478' },
     { k: '兵力', v: army.troopCount(p.troops) + '/' + stateLib.capacity(st), c: '#8fb0d8' },
     { k: '声望', v: p.renown, c: '#c98f6a' },
-    { k: '史简', v: p.shi, c: '#b98fd8' },
+    { k: '天机简', v: p.shi, c: '#b98fd8' },
   ];
   const cw = (w - 32) / items.length;
   items.forEach(function (it, i) {

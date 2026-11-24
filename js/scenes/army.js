@@ -190,7 +190,7 @@ const ArmyScene = {
         text(ctx, r.label, 20, ry, { size: 17, color: '#8a8070' });
         text(ctx, r.value, 110, ry - 2, { size: 19, color: '#efe3c6' });
       } else if (r.kind === 'shijian') {
-        text(ctx, '史简 × ' + r.shi + '（已用 ' + r.used + '）', 20, ry + 6, { size: 19, color: '#c9a0e0' });
+        text(ctx, '天机简 × ' + r.shi + '（已用 ' + r.used + '）', 20, ry + 6, { size: 19, color: '#c9a0e0' });
       }
     });
 
