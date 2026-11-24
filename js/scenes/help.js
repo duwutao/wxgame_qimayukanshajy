@@ -133,7 +133,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'h1', s: '十路势力' });
     ops.push({ t: 'p', s: '关系 -25 以下即开战。开战后领主会主动追杀，城池也不能进。' });
     Object.keys(FACTIONS).forEach(function (id) {
-      if (id === 'bandit') return;
+      if (id === 'bandit' || id === 'player') return;
       const f = FACTIONS[id];
       const rel = st ? stateLib.relationOf(st, id) : 0;
       ops.push({ t: 'faction', f, rel, sworn: st && st.player.faction === id });

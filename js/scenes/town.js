@@ -50,13 +50,14 @@ function statusBar(app, y) {
   const count = army.troopCount(p.troops);
   const cap = stateLib.capacity(app.state);
   const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * 2));
+  const foodCap = army.foodCap(p.troops);
 
   ctx.fillStyle = '#1d1711';
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
     { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food + ' / 两日' + need, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '粮', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '望', v: p.renown, c: '#c98f6a' },
     { k: '简', v: p.shi, c: '#b98fd8' },
@@ -119,6 +120,7 @@ function renderMenu(app, site) {
   }
 
   const isVillage = site.type === 'village';
+  const resting = !!p.resting;
 
   if (isVillage) {
     y = menuButton(app, y, '招兵', '村里的壮丁 · 只有最低一档，比城里便宜', function () {
@@ -134,6 +136,26 @@ function renderMenu(app, site) {
       app.showToast(r.msg, 2.6);
       if (r.ok) app.townView.view = 'menu';
     }, { id: 'm_raid', fill: '#3a2018', right: '→' });
+
+    y = menuButton(app, y, resting ? '结束休整 · 上路' : '在村里歇下', '外面的日子照常过，你的粮吃得慢一半，也没人来追', function () {
+      if (resting) {
+        stateLib.stopRest(app.state);
+        app.showToast('收拾行装，准备上路。', 2);
+      } else {
+        const r = stateLib.startRest(app.state, site);
+        app.showToast(r.msg, 2.4);
+      }
+    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
+
+    // 打听过的旧主若藏在这个村、关系也够，才给你看见这条
+    const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
+      return stateLib.hiddenLordVisible(app.state, l);
+    })[0];
+    if (hermit) {
+      y = menuButton(app, y, '村中隐者 · ' + hermit.name, '前朝的旗倒了，人还活着。也许能请得动', function () {
+        app.townView.view = 'hermit';
+      }, { id: 'm_hermit', fill: '#2c2a40', right: '见一面' });
+    }
   } else {
     y = menuButton(app, y, '招兵', '花钱买人，价钱随城而变', function () {
       app.townView.view = 'recruit';
@@ -152,9 +174,32 @@ function renderMenu(app, site) {
       app.townView.view = 'hall';
     }, { id: 'm_hall', right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主' });
 
-    y = menuButton(app, y, '比武大会', '报名连打三场 · 赢钱赢名声，不杀人', function () {
+    y = menuButton(app, y, '比武大会', '四招赌手 · 三滴血，赢钱赢名声，不杀人', function () {
       app.push('tourney', { siteId: site.id });
     }, { id: 'm_tourney', fill: '#3a2c1e', right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金' });
+
+    // 这一章的关键一仗就在这座城：给个主动进攻的入口
+    const obj = stateLib.campaignObjective(app.state, site);
+    if (obj) {
+      const count = army.troopCount(p.troops);
+      const ready = !obj.needTroops || count >= obj.needTroops;
+      y = menuButton(app, y, '发起进攻 · ' + obj.name, ready ? '点下去就开打，输了可以退回来再来' : '至少要有 ' + obj.needTroops + ' 人才打得动（现 ' + count + '）', function () {
+        const b = stateLib.startCampaignBattle(app.state, obj.id);
+        if (!b) { app.showToast('现在还打不了。'); return; }
+        app.state.flags.campaignCool = stateLib.gameHours(app.state) + 24;
+        app.push('battle', { mode: 'campaign', campaignId: b.context.campaignId });
+      }, { id: 'm_campaign', fill: '#4a241c', right: ready ? '→' : '兵不足', disabled: !ready });
+    }
+
+    y = menuButton(app, y, resting ? '结束休整 · 上路' : '进城休整', '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', function () {
+      if (resting) {
+        stateLib.stopRest(app.state);
+        app.showToast('收拾行装，准备上路。', 2);
+      } else {
+        const r = stateLib.startRest(app.state, site);
+        app.showToast(r.msg, 2.4);
+      }
+    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
   }
 
   app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {
@@ -437,7 +482,7 @@ function renderMarket(app, site, tab) {
         },
       });
     });
-    text(ctx, '满载上限 400 单位。长途行军前多带一点。', PAD, 690, { size: 16, color: '#8a8070' });
+    text(ctx, '满载上限 ' + army.foodCap(st.player.troops) + ' 单位（兵力 ' + army.troopCount(st.player.troops) + '）。长途行军前多带一点。', PAD, 690, { size: 16, color: '#8a8070' });
     backButton(app, 740);
     return;
   }
@@ -549,7 +594,65 @@ function renderTavern(app, site) {
   // 传闻
   const reg = regionDef(site.region);
   text(ctx, '“' + (reg ? reg.flavor : '') + '”', PAD, y + 40, { size: 17, color: '#8a8070' });
+
+  // 打听前朝旧主的下落：一次 40 金，问出一个人藏在哪个村
+  const unknown = st.lords.filter(function (l) {
+    return l.hidden && l.hidden.siteId && (!st.knownHidden || !st.knownHidden[l.id]);
+  });
+  if (unknown.length) {
+    app.ui.button(ctx, PAD, y + 76, w - PAD * 2, 76, '打听前朝旧主的下落 · 40 金', {
+      id: 'rumor', size: 22, fill: '#241c14', disabled: st.player.gold < 40, onTap: function () {
+        const r = stateLib.tavernRumor(st);
+        app.showToast(r.msg, 3);
+      },
+    });
+    backButton(app, y + 168);
+    return;
+  }
+
   backButton(app, y + 90);
+}
+
+/* ---------------------------------------------------------------- 村中隐者 */
+
+function renderHermit(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const h = app.runtime.height;
+  const st = app.state;
+  const lord = stateLib.hiddenLordsAt(st, site.id)[0];
+
+  text(ctx, '村中隐者', PAD, 296, { size: 26, color: '#f0c060' });
+
+  if (!lord) {
+    text(ctx, '人已经走了。', PAD, 360, { size: 20, color: '#a2947a' });
+    backButton(app, h - 84);
+    return;
+  }
+
+  const f = FACTIONS[lord.hidden.faction];
+  const rel = st.relations[lord.hidden.faction] || 0;
+
+  panel(ctx, PAD, 350, w - PAD * 2, 168, { fill: '#241c14' });
+  text(ctx, lord.name, PAD + 18, 362, { size: 30, color: '#efe3c6' });
+  text(ctx, (f ? f.full : '故国') + ' · ' + (lord.title || '旧将'), PAD + 18, 404, { size: 17, color: '#a2947a' });
+  text(ctx, '“' + (f ? f.full : '故国') + '都亡了，我还提刀做什么。”', PAD + 18, 440, { size: 18, color: '#c9bda2' });
+  text(ctx, '村里人对你的态度 ' + rel + '（要 60 才肯替你说话）', PAD + 18, 476, { size: 15, color: rel >= 60 ? '#8fbf7a' : '#d06a4a' });
+
+  app.ui.button(ctx, PAD, 546, w - PAD * 2, 86, '请他出山 · 跟我走', {
+    id: 'hermit_hire', size: 26, fill: '#2c2a40', onTap: function () {
+      const r = stateLib.recruitHiddenLord(st, site.id);
+      app.showToast(r.msg, 3);
+      if (r.ok) app.townView.view = 'menu';
+    },
+  });
+  app.ui.button(ctx, PAD, 646, w - PAD * 2, 74, '算了 · 不打扰', {
+    id: 'hermit_no', size: 24, fill: '#241c14', onTap: function () {
+      app.townView.view = 'menu';
+    },
+  });
+
+  text(ctx, '成了他会带半副甲跟你走；不成，他也不想再扛旗了。', PAD, 736, { size: 15, color: '#8a8070' });
 }
 
 /* ---------------------------------------------------------------- 领主府 */
@@ -712,6 +815,7 @@ const TownScene = {
     else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);
     else if (v === 'hall') renderHall(app, site);
+    else if (v === 'hermit') renderHermit(app, site);
     else {
       renderMenu(app, site);
       siteInfo(app, site);

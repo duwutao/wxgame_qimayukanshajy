@@ -53,7 +53,8 @@ const ArmyScene = {
     ctx.fillRect(16, 74, w - 32, 148);
     text(ctx, count + ' / ' + cap, 36, 86, { size: 40, color: '#efe3c6' });
     text(ctx, '人', 200, 106, { size: 18, color: '#8a8070' });
-    text(ctx, '两日耗粮 ' + Math.max(1, Math.round(armyLib.foodPerDay(p.troops) * 2 * (1 - hb.foodPct))) + ' · 存粮 ' + p.food, 36, 136, {
+    text(ctx, '两日耗粮 ' + Math.max(1, Math.round(armyLib.foodPerDay(p.troops) * 2 * (1 - hb.foodPct))) +
+      ' · 存粮 ' + p.food + ' / ' + armyLib.foodCap(p.troops), 36, 136, {
       size: 17, color: p.food < armyLib.foodPerDay(p.troops) * 6 ? '#d06a4a' : '#a2947a',
     });
     bar(ctx, 16, 162, w - 32, 10, p.morale / 100, p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);

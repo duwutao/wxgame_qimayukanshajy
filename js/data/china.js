@@ -310,6 +310,11 @@ const FACTIONS = {
     id: 'bandit', name: '贼', full: '黄巾余部', color: '#8b3a3a', banner: '贼',
     lord: '无', desc: '黄巾散了，人还在山里。所有人的敌人。',
   },
+  // 自立之后：你自己的那面旗，只在玩家手下有领主时才用到
+  player: {
+    id: 'player', name: '我', full: '你的旗', color: '#d9a441', banner: '我',
+    lord: '你', desc: '没站在任何人后面。旗是旧的，字是新写的。',
+  },
 };
 
 /**

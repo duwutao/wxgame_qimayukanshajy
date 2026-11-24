@@ -94,6 +94,8 @@ function makePeace(state, a, b, quiet) {
   const m = state.factionWars || {};
   const k = key(a, b);
   if (!m[k]) return false;
+  // 阵前杀了人家的人，这门亲再也说不成
+  if (state.noPeace && (state.noPeace[a] || state.noPeace[b])) return false;
   delete m[k];
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '遣使议和，两家把刀收回鞘里，边界的鼓角停了一阵。', 'war');
@@ -105,7 +107,7 @@ function makePeace(state, a, b, quiet) {
 function diplomacyTick(state) {
   const m = state.factionWars || init(state);
   const rng = state.rng;
-  const ids = Object.keys(FACTIONS).filter(function (id) { return id !== 'bandit'; });
+  const ids = Object.keys(FACTIONS).filter(function (id) { return id !== 'bandit' && id !== 'player'; });
 
   // 新仇：天下不太平，隔三差五就有人翻脸
   if (rng.next() < 0.2) {
@@ -356,14 +358,23 @@ function onSiteTaken(state, site, oldFaction) {
   return freed.length;
 }
 
-/** 玩家亲手打赢一位领主：俘虏或溃逃，不死 */
+/** 玩家亲手打赢一位领主：逃 / 俘 / 杀，三样随机 */
 function onPlayerBeatLord(state, lord) {
   const home = state.world.sites.filter(function (s) { return s.id === lord.home; })[0];
-  const special = lord.id === 'lvbu' || lord.id === 'caocao' || lord.id === 'liubei' ||
+  const isRuler = !!(FACTIONS[lord.faction] && FACTIONS[lord.faction].lord === lord.name);
+  const special = isRuler || lord.id === 'lvbu' || lord.id === 'caocao' || lord.id === 'liubei' ||
     lord.id === 'sunquan' || lord.id === 'yuanshao' || lord.id === 'liubiao' ||
     lord.id === 'liuzhang' || lord.id === 'mateng' || lord.id === 'kebineng' || lord.id === 'liuxie';
   const rng = state.rng;
-  if (!special && rng.next() < 0.45) {
+  const r = rng.next();
+  // 君主/名将更难被当场砍死，但也不是砍不动
+  const killLine = special ? 0.12 : 0.34;
+  const capLine = killLine + (special ? 0.34 : 0.36);
+
+  if (r < killLine) {
+    return killLord(state, lord);
+  }
+  if (r < capLine) {
     capture(state, lord, 'player', '你');
     const gold = 60 + Math.round(weight(lord.defTroops) / 5);
     lord.ransom = gold;
@@ -381,6 +392,93 @@ function onPlayerBeatLord(state, lord) {
     lord.y = home.y;
   }
   return { fled: true };
+}
+
+/** 阵前杀将：这个势力从此跟你没得谈 */
+function killLord(state, lord) {
+  const fac = lord.faction;
+  lord.alive = false;
+  lord.chasing = false;
+  lord.dead = true;
+  lord.retired = false;
+  lord.troops = {};
+  lord.prisoner = null;
+  lord.respawnDay = 0;
+  state.noPeace = state.noPeace || {};
+  if (fac && FACTIONS[fac]) {
+    state.noPeace[fac] = true;
+    state.relations[fac] = -100;
+    declare(state, 'player', fac, true);
+    // 他的旧部也要记这一笔
+    state.lords.forEach(function (l) {
+      if (l === lord || !l.alive || l.faction !== fac) return;
+      l.fury = (l.fury || 0) + 1;
+    });
+  }
+  if (state.prisoners) {
+    state.prisoners = state.prisoners.filter(function (p) { return p.lordId !== lord.id; });
+  }
+  logFn(state, lord.name + '被你在阵前斩了。消息传出去，' +
+    (FACTIONS[fac] ? FACTIONS[fac].full : '那家') + '的人把刀都磨了一遍——这笔账，没人会替你翻过去。', 'war');
+  return { killed: true, name: lord.name, faction: fac };
+}
+
+/** 招降：有主就替主上收人，自立就收成自己的领主 */
+function recruitLord(state, lordId) {
+  const lord = state.lords.filter(function (l) { return l.id === lordId; })[0];
+  if (!lord) return { ok: false, msg: '没这个人' };
+  if (lord.dead) return { ok: false, msg: '人已经死了' };
+  const p = state.player;
+  const isPrisoner = !!(lord.prisoner && lord.prisoner.by === 'player') ||
+    (state.prisoners || []).some(function (x) { return x.lordId === lordId && x.by === 'player'; });
+  if (!isPrisoner && lord.alive && lord.faction === (p.faction || 'player')) {
+    return { ok: false, msg: '他已经在你的旗下了' };
+  }
+  const from = lord.faction;
+  const isRuler = !!(FACTIONS[from] && FACTIONS[from].lord === lord.name);
+  if (isRuler) return { ok: false, msg: lord.name + '是一方之主，不会替别人扛旗。' };
+  // 关系越差越难开口：旧主的仇、你的名声、他手上还剩多少人
+  const base = 0.2 + Math.min(0.35, (p.renown || 0) / 1600);
+  const rel = (state.relations[from] || 0) / 100;
+  let chance = base + rel * 0.25;
+  if (state.noPeace && state.noPeace[from]) chance -= 0.25;
+  chance = Math.max(0.08, Math.min(0.8, chance));
+  if (state.rng.next() > chance) {
+    return { ok: false, msg: lord.name + '把脸转开：“我吃的是' + (FACTIONS[from] ? FACTIONS[from].full : '旧主') + '的粮。”' };
+  }
+
+  // 有主：替自己的君主收人；自立：收成自己的领主
+  const target = p.faction && FACTIONS[p.faction] ? p.faction : 'player';
+  if (state.prisoners) {
+    state.prisoners = state.prisoners.filter(function (x) { return x.lordId !== lordId; });
+  }
+  lord.prisoner = null;
+  lord.dead = false;
+  lord.alive = true;
+  lord.faction = target;
+  lord.chasing = false;
+  lord.resting = false;
+  lord.ransom = 0;
+  const home = state.world.sites.filter(function (s) {
+    return target === 'player' ? s.playerOwned : (s.ownerFaction === target && s.type !== 'camp' && s.type !== 'village');
+  })[0] || state.world.sites.filter(function (s) { return s.playerOwned; })[0];
+  if (home) {
+    lord.home = home.id;
+    lord.x = home.x;
+    lord.y = home.y;
+  }
+  lord.troops = takeSome(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.5)));
+  p.renown += 25;
+  if (target === 'player') {
+    declare(state, 'player', from, true);
+  }
+  logFn(state, lord.name + '拜了下去：“' + (target === 'player' ? '愿跟着你' : '愿为' + FACTIONS[target].full + '效命') + '。”', 'war');
+  return {
+    ok: true,
+    msg: lord.name + '归降了（声望 +25）',
+    lordId: lord.id,
+    faction: target,
+  };
 }
 
 /** 收赎金放人 */
@@ -445,6 +543,7 @@ function summaryLines(state) {
 module.exports = {
   init, atWar, declare, makePeace, diplomacyTick,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, onPlayerBeatLord,
+  killLord, recruitLord,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   nearestFoe,
   ESCAPE_BASE, ESCAPE_STEP,

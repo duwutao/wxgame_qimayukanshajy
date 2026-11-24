@@ -38,6 +38,17 @@ function foodPerDay(troops) {
   return Math.max(1, Math.round(points * 0.3));
 }
 
+/**
+ * 粮草上限：人多辎重多，能带的粮也多；人少也给一份保底。
+ * 9 个人 174，30 人 300，100 人 720。
+ */
+const FOOD_BASE_CAP = 120;
+const FOOD_CAP_PER_TROOP = 6;
+
+function foodCap(troops) {
+  return FOOD_BASE_CAP + troopCount(troops) * FOOD_CAP_PER_TROOP;
+}
+
 function avgTier(troops) {
   let sum = 0;
   let n = 0;
@@ -146,6 +157,7 @@ module.exports = {
   addTroops,
   removeTroops,
   foodPerDay,
+  foodCap,
   avgTier,
   strength,
   distributeLosses,

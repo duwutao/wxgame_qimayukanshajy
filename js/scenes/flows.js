@@ -46,6 +46,10 @@ function process(app) {
       app.push('chapter', { id: ev.chapterId });
       return;
     }
+    if (ev.type === 'faction-fall') {
+      app.push('news', { title: ev.title, lines: ev.lines, factionId: ev.factionId });
+      return;
+    }
   }
 }
 

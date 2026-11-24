@@ -166,15 +166,22 @@ const HeroScene = {
         }.bind(this),
       });
     } else {
-    const third = (w - 64) / 3;
+    const third = (w - 88) / 4;
     app.ui.button(ctx, 20, by, third, 76, '拉家常', {
-      id: 'hero_talk', size: 22, onTap: function () { this.say(app); }.bind(this),
+      id: 'hero_talk', size: 20, onTap: function () { this.say(app); }.bind(this),
     });
-    app.ui.button(ctx, 20 + third + 12, by, third, 76, '让他走', {
-      id: 'hero_leave', size: 22, fill: '#3a2418', onTap: function () { this.confirm = true; }.bind(this),
+    app.ui.button(ctx, 20 + (third + 12), by, third, 76, '封为领主', {
+      id: 'hero_promote', size: 20, fill: '#2c2a40', onTap: function () {
+        const r = stateLib.promoteHero(st, hh.id);
+        app.showToast(r.msg, 3);
+        if (r.ok) app.pop();
+      },
     });
-    app.ui.button(ctx, 20 + (third + 12) * 2, by, third, 76, '返回', {
-      id: 'hero_back', size: 22, fill: '#241c14', onTap: function () { app.pop(); },
+    app.ui.button(ctx, 20 + (third + 12) * 2, by, third, 76, '让他走', {
+      id: 'hero_leave', size: 20, fill: '#3a2418', onTap: function () { this.confirm = true; }.bind(this),
+    });
+    app.ui.button(ctx, 20 + (third + 12) * 3, by, third, 76, '返回', {
+      id: 'hero_back', size: 20, fill: '#241c14', onTap: function () { app.pop(); },
     });
     }
   },

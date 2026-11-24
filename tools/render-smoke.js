@@ -338,6 +338,86 @@ smoke('玩法：五个分类', function () {
   });
 });
 
+smoke('天下通报页（国亡弹窗）', function () {
+  app.state = stateLib.createGame({ seed: 4242 });
+  app.replace('map');
+  app.push('news', {
+    title: '袁绍 亡了',
+    factionId: 'yuan',
+    lines: ['乱军里传出消息：袁绍死了。尸首没找到，头也没挂出来。', '张郃带着残部投了曹操。', '陈宫不肯降，解甲归乡里去了。'],
+  });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('通报页画完不炸', true);
+  app.pop();
+});
+
+smoke('村庄：村中隐者入口与页面', function () {
+  const st = app.state;
+  const village = st.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+  ok('有村庄可用', !!village);
+  // 造一个隐居的旧主，并且已经打听过、关系够
+  const lord = st.lords.filter(function (l) { return l.id === 'yuanshao'; })[0];
+  lord.alive = false;
+  lord.troops = {};
+  lord.hidden = { siteId: village.id, since: 3, faction: 'yuan' };
+  st.knownHidden = {};
+  st.knownHidden[lord.id] = village.id;
+  st.relations.yuan = 65;
+  st.player.atSiteId = village.id;
+  app.push('town', { siteId: village.id });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('菜单里出现隐者入口', app.ui.items.some(function (it) { return it.id === 'm_hermit'; }));
+  app.townView.view = 'hermit';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('隐者页有请他出山的按钮', app.ui.items.some(function (it) { return it.id === 'hermit_hire'; }));
+  app.pop();
+});
+
+smoke('酒馆：打听旧主下落', function () {
+  const st = app.state;
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  st.player.gold = 500;
+  // 还有一位没被打听过的旧主
+  const another = st.lords.filter(function (l) { return l.id === 'lvbu'; })[0];
+  const villageB = st.world.sites.filter(function (s) { return s.type === 'village'; })[1];
+  another.alive = false;
+  another.troops = {};
+  another.hidden = { siteId: villageB.id, since: 4, faction: 'lv' };
+  st.knownHidden = {};
+  app.push('town', { siteId: city.id });
+  app.townView.view = 'tavern';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('酒馆里有打听按钮', app.ui.items.some(function (it) { return it.id === 'rumor'; }));
+  const r = stateLib.tavernRumor(st);
+  ok('打听给出下落', r.ok === true, r.msg);
+  app.pop();
+});
+
+smoke('牢房：招降 / 斩了 / 问话三件套', function () {
+  const st = app.state;
+  st.prisoners = [];
+  const war = require(R + '/core/war.js');
+  war.bindLogger(stateLib.pushLog);
+  const victim = st.lords.filter(function (l) {
+    return l.faction === 'zhang' && l.id !== 'liuzhang' && !l.dead;
+  })[0];
+  war.capture(st, victim, 'player', '你');
+  st.prisoners[st.prisoners.length - 1].ransom = 180;
+  app.push('prison');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const sc = app.top().scene;
+  const mine = (sc.rows || []).filter(function (r) { return r.kind === 'mine'; });
+  ok('俘虏行给了更高的一行（192）', mine.length && mine[0].h === 192, mine.length ? String(mine[0].h) : '无行');
+  const res = stateLib.recruitPrisoner(st, victim.id);
+  ok('招降有明确结果（成/不成）', typeof res.ok === 'boolean', res.msg);
+  app.pop();
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {

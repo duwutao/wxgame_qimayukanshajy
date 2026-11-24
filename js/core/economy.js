@@ -4,7 +4,7 @@
 
 const { TROOPS } = require('../data/troops.js');
 const { EQUIPMENT } = require('../data/china.js');
-const { troopCount, troopCapacity } = require('./army.js');
+const { troopCount, troopCapacity, foodCap } = require('./army.js');
 
 const FOOD_BASE = 5; // 基准粮价（金币 / 单位）
 
@@ -52,8 +52,11 @@ function buyFood(state, site, amount) {
   if (!site.market) return { ok: false, msg: '这里没有市场' };
   const n = Math.max(1, Math.floor(amount));
   const cost = foodPrice(site) * n;
+  const cap = foodCap(state.player.troops);
   if (state.player.gold < cost) return { ok: false, msg: '金币不够，需要 ' + cost };
-  if (state.player.food + n > 400) return { ok: false, msg: '粮车装不下了（上限 400）' };
+  if (state.player.food + n > cap) {
+    return { ok: false, msg: '粮车装不下了（兵力 ' + troopCount(state.player.troops) + '，上限 ' + cap + '）' };
+  }
   state.player.gold -= cost;
   state.player.food += n;
   return { ok: true, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金', cost };

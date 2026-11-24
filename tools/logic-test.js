@@ -571,6 +571,95 @@ ok('读档后不会把俘虏当战死的人复活', ld12 && (function () {
   return (ld12.prisoners || []).length <= before;
 })());
 
+/* ---------------------------------------------------------------- 灭国 */
+
+group('灭国与转投');
+const st13 = stateLib.createGame({ seed: 777007 });
+st13.events.length = 0;
+// 把吕布一家彻底拔掉：城归魏，人全死
+st13.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = 'wei'; });
+st13.lords.forEach(function (l) {
+  if (l.faction === 'lv') { l.alive = false; l.dead = true; l.troops = {}; }
+});
+for (let i = 0; i < 6; i += 1) stateLib.factionTick(st13);
+ok('六天还没亡（要七天）', !(st13.factionState.lv || {}).dead, JSON.stringify(st13.factionState.lv || {}));
+stateLib.factionTick(st13);
+ok('第七天亡国', !!(st13.factionState.lv || {}).dead);
+ok('亡国排了通报事件', st13.events.some(function (e) { return e.type === 'faction-fall' && e.factionId === 'lv'; }));
+ok('亡国君主有去向（被杀或隐世）',
+  st13.factionState.lv.fate === 'killed' || st13.factionState.lv.fate === 'hidden',
+  String(st13.factionState.lv.fate));
+
+const st14 = stateLib.createGame({ seed: 777008 });
+st14.events.length = 0;
+// 吕布死，但高顺活着 → 史实投魏；陈宫活着一律不降
+st14.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = 'wei'; });
+st14.lords.forEach(function (l) {
+  if (l.id === 'lvbu') { l.alive = false; l.dead = true; l.troops = {}; }
+});
+for (let i = 0; i < 7; i += 1) stateLib.factionTick(st14);
+const gaoshun = st14.lords.filter(function (l) { return l.id === 'gaoshun'; })[0];
+ok('高顺改投魏', gaoshun && gaoshun.faction === 'wei' && gaoshun.alive, gaoshun ? gaoshun.faction : '无');
+const chengong = st14.lords.filter(function (l) { return l.id === 'chengong'; })[0];
+ok('陈宫不肯降，散归乡里', chengong && chengong.alive === false && chengong.retired, chengong ? String(chengong.retired) : '无');
+ok('亡国弹窗有话说', st14.events.some(function (e) { return e.type === 'faction-fall' && (e.lines || []).length; }));
+
+/* ---------------------------------------------------------------- 三态与招降 */
+
+group('三态 · 招降 · 封领主');
+const st15 = stateLib.createGame({ seed: 777009 });
+st15.events.length = 0;
+const victim15 = st15.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
+const seen = { killed: 0, captured: 0, fled: 0 };
+for (let i = 0; i < 60; i += 1) {
+  victim15.alive = true;
+  victim15.dead = false;
+  victim15.troops = { militia: 8 };
+  const r = warLib.onPlayerBeatLord(st15, victim15);
+  if (r.killed) seen.killed += 1;
+  else if (r.captured) seen.captured += 1;
+  else seen.fled += 1;
+}
+ok('三种结果都会出现', seen.killed > 0 && seen.captured > 0 && seen.fled > 0, JSON.stringify(seen));
+st15.noPeace = {};
+const killedOne = warLib.killLord(st15, st15.lords.filter(function (l) { return l.id === 'yanliang'; })[0]);
+ok('杀将留名', killedOne.killed === true);
+ok('杀将后不死不休', st15.noPeace.yuan === true && warLib.makePeace(st15, 'player', 'yuan') === false);
+
+// 招降
+const st16 = stateLib.createGame({ seed: 777010 });
+st16.events.length = 0;
+const pv = st16.lords.filter(function (l) { return l.id === 'wenpin'; })[0];
+warLib.capture(st16, pv, 'player', '你');
+st16.relations.biao = 80;
+st16.player.renown = 900;
+let recruited = null;
+for (let i = 0; i < 40 && !recruited; i += 1) {
+  const r = warLib.recruitLord(st16, 'wenpin');
+  if (r.ok) recruited = r;
+  else if (!st16.prisoners.some(function (x) { return x.lordId === 'wenpin'; })) {
+    warLib.capture(st16, pv, 'player', '你');
+  }
+}
+ok('高关系高名声能招降成功', !!recruited, recruited ? recruited.msg : '40 次都没成');
+ok('招降后归玩家所属势力（无主则是自己的旗）', recruited && (recruited.faction === 'player' || recruited.faction === st16.player.faction),
+  recruited ? recruited.faction : '无');
+
+// 封领主
+const st17 = stateLib.createGame({ seed: 777011 });
+st17.events.length = 0;
+st17.world.sites[0].playerOwned = true;
+st17.world.sites[0].ownerFaction = null;
+st17.player.heroes = [{ id: 'yujin', level: 6, exp: 0 }];
+const pro = stateLib.promoteHero(st17, 'yujin');
+ok('英雄能封成领主', pro.ok, pro.msg);
+ok('封完离开队伍', st17.player.heroes.length === 0);
+const newLord = st17.lords.filter(function (l) { return l.id === pro.lordId; })[0];
+ok('新领主有兵有驻地', newLord && armyLib.troopCount(newLord.troops) > 0 && !!newLord.home,
+  newLord ? String(armyLib.troopCount(newLord.troops)) + ' 兵' : '无');
+ok('新领主挂在自己的旗（自立）', newLord && (newLord.faction === 'player' || newLord.faction === st17.player.faction),
+  newLord ? newLord.faction : '无');
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));

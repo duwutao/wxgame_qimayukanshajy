@@ -49,9 +49,10 @@ const PrisonScene = {
 
     const pushRow = function (r) {
       r.y = y;
+      r.h = r.kind === 'mine' ? 192 : (r.kind === 'head' ? 44 : ROW_H);
       this.rows.push(r);
       rects.push(r);
-      y += ROW_H + 10;
+      y += r.h + 10;
     }.bind(this);
 
     if (!list.length) {
@@ -80,7 +81,7 @@ const PrisonScene = {
 
     this.rows.forEach(function (r) {
       const ry = r.y;
-      if (ry > viewH + this.scroll + 160 || ry + ROW_H < this.scroll - 160) return;
+      if (ry > viewH + this.scroll + 220 || ry + r.h < this.scroll - 220) return;
       if (r.kind === 'empty') {
         text(ctx, '牢里空着。打赢一位领主，才有资格往这儿捆人。', 24, ry + 16, { size: 19, color: '#8a8070' });
         return;
@@ -92,9 +93,9 @@ const PrisonScene = {
       const p = r.data;
       const mineRow = r.kind === 'mine';
       ctx.fillStyle = mineRow ? 'rgba(40,30,22,0.85)' : 'rgba(30,26,20,0.55)';
-      ctx.fillRect(16, ry, w - 32, ROW_H);
+      ctx.fillRect(16, ry, w - 32, r.h);
       ctx.strokeStyle = mineRow ? '#5a4a2a' : '#33291e';
-      ctx.strokeRect(16.5, ry + 0.5, w - 33, ROW_H - 1);
+      ctx.strokeRect(16.5, ry + 0.5, w - 33, r.h - 1);
 
       const color = (FACTIONS[p.faction] || {}).color || '#8a8070';
       const portrait = app.assets.portraitFor
@@ -113,8 +114,12 @@ const PrisonScene = {
       });
 
       if (mineRow) {
-        drawBtn(ctx, w - 236, ry + 82, 100, 42, '收赎金 ' + p.ransom, '#5a4a2a');
-        drawBtn(ctx, w - 126, ry + 82, 100, 42, '放了', '#3a4a2a');
+        drawBtn(ctx, w - 236, ry + 78, 100, 40, '收赎金 ' + p.ransom, '#5a4a2a');
+        drawBtn(ctx, w - 126, ry + 78, 100, 40, '放了', '#3a4a2a');
+        drawBtn(ctx, w - 236, ry + 124, 100, 40, '招降', '#3a3a5a');
+        const askKill = this.confirmKill === p.lordId;
+        drawBtn(ctx, w - 126, ry + 124, 100, 40, askKill ? '真的斩了？' : '斩了', askKill ? '#8a2a1a' : '#4a241c');
+        drawBtn(ctx, 92, ry + 132, 96, 40, '问话', '#2c2a24');
       }
     }, this);
 
@@ -150,16 +155,45 @@ const PrisonScene = {
       const r = list[i];
       if (r.kind !== 'mine') continue;
       const sy = TOP - this.scroll + r.y;
-      if (y < sy + 76 || y > sy + 128) continue;
-      if (x >= w - 236 && x <= w - 136) {
-        const res = stateLib.ransomPrisoner(app.state, r.data.lordId);
-        app.showToast(res.msg, 2.4);
-        return;
+      // 第一排：赎金 / 放了
+      if (y >= sy + 78 && y <= sy + 118) {
+        if (x >= w - 236 && x <= w - 136) {
+          const res = stateLib.ransomPrisoner(app.state, r.data.lordId);
+          app.showToast(res.msg, 2.4);
+          return;
+        }
+        if (x >= w - 126 && x <= w - 26) {
+          const res = stateLib.releasePrisoner(app.state, r.data.lordId);
+          app.showToast(res.msg, 2.4);
+          return;
+        }
       }
-      if (x >= w - 126 && x <= w - 26) {
-        const res = stateLib.releasePrisoner(app.state, r.data.lordId);
-        app.showToast(res.msg, 2.4);
-        return;
+      // 第二排：招降 / 斩了 / 问话
+      if (y >= sy + 124 && y <= sy + 164) {
+        if (x >= w - 236 && x <= w - 136) {
+          const res = stateLib.recruitPrisoner(app.state, r.data.lordId);
+          app.showToast(res.msg, 3);
+          this.confirmKill = null;
+          return;
+        }
+        if (x >= w - 126 && x <= w - 26) {
+          if (this.confirmKill !== r.data.lordId) {
+            this.confirmKill = r.data.lordId;
+            app.showToast('再点一下，就把' + r.data.name + '斩了。杀了他，' +
+              ((FACTIONS[r.data.faction] || {}).full || '那家') + '跟你再没有议和的一天。', 3.2);
+            return;
+          }
+          this.confirmKill = null;
+          const res = stateLib.executePrisoner(app.state, r.data.lordId);
+          app.showToast(res.msg, 3);
+          return;
+        }
+        if (x >= 92 && x <= 188) {
+          const lord = app.state.lords.filter(function (l) { return l.id === r.data.lordId; })[0];
+          const line = lord ? stateLib.lordIdle(app.state, lord) : '他闭着眼，不说话。';
+          app.showToast(r.data.name + '：“' + line + '”', 3.4);
+          return;
+        }
       }
     }
   },
