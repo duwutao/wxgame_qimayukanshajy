@@ -5596,7 +5596,8 @@ function update(state, dtSeconds) {
 
     checkPursuit(state);
   } else {
-    // 跟骑砍一样：玩家不动，时间就停——站着不走、修养看地图，全都不流时辰
+    // 跟骑砍一样：玩家站着不动，时间就停；只有进城修养、在大地图上看天下时，外面才照常走
+    if (isResting(state)) advanceTime(state, dt / HOUR_SECONDS);
     checkPursuit(state);
   }
 
@@ -8673,7 +8674,7 @@ function drawFreeHint(ctx, app, box, w) {
     const site = siteById(st.world, p.resting);
     ctx.fillStyle = 'rgba(16,20,14,0.78)';
     ctx.fillRect(0, box.top, w, 30);
-    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰暂停 · 点一下地图就回城',
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰照走 · 点一下地图就回城',
       w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
   }
 
@@ -8714,6 +8715,8 @@ function playerPixel(app) {
 }
 
 function drawPlayerOnMap(ctx, app, cam, box) {
+  // 人在城里歇着、只是拉远看天下：地图上不摆自己，回城界面才有他
+  if (app.restView) return;
   const p = app.state.player;
   const pos = playerPixel(app);
   const walk = p.stepTo ? Math.abs(Math.sin(p.stepProgress * Math.PI)) : 0;
@@ -9572,7 +9575,7 @@ function menuItems(app, site) {
       const r = stateLib.startRest(app.state, site);
       app.showToast(r.msg, 2.4);
       if (r.ok) {
-        // 跟骑砍一样：选"修养"就直接出门看大地图，时辰暂停，点一下再回城
+        // 跟骑砍一样：选"修养"就直接出门看大地图，时辰照走，点一下再回城
         app.restView = site.id;
         app.pop();
       }
@@ -9653,7 +9656,7 @@ function menuItems(app, site) {
     }
     list.push({
       id: 'm_rest', label: resting ? '结束休整 · 上路' : '进城休整',
-      sub: resting ? '再点一下就收拾行装，回大地图' : '选了就出城看天下：时辰暂停，粮耗减半，没人追你',
+      sub: resting ? '再点一下就收拾行装，回大地图' : '选了就出城看天下：时辰照走，粮耗减半，没人追你',
       fill: '#26372a',
       right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
     });

@@ -118,7 +118,7 @@ function menuItems(app, site) {
       const r = stateLib.startRest(app.state, site);
       app.showToast(r.msg, 2.4);
       if (r.ok) {
-        // 跟骑砍一样：选"修养"就直接出门看大地图，时辰暂停，点一下再回城
+        // 跟骑砍一样：选"修养"就直接出门看大地图，时辰照走，点一下再回城
         app.restView = site.id;
         app.pop();
       }
@@ -199,7 +199,7 @@ function menuItems(app, site) {
     }
     list.push({
       id: 'm_rest', label: resting ? '结束休整 · 上路' : '进城休整',
-      sub: resting ? '再点一下就收拾行装，回大地图' : '选了就出城看天下：时辰暂停，粮耗减半，没人追你',
+      sub: resting ? '再点一下就收拾行装，回大地图' : '选了就出城看天下：时辰照走，粮耗减半，没人追你',
       fill: '#26372a',
       right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
     });

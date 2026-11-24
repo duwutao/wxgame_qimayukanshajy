@@ -763,7 +763,7 @@ function drawFreeHint(ctx, app, box, w) {
     const site = siteById(st.world, p.resting);
     ctx.fillStyle = 'rgba(16,20,14,0.78)';
     ctx.fillRect(0, box.top, w, 30);
-    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰暂停 · 点一下地图就回城',
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰照走 · 点一下地图就回城',
       w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
   }
 
@@ -804,6 +804,8 @@ function playerPixel(app) {
 }
 
 function drawPlayerOnMap(ctx, app, cam, box) {
+  // 人在城里歇着、只是拉远看天下：地图上不摆自己，回城界面才有他
+  if (app.restView) return;
   const p = app.state.player;
   const pos = playerPixel(app);
   const walk = p.stepTo ? Math.abs(Math.sin(p.stepProgress * Math.PI)) : 0;
