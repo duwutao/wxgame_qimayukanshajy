@@ -11074,7 +11074,14 @@ function header(app, site) {
   text(ctx, typeName + ' · ' + (fac ? fac.full : '无主') + ' · ' + (regionDef(site.region) || {}).name, PAD + 4, 78, {
     size: 19, color: '#a2947a',
   });
-  const lines = wrap(ctx, site.blurb || '', w - PAD * 2 - 8, 17, 'bold');
+  const ownCountry = app.state.player.country;
+  const flagSpot = site.type === 'village' ? '村口' : '城头';
+  const blurb = site.playerOwned
+    ? (ownCountry && ownCountry.name
+      ? '你的' + typeName + '。' + flagSpot + '换上了「' + ownCountry.name + '」字旗。'
+      : '你的' + typeName + '。旗还空着一个字，等你来定。')
+    : (site.blurb || '');
+  const lines = wrap(ctx, blurb, w - PAD * 2 - 8, 17, 'bold');
   text(ctx, lines[0] || '', PAD + 4, 106, { size: 17, color: '#c9bda2' });
 }
 
