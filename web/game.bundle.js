@@ -42,8 +42,17 @@ function createRuntime() {
     screenW = info.windowWidth;
     screenH = info.windowHeight;
     dpr = info.pixelRatio || 2;
-    if (info.safeArea && info.safeArea.top) {
-      topInset = Math.max(0, info.safeArea.top - (info.statusBarHeight || 0));
+    // 小游戏右上角有胶囊按钮（微信/抖音都有），顶栏要让开它
+    try {
+      if (api.getMenuButtonBoundingClientRect) {
+        const menu = api.getMenuButtonBoundingClientRect();
+        if (menu && menu.height > 0 && menu.bottom > 0) topInset = menu.bottom + 6;
+      }
+    } catch (e) {
+      // ignore
+    }
+    if (!topInset && info.safeArea && info.safeArea.top) {
+      topInset = info.safeArea.top;
     }
   } else {
     const stage = document.getElementById('stage');
@@ -72,9 +81,13 @@ function createRuntime() {
   // 手游端性能保护：像素风对像素密度不敏感，dpr 封顶 2 倍，避免 3 倍屏填充率过高掉帧
   if (dpr > 2) dpr = 2;
 
+  // 顶部让位量兜底：异常机型返回离谱数值时不至于把画面挤空
+  if (!(topInset > 0)) topInset = 0;
+  if (topInset > screenH * 0.22) topInset = Math.round(screenH * 0.22);
+
   const scale = screenW / DESIGN_WIDTH;
   const vw = DESIGN_WIDTH;
-  let vh = screenH / scale;
+  let vh = (screenH - topInset) / scale;
   if (!isFinite(vh) || vh <= 0) vh = 1334;
 
   // 部分安卓机 canvas 单边上限 4096，超限时降低有效 dpr 而不是让画布失真
@@ -92,7 +105,8 @@ function createRuntime() {
   canvas.height = ch;
 
   const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  // 设计坐标原点整体下移 topInset，让开小游戏胶囊按钮
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, topInset * dpr);
   ctx.imageSmoothingEnabled = false;
   if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
 
@@ -108,6 +122,7 @@ function createRuntime() {
     dpr,
     scale,
     topInset: topInset * (DESIGN_WIDTH / screenW),
+    topInsetPx: topInset,
     createCanvas: function () {
       if (api) return api.createCanvas();
       const c = document.createElement('canvas');
@@ -127,13 +142,17 @@ function createRuntime() {
     },
     /** 绑定触摸 / 鼠标，回调参数为设计坐标 */
     onTouch: function (handlers) {
-      const toDesign = function (pxRaw) {
-        return pxRaw * (DESIGN_WIDTH / screenW);
+      const k = DESIGN_WIDTH / screenW;
+      const toDesignX = function (px) {
+        return px * k;
+      };
+      const toDesignY = function (py) {
+        return (py - topInset) * k;
       };
 
       const fire = function (name, x, y) {
         const fn = handlers[name];
-        if (fn) fn(toDesign(x), toDesign(y));
+        if (fn) fn(toDesignX(x), toDesignY(y));
       };
 
       if (api) {
@@ -11892,7 +11911,11 @@ class App {
     }
 
     const r = this.runtime;
-    r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, 0);
+    // 先按物理像素铺满整块画布：顶部让开胶囊的那条区域不能被上一帧残留
+    r.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    r.ctx.fillStyle = '#0f0c09';
+    r.ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+    r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
     audio.update(dt);
 
     const top = this.top();

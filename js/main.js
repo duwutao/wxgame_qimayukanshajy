@@ -174,7 +174,11 @@ class App {
     }
 
     const r = this.runtime;
-    r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, 0);
+    // 先按物理像素铺满整块画布：顶部让开胶囊的那条区域不能被上一帧残留
+    r.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    r.ctx.fillStyle = '#0f0c09';
+    r.ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+    r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
     audio.update(dt);
 
     const top = this.top();
