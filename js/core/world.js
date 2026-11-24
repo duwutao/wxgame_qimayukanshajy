@@ -258,7 +258,7 @@ function createWorld(seed) {
       garrisonBase: def.garrison,
       garrison: def.garrison,
       recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
-      recruitCap: def.type === 'town' ? 12 : def.type === 'castle' ? 8 : def.type === 'village' ? 5 : 0,
+      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 7 : 0,
       recruits: {},
       priceIndex: 1,
       blurb: def.blurb,

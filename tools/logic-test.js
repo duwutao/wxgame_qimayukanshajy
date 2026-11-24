@@ -61,8 +61,8 @@ ok('所有据点可达', unreachable.length === 0, unreachable.join(','));
 
 group('开局');
 const st = stateLib.createGame({ seed: 20260101 });
-ok('玩家 30 民兵', armyLib.troopCount(st.player.troops) === 30, JSON.stringify(st.player.troops));
-ok('金 80 / 粮 45', st.player.gold === 80 && st.player.food === 45, st.player.gold + '/' + st.player.food);
+ok('开局只有 9 个民兵', armyLib.troopCount(st.player.troops) === 9, JSON.stringify(st.player.troops));
+ok('金 460 / 粮 150（够招满 30 人）', st.player.gold === 460 && st.player.food === 150, st.player.gold + '/' + st.player.food);
 ok('史简 1 支', st.player.shi === 1, String(st.player.shi));
 ok('领主 70 位', st.lords.length === 70, String(st.lords.length));
 const byFaction = {};
@@ -487,37 +487,64 @@ const tourney = require(R + '/core/tourney.js');
 const st10 = stateLib.createGame({ seed: 777004 });
 st10.events.length = 0;
 st10.player.gold = 500;
-ok('报名费随声望涨但不离谱', tourney.fee(st10) >= 30 && tourney.fee(st10) <= 90, String(tourney.fee(st10)));
+ok('报名费固定 40', tourney.fee() === 40, String(tourney.fee()));
+ok('夺冠赏格 200', tourney.prize() === 200, String(tourney.prize()));
+ok('三滴血', tourney.HP === 3, String(tourney.HP));
 const reg = tourney.enter(st10, st10.world.sites[0]);
 ok('交钱能报名', reg.ok && !!st10.tourney, reg.msg);
-ok('报名扣钱', st10.player.gold === 500 - tourney.fee(st10), String(st10.player.gold));
-ok('三个对手', st10.tourney.foes.length === 3);
-ok('第三场是名将', !!st10.tourney.foes[2].lordId, st10.tourney.foes[2].name);
-ok('胜率在合理区间', (function () {
-  let lo = 1; let hi = 0;
-  st10.tourney.foes.forEach(function (f) {
-    const c = tourney.winChance(st10, f);
-    lo = Math.min(lo, c); hi = Math.max(hi, c);
-  });
-  return lo > 0.05 && hi < 0.95;
+ok('报名扣 40 金', st10.player.gold === 460, String(st10.player.gold));
+ok('只有一个对手', !!st10.tourney.foe && !!st10.tourney.foe.name, st10.tourney.foe && st10.tourney.foe.name);
+ok('开局各三血', st10.tourney.hp === 3 && st10.tourney.foeHp === 3);
+
+// 结算矩阵：左挡/右挡/左攻/右攻
+ok('同攻各掉一滴', (function () {
+  const r = tourney.settle('attackL', 'attackR');
+  return r.dmgPlayer === 1 && r.dmgFoe === 1;
 })());
-// 连打三场（可能输），保证流程走完不崩
-let fights = 0;
-while (st10.tourney && !st10.tourney.done && fights < 5) {
-  const r = tourney.fightRound(st10);
-  fights += 1;
+ok('都挡不掉血', (function () {
+  const r = tourney.settle('blockL', 'blockR');
+  return r.dmgPlayer === 0 && r.dmgFoe === 0;
+})());
+ok('攻被同侧挡住：进攻方掉血', (function () {
+  const r = tourney.settle('attackL', 'blockL');
+  return r.dmgPlayer === 1 && r.dmgFoe === 0;
+})());
+ok('攻在异侧：防守方掉血', (function () {
+  const r = tourney.settle('attackL', 'blockR');
+  return r.dmgPlayer === 0 && r.dmgFoe === 1;
+})());
+ok('挡住对方进攻：反赚一滴', (function () {
+  const r = tourney.settle('blockR', 'attackR');
+  return r.dmgPlayer === 0 && r.dmgFoe === 1;
+})());
+ok('挡空：自己掉血', (function () {
+  const r = tourney.settle('blockR', 'attackL');
+  return r.dmgPlayer === 1 && r.dmgFoe === 0;
+})());
+
+// 打到见底
+let duel = 0;
+while (st10.tourney && !st10.tourney.done && duel < 20) {
+  const r = tourney.play(st10, tourney.MOVE_IDS[duel % 4]);
   if (!r.ok) break;
+  duel += 1;
 }
-ok('大会能打完', st10.tourney && st10.tourney.done, 'fights=' + fights);
+ok('大会能打完', st10.tourney && st10.tourney.done, 'rounds=' + duel);
 ok('打完有经过文字', st10.tourney.log.length >= 1);
-ok('冠军有赏钱', (function () {
+ok('冠军拿 200 赏金', (function () {
   const st11 = stateLib.createGame({ seed: 777005 });
   st11.player.gold = 500;
   tourney.enter(st11, st11.world.sites[0]);
-  // 强行三连胜
-  st11.tourney.foes.forEach(function (f) { f.power = -100; });
-  for (let i = 0; i < 3; i += 1) tourney.fightRound(st11);
-  return !!(st11.tourney.champion && st11.player.gold > 500);
+  st11.tourney.foeHp = 1;
+  st11.tourney.hp = 3;
+  // 固定对手每合都右挡：玩家左攻就是异侧空档，必中
+  st11.rng = {
+    next: function () { return 0.99; },
+    int: function () { return 1; },
+    random: function () { return 0.99; },
+  };
+  tourney.play(st11, 'attackL');
+  return !!(st11.tourney.champion && st11.player.gold === 660);
 })());
 
 /* ---------------------------------------------------------------- 国战存档 */

@@ -139,12 +139,12 @@ function dailyMarket(state, rng) {
 
     Object.keys(site.recruits).forEach(function (id) {
       if (site.recruits[id] < (site.recruitCap || 0)) {
-        site.recruits[id] += rng.int(0, 2);
+        site.recruits[id] += rng.int(1, 3);
       }
     });
-    // 补满招募池上限
+    // 补满招募池上限：募兵木牌天天有人来
     (site.recruitList || []).forEach(function (id) {
-      if (!site.recruits[id]) site.recruits[id] = rng.int(0, 2);
+      if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
       const cap = site.recruitCap || 4;
       if (site.recruits[id] > cap) site.recruits[id] = cap;
     });

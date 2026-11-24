@@ -1,18 +1,35 @@
 /**
- * 比武大会：报名、连打三场、领赏。
+ * 比武大会：彩棚底下的"猜手"赌局。
+ * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
+ * 报名 40 金，赢的人拿 200。
  */
 
 const { text, wrap, panel } = require('../render/ui.js');
-const stateLib = require('../core/state.js');
 const tourney = require('../core/tourney.js');
 const { siteById } = require('../core/world.js');
 const { lookFor } = require('../data/extra.js');
 const { FACTIONS } = require('../data/china.js');
 
+const FILL_BLOCK = '#26372e';
+const FILL_ATTACK = '#452a1c';
+
+function drawPips(ctx, x, y, n, total, color) {
+  for (let i = 0; i < total; i++) {
+    const alive = i < n;
+    ctx.fillStyle = alive ? color : 'rgba(255,255,255,0.08)';
+    ctx.fillRect(x + i * 46, y, 38, 14);
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + i * 46, y, 38, 14);
+  }
+}
+
 const TourneyScene = {
   enter(app, params) {
     this.siteId = params && params.siteId;
-    this.last = null;
+    // 旧档里的赛会是"三场连打"结构，跟现在的三血对决不兼容，直接作废
+    const t = app.state.tourney;
+    if (t && (typeof t.hp !== 'number' || !t.foe)) app.state.tourney = null;
   },
   update() {},
 
@@ -26,63 +43,85 @@ const TourneyScene = {
     const site = this.siteId ? siteById(st.world, this.siteId) : null;
     const name = site ? site.name : '此地';
     const t = st.tourney;
-    const power = Math.round(tourney.playerPower(st));
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
-    text(ctx, '你的身板 ' + power + ' · 报名 ' + tourney.fee(st) + ' 金 · 赏格 ' + tourney.prize(st) + ' 金', 20, 74, {
+    text(ctx, '报名 ' + tourney.FEE + ' 金 · 夺冠赏 ' + tourney.PRIZE + ' 金 · 三滴血定胜负', 20, 70, {
       size: 16, color: '#a2947a',
     });
 
     if (!t) {
-      panel(ctx, 20, 108, w - 40, 210, { fill: '#201a14' });
-      const intro = '校场上架起彩棚，四处来的好手报名。三场见高低，点到为止，不杀人。赢了有钱有名声，输了丢点脸。';
-      wrap(ctx, intro, w - 80, 18).forEach(function (line, i) {
-        text(ctx, line, 40, 128 + i * 28, { size: 18, color: '#c9bda2' });
+      panel(ctx, 20, 104, w - 40, 240, { fill: '#201a14' });
+      const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
+        + '每合一招：要么护住一边，要么从那一边切进去。'
+        + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
+        + '三滴血，先倒下的认输。报名 40 金，赢的人捧走 200。';
+      wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
+        text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
       });
-      app.ui.button(ctx, 40, 336, w - 80, 74, '交报名费 · 报名参赛', {
-        id: 't_enter', size: 24, fill: '#3a2c1e', onTap: function () {
+      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金 · 报名下场', {
+        id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
           const r = tourney.enter(st, site);
           app.showToast(r.msg, 2.2);
         },
       });
     } else {
-      // 对手名单
-      panel(ctx, 20, 108, w - 40, 300, { fill: '#1c1710' });
-      text(ctx, '第 ' + Math.min(t.round + 1, tourney.ROUNDS) + ' / ' + tourney.ROUNDS + ' 场 · 已胜 ' + t.won, 36, 120, {
-        size: 20, color: '#c9bda2',
-      });
-      t.foes.forEach(function (foe, i) {
-        const y = 154 + i * 84;
-        const passed = i < t.round;
-        const now = i === t.round && !t.done;
-        ctx.fillStyle = passed ? 'rgba(40,34,26,0.5)' : (now ? 'rgba(60,46,28,0.9)' : 'rgba(30,26,20,0.6)');
-        ctx.fillRect(36, y, w - 72, 76);
-        const color = foe.famous ? ((FACTIONS[(site && site.ownerFaction) || 'wei'] || {}).color || '#8a7448') : '#6a6050';
-        const lookId = foe.lordId || ('foe' + i);
-        const portrait = app.assets.portraitFor ? app.assets.portraitFor(color, lookFor(lookId)) : null;
-        if (portrait) ctx.drawImage(portrait, 44, y + 8, 52, 50);
-        text(ctx, foe.name, 108, y + 8, { size: 22, color: passed ? '#6a6050' : '#efe3c6' });
-        text(ctx, foe.tag + ' · 身板 ' + Math.round(foe.power), 108, y + 38, {
-          size: 15, color: '#8a8070',
-        });
-        text(ctx, passed ? '已胜' : (t.done ? '未打' : '把握 ' + Math.round(tourney.winChance(st, foe) * 100) + '%'), w - 52, y + 26, {
-          size: 18, align: 'right', color: passed ? '#6a9a5a' : (now ? '#f0c060' : '#8a8070'),
-        });
-      });
+      /* -------------------------------------------------- 对手 */
+      const foe = t.foe;
+      const col = (FACTIONS[foe.faction] || {}).color || '#8a7448';
+      panel(ctx, 20, 100, w - 40, 176, { fill: '#1c1710' });
+      const portrait = app.assets.portraitFor ? app.assets.portraitFor(col, lookFor(foe.lordId)) : null;
+      if (portrait) {
+        ctx.drawImage(portrait, 36, 112, 104, 104);
+      } else {
+        ctx.fillStyle = col;
+        ctx.fillRect(36, 112, 104, 104);
+      }
+      text(ctx, foe.name, 156, 138, { size: 28, color: t.foeHp > 0 ? '#efe3c6' : '#7a7060' });
+      text(ctx, foe.tag, 156, 166, { size: 15, color: '#8a8070' });
+      text(ctx, '对方', w - 40, 132, { size: 15, align: 'right', color: '#8a8070' });
+      drawPips(ctx, 156, 184, t.foeHp, tourney.HP, '#c9553f');
+      text(ctx, t.foeHp + ' / ' + tourney.HP, 156 + 3 * 46 + 10, 184, { size: 15, color: '#c9553f' });
+
+      /* -------------------------------------------------- 自己 */
+      panel(ctx, 20, 288, w - 40, 112, { fill: '#201a14' });
+      text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
+      drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
+      text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
+      text(ctx, '金 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
+      text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
 
       if (!t.done) {
-        app.ui.button(ctx, 40, 424, w - 80, 74, '上场 · 打第 ' + (t.round + 1) + ' 场', {
-          id: 't_fight', size: 26, fill: '#4a2c1e', onTap: function () {
-            const r = tourney.fightRound(st);
-            if (r.ok) this.last = r.lines.join('\n');
-            if (r.ok) app.showToast(r.win ? '这一场赢了' : '这一场输了', 1.6);
-          },
+        text(ctx, '护住一边就挡，从一边切进去就攻。方向对了才挡得住。', 20, 412, { size: 15, color: '#8a8070' });
+        const bw = (w - 40 - 14) / 2;
+        const bh = 104;
+        const moves = [
+          { id: 'blockL', label: '左挡', fill: FILL_BLOCK },
+          { id: 'blockR', label: '右挡', fill: FILL_BLOCK },
+          { id: 'attackL', label: '左攻', fill: FILL_ATTACK },
+          { id: 'attackR', label: '右攻', fill: FILL_ATTACK },
+        ];
+        moves.forEach(function (m, i) {
+          const bx = 20 + (i % 2) * (bw + 14);
+          const by = 436 + Math.floor(i / 2) * (bh + 14);
+          app.ui.button(ctx, bx, by, bw, bh, m.label, {
+            id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
+              const r = tourney.play(st, m.id);
+              if (!r.ok) { app.showToast(r.msg); return; }
+              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金', 2.4);
+              else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
+              else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
+            },
+          });
         });
       } else {
-        app.ui.button(ctx, 40, 424, w - 80, 74, (t.champion ? '领了赏钱 · 回城' : '认输退场 · 回城'), {
+        const champion = t.champion;
+        const drawn = t.draw;
+        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
+        text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
+        app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
           id: 't_leave', size: 26, fill: '#33271b', onTap: function () {
             tourney.close(st);
             app.pop();
@@ -90,12 +129,15 @@ const TourneyScene = {
         });
       }
 
-      // 经过
-      const lastLine = (t.log && t.log.length) ? t.log[t.log.length - 1] : '彩棚下鼓声一起，看台上的人把酒洒了一地。';
-      const lines = wrap(ctx, lastLine, w - 80, 17);
-      panel(ctx, 20, 516, w - 40, Math.max(120, 16 + lines.length * 26), { fill: '#201a14' });
-      lines.forEach(function (line, i) {
-        text(ctx, line, 40, 532 + i * 26, { size: 17, color: '#e8dcc0' });
+      /* -------------------------------------------------- 战报 */
+      const logTop = t.done ? 610 : 664;
+      const logH = Math.max(150, h - logTop - 96);
+      panel(ctx, 20, logTop, w - 40, logH, { fill: '#181410' });
+      text(ctx, '场上', 40, logTop + 26, { size: 16, color: '#8a8070' });
+      const shown = (t.log || []).slice(-2).join('\n');
+      const lines = wrap(ctx, shown || '鼓声一起，看台上的人把酒洒了一地。', w - 96, 17);
+      lines.slice(0, Math.floor((logH - 46) / 24)).forEach(function (ln, i) {
+        text(ctx, ln, 40, logTop + 52 + i * 24, { size: 17, color: '#e8dcc0' });
       });
     }
 

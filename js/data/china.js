@@ -460,17 +460,17 @@ const HISTORY_MARKS = {
 const CAMPAIGN = [
   {
     id: 'prologue', title: '序章 · 洛阳溃兵',
-    goal: '带至少 20 人活着抵达陈留',
-    story: '洛阳城破那夜，你带着三十名溃兵往东跑。身后是西凉铁骑，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
+    goal: '带上剩下的几名弟兄，活着抵达陈留',
+    story: '洛阳城破那夜，你只带出九个人，往东跑。身后是西凉铁骑，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
     check: 'reach_chenliu',
     reward: { renown: 20, shi: 1 },
-    after: '过桥的时候还剩十九个。你数了三遍，怕漏了谁。',
+    after: '过桥的时候还剩八个。你数了两遍，怕漏了谁。',
   },
   {
     id: 'act1', title: '第一幕 · 陈留募兵',
-    goal: '在陈留把队伍扩到 60 人',
+    goal: '在陈留把队伍扩到 30 人',
     story: '陈留城外插满了募兵的木牌。曹操在招人，刘备在招人，孙策的使者也在。\n谁给粮，你跟谁走。',
-    check: 'troops_60',
+    check: 'troops_30',
     reward: { renown: 30, shi: 1, banner: true },
     after: '你有了第一面自己的旗。旗是旧的，字是新写的。',
   },

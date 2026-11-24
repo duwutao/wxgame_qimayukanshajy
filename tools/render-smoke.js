@@ -284,7 +284,7 @@ smoke('牢房页（俘虏能收赎金/放人）', function () {
   app.pop();
 });
 
-smoke('比武大会页（报名 / 名单 / 打完）', function () {
+smoke('比武大会页（报名 / 三血对决 / 打完）', function () {
   const st = app.state;
   st.player.gold = 800;
   st.tourney = null;
@@ -297,9 +297,10 @@ smoke('比武大会页（报名 / 名单 / 打完）', function () {
   ok('能报名', r.ok, r.msg);
   app.ui.begin();
   sc.render(app);
-  ok('名单三行', st.tourney.foes.length === 3);
+  ok('有对手', !!st.tourney.foe && !!st.tourney.foe.name);
+  ok('开局各三血', st.tourney.hp === 3 && st.tourney.foeHp === 3);
   let guard = 0;
-  while (st.tourney && !st.tourney.done && guard++ < 4) tourney.fightRound(st);
+  while (st.tourney && !st.tourney.done && guard++ < 20) tourney.play(st, tourney.MOVE_IDS[guard % 4]);
   app.ui.begin();
   sc.render(app);
   ok('打完能出结果', st.tourney && st.tourney.done);

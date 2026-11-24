@@ -127,9 +127,18 @@ function pushUnitPage(app, kind, id) {
 }
 
 /**
- * 点名追人：点了领主/匪团，就一路跟上去。
- * 对方在这三小时里挪了格，路线跟着重算，不会半路丢人。
+ * 点名追人：点了领主/匪团，就一路跟上去，直到碰上、或者对方跑出视野。
  */
+function onScreen(app, unit) {
+  const box = mapBox(app);
+  const cam = app.mapCam;
+  if (!cam) return true;
+  const z = app.mapZoom || 1;
+  const sx = unit.x * TS - cam.x + TS / 2;
+  const sy = box.top + unit.y * TS - cam.y + TS / 2;
+  return sx > 20 && sx < app.runtime.width - 20 && sy > box.top + 20 && sy < box.top + box.h - 20;
+}
+
 function updateFollow(app) {
   const f = app.follow;
   if (!f) return false;
@@ -145,23 +154,20 @@ function updateFollow(app) {
   }
 
   const d = Math.max(Math.abs(t.x - p.x), Math.abs(t.y - p.y));
-  if (d <= 1) {
+  if (d === 0) {
     app.follow = null;
     stateLib.stopMoving(st);
     pushUnitPage(app, f.kind, f.id);
     return true;
   }
 
-  // 跟不上的时候别让人干追一天：24 小时还没靠近就放弃
-  const nowH = stateLib.gameHours(st);
+  // 对方跑出视野就收兵，别让人在地图上一路空追
   if (f.startH === undefined) {
-    f.startH = nowH;
-    f.best = d;
-  }
-  if (d < f.best) f.best = d;
-  if (nowH - f.startH > 24 && d > f.best) {
+    f.startH = stateLib.gameHours(st);
+  } else if (!onScreen(app, t)) {
     app.follow = null;
-    app.showToast('跟丢了，他的马比你快。', 2);
+    stateLib.stopMoving(st);
+    app.showToast('他跑出你的视野了。', 2);
     return false;
   }
 
@@ -281,12 +287,13 @@ const MapScene = {
     if (unit) {
       const p = st.player;
       const dist = Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y));
-      if (dist <= 1) {
+      if (dist === 0) {
         stateLib.stopMoving(st);
         pushUnitPage(app, unit.kind, unit.id);
         return;
       }
-      app.follow = { kind: unit.kind, id: unit.id, x: unit.x, y: unit.y };
+      // 没碰上就只是跟过去，跟到对方离开视野为止
+      app.follow = { kind: unit.kind, id: unit.id, x: unit.x, y: unit.y, startH: undefined };
       const r = stateLib.goTo(st, unit.x, unit.y);
       if (!r.ok) {
         app.follow = null;
@@ -568,6 +575,17 @@ function drawUnits(ctx, app, cam, box, w) {
     if (p.chasing) {
       text(ctx, '!', sx, sy - 52 * z, { size: Math.round(20 * z), align: 'center', color: '#e05a42', shadow: true });
     }
+    // 匪团的名号：跟领主一样挂在模型下面，一眼看清是谁
+    if (z >= 0.9) {
+      const nsz = Math.max(11, Math.round(14 * z));
+      ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      const tw = ctx.measureText(p.name).width;
+      ctx.fillStyle = 'rgba(10,8,6,0.78)';
+      ctx.fillRect(sx - tw / 2 - 6, sy + 15 * z, tw + 12, nsz + 4);
+      text(ctx, p.name, sx, sy + 16 * z, {
+        size: nsz, align: 'center', color: p.color === '#4f8f6a' ? '#9fd8b4' : '#f0c9b0',
+      });
+    }
     if (p.scuffle > 0) {
       ctx.fillStyle = 'rgba(220,80,50,0.85)';
       ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
@@ -601,10 +619,21 @@ function drawUnits(ctx, app, cam, box, w) {
     const isz = (lord.id === 'lvbu' ? 82 : look.big ? 74 : 68) * z;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
 
+    // 势力简写：一面小旗，全国地图上也认得出是哪家的
+    const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
+    const bw = 20 * z;
+    const bh = 22 * z;
+    const bxx = sx + 12 * z;
+    const byy = sy - 30 * z;
+    ctx.fillStyle = 'rgba(12,9,6,0.6)';
+    ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;
-    ctx.fillRect(sx + 14 * z, sy - 22 * z, 10 * z, 12 * z);
-    text(ctx, FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?', sx + 19 * z, sy - 21 * z, {
-      size: Math.max(9, Math.round(11 * z)), align: 'center', color: '#fff',
+    ctx.fillRect(bxx, byy, bw, bh);
+    ctx.strokeStyle = 'rgba(255,240,210,0.55)';
+    ctx.lineWidth = Math.max(1, 1 * z);
+    ctx.strokeRect(bxx, byy, bw, bh);
+    text(ctx, banner, bxx + bw / 2, byy + 16 * z, {
+      size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
     });
 
     const nsz = Math.max(11, Math.round(15 * z));

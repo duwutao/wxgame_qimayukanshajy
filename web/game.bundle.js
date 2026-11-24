@@ -822,17 +822,17 @@ const HISTORY_MARKS = {
 const CAMPAIGN = [
   {
     id: 'prologue', title: '序章 · 洛阳溃兵',
-    goal: '带至少 20 人活着抵达陈留',
-    story: '洛阳城破那夜，你带着三十名溃兵往东跑。身后是西凉铁骑，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
+    goal: '带上剩下的几名弟兄，活着抵达陈留',
+    story: '洛阳城破那夜，你只带出九个人，往东跑。身后是西凉铁骑，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
     check: 'reach_chenliu',
     reward: { renown: 20, shi: 1 },
-    after: '过桥的时候还剩十九个。你数了三遍，怕漏了谁。',
+    after: '过桥的时候还剩八个。你数了两遍，怕漏了谁。',
   },
   {
     id: 'act1', title: '第一幕 · 陈留募兵',
-    goal: '在陈留把队伍扩到 60 人',
+    goal: '在陈留把队伍扩到 30 人',
     story: '陈留城外插满了募兵的木牌。曹操在招人，刘备在招人，孙策的使者也在。\n谁给粮，你跟谁走。',
-    check: 'troops_60',
+    check: 'troops_30',
     reward: { renown: 30, shi: 1, banner: true },
     after: '你有了第一面自己的旗。旗是旧的，字是新写的。',
   },
@@ -2372,7 +2372,7 @@ function createWorld(seed) {
       garrisonBase: def.garrison,
       garrison: def.garrison,
       recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
-      recruitCap: def.type === 'town' ? 12 : def.type === 'castle' ? 8 : def.type === 'village' ? 5 : 0,
+      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 7 : 0,
       recruits: {},
       priceIndex: 1,
       blurb: def.blurb,
@@ -3030,12 +3030,12 @@ function dailyMarket(state, rng) {
 
     Object.keys(site.recruits).forEach(function (id) {
       if (site.recruits[id] < (site.recruitCap || 0)) {
-        site.recruits[id] += rng.int(0, 2);
+        site.recruits[id] += rng.int(1, 3);
       }
     });
-    // 补满招募池上限
+    // 补满招募池上限：募兵木牌天天有人来
     (site.recruitList || []).forEach(function (id) {
-      if (!site.recruits[id]) site.recruits[id] = rng.int(0, 2);
+      if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
       const cap = site.recruitCap || 4;
       if (site.recruits[id] > cap) site.recruits[id] = cap;
     });
@@ -4150,12 +4150,13 @@ function clash(state, a, b) {
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
   const totalB = army.troopCount(b.troops);
-  const lossA = Math.max(1, Math.round(totalA * (0.16 + (1 - share) * 0.34)));
-  const lossB = Math.max(1, Math.round(totalB * (0.16 + share * 0.34)));
+  // 碰到一次只打一场前哨战，不是一仗定生死：双方各掉 5%~17%
+  const lossA = Math.max(1, Math.round(totalA * (0.05 + (1 - share) * 0.12)));
+  const lossB = Math.max(1, Math.round(totalB * (0.05 + share * 0.12)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
-  a.scuffle = 5;
-  b.scuffle = 5;
+  a.scuffle = 2;
+  b.scuffle = 2;
 
   const remainA = army.troopCount(a.troops);
   const remainB = army.troopCount(b.troops);
@@ -4167,9 +4168,18 @@ function clash(state, a, b) {
   const near = nearPlayer(state, winner, 10);
 
   // 一边被打空了，或者被打崩了：被俘 / 溃逃
-  const broken = loserRemain <= 0 || loserRemain < 6 || (loserRemain / winnerRemain) < 0.28;
+  const broken = loserRemain <= 0 || loserRemain < 6 || (loserRemain / Math.max(1, winnerRemain)) < 0.28;
   if (!broken) {
-    if (near) logFn(state, a.name + '与' + b.name + '在野地里撞上，各折了 ' + lossA + '、' + lossB + ' 骑。天黑之后各自收兵。', 'war');
+    // 势均力敌时打累了各自收兵，弱势的一方更容易先撤
+    const tired = state.rng.next() < 0.35 + (1 - share) * 0.25;
+    if (tired) {
+      moveAway(state, loser);
+      loser.chasing = false;
+      loser.scuffle = 6;
+      if (near) logFn(state, a.name + '与' + b.name + '的前哨战打到天黑，' + loser.name + '先收兵退了，各折了 ' + lossA + '、' + lossB + ' 骑。', 'war');
+      return { draw: true, withdraw: true };
+    }
+    if (near) logFn(state, a.name + '与' + b.name + '在野地里缠上了，各折了 ' + lossA + '、' + lossB + ' 骑，还没分出胜负。', 'war');
     return { draw: true };
   }
 
@@ -4915,7 +4925,7 @@ function createGame(opts) {
     });
   });
 
-  // 开局：洛阳东门外，三十名溃兵
+  // 开局：洛阳东门外，只剩九名溃兵
   const luoyang = siteById(world, 'luoyang');
   const base = luoyang ? { x: luoyang.x + 3, y: luoyang.y + 1 } : { x: 34, y: 38 };
   const spawn = findFreeSpotNear(state0(world), base.x, base.y, 2) || base;
@@ -4923,13 +4933,14 @@ function createGame(opts) {
   const player = {
     name: (opts && opts.name) || '无名溃兵',
     flagName: '无旗',
-    gold: 80,
-    food: 45,
+    // 九个人、一点盘缠：够在陈留招到三十人，粮也够撑半个月
+    gold: 460,
+    food: 150,
     morale: 58,
     renown: 0,
     faction: null,
     banner: false,
-    troops: { militia: 30 },
+    troops: { militia: 9 },
     equip: { blade: 0, armor: 0, horse: 0 },
     shi: 1,
     shiUsed: 0,
@@ -4989,8 +5000,8 @@ function createGame(opts) {
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
 
-  pushLog(state, '洛阳城破了。你带着三十名溃兵往东走，身后是西凉铁骑。');
-  pushLog(state, '别回头。跑到陈留，就还有二十个人跟你。');
+  pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉铁骑。');
+  pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
   state.events.push({ type: 'chapter', chapterId: __require(5).CAMPAIGN[0].id });
   return state;
 }
@@ -5277,28 +5288,31 @@ function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
   const hb = heroes.heroBonus(state);
-  // 会算粮的英雄能让日耗少一点
-  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * (1 - hb.foodPct)));
+  // 口粮两天结算一次：一天一扣太狠，粮草根本养不起队伍
+  const isFoodDay = state.clock.day % 2 === 0;
+  const need = isFoodDay ? Math.max(1, Math.round(army.foodPerDay(p.troops) * (1 - hb.foodPct))) : 0;
 
-  if (p.food >= need) {
-    p.food -= need;
-    if (p.food < need * 2) {
-      p.morale = Math.max(0, p.morale - 3);
-      pushLog(state, '粮草见底（剩 ' + p.food + '），队伍开始嘀咕。');
-    }
-  } else {
-    const short = need - p.food;
-    p.food = 0;
-    p.morale = Math.max(0, p.morale - 10);
-    const starved = Math.min(short, army.troopCount(p.troops));
-    if (starved > 0) {
-      army.distributeLosses(p.troops, starved);
-      state.stats.troopsLost += starved;
-      pushLog(state, '断粮！' + short + ' 人夜里走了。');
-    }
-    if (army.troopCount(p.troops) <= 0) {
-      reviveAfterDefeat(state, 'starve');
-      return;
+  if (need > 0) {
+    if (p.food >= need) {
+      p.food -= need;
+      if (p.food < need * 2) {
+        p.morale = Math.max(0, p.morale - 3);
+        pushLog(state, '粮草见底（剩 ' + p.food + '），队伍开始嘀咕。');
+      }
+    } else {
+      const short = need - p.food;
+      p.food = 0;
+      p.morale = Math.max(0, p.morale - 10);
+      const starved = Math.min(short, army.troopCount(p.troops));
+      if (starved > 0) {
+        army.distributeLosses(p.troops, starved);
+        state.stats.troopsLost += starved;
+        pushLog(state, '断粮！' + short + ' 人夜里走了。');
+      }
+      if (army.troopCount(p.troops) <= 0) {
+        reviveAfterDefeat(state, 'starve');
+        return;
+      }
     }
   }
 
@@ -5418,47 +5432,85 @@ function onArrive(state, x, y) {
   }
   const enemy = adjacentEnemy(state, x, y);
   if (enemy) {
-    state.events.push({ type: 'encounter', partyId: enemy.id });
+    enemy.cooldownH = gameHours(state) + 8;
+    if (enemy.id && enemy.id.indexOf('l_') === 0) {
+      state.events.push({ type: 'lord', lordId: enemy.id });
+    } else {
+      state.events.push({ type: 'encounter', partyId: enemy.id });
+    }
   } else {
     advanceCampaign(state);
   }
 }
 
+/** 只有真的踩到同一格才算撞上；贴着脸站不算 */
 function adjacentEnemy(state, x, y) {
   let best = null;
-  let bestD = 99;
+  const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   all.forEach(function (unit) {
     if (!isHostileFaction(state, unit.faction)) return;
     if (!canFight(state, unit.id)) return;
-    const d = Math.max(Math.abs(unit.x - x), Math.abs(unit.y - y));
-    if (d <= 1 && d < bestD) {
-      bestD = d;
-      best = unit;
-    }
+    if (unit.cooldownH && nowH < unit.cooldownH) return;
+    if (unit.x !== x || unit.y !== y) return;
+    if (!best) best = unit;
   });
   return best;
 }
 
-/** 敌对单位贴上来就开打；领主要先在视野内追 */
+/** 敌对单位走到你脚下才开打；贴上来一格不算 */
 function checkPursuit(state) {
   const p = state.player;
   if (state.events.length) return;
+  const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   for (let i = 0; i < all.length; i++) {
     const unit = all[i];
     if (!isHostileFaction(state, unit.faction)) continue;
     if (!canFight(state, unit.id)) continue;
-    if (Math.abs(unit.x - p.x) <= 1 && Math.abs(unit.y - p.y) <= 1) {
-      stopMoving(state);
-      if (unit.id && unit.id.indexOf('l_') === 0) {
-        state.events.push({ type: 'lord', lordId: unit.id });
-      } else {
-        state.events.push({ type: 'encounter', partyId: unit.id });
-      }
-      return;
+    if (unit.cooldownH && nowH < unit.cooldownH) continue;
+    if (unit.x !== p.x || unit.y !== p.y) continue;
+    // 碰过一次先冷却几小时，免得回到地图立刻又被同一个人拦住
+    unit.cooldownH = nowH + 8;
+    stopMoving(state);
+    if (unit.id && unit.id.indexOf('l_') === 0) {
+      state.events.push({ type: 'lord', lordId: unit.id });
+    } else {
+      state.events.push({ type: 'encounter', partyId: unit.id });
     }
+    return;
   }
+}
+
+/** 附近最近的活领主（匪团用来判断该不该跑） */
+function nearestLord(state, unit, range) {
+  let best = null;
+  let bestD = 1e9;
+  state.lords.forEach(function (l) {
+    if (!l.alive) return;
+    const d = Math.max(Math.abs(l.x - unit.x), Math.abs(l.y - unit.y));
+    if (d <= range && d < bestD) {
+      bestD = d;
+      best = l;
+    }
+  });
+  return best;
+}
+
+/** 附近最近的匪团（领主顺手清乡） */
+function nearestBandit(state, lord, range) {
+  let best = null;
+  let bestD = 1e9;
+  state.parties.forEach(function (q) {
+    if (q.faction !== 'bandit') return;
+    if (army.troopCount(q.troops) <= 0) return;
+    const d = Math.max(Math.abs(q.x - lord.x), Math.abs(q.y - lord.y));
+    if (d <= range && d < bestD) {
+      bestD = d;
+      best = q;
+    }
+  });
+  return best;
 }
 
 function moveParties(state) {
@@ -5467,6 +5519,13 @@ function moveParties(state) {
     if (party.slow) {
       party.tick = (party.tick || 0) + 1;
       if (party.tick % party.slow !== 0) return;
+    }
+    // 见着大兵就溜：匪团轻装，领主辎重多，追不上
+    const lord = nearestLord(state, party, 3);
+    if (lord && retreatFrom(state, party, lord)) {
+      party.chasing = false;
+      party.engaged = false;
+      return;
     }
     const dist = gridDistance(party, p);
     let target;
@@ -5492,7 +5551,7 @@ function moveParties(state) {
   fightNeighbors(state);
 }
 
-/** 领主：敌对且玩家在视野内 → 追；否则回防驻地 */
+/** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
 function moveLords(state) {
   const p = state.player;
   state.lords.forEach(function (lord) {
@@ -5510,17 +5569,31 @@ function moveLords(state) {
       if (foe && !(lord.scuffle > 0)) {
         target = { x: foe.x, y: foe.y };
         lord.foeChasing = foe.id;
-      } else if (home && gridDistance(lord, home) > 3) {
-        lord.foeChasing = null;
-        target = { x: home.x, y: home.y };
+        lord.banditChasing = null;
       } else {
-        lord.foeChasing = null;
-        if (!lord.wander || gridDistance(lord, lord.wander) < 1) {
-          lord.wander = findFreeSpotNear(state, lord.x, lord.y, 3);
+        // 顺手清乡：看见近处的匪团就撵过去，撵不上也没关系
+        const bandit = nearestBandit(state, lord, 4);
+        if (bandit) {
+          target = { x: bandit.x, y: bandit.y };
+          lord.banditChasing = bandit.id;
+          lord.foeChasing = null;
+        } else if (home && gridDistance(lord, home) > 3) {
+          lord.foeChasing = null;
+          lord.banditChasing = null;
+          target = { x: home.x, y: home.y };
+        } else {
+          lord.foeChasing = null;
+          lord.banditChasing = null;
+          if (!lord.wander || gridDistance(lord, lord.wander) < 1) {
+            lord.wander = findFreeSpotNear(state, lord.x, lord.y, 3);
+          }
+          target = lord.wander;
         }
-        target = lord.wander;
       }
     }
+    // 辎重多，两拍才挪一格：土匪轻装跑得掉，领主追不上
+    lord.moveTick = (lord.moveTick || 0) + 1;
+    if (lord.moveTick % 2 !== 0) return;
     if (!target) return;
     const step = greedyStep(state, lord, target);
     if (step) {
@@ -5541,42 +5614,94 @@ function troopWeight(troops) {
   return sum;
 }
 
+/** 让某支队伍往远离威胁的方向退一步 */
+function retreatFrom(state, unit, threat) {
+  const dirs = [
+    [1, 0], [-1, 0], [0, 1], [0, -1],
+    [1, 1], [1, -1], [-1, 1], [-1, -1],
+  ];
+  let best = null;
+  let bestD = gridDistance(unit, threat);
+  dirs.forEach(function (d) {
+    const nx = unit.x + d[0];
+    const ny = unit.y + d[1];
+    if (!isPassable(state.world, nx, ny)) return;
+    if (siteAt(state.world, nx, ny)) return;
+    const dist = Math.max(Math.abs(nx - threat.x), Math.abs(ny - threat.y));
+    if (dist > bestD) {
+      bestD = dist;
+      best = { x: nx, y: ny };
+    }
+  });
+  if (best) {
+    unit.x = best.x;
+    unit.y = best.y;
+    return true;
+  }
+  return false;
+}
+
 /**
- * 匪团与领主在路上撞上：双方互扣兵力。
- * 只在玩家附近（12 格内）写进史册，远处打完也无声。
+ * 匪团与领主在路上撞上：不是一仗打完，是拉锯。
+ * 每 6 小时咬一口，双方各掉几个人；劫匪轻装，随时可能甩开追兵跑掉。
  */
 function fightNeighbors(state) {
   const p = state.player;
+  const rng = state.rng;
   state.parties.forEach(function (party) {
-    if (party.scuffle) party.scuffle -= 1;
     if (party.faction !== 'bandit') return;
-    if (!party.troops || army.troopCount(party.troops) <= 0) return;
+    if (army.troopCount(party.troops) <= 0) return;
+    if (party.scuffle && party.scuffle > 0) {
+      party.scuffle -= 1;
+      return;
+    }
     const lord = state.lords.filter(function (l) {
       return l.alive && Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
     })[0];
     if (!lord) return;
     if (lord.faction === 'bandit') return;
 
-    const wa = troopWeight(party.troops);
-    const wb = troopWeight(lord.troops);
-    const share = wa / (wa + wb || 1);
-    const lossA = Math.max(1, Math.round(army.troopCount(party.troops) * (0.22 + share * 0.3)));
-    const lossB = Math.max(1, Math.round(army.troopCount(lord.troops) * (0.22 + (1 - share) * 0.3)));
+    const countA = army.troopCount(party.troops);
+    const countB = army.troopCount(lord.troops);
+    if (countB <= 0) return;
+    // 零敲碎打：匪团掉一两个人，领主这边按匪团的规模折损（小股匪徒咬不动大军）
+    const lossA = Math.max(1, Math.round(countA * 0.06));
+    const lossB = Math.min(5, Math.max(1, Math.round(countA * 0.1)));
     army.distributeLosses(party.troops, lossA);
     army.distributeLosses(lord.troops, lossB);
-    party.scuffle = 6;
+    party.scuffle = 1;
+    party.engaged = true;
 
     const near = Math.max(Math.abs(party.x - p.x), Math.abs(party.y - p.y)) <= 12;
+
+    if (army.troopCount(lord.troops) <= 0) {
+      lord.alive = false;
+      lord.troops = {};
+      lord.respawnDay = state.clock.day + LORD_RESPAWN_DAYS;
+      if (near) pushLog(state, lord.name + '的部曲被' + party.name + '拖垮了，他一个人往城里退。', 'war');
+      return;
+    }
     if (army.troopCount(party.troops) <= 0) {
       state.parties = state.parties.filter(function (x) { return x.id !== party.id; });
-      if (near) pushLog(state, lord.name + '的部曲把' + party.name + '吃掉了。地上留了一地断刀。');
-    } else if (army.troopCount(lord.troops) <= 0) {
-      lord.alive = false;
-      lord.respawnDay = state.clock.day + LORD_RESPAWN_DAYS;
-      lord.troops = {};
-      if (near) pushLog(state, lord.name + '被' + party.name + '打散了队伍，一个人往城里退。');
-    } else if (near) {
-      pushLog(state, party.name + '和' + lord.name + '在路上打了一场，双方各折了 ' + lossA + '、' + lossB + ' 人。');
+      if (near) pushLog(state, party.name + '被' + lord.name + '的部曲吃掉了。地上留了一地断刀。', 'war');
+      return;
+    }
+
+    // 脱身：领主兵越多辎重越重，匪团越容易甩开
+    const lordShare = countB / (countA + countB || 1);
+    const escape = Math.min(0.8, 0.3 + Math.max(0, lordShare - 0.5) * 0.7 + rng.next() * 0.2);
+    if (rng.next() < escape) {
+      const ok = retreatFrom(state, party, lord);
+      party.engaged = false;
+      party.scuffle = 3;
+      if (ok && near) {
+        pushLog(state, party.name + '扔下几具尸首，从' + lord.name + '的包围里溜了。', 'war');
+      }
+      return;
+    }
+
+    if (near) {
+      pushLog(state, party.name + '被' + lord.name + '咬住了，双方又折了 ' + lossA + '、' + lossB + ' 人。', 'war');
     }
   });
 }
@@ -6264,7 +6389,7 @@ function campaignState(state) {
 /** 下一步该去哪——只指路，不剧透后面的事 */
 const CAMPAIGN_HINT = {
   reach_chenliu: '往东走到陈留。路上别停，西凉铁骑会追。',
-  troops_60: '在陈留一带招兵，凑到 60 人；市集里也备点粮。',
+  troops_30: '在陈留一带招兵，凑到 30 人；市集里也备点粮。',
   win_wuchao: '回官渡。到了就会有一场硬仗。',
   take_xiapi: '南下打下邳。',
   win_chibi: '去赤壁或柴桑，水战自己会来。',
@@ -6325,8 +6450,8 @@ function checkCampaign(state, key) {
     if (state.clock.day > 8) return true;
     return false;
   }
-  if (key === 'troops_60') {
-    if (count >= 60) return true;
+  if (key === 'troops_30') {
+    if (count >= 30) return true;
     return false;
   }
   if (key === 'win_wuchao') return !!state.flags['win_act2'];
@@ -7157,9 +7282,18 @@ function pushUnitPage(app, kind, id) {
 }
 
 /**
- * 点名追人：点了领主/匪团，就一路跟上去。
- * 对方在这三小时里挪了格，路线跟着重算，不会半路丢人。
+ * 点名追人：点了领主/匪团，就一路跟上去，直到碰上、或者对方跑出视野。
  */
+function onScreen(app, unit) {
+  const box = mapBox(app);
+  const cam = app.mapCam;
+  if (!cam) return true;
+  const z = app.mapZoom || 1;
+  const sx = unit.x * TS - cam.x + TS / 2;
+  const sy = box.top + unit.y * TS - cam.y + TS / 2;
+  return sx > 20 && sx < app.runtime.width - 20 && sy > box.top + 20 && sy < box.top + box.h - 20;
+}
+
 function updateFollow(app) {
   const f = app.follow;
   if (!f) return false;
@@ -7175,23 +7309,20 @@ function updateFollow(app) {
   }
 
   const d = Math.max(Math.abs(t.x - p.x), Math.abs(t.y - p.y));
-  if (d <= 1) {
+  if (d === 0) {
     app.follow = null;
     stateLib.stopMoving(st);
     pushUnitPage(app, f.kind, f.id);
     return true;
   }
 
-  // 跟不上的时候别让人干追一天：24 小时还没靠近就放弃
-  const nowH = stateLib.gameHours(st);
+  // 对方跑出视野就收兵，别让人在地图上一路空追
   if (f.startH === undefined) {
-    f.startH = nowH;
-    f.best = d;
-  }
-  if (d < f.best) f.best = d;
-  if (nowH - f.startH > 24 && d > f.best) {
+    f.startH = stateLib.gameHours(st);
+  } else if (!onScreen(app, t)) {
     app.follow = null;
-    app.showToast('跟丢了，他的马比你快。', 2);
+    stateLib.stopMoving(st);
+    app.showToast('他跑出你的视野了。', 2);
     return false;
   }
 
@@ -7311,12 +7442,13 @@ const MapScene = {
     if (unit) {
       const p = st.player;
       const dist = Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y));
-      if (dist <= 1) {
+      if (dist === 0) {
         stateLib.stopMoving(st);
         pushUnitPage(app, unit.kind, unit.id);
         return;
       }
-      app.follow = { kind: unit.kind, id: unit.id, x: unit.x, y: unit.y };
+      // 没碰上就只是跟过去，跟到对方离开视野为止
+      app.follow = { kind: unit.kind, id: unit.id, x: unit.x, y: unit.y, startH: undefined };
       const r = stateLib.goTo(st, unit.x, unit.y);
       if (!r.ok) {
         app.follow = null;
@@ -7598,6 +7730,17 @@ function drawUnits(ctx, app, cam, box, w) {
     if (p.chasing) {
       text(ctx, '!', sx, sy - 52 * z, { size: Math.round(20 * z), align: 'center', color: '#e05a42', shadow: true });
     }
+    // 匪团的名号：跟领主一样挂在模型下面，一眼看清是谁
+    if (z >= 0.9) {
+      const nsz = Math.max(11, Math.round(14 * z));
+      ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      const tw = ctx.measureText(p.name).width;
+      ctx.fillStyle = 'rgba(10,8,6,0.78)';
+      ctx.fillRect(sx - tw / 2 - 6, sy + 15 * z, tw + 12, nsz + 4);
+      text(ctx, p.name, sx, sy + 16 * z, {
+        size: nsz, align: 'center', color: p.color === '#4f8f6a' ? '#9fd8b4' : '#f0c9b0',
+      });
+    }
     if (p.scuffle > 0) {
       ctx.fillStyle = 'rgba(220,80,50,0.85)';
       ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
@@ -7631,10 +7774,21 @@ function drawUnits(ctx, app, cam, box, w) {
     const isz = (lord.id === 'lvbu' ? 82 : look.big ? 74 : 68) * z;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
 
+    // 势力简写：一面小旗，全国地图上也认得出是哪家的
+    const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
+    const bw = 20 * z;
+    const bh = 22 * z;
+    const bxx = sx + 12 * z;
+    const byy = sy - 30 * z;
+    ctx.fillStyle = 'rgba(12,9,6,0.6)';
+    ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;
-    ctx.fillRect(sx + 14 * z, sy - 22 * z, 10 * z, 12 * z);
-    text(ctx, FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?', sx + 19 * z, sy - 21 * z, {
-      size: Math.max(9, Math.round(11 * z)), align: 'center', color: '#fff',
+    ctx.fillRect(bxx, byy, bw, bh);
+    ctx.strokeStyle = 'rgba(255,240,210,0.55)';
+    ctx.lineWidth = Math.max(1, 1 * z);
+    ctx.strokeRect(bxx, byy, bw, bh);
+    text(ctx, banner, bxx + bw / 2, byy + 16 * z, {
+      size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
     });
 
     const nsz = Math.max(11, Math.round(15 * z));
@@ -8219,65 +8373,61 @@ module.exports = AtlasScene;
   /* js/core/tourney.js */
   __defs[24] = function (module, exports, __require) {
 /**
- * 比武大会：交报名费，连打三场，赢了拿钱、拿声望、英雄也跟着长本事。
- * 不打兵、不死人，纯粹的个人武艺（骑砍的竞技场味）。
+ * 比武大会：押一注报名费，跟一位好手在彩棚底下比三招血。
+ *
+ * 玩法是"猜手"：每合一招，双方各出一手——
+ *   左挡 / 右挡 / 左攻 / 右攻。
+ * 结算：
+ *   · 都攻 → 两败俱伤，各掉一滴血
+ *   · 都挡 → 各自绕圈试探，这合白打
+ *   · 一攻一挡，方向相同（挡住）→ 攻击方掉血，防守方不掉，还白赚一刀
+ *   · 一攻一挡，方向不同（挡空）→ 防守方掉血
+ * 三滴血，先见底的人输。报名 40 金，赢的人拿 200。
+ *
+ * 不杀人不损兵，纯个人武艺（骑砍竞技场的味道）。
  */
 
 const { LORDS, FACTIONS } = __require(5);
 const heroes = __require(14);
-const economy = __require(11);
 
-const ROUNDS = 3;
+const HP = 3;
+const FEE = 40;
+const PRIZE = 200;
 
-const FOE_TITLES = [
-  { name: '游侠', power: 34, tag: '不知名的游侠' },
-  { name: '军中教头', power: 46, tag: '某营的教头' },
-  { name: '带甲校尉', power: 58, tag: '带甲的校尉' },
-];
+const MOVES = {
+  blockL: { id: 'blockL', name: '左挡', dir: 'L', kind: 'block' },
+  blockR: { id: 'blockR', name: '右挡', dir: 'R', kind: 'block' },
+  attackL: { id: 'attackL', name: '左攻', dir: 'L', kind: 'attack' },
+  attackR: { id: 'attackR', name: '右攻', dir: 'R', kind: 'attack' },
+};
+const MOVE_IDS = ['blockL', 'blockR', 'attackL', 'attackR'];
 
-function fee(state) {
-  return 30 + Math.min(60, Math.floor((state.player.renown || 0) / 40) * 10);
+function fee() {
+  return FEE;
 }
 
-function prize(state) {
-  return 180 + Math.min(240, Math.floor((state.player.renown || 0) / 30) * 20);
+function prize() {
+  return PRIZE;
 }
 
-/** 你自己的身板：装备 + 声望 + 随行英雄指点 */
-function playerPower(state) {
-  const st = state;
-  const equip = economy.equipmentBonus(st);
-  const hb = heroes.heroBonus(st);
-  return 34 + (equip.atkPct + equip.defPct) * 45 + Math.min(60, (st.player.renown || 0) * 0.22)
-    + (hb.atkPct + hb.defPct) * 40;
-}
-
-function pickFoes(state) {
+/** 挑一个本地的对手：从天下名将里抽一位，身板随声望涨一点 */
+function pickFoe(state) {
   const rng = state.rng;
-  const list = [];
-  // 前两场是本地好手，第三场从天下名将里挑一个
-  FOE_TITLES.slice(0, 2).forEach(function (t, i) {
-    list.push({
-      name: t.name + '·' + ['甲', '乙', '丙'][i],
-      power: t.power + rng.int(-4, 6),
-      tag: t.tag,
-      famous: false,
-    });
-  });
-  const idx = rng.int(0, LORDS.length - 1);
-  const def = LORDS[idx];
-  list.push({
+  const list = LORDS.filter(function (l) { return l && l.id && l.name; });
+  const def = list[rng.int(0, list.length - 1)];
+  const rep = Math.min(20, Math.floor((state.player.renown || 0) / 60));
+  return {
     name: def.name,
-    power: 56 + Math.round((def.morale || 60) * 0.26) + rng.int(-6, 8),
-    tag: (FACTIONS[def.faction] || {}).full || '',
-    famous: true,
+    faction: def.faction,
     lordId: def.id,
-  });
-  return list;
+    // 读招的本事：0.12 ~ 0.5，随你的声望往上加，别让人一开场就摸透
+    skill: Math.max(0.12, Math.min(0.5, 0.16 + rep * 0.02)),
+    tag: (FACTIONS[def.faction] || {}).full || '外地来的好手',
+  };
 }
 
 function enter(state, site) {
-  const cost = fee(state);
+  const cost = FEE;
   if (state.player.gold < cost) {
     return { ok: false, msg: '报名要 ' + cost + ' 金，你身上不够' };
   }
@@ -8285,83 +8435,149 @@ function enter(state, site) {
   state.tourney = {
     siteId: site ? site.id : null,
     siteName: site ? site.name : '此地',
-    round: 0,
-    foes: pickFoes(state),
-    pot: prize(state),
-    won: 0,
-    done: false,
+    hp: HP,
+    foeHp: HP,
+    foe: pickFoe(state),
+    moves: [],
     log: [],
+    done: false,
+    champion: false,
+    draw: false,
     fee: cost,
+    pot: PRIZE,
+    round: 0,
   };
   return { ok: true, msg: '交了 ' + cost + ' 金报名费，签了生死状（其实不杀人）。' };
 }
 
-function currentFoe(state) {
+/** 对手出招：多数时候乱来，偶尔读你上一手的习惯 */
+function aiMove(state) {
   const t = state.tourney;
-  if (!t || t.done) return null;
-  return t.foes[t.round] || null;
-}
-
-function winChance(state, foe) {
-  const mine = playerPower(state);
-  const d = (mine - foe.power) / 11;
-  return Math.max(0.12, Math.min(0.9, 1 / (1 + Math.exp(-d))));
-}
-
-/** 打一场：返回这一场的经过 */
-function fightRound(state) {
-  const t = state.tourney;
-  if (!t || t.done) return { ok: false, msg: '大会已经散了' };
-  const foe = t.foes[t.round];
-  if (!foe) return { ok: false, msg: '没有对手了' };
+  if (!t) return 'attackL';
   const rng = state.rng;
-  const chance = winChance(state, foe);
-  const win = rng.next() < chance;
-  const roundNo = t.round + 1;
+  const last = t.moves.length ? t.moves[t.moves.length - 1] : null;
+  if (last && rng.next() < (t.foe.skill || 0.2)) {
+    if (last.pMove === 'attackL') return 'blockL';
+    if (last.pMove === 'attackR') return 'blockR';
+    if (last.pMove === 'blockL') return 'attackR';
+    if (last.pMove === 'blockR') return 'attackL';
+  }
+  return MOVE_IDS[rng.int(0, MOVE_IDS.length - 1)];
+}
 
-  if (win) {
-    t.won += 1;
-    t.round += 1;
-    const lines = [
-      '第 ' + roundNo + ' 场：你与' + foe.name + '对了三十合，一枪挑开他的护腕。围观的兵丁喊成一片。',
-    ];
-    if (t.round >= ROUNDS) {
-      t.done = true;
-      t.champion = true;
-      const gold = t.pot;
-      state.player.gold += gold;
-      state.player.renown += 45;
-      state.player.morale = Math.min(100, state.player.morale + 10);
-      heroes.gainHeroExp(state, 12);
-      lines.push('三场全胜。' + t.siteName + '的校场把彩绸抛下来，赏钱 ' + gold + ' 金，声望 +45。');
-      if (t.foes[2] && t.foes[2].lordId) {
-        const lordId = t.foes[2].lordId;
-        state.lords.forEach(function (l) {
-          if (l.id === lordId && l.alive) {
-            state.relations[l.faction] = Math.min(100, (state.relations[l.faction] || 0) + 6);
-          }
-        });
-        lines.push(t.foes[2].name + '把刀收了，抱拳说：这条命记下了名字。');
-      }
+function dirName(d) {
+  return d === 'L' ? '左' : '右';
+}
+
+/**
+ * 纯结算：给定双方这一合的招，算出各掉几滴血。
+ * 规则只在这里写一遍，play 和测试都走它。
+ */
+function settle(pMoveId, fMoveId) {
+  const pm = MOVES[pMoveId];
+  const fm = MOVES[fMoveId];
+  if (!pm || !fm) return null;
+  let dmgPlayer = 0;
+  let dmgFoe = 0;
+  let line = '';
+
+  if (pm.kind === 'attack' && fm.kind === 'attack') {
+    dmgPlayer = 1;
+    dmgFoe = 1;
+    line = '两边同时抢攻，家伙都落了实，各挨一下。';
+  } else if (pm.kind === 'block' && fm.kind === 'block') {
+    line = '两边都在收着，绕着彩棚走了半圈，这一合谁也没摸着谁。';
+  } else if (pm.kind === 'attack' && fm.kind === 'block') {
+    if (pm.dir === fm.dir) {
+      // 挡对了：进攻方白挨一刀，防守方不掉血
+      dmgPlayer = 1;
+      line = '你从' + dirName(pm.dir) + '边抢攻，对面正好在' + dirName(fm.dir) + '边架上盾，你虎口被震得发麻。';
     } else {
-      state.player.gold += 25;
-      state.player.renown += 8;
-      lines.push('过了这一场，台下掷上来 ' + 25 + ' 金。下一场等着的是' + (t.foes[t.round] ? t.foes[t.round].name : '——') + '。');
+      // 挡空了：防守方掉血
+      dmgFoe = 1;
+      line = '你从' + dirName(pm.dir) + '边虚晃一招，人却从' + dirName(pm.dir === 'L' ? 'R' : 'L') + '边切进去，一刀劈在他护肩上。';
     }
-    t.log.push(lines.join('\n'));
-    return { ok: true, win: true, lines: lines, done: t.done, champion: !!t.champion };
+  } else if (pm.dir === fm.dir) {
+    // 你挡住他的攻：反手赚他一下
+    dmgFoe = 1;
+    line = '他攻你' + dirName(fm.dir) + '，你' + dirName(pm.dir) + '手盾迎上去，磕开刀锋还推了他一把。';
+  } else {
+    dmgPlayer = 1;
+    line = '他攻你' + dirName(fm.dir) + '边，你挡在' + dirName(pm.dir) + '边——护不住，肋下吃了一记。';
   }
 
-  t.done = true;
-  t.champion = false;
-  state.player.morale = Math.max(0, state.player.morale - 4);
-  state.player.renown += 2;
-  const lines = [
-    '第 ' + roundNo + ' 场：' + foe.name + '一个假动作骗开你的枪，木刀敲在你肩上。你退了三步，认输。',
-    '报名费没了，不过台下还是有人叫好——敢上场的人不多。声望 +2。',
-  ];
+  return { dmgPlayer: dmgPlayer, dmgFoe: dmgFoe, line: line };
+}
+
+/**
+ * 出一招，跟对手的招一起结算。
+ * 返回 { ok, pMove, fMove, hp, foeHp, done, champion, draw, lines }
+ */
+function play(state, moveId) {
+  const t = state.tourney;
+  if (!t) return { ok: false, msg: '大会已经散了' };
+  if (t.done) return { ok: false, msg: '这一场已经完了' };
+  const pm = MOVES[moveId];
+  if (!pm) return { ok: false, msg: '没有这么一手' };
+
+  const fm = MOVES[aiMove(state)];
+  const settled = settle(pm.id, fm.id);
+  const dmgPlayer = settled.dmgPlayer;
+  const dmgFoe = settled.dmgFoe;
+  t.round += 1;
+  const lines = ['第 ' + t.round + ' 合：', settled.line];
+
+  t.hp -= dmgPlayer;
+  t.foeHp -= dmgFoe;
+  t.moves.push({ pMove: moveId, fMove: fm.id, dmgPlayer: dmgPlayer, dmgFoe: dmgFoe });
+  lines.push('（你 ' + Math.max(0, t.hp) + ' 血 · ' + t.foe.name + ' ' + Math.max(0, t.foeHp) + ' 血）');
+
+  let result = 'continue';
+  if (t.hp <= 0 && t.foeHp <= 0) {
+    t.done = true;
+    t.draw = true;
+    result = 'draw';
+    state.player.gold += t.fee;
+    state.player.renown += 6;
+    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金报名费退了你，赏格对半分不成，只好作罢。');
+  } else if (t.foeHp <= 0) {
+    t.done = true;
+    t.champion = true;
+    result = 'win';
+    state.player.gold += t.pot;
+    state.player.renown += 40;
+    state.player.morale = Math.min(100, state.player.morale + 8);
+    heroes.gainHeroExp(state, 10);
+    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金，声望 +40。');
+    if (t.foe.lordId) {
+      const lid = t.foe.lordId;
+      state.lords.forEach(function (l) {
+        if (l.id === lid && l.alive) {
+          state.relations[l.faction] = Math.min(100, (state.relations[l.faction] || 0) + 6);
+        }
+      });
+    }
+  } else if (t.hp <= 0) {
+    t.done = true;
+    result = 'lose';
+    state.player.renown += 2;
+    state.player.morale = Math.max(0, state.player.morale - 4);
+    lines.push('你膝盖一软，坐在了土里。' + t.foe.name + '收了手，抱拳说：再练两年。报名费没了，台下还是有人叫好——敢上场的人不多。声望 +2。');
+  }
+
   t.log.push(lines.join('\n'));
-  return { ok: true, win: false, lines: lines, done: true, champion: false };
+  return {
+    ok: true,
+    pMove: pm.id,
+    fMove: fm.id,
+    hp: Math.max(0, t.hp),
+    foeHp: Math.max(0, t.foeHp),
+    done: t.done,
+    champion: !!t.champion,
+    draw: !!t.draw,
+    result: result,
+    lines: lines,
+  };
 }
 
 function close(state) {
@@ -8369,7 +8585,8 @@ function close(state) {
 }
 
 module.exports = {
-  ROUNDS, fee, prize, playerPower, pickFoes, enter, currentFoe, winChance, fightRound, close,
+  HP, FEE, PRIZE, MOVES, MOVE_IDS,
+  fee, prize, pickFoe, enter, aiMove, settle, play, close,
 };
 
   };
@@ -8427,14 +8644,14 @@ function statusBar(app, y) {
   const p = app.state.player;
   const count = army.troopCount(p.troops);
   const cap = stateLib.capacity(app.state);
-  const need = army.foodPerDay(p.troops);
+  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * 2));
 
   ctx.fillStyle = '#1d1711';
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
     { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food + ' / 日耗' + need, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '粮', v: p.food + ' / 两日' + need, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '望', v: p.renown, c: '#c98f6a' },
     { k: '简', v: p.shi, c: '#b98fd8' },
@@ -8798,7 +9015,7 @@ function renderMarket(app, site, tab) {
     const sell = economy.foodSellPrice(site);
     text(ctx, '粮价 ' + price + ' 金 · 卖出 ' + sell + ' 金', PAD, 372, { size: 24, color: '#efe3c6' });
     text(ctx, '你的粮草：' + st.player.food + ' 单位', PAD, 410, { size: 20, color: st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
-    text(ctx, '每天吃掉 ' + army.foodPerDay(st.player.troops) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
+    text(ctx, '每两天吃掉 ' + Math.max(1, Math.round(army.foodPerDay(st.player.troops) * 2)) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
 
     const amounts = [10, 50];
     amounts.forEach(function (n, i) {
@@ -9690,8 +9907,8 @@ const ArmyScene = {
     ctx.fillRect(16, 74, w - 32, 148);
     text(ctx, count + ' / ' + cap, 36, 86, { size: 40, color: '#efe3c6' });
     text(ctx, '人', 200, 106, { size: 18, color: '#8a8070' });
-    text(ctx, '日耗粮 ' + Math.max(1, Math.round(armyLib.foodPerDay(p.troops) * (1 - hb.foodPct))) + ' · 存粮 ' + p.food, 36, 136, {
-      size: 17, color: p.food < armyLib.foodPerDay(p.troops) * 3 ? '#d06a4a' : '#a2947a',
+    text(ctx, '两日耗粮 ' + Math.max(1, Math.round(armyLib.foodPerDay(p.troops) * 2 * (1 - hb.foodPct))) + ' · 存粮 ' + p.food, 36, 136, {
+      size: 17, color: p.food < armyLib.foodPerDay(p.troops) * 6 ? '#d06a4a' : '#a2947a',
     });
     bar(ctx, 16, 162, w - 32, 10, p.morale / 100, p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);
     text(ctx, '士气 ' + p.morale + (hb.morale ? '（英雄 +' + hb.morale + '/日）' : ''), 20, 208, { size: 16, color: '#8a8070' });
@@ -10300,20 +10517,37 @@ module.exports = PrisonScene;
   /* js/scenes/tourney.js */
   __defs[30] = function (module, exports, __require) {
 /**
- * 比武大会：报名、连打三场、领赏。
+ * 比武大会：彩棚底下的"猜手"赌局。
+ * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
+ * 报名 40 金，赢的人拿 200。
  */
 
 const { text, wrap, panel } = __require(6);
-const stateLib = __require(7);
 const tourney = __require(24);
 const { siteById } = __require(8);
 const { lookFor } = __require(13);
 const { FACTIONS } = __require(5);
 
+const FILL_BLOCK = '#26372e';
+const FILL_ATTACK = '#452a1c';
+
+function drawPips(ctx, x, y, n, total, color) {
+  for (let i = 0; i < total; i++) {
+    const alive = i < n;
+    ctx.fillStyle = alive ? color : 'rgba(255,255,255,0.08)';
+    ctx.fillRect(x + i * 46, y, 38, 14);
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + i * 46, y, 38, 14);
+  }
+}
+
 const TourneyScene = {
   enter(app, params) {
     this.siteId = params && params.siteId;
-    this.last = null;
+    // 旧档里的赛会是"三场连打"结构，跟现在的三血对决不兼容，直接作废
+    const t = app.state.tourney;
+    if (t && (typeof t.hp !== 'number' || !t.foe)) app.state.tourney = null;
   },
   update() {},
 
@@ -10327,63 +10561,85 @@ const TourneyScene = {
     const site = this.siteId ? siteById(st.world, this.siteId) : null;
     const name = site ? site.name : '此地';
     const t = st.tourney;
-    const power = Math.round(tourney.playerPower(st));
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
-    text(ctx, '你的身板 ' + power + ' · 报名 ' + tourney.fee(st) + ' 金 · 赏格 ' + tourney.prize(st) + ' 金', 20, 74, {
+    text(ctx, '报名 ' + tourney.FEE + ' 金 · 夺冠赏 ' + tourney.PRIZE + ' 金 · 三滴血定胜负', 20, 70, {
       size: 16, color: '#a2947a',
     });
 
     if (!t) {
-      panel(ctx, 20, 108, w - 40, 210, { fill: '#201a14' });
-      const intro = '校场上架起彩棚，四处来的好手报名。三场见高低，点到为止，不杀人。赢了有钱有名声，输了丢点脸。';
-      wrap(ctx, intro, w - 80, 18).forEach(function (line, i) {
-        text(ctx, line, 40, 128 + i * 28, { size: 18, color: '#c9bda2' });
+      panel(ctx, 20, 104, w - 40, 240, { fill: '#201a14' });
+      const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
+        + '每合一招：要么护住一边，要么从那一边切进去。'
+        + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
+        + '三滴血，先倒下的认输。报名 40 金，赢的人捧走 200。';
+      wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
+        text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
       });
-      app.ui.button(ctx, 40, 336, w - 80, 74, '交报名费 · 报名参赛', {
-        id: 't_enter', size: 24, fill: '#3a2c1e', onTap: function () {
+      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金 · 报名下场', {
+        id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
           const r = tourney.enter(st, site);
           app.showToast(r.msg, 2.2);
         },
       });
     } else {
-      // 对手名单
-      panel(ctx, 20, 108, w - 40, 300, { fill: '#1c1710' });
-      text(ctx, '第 ' + Math.min(t.round + 1, tourney.ROUNDS) + ' / ' + tourney.ROUNDS + ' 场 · 已胜 ' + t.won, 36, 120, {
-        size: 20, color: '#c9bda2',
-      });
-      t.foes.forEach(function (foe, i) {
-        const y = 154 + i * 84;
-        const passed = i < t.round;
-        const now = i === t.round && !t.done;
-        ctx.fillStyle = passed ? 'rgba(40,34,26,0.5)' : (now ? 'rgba(60,46,28,0.9)' : 'rgba(30,26,20,0.6)');
-        ctx.fillRect(36, y, w - 72, 76);
-        const color = foe.famous ? ((FACTIONS[(site && site.ownerFaction) || 'wei'] || {}).color || '#8a7448') : '#6a6050';
-        const lookId = foe.lordId || ('foe' + i);
-        const portrait = app.assets.portraitFor ? app.assets.portraitFor(color, lookFor(lookId)) : null;
-        if (portrait) ctx.drawImage(portrait, 44, y + 8, 52, 50);
-        text(ctx, foe.name, 108, y + 8, { size: 22, color: passed ? '#6a6050' : '#efe3c6' });
-        text(ctx, foe.tag + ' · 身板 ' + Math.round(foe.power), 108, y + 38, {
-          size: 15, color: '#8a8070',
-        });
-        text(ctx, passed ? '已胜' : (t.done ? '未打' : '把握 ' + Math.round(tourney.winChance(st, foe) * 100) + '%'), w - 52, y + 26, {
-          size: 18, align: 'right', color: passed ? '#6a9a5a' : (now ? '#f0c060' : '#8a8070'),
-        });
-      });
+      /* -------------------------------------------------- 对手 */
+      const foe = t.foe;
+      const col = (FACTIONS[foe.faction] || {}).color || '#8a7448';
+      panel(ctx, 20, 100, w - 40, 176, { fill: '#1c1710' });
+      const portrait = app.assets.portraitFor ? app.assets.portraitFor(col, lookFor(foe.lordId)) : null;
+      if (portrait) {
+        ctx.drawImage(portrait, 36, 112, 104, 104);
+      } else {
+        ctx.fillStyle = col;
+        ctx.fillRect(36, 112, 104, 104);
+      }
+      text(ctx, foe.name, 156, 138, { size: 28, color: t.foeHp > 0 ? '#efe3c6' : '#7a7060' });
+      text(ctx, foe.tag, 156, 166, { size: 15, color: '#8a8070' });
+      text(ctx, '对方', w - 40, 132, { size: 15, align: 'right', color: '#8a8070' });
+      drawPips(ctx, 156, 184, t.foeHp, tourney.HP, '#c9553f');
+      text(ctx, t.foeHp + ' / ' + tourney.HP, 156 + 3 * 46 + 10, 184, { size: 15, color: '#c9553f' });
+
+      /* -------------------------------------------------- 自己 */
+      panel(ctx, 20, 288, w - 40, 112, { fill: '#201a14' });
+      text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
+      drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
+      text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
+      text(ctx, '金 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
+      text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
 
       if (!t.done) {
-        app.ui.button(ctx, 40, 424, w - 80, 74, '上场 · 打第 ' + (t.round + 1) + ' 场', {
-          id: 't_fight', size: 26, fill: '#4a2c1e', onTap: function () {
-            const r = tourney.fightRound(st);
-            if (r.ok) this.last = r.lines.join('\n');
-            if (r.ok) app.showToast(r.win ? '这一场赢了' : '这一场输了', 1.6);
-          },
+        text(ctx, '护住一边就挡，从一边切进去就攻。方向对了才挡得住。', 20, 412, { size: 15, color: '#8a8070' });
+        const bw = (w - 40 - 14) / 2;
+        const bh = 104;
+        const moves = [
+          { id: 'blockL', label: '左挡', fill: FILL_BLOCK },
+          { id: 'blockR', label: '右挡', fill: FILL_BLOCK },
+          { id: 'attackL', label: '左攻', fill: FILL_ATTACK },
+          { id: 'attackR', label: '右攻', fill: FILL_ATTACK },
+        ];
+        moves.forEach(function (m, i) {
+          const bx = 20 + (i % 2) * (bw + 14);
+          const by = 436 + Math.floor(i / 2) * (bh + 14);
+          app.ui.button(ctx, bx, by, bw, bh, m.label, {
+            id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
+              const r = tourney.play(st, m.id);
+              if (!r.ok) { app.showToast(r.msg); return; }
+              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金', 2.4);
+              else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
+              else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
+            },
+          });
         });
       } else {
-        app.ui.button(ctx, 40, 424, w - 80, 74, (t.champion ? '领了赏钱 · 回城' : '认输退场 · 回城'), {
+        const champion = t.champion;
+        const drawn = t.draw;
+        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
+        text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
+        app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
           id: 't_leave', size: 26, fill: '#33271b', onTap: function () {
             tourney.close(st);
             app.pop();
@@ -10391,12 +10647,15 @@ const TourneyScene = {
         });
       }
 
-      // 经过
-      const lastLine = (t.log && t.log.length) ? t.log[t.log.length - 1] : '彩棚下鼓声一起，看台上的人把酒洒了一地。';
-      const lines = wrap(ctx, lastLine, w - 80, 17);
-      panel(ctx, 20, 516, w - 40, Math.max(120, 16 + lines.length * 26), { fill: '#201a14' });
-      lines.forEach(function (line, i) {
-        text(ctx, line, 40, 532 + i * 26, { size: 17, color: '#e8dcc0' });
+      /* -------------------------------------------------- 战报 */
+      const logTop = t.done ? 610 : 664;
+      const logH = Math.max(150, h - logTop - 96);
+      panel(ctx, 20, logTop, w - 40, logH, { fill: '#181410' });
+      text(ctx, '场上', 40, logTop + 26, { size: 16, color: '#8a8070' });
+      const shown = (t.log || []).slice(-2).join('\n');
+      const lines = wrap(ctx, shown || '鼓声一起，看台上的人把酒洒了一地。', w - 96, 17);
+      lines.slice(0, Math.floor((logH - 46) / 24)).forEach(function (ln, i) {
+        text(ctx, ln, 40, logTop + 52 + i * 24, { size: 17, color: '#e8dcc0' });
       });
     }
 
@@ -10543,7 +10802,7 @@ const CONTENT_TOP = TAB_H + 10;
 /** 每章的"该做什么"——只指路，不剧透后面发生什么 */
 const HINTS = {
   reach_chenliu: '往东走到陈留。路上别停。',
-  troops_60: '招兵凑到 60 人，粮草备到日耗的 3 倍。',
+  troops_30: '在陈留募兵，凑到 30 人，粮草按"两日口粮 × 3"备。',
   win_wuchao: '回官渡，到了会有一场硬仗。',
   take_xiapi: '南下打下邳。',
   win_chibi: '去赤壁或柴桑，水战自己会来。',
@@ -10606,7 +10865,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'h1', s: '前几天怎么活' });
     ops.push({ t: 'p', s: '1. 先往东走，别停。序章那支西凉铁骑比你强得多，硬打会散伙。' });
     ops.push({ t: 'p', s: '2. 到陈留进村/进城，找壮丁。民兵便宜得几乎白给，先堆人数。' });
-    ops.push({ t: 'p', s: '3. 粮草按"日耗 × 3"备。地图比过去大了一倍，路程一长就容易断粮。' });
+    ops.push({ t: 'p', s: '3. 粮草按"两日口粮 × 3"备。地图比过去大了一倍，路程一长就容易断粮。' });
     ops.push({ t: 'h1', s: '怎么赚钱（新手最缺的）' });
     ops.push({ t: 'p', s: '· 打青巾匪团：地图上到处是绿衣小队伍，人数 6-12，打散一队能拿 150-250 金。这是前期最稳的钱。' });
     ops.push({ t: 'p', s: '· 做酒馆的活：清剿、送粮、侦察，一桩 130-250 金，还涨声望和关系。' });

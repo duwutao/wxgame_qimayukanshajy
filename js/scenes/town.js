@@ -49,14 +49,14 @@ function statusBar(app, y) {
   const p = app.state.player;
   const count = army.troopCount(p.troops);
   const cap = stateLib.capacity(app.state);
-  const need = army.foodPerDay(p.troops);
+  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * 2));
 
   ctx.fillStyle = '#1d1711';
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
     { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food + ' / 日耗' + need, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '粮', v: p.food + ' / 两日' + need, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '望', v: p.renown, c: '#c98f6a' },
     { k: '简', v: p.shi, c: '#b98fd8' },
@@ -420,7 +420,7 @@ function renderMarket(app, site, tab) {
     const sell = economy.foodSellPrice(site);
     text(ctx, '粮价 ' + price + ' 金 · 卖出 ' + sell + ' 金', PAD, 372, { size: 24, color: '#efe3c6' });
     text(ctx, '你的粮草：' + st.player.food + ' 单位', PAD, 410, { size: 20, color: st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
-    text(ctx, '每天吃掉 ' + army.foodPerDay(st.player.troops) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
+    text(ctx, '每两天吃掉 ' + Math.max(1, Math.round(army.foodPerDay(st.player.troops) * 2)) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
 
     const amounts = [10, 50];
     amounts.forEach(function (n, i) {

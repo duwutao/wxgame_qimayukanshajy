@@ -229,12 +229,13 @@ function clash(state, a, b) {
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
   const totalB = army.troopCount(b.troops);
-  const lossA = Math.max(1, Math.round(totalA * (0.16 + (1 - share) * 0.34)));
-  const lossB = Math.max(1, Math.round(totalB * (0.16 + share * 0.34)));
+  // 碰到一次只打一场前哨战，不是一仗定生死：双方各掉 5%~17%
+  const lossA = Math.max(1, Math.round(totalA * (0.05 + (1 - share) * 0.12)));
+  const lossB = Math.max(1, Math.round(totalB * (0.05 + share * 0.12)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
-  a.scuffle = 5;
-  b.scuffle = 5;
+  a.scuffle = 2;
+  b.scuffle = 2;
 
   const remainA = army.troopCount(a.troops);
   const remainB = army.troopCount(b.troops);
@@ -246,9 +247,18 @@ function clash(state, a, b) {
   const near = nearPlayer(state, winner, 10);
 
   // 一边被打空了，或者被打崩了：被俘 / 溃逃
-  const broken = loserRemain <= 0 || loserRemain < 6 || (loserRemain / winnerRemain) < 0.28;
+  const broken = loserRemain <= 0 || loserRemain < 6 || (loserRemain / Math.max(1, winnerRemain)) < 0.28;
   if (!broken) {
-    if (near) logFn(state, a.name + '与' + b.name + '在野地里撞上，各折了 ' + lossA + '、' + lossB + ' 骑。天黑之后各自收兵。', 'war');
+    // 势均力敌时打累了各自收兵，弱势的一方更容易先撤
+    const tired = state.rng.next() < 0.35 + (1 - share) * 0.25;
+    if (tired) {
+      moveAway(state, loser);
+      loser.chasing = false;
+      loser.scuffle = 6;
+      if (near) logFn(state, a.name + '与' + b.name + '的前哨战打到天黑，' + loser.name + '先收兵退了，各折了 ' + lossA + '、' + lossB + ' 骑。', 'war');
+      return { draw: true, withdraw: true };
+    }
+    if (near) logFn(state, a.name + '与' + b.name + '在野地里缠上了，各折了 ' + lossA + '、' + lossB + ' 骑，还没分出胜负。', 'war');
     return { draw: true };
   }
 
