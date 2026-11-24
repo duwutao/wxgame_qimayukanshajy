@@ -257,6 +257,14 @@ function createRuntime() {
         mouseDown = false;
         fire('end', -999, -999);
       });
+      // 桌面浏览器：滚轮只交给场景处理，避免整页跟着滚
+      canvas.addEventListener('wheel', function (e) {
+        if (handlers.wheel) {
+          e.preventDefault();
+          const p = rectPoint(e);
+          handlers.wheel(e.deltaY, toDesignX(p[0]), toDesignY(p[1]));
+        }
+      }, { passive: false });
       canvas.addEventListener('touchstart', function (e) {
         e.preventDefault();
         const pts = Array.prototype.map.call(e.touches, function (t) {

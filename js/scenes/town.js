@@ -964,8 +964,101 @@ function renderHall(app, site) {
     y += 34;
   });
   if (!lords.length) text(ctx, '（暂时没有成军的领主）', PAD + 4, y, { size: 17, color: '#8a8070' });
+  if (lords.length > 3) {
+    app.ui.button(ctx, PAD, y + 4, w - PAD * 2, 54, '查看全部 · ' + lords.length + ' 位领主', {
+      id: 'hall_all_lords', size: 20, fill: '#2b2419',
+      onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+    });
+    y += 66;
+  }
 
   backButton(app, y + 34);
+}
+
+/* ---------------------------------------------------------------- 麾下领主名册 */
+
+function lordStatus(st, lord, site) {
+  if (lord.inCity === site.id) return '府中养兵';
+  if (lord.inCity) {
+    const inCity = siteById(st.world, lord.inCity);
+    return inCity ? '驻' + inCity.name : '驻外城';
+  }
+  if (lord.order && lord.order.siteId) {
+    const target = siteById(st.world, lord.order.siteId);
+    const type = lord.order.type === 'siege' ? '围' : '往';
+    return type + (target ? target.name : '军令');
+  }
+  if (lord.chasing) return '追击中';
+  return '在外';
+}
+
+function renderLordList(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const H = app.runtime.height;
+  const st = app.state;
+  const f = site.ownerFaction;
+  const lords = st.lords.filter(function (l) {
+    return l.faction === f && l.alive && !l.dead && !l.retired;
+  });
+  const rows = lords.slice().sort(function (a, b) {
+    const ra = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(a)] || 3;
+    const rb = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(b)] || 3;
+    return ra - rb || army.troopCount(b.troops) - army.troopCount(a.troops);
+  });
+  const title = f ? (FACTIONS[f].full + ' · 麾下领主') : '无主之地的领主';
+  text(ctx, title, PAD, 296, { size: 27, color: '#f0c060' });
+  text(ctx, '共 ' + rows.length + ' 位 · 上下拖动或滚轮查看全部', w - PAD, 302, {
+    size: 15, align: 'right', color: '#a2947a',
+  });
+
+  const rowH = 66;
+  const gap = 8;
+  const y = 344;
+  const foot = H - 100;
+  const viewH = Math.max(120, foot - y - 10);
+  const contentH = rows.length * (rowH + gap);
+  const maxScroll = Math.max(0, contentH - viewH);
+  if (app.townView.lordScroll === undefined) app.townView.lordScroll = 0;
+  app.townView.lordScroll = Math.max(0, Math.min(maxScroll, app.townView.lordScroll));
+  app.townView.lordMaxScroll = maxScroll;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y, w, viewH);
+  ctx.clip();
+  rows.forEach(function (l, i) {
+    const ry = y + i * (rowH + gap) - app.townView.lordScroll;
+    if (ry < y - rowH || ry > y + viewH + rowH) return;
+    ctx.fillStyle = i % 2 ? '#211b15' : '#261f17';
+    ctx.fillRect(PAD, ry, w - PAD * 2, rowH);
+    const rank = stateLib.lordRank(l);
+    ctx.fillStyle = rank === 'king' ? '#d9a441' : rank === 'lord' ? '#8fa6c8' : '#8a8070';
+    ctx.fillRect(PAD, ry, 4, rowH);
+    text(ctx, l.name, PAD + 18, ry + 10, { size: 23, color: l.alive ? '#efe3c6' : '#6a6050' });
+    text(ctx, (l.title || '领主') + (rank === 'king' ? ' · 君主' : rank === 'lord' ? ' · 领兵者' : ''),
+      PAD + 18, ry + 41, { size: 15, color: '#a2947a' });
+    const n = army.troopCount(l.troops);
+    text(ctx, n + ' 兵', w - PAD - 102, ry + 12, { size: 20, align: 'right', color: n > 150 ? '#d06a4a' : '#c9bda2' });
+    text(ctx, lordStatus(st, l, site), w - PAD - 14, ry + 41, { size: 15, align: 'right', color: '#8fbf7a' });
+  });
+  ctx.restore();
+
+  if (!rows.length) text(ctx, '（这一家暂时没有成军的领主）', PAD + 4, y + 8, { size: 18, color: '#8a8070' });
+  if (maxScroll > 0) {
+    const trackH = viewH;
+    ctx.fillStyle = 'rgba(80,66,46,0.35)';
+    ctx.fillRect(w - 8, y, 4, trackH);
+    const thumbH = Math.max(34, trackH * (viewH / contentH));
+    const thumbY = y + (trackH - thumbH) * (app.townView.lordScroll / maxScroll);
+    ctx.fillStyle = '#8a7448';
+    ctx.fillRect(w - 8, thumbY, 4, thumbH);
+  }
+
+  app.ui.button(ctx, PAD, H - 84, 170, 58, '← 返回领主府', {
+    id: 'lords_back', size: 20, fill: '#241c14',
+    onTap: function () { app.townView.view = 'hall'; },
+  });
 }
 
 /* ---------------------------------------------------------------- 城池详情 */
@@ -1112,6 +1205,8 @@ const TownScene = {
       estimate: null,
       scroll: 0,
       maxScroll: 0,
+      lordScroll: 0,
+      lordMaxScroll: 0,
     };
   },
 
@@ -1141,6 +1236,7 @@ const TownScene = {
     else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);
     else if (v === 'hall') renderHall(app, site);
+    else if (v === 'lords') renderLordList(app, site);
     else if (v === 'siege') renderSiege(app, site);
     else if (v === 'hermit') renderHermit(app, site);
     else {
@@ -1149,23 +1245,45 @@ const TownScene = {
   },
 
   onTouchStart(app, x, y) {
-    app.townView.drag = { y: y, scroll: app.townView.scroll || 0, moved: 0 };
+    const v = app.townView.view;
+    app.townView.drag = {
+      y: y,
+      view: v,
+      scroll: v === 'lords' ? (app.townView.lordScroll || 0) : (app.townView.scroll || 0),
+      moved: 0,
+    };
   },
 
   onTouchMove(app, x, y) {
     const d = app.townView.drag;
     if (!d) return;
-    if (app.townView.view !== 'menu') return;
+    if (app.townView.view !== 'menu' && app.townView.view !== 'lords') return;
     const dy = y - d.y;
     if (Math.abs(dy) > 6) d.moved = Math.abs(dy);
     if (d.moved > 6) {
-      const max = app.townView.maxScroll || 0;
-      app.townView.scroll = Math.max(0, Math.min(max, d.scroll - dy));
+      if (app.townView.view === 'lords') {
+        const max = app.townView.lordMaxScroll || 0;
+        app.townView.lordScroll = Math.max(0, Math.min(max, d.scroll - dy));
+      } else {
+        const max = app.townView.maxScroll || 0;
+        app.townView.scroll = Math.max(0, Math.min(max, d.scroll - dy));
+      }
     }
   },
 
   onTouchEnd(app) {
     if (app.townView) app.townView.drag = null;
+  },
+
+  onWheel(app, dy) {
+    if (!app.townView) return;
+    if (app.townView.view === 'lords') {
+      const max = app.townView.lordMaxScroll || 0;
+      app.townView.lordScroll = Math.max(0, Math.min(max, (app.townView.lordScroll || 0) + dy));
+    } else if (app.townView.view === 'menu') {
+      const max = app.townView.maxScroll || 0;
+      app.townView.scroll = Math.max(0, Math.min(max, (app.townView.scroll || 0) + dy));
+    }
   },
 };
 

@@ -194,7 +194,10 @@ const GovernScene = {
     text(ctx, atWar ? '你们正在交战。' : fs.dead ? '这个势力已经灭了。' : '你们暂时相安无事。', PAD + 18, 234, {
       size: 20, color: atWar ? '#d06a4a' : '#c9bda2',
     });
-    if (killDay) {
+    if (terms && terms.forever) {
+      text(ctx, '你斩了他们的君主：这一家与你永世不议和，文书递进去也会被烧掉。',
+        PAD + 18, 278, { size: 17, color: '#d06a4a' });
+    } else if (killDay) {
       const passed = st.clock.day - killDay;
       text(ctx, passed < 30
         ? '你杀过对方的将领，血债未满一个月：议和会被驳回（还剩 ' + (30 - passed) + ' 天）。'

@@ -324,6 +324,85 @@ const FACTIONS = {
 };
 
 /**
+ * 君位继任表：君主被斩后按这张表往下传。
+ * 表里有些人开局不在名册上，轮到他们时再生成；表用完了，
+ * 就从本势力还活着的领主里挑一位本地、官职大的。
+ */
+const SUCCESSION = {
+  wei: [
+    { id: 'caopi', name: '曹丕', title: '魏太子' },
+    { id: 'caozhang', name: '曹彰', title: '任城王' },
+    { id: 'caozhi', name: '曹植', title: '陈王' },
+    { id: 'caoren', name: '曹仁', title: '征南将军' },
+    { id: 'caohong', name: '曹洪', title: '都护将军' },
+  ],
+  shu: [
+    { id: 'liushan', name: '刘禅', title: '汉中王世子' },
+    { id: 'liufeng', name: '刘封', title: '副军中郎将' },
+    { id: 'zhaoyun', name: '赵云', title: '牙门将军' },
+    { id: 'weiyan', name: '魏延', title: '牙门将军' },
+  ],
+  wu: [
+    { id: 'sunliang', name: '孙亮', title: '会稽王' },
+    { id: 'sunxiu', name: '孙休', title: '琅琊王' },
+    { id: 'zhouyu', name: '周瑜', title: '水军都督' },
+    { id: 'lvmeng', name: '吕蒙', title: '横野中郎将' },
+    { id: 'luxun', name: '陆逊', title: '镇西将军' },
+  ],
+  yuan: [
+    { id: 'yuantan', name: '袁谭', title: '青州刺史' },
+    { id: 'yuanshang', name: '袁尚', title: '邺侯' },
+    { id: 'yanliang', name: '颜良', title: '骑都尉' },
+    { id: 'wenchou', name: '文丑', title: '骑将' },
+    { id: 'chunyuqiong', name: '淳于琼', title: '督军' },
+  ],
+  lv: [
+    { id: 'chengong', name: '陈宫', title: '军师' },
+    { id: 'gaoshun', name: '高顺', title: '中郎将' },
+    { id: 'houcheng', name: '侯成', title: '骑都尉' },
+  ],
+  biao: [
+    { id: 'liuqi', name: '刘琦', title: '江夏太守' },
+    { id: 'liucong', name: '刘琮', title: '襄阳侯' },
+    { id: 'caimao', name: '蔡瑁', title: '水军统领' },
+    { id: 'wenpin', name: '文聘', title: '大将' },
+  ],
+  zhang: [
+    { id: 'liuxun', name: '刘循', title: '雒城守将' },
+    { id: 'wuyi', name: '吴懿', title: '中郎将' },
+    { id: 'zhangren', name: '张任', title: '从事' },
+    { id: 'liugui', name: '刘璝', title: '中郎将' },
+  ],
+  xianbei: [
+    { id: 'suli', name: '素利', title: '东部大人' },
+    { id: 'mijia', name: '弥加', title: '部帅' },
+    { id: 'queji', name: '阙机', title: '部帅' },
+    { id: 'huaitou', name: '槐头', title: '小帅' },
+  ],
+  ma: [
+    { id: 'machao', name: '马超', title: '偏将军' },
+    { id: 'maxiu', name: '马休', title: '奉车都尉' },
+    { id: 'matie', name: '马铁', title: '骑都尉' },
+    { id: 'pangde', name: '庞德', title: '校尉' },
+    { id: 'chengyin', name: '程银', title: '校尉' },
+  ],
+  han: [
+    { id: 'liuxie', name: '刘协', title: '天子' },
+    { id: 'huangfusong', name: '皇甫嵩', title: '车骑将军' },
+    { id: 'zhujun', name: '朱儁', title: '右中郎将' },
+    { id: 'luzhi', name: '卢植', title: '北中郎将' },
+  ],
+  player: [],
+  bandit: [],
+};
+
+/** 开局时的君主名，用来在重开/读档时把被继任表改过的全局数据复位 */
+const FACTION_RULERS = Object.keys(FACTIONS).reduce(function (out, id) {
+  out[id] = { lord: FACTIONS[id].lord, full: FACTIONS[id].full, banner: FACTIONS[id].banner };
+  return out;
+}, {});
+
+/**
  * 领主 NPC
  * soldiers 为初始兵力模板，home 为驻地
  */
@@ -655,6 +734,8 @@ module.exports = {
   RECRUIT_SETS,
   ROADS,
   FACTIONS,
+  FACTION_RULERS,
+  SUCCESSION,
   LORDS,
   RENOWN_TIERS,
   EQUIPMENT,

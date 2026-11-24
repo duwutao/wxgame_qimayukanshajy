@@ -104,6 +104,9 @@ function declare(state, a, b, quiet) {
 }
 
 function makePeace(state, a, b, quiet) {
+  // 斩了君主就是不死不休：这对玩家与那一家永远没有议和这一页
+  const forever = state.noPeaceForever || {};
+  if ((a === 'player' && forever[b]) || (b === 'player' && forever[a])) return false;
   const m = state.factionWars || {};
   const k = key(a, b);
   if (!m[k]) {
@@ -151,6 +154,15 @@ function makePeace(state, a, b, quiet) {
   return true;
 }
 
+/** AI 能不能替这两家宣战：玩家所在的国不替玩家乱开战，玩家自己也不被 AI 拖下水 */
+function aiCanDeclare(state, a, b) {
+  if (!a || !b || a === b) return false;
+  if (a === 'bandit' || b === 'bandit' || a === 'player' || b === 'player') return false;
+  const pf = state && state.player ? state.player.faction : null;
+  if (pf && pf !== 'player' && (a === pf || b === pf)) return false;
+  return true;
+}
+
 /** 每日外交：随机宣战、随机议和。打的年头太久会自己收手。 */
 function diplomacyTick(state) {
   const m = state.factionWars || init(state);
@@ -161,7 +173,7 @@ function diplomacyTick(state) {
   if (rng.next() < 0.2) {
     const a = ids[rng.int(0, ids.length - 1)];
     const b = ids[rng.int(0, ids.length - 1)];
-    if (a !== b && !atWar(state, a, b) && warPartners(state, a).length < 3) {
+    if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && warPartners(state, a).length < 3) {
       declare(state, a, b, false);
     }
   }
@@ -197,6 +209,7 @@ function peaceOfferTick(state) {
     const id = ids[i];
     if (!atWar(state, 'player', id)) continue;
     if ((state.factionState[id] || {}).dead) continue;
+    if (state.noPeaceForever && state.noPeaceForever[id]) continue;
     const w = (state.factionWars || {})[key('player', id)];
     const since = (w && w.since) ||
       (state.playerWarSince && state.playerWarSince[id]) || now;
@@ -506,6 +519,10 @@ function killLord(state, lord) {
     state.noPeace[fac] = true;
     state.killRecords[fac] = state.clock.day;
     state.relations[fac] = -100;
+    if (FACTIONS[fac].lord === lord.name) {
+      state.noPeaceForever = state.noPeaceForever || {};
+      state.noPeaceForever[fac] = true;
+    }
     declare(state, 'player', fac, true);
     // 他的旧部也要记这一笔
     state.lords.forEach(function (l) {
@@ -965,8 +982,11 @@ function resolveSiege(state, cp, day) {
 function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
+  const playerFaction = state.player && state.player.faction;
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
+    // 玩家效忠的国不再自作主张开拔、围城；要打由玩家自己下命
+    if (playerFaction && playerFaction !== 'player' && faction === playerFaction) return;
     if ((state.factionState[faction] || {}).dead) {
       const cp = state.warCampaigns[faction];
       if (cp) {
@@ -1103,6 +1123,7 @@ function summaryLines(state) {
 
 module.exports = {
   init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick,
+  aiCanDeclare,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,

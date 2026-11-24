@@ -10,6 +10,7 @@ const worldLib = require(R + '/core/world.js');
 const stateLib = require(R + '/core/state.js');
 const armyLib = require(R + '/core/army.js');
 const economy = require(R + '/core/economy.js');
+const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
@@ -172,13 +173,24 @@ const campDay = ruleState.clock.day;
 stateLib.takeSite(ruleState, camp);
 ok('攻破山寨进入洗劫态', camp.cleared && camp.looted && camp.respawnDay === campDay + stateLib.CAMP_RESPAWN_DAYS,
   'respawn=' + camp.respawnDay);
+ok('山寨改成三日后刷新', stateLib.CAMP_RESPAWN_DAYS === 3, String(stateLib.CAMP_RESPAWN_DAYS));
+const campOldX = camp.x;
+const campOldY = camp.y;
 ok('洗劫山寨不再算敌对目标', !stateLib.isHostileSite(ruleState, camp));
 ok('空营不能再次开战刷钱', stateLib.startSiege(ruleState, camp) === null);
 stateLib.campRespawnTick(ruleState);
 ok('未到日子山寨不刷新', camp.cleared === true);
 ruleState.clock.day = camp.respawnDay;
+ruleState.player.renown = 900;
+ruleState.campaign.stage = 20;
 stateLib.campRespawnTick(ruleState);
 ok('数日后山寨重新聚人', camp.cleared === false && camp.garrison > 0, 'garrison=' + camp.garrison);
+ok('山寨刷新到新位置而非原址', camp.x !== campOldX || camp.y !== campOldY,
+  campOldX + ',' + campOldY + ' → ' + camp.x + ',' + camp.y);
+ok('山寨随声望变强', camp.garrisonBase > 34 && camp.banditTier,
+  camp.banditTier + ' base=' + camp.garrisonBase);
+ok('新位置不与其它据点重叠',
+  !ruleState.world.sites.some(function (s) { return s !== camp && s.x === camp.x && s.y === camp.y; }));
 
 const ruleVillage = ruleState.world.sites.filter(function (s) { return s.type === 'village'; })[0];
 ruleVillage.recruits = ruleVillage.recruits || {};
@@ -1096,12 +1108,17 @@ ok('封锁后仍能重新围攻', stateLib.cancelPlayerSiege(stU).ok &&
 neutralTown.playerBlocked = false;
 stateLib.cancelPlayerSiege(stU);
 const beginFail = stateLib.beginPlayerSiege(stU, neutralTown);
+const garrisonBeforeFail = neutralTown.garrison;
 stU.playerSiege.stage = 'ready';
 stU.playerSiege.readyHour = stateLib.gameHours(stU) - 1;
 const failBattle = stateLib.startSiege(stU, neutralTown);
 ok('围成后能开决战', !!failBattle);
 failBattle.finish('lose');
-stateLib.resolveBattle(stU, failBattle);
+const failSummary = stateLib.resolveBattle(stU, failBattle);
+ok('战败后守军只留下残部，不会自动补满',
+  neutralTown.garrison >= 8 &&
+  neutralTown.garrison === Math.max(8, Math.round(failSummary.remainB || 0)),
+  garrisonBeforeFail + '→' + neutralTown.garrison + ' (remainB ' + failSummary.remainB + ')');
 ok('围攻失败后城头记仇', neutralTown.playerBlocked === true && !stateLib.isHostileSite(stU, neutralTown) === false);
 ok('围攻失败后只能强攻', stateLib.isHostileSite(stU, neutralTown) && stateLib.startRest(stU, neutralTown).ok === false);
 
@@ -1371,6 +1388,105 @@ group('求和门槛');
   let n = 0;
   while (!k.peaceOfferPending && n++ < 300) warLib.peaceOfferTick(k);
   ok('杀将满六十天后按概率求和', !!k.peaceOfferPending, n);
+}
+
+group('守军自然增长');
+{
+  const g = stateLib.createGame({ seed: 8127 });
+  const city = g.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  city.garrisonBase = 40;
+  city.garrison = 40;
+  city.garrisonGrowth = 0;
+  const before = city.garrison;
+  economy.dailyMarket(g, g.rng);
+  ok('城池守军每天自然增长', city.garrison > before, before + '→' + city.garrison);
+  ok('守军人数越多增长越慢',
+    economy.garrisonGrowthRate({ garrison: 40, garrisonBase: 40 }) >
+    economy.garrisonGrowthRate({ garrison: 400, garrisonBase: 40 }));
+  const big = { garrison: 5000, garrisonBase: 40, garrisonGrowth: 0 };
+  const inc = economy.growGarrison(big);
+  ok('守军没有硬上限', big.garrison > 5000 || (inc === 0 && big.garrisonGrowth > 0), big.garrison + '+' + inc);
+  const hurt = { garrison: 12, garrisonBase: 40, garrisonGrowth: 0 };
+  economy.growGarrison(hurt);
+  ok('战损后从低人数继续按招兵速度增长', hurt.garrison > 12, hurt.garrison + ' 人');
+}
+
+group('天下颜色跟随城池');
+{
+  const g = stateLib.createGame({ seed: 8128 });
+  const city = g.world.sites.filter(function (s) { return s.ownerFaction === 'wei' && s.type === 'town'; })[0];
+  const before = territory.buildFactionGrid(g.world);
+  const idx = city.y * g.world.w + city.x;
+  ok('城池所在格先是魏色', before[idx] === 'wei', String(before[idx]));
+  const oldOwner = city.ownerFaction;
+  city.ownerFaction = 'shu';
+  city.faction = 'shu';
+  const after = territory.buildFactionGrid(g.world);
+  ok('占领后同一格立即覆盖成新城主颜色', after[idx] === 'shu', String(after[idx]));
+  city.ownerFaction = oldOwner;
+  city.faction = oldOwner;
+  territory.buildFactionGrid(g.world);
+}
+
+group('领主八小时同答');
+{
+  const g = stateLib.createGame({ seed: 8129 });
+  const lord = g.lords.filter(function (l) { return l.alive && l.faction === 'wei'; })[0];
+  lord.askCache = null;
+  const first = stateLib.lordIdle(g, lord);
+  const second = stateLib.lordIdle(g, lord);
+  ok('八小时内问同一位领主得到同一句', first === second, first + ' / ' + second);
+  g.clock.hour = (g.clock.hour + 7) % 24;
+  const third = stateLib.lordIdle(g, lord);
+  ok('第七个小时仍是同一句', third === first, first + ' / ' + third);
+  g.clock.day += 1;
+  const fourth = stateLib.lordIdle(g, lord);
+  ok('过了八小时重新换一句', lord.askCache.at !== undefined && lord.askCache.line === fourth,
+    fourth);
+}
+
+group('自己国家的领主不乱开战');
+{
+  const g = stateLib.createGame({ seed: 8130 });
+  g.player.faction = 'wei';
+  ok('自己国家不会被 AI 拉着宣战', !warLib.aiCanDeclare(g, 'wei', 'shu'));
+  ok('别国也不会被 AI 拉来打自己国家', !warLib.aiCanDeclare(g, 'shu', 'wei'));
+  ok('两家别国之间仍可自行开战', warLib.aiCanDeclare(g, 'shu', 'yuan'));
+}
+
+group('君主继任与永世不议和');
+{
+  const g = stateLib.createGame({ seed: 8131 });
+  const fac = 'wei';
+  const ruler = stateLib.factionLord(g, fac);
+  const oldName = ruler.name;
+  ruler.prisoner = { by: 'player', days: 1 };
+  g.prisoners.push({ lordId: ruler.id, by: 'player', days: 1 });
+  const result = stateLib.executePrisoner(g, ruler.id);
+  ok('斩君主成功', result.ok, result.msg);
+  ok('君主被斩触发永世不议和', g.noPeaceForever[fac] === true);
+  ok('继任表把王位传给下一位', stateLib.factionLord(g, fac).name !== oldName,
+    oldName + '→' + stateLib.factionLord(g, fac).name);
+  ok('新君已挂上国名', FACTIONS[fac].lord === stateLib.factionLord(g, fac).name,
+    FACTIONS[fac].lord);
+  ok('永世不议和时议和条款被驳回', stateLib.peaceTerms(g, fac).forever === true);
+  ok('永世不议和时外交议和失败', warLib.makePeace(g, 'player', fac, true) === false);
+
+  g.factionState[fac].successorIndex = 999;
+  const nextRuler = stateLib.factionLord(g, fac);
+  nextRuler.prisoner = { by: 'player', days: 1 };
+  g.prisoners.push({ lordId: nextRuler.id, by: 'player', days: 1 });
+  stateLib.executePrisoner(g, nextRuler.id);
+  ok('继任表耗尽后仍会从本势力领主中选新君',
+    !!stateLib.factionLord(g, fac) && stateLib.factionLord(g, fac).alive,
+    stateLib.factionLord(g, fac) && stateLib.factionLord(g, fac).name);
+
+  const saved = stateLib.deserialize(stateLib.serialize(g));
+  ok('读档后新君与国名不回到旧主', FACTIONS[fac].lord === saved.factionState[fac].rulerName &&
+    saved.factionState[fac].rulerName !== oldName, FACTIONS[fac].lord);
+
+  const fresh = stateLib.createGame({ seed: 8132 });
+  ok('再开新局时国名与君主复位', FACTIONS[fac].lord === '曹操' && !!fresh, FACTIONS[fac].lord);
 }
 
 /* ---------------------------------------------------------------- 收尾 */

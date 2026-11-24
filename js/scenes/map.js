@@ -8,6 +8,7 @@ const { UI_COLORS } = pixel;
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = require('../core/world.js');
+const territory = require('../core/territory.js');
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
@@ -295,6 +296,7 @@ const MapScene = {
     drawTerrainView(ctx, app, cam, box, w);
     drawGeography(ctx, app, cam, box, w);
     drawAtmosphere(ctx, box, w);
+    drawFactionTint(ctx, app, cam, box, w);
     drawSites(ctx, app, cam, box, w);
     drawUnits(ctx, app, cam, box, w);
     drawQuestMarkers(ctx, app, cam, box, w);
@@ -664,6 +666,44 @@ function drawTerrainView(ctx, app, cam, box, w) {
       }
     }
     ctx2.restore();
+}
+
+/**
+ * 拉远到能看见整张天下时，铺一层势力领地色。
+ * 缩放 0.2 左右正是看“三国乱战”的档位；城池一换旗，territory 的签名缓存就失效。
+ */
+function drawFactionTint(ctx, app, cam, box, w) {
+  if ((app.mapZoom || 1) > 0.34) return;
+  const st = app.state;
+  const world = st.world;
+  const grid = territory.buildFactionGrid(world);
+  const startX = Math.max(0, Math.floor(cam.x / TS));
+  const startY = Math.max(0, Math.floor(cam.y / TS));
+  const endX = Math.min(world.w - 1, Math.ceil((cam.x + w) / TS));
+  const endY = Math.min(world.h - 1, Math.ceil((cam.y + box.h) / TS));
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, box.top, w, box.h);
+  ctx.clip();
+  ctx.globalAlpha = 0.38;
+  let lastColor = '';
+  for (let y = startY; y <= endY; y++) {
+    for (let x = startX; x <= endX; x++) {
+      const fac = grid[y * world.w + x];
+      const def = fac ? FACTIONS[fac] : null;
+      if (!def) continue;
+      if (def.color !== lastColor) {
+        ctx.fillStyle = def.color;
+        lastColor = def.color;
+      }
+      const sx = x * TS - cam.x;
+      const sy = box.top + y * TS - cam.y;
+      ctx.fillRect(sx, sy, Math.ceil(TS) + 1, Math.ceil(TS) + 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawSites(ctx, app, cam, box, w) {

@@ -6,6 +6,7 @@
 const { REGIONS, FACTIONS, CAPITAL_IDS } = require('../data/china.js');
 const { text, panel } = require('../render/ui.js');
 const stateLib = require('../core/state.js');
+const territory = require('../core/territory.js');
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
@@ -50,37 +51,10 @@ function mix(a, b, t) {
 
 /**
  * 势力归属网格：每格找"最近的、权重最大的据点"，城控制范围大于村镇。
- * 结果缓存在 world.factionGrid。
+ * 真正的缓存在 territory.js 里，按据点归属签名失效；城池易主后立刻换色。
  */
-const SITE_WEIGHT = { town: 3.2, castle: 2.4, village: 1.2, camp: 0.9 };
-
 function buildFactionGrid(world) {
-  if (world.factionGrid) return world.factionGrid;
-  const W = world.w;
-  const H = world.h;
-  const grid = new Array(W * H).fill('');
-  const sites = world.sites.filter(function (s) { return s.ownerFaction; });
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const t = world.tiles[y * W + x];
-      if (t === 'sea') continue;
-      let best = '';
-      let bestScore = Infinity;
-      for (let i = 0; i < sites.length; i++) {
-        const s = sites[i];
-        const dx = s.x - x;
-        const dy = s.y - y;
-        const score = (dx * dx + dy * dy) / (SITE_WEIGHT[s.type] || 1);
-        if (score < bestScore) {
-          bestScore = score;
-          best = s.ownerFaction;
-        }
-      }
-      grid[y * W + x] = best;
-    }
-  }
-  world.factionGrid = grid;
-  return grid;
+  return territory.buildFactionGrid(world);
 }
 
 /** 简单名称避让 */

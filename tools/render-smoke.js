@@ -935,7 +935,62 @@ smoke('围城时辰到点：自动弹出进攻选择并暂停时间', function (
     app.top() && app.top().name);
 });
 
-/* ---------------------------------------------------------------- 长跑 *//* ---------------------------------------------------------------- 长跑 */
+smoke('大地图：缩到 0.2 时铺势力领地色', function () {
+  const st = app.state = stateLib.createGame({ seed: 4330 });
+  st.events.length = 0;
+  app.replace('map');
+  app.mapZoom = 0.2;
+  app.mapFree = true;
+  app.mapCam = { x: st.world.w * 64 * 0.1, y: st.world.h * 64 * 0.1 };
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('低缩放会建立势力归属网格', !!st.world.factionGrid && st.world.factionGrid.length === st.world.w * st.world.h,
+    st.world.factionGrid ? String(st.world.factionGrid.length) : 'none');
+  ok('拉远后仍能画完地图', true);
+});
+
+smoke('城池：麾下领主名册可滚轮看全部', function () {
+  const st = app.state = stateLib.createGame({ seed: 4331 });
+  st.events.length = 0;
+  app.replace('town', { siteId: 'xuchang' });
+  app.townView.view = 'hall';
+  app.ui.begin();
+  app.top().scene.render(app);
+  const hallIds = app.ui.items.map(function (b) { return b.id; });
+  ok('领主府提供查看全部入口', hallIds.indexOf('hall_all_lords') >= 0, hallIds.join(','));
+
+  app.townView.view = 'lords';
+  app.townView.lordScroll = 0;
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('名册页渲染完成', ids.indexOf('lords_back') >= 0, ids.join(','));
+  ok('领主多到需要滚动', (app.townView.lordMaxScroll || 0) > 0,
+    'maxScroll=' + app.townView.lordMaxScroll);
+  const before = app.townView.lordScroll;
+  app.onWheel(60, 0, 0);
+  ok('滚轮能往下看更多领主', app.townView.lordScroll > before,
+    before + '→' + app.townView.lordScroll);
+});
+
+smoke('继任事件弹出新君榜文', function () {
+  const st = app.state = stateLib.createGame({ seed: 4332 });
+  st.events.length = 0;
+  app.replace('map');
+  st.events.push({
+    type: 'succession',
+    factionId: 'wei',
+    title: '魏国换了新君',
+    lines: ['曹操的首级传回国内，曹丕在灵前即位。', '这一家与你永世不议和。'],
+  });
+  app.tick();
+  ok('继任事件推到榜文页', app.top() && app.top().name === 'news',
+    app.top() && app.top().name);
+  ok('榜文标出继位', app.newsView && app.newsView.tag === '继位',
+    app.newsView && app.newsView.tag);
+});
+
+/* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {
   app.state = stateLib.createGame({ seed: 777 });

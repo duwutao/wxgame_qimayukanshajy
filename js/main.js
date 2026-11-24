@@ -79,6 +79,9 @@ class App {
       end: function (x, y) {
         self.onEnd(x, y);
       },
+      wheel: function (dy, x, y) {
+        self.onWheel(dy, x, y);
+      },
       pinchStart: function (x, y) {
         self.onPinchStart(x, y);
       },
@@ -181,6 +184,11 @@ class App {
     const top = this.top();
     this.lastHit = this.ui.release(x, y);
     if (top && top.scene.onTouchEnd) top.scene.onTouchEnd(this, x, y);
+  }
+
+  onWheel(dy, x, y) {
+    const top = this.top();
+    if (top && top.scene.onWheel) top.scene.onWheel(this, dy, x, y);
   }
 
   start() {

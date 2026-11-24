@@ -78,6 +78,16 @@ function process(app) {
       app.push('news', { title: ev.title, lines: ev.lines, factionId: ev.factionId });
       return;
     }
+    if (ev.type === 'succession') {
+      app.push('news', {
+        title: ev.title || '新君继位',
+        lines: ev.lines || [],
+        factionId: ev.factionId,
+        tag: '继位',
+        auto: 6,
+      });
+      return;
+    }
     if (ev.type === 'peace-offer') {
       app.push('news', {
         mode: 'peace-offer',

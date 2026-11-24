@@ -134,6 +134,28 @@ function equipmentBonus(state) {
   };
 }
 
+/** 守军自然增长：人数越多，招兵越慢；不设硬上限，但到临界点后近乎停滞。
+ * 只按“当前守军”算，所以战损之后会从低人数的速度重新长，不会立刻补满。
+ */
+function garrisonGrowthRate(site) {
+  const g = Math.max(0, site.garrison || 0);
+  const soft = Math.max(24, site.garrisonBase || 40);
+  // 基准 40 人时约 1.7 人/天；100 人时约 1.2；400 人时约 0.5；1000 人时约 0.2。
+  return 3.4 / (1 + Math.pow(g / soft, 1.18));
+}
+
+function growGarrison(site) {
+  if (!site) return 0;
+  const rate = garrisonGrowthRate(site);
+  site.garrisonGrowth = (site.garrisonGrowth || 0) + rate;
+  const inc = Math.floor(site.garrisonGrowth);
+  if (inc > 0) {
+    site.garrison = Math.max(0, (site.garrison || 0) + inc);
+    site.garrisonGrowth -= inc;
+  }
+  return inc;
+}
+
 /** 每日：价格波动 + 招募池刷新 + 守军恢复 */
 function dailyMarket(state, rng) {
   state.world.sites.forEach(function (site) {
@@ -179,7 +201,11 @@ function dailyMarket(state, rng) {
       }
     }
 
-    if (site.playerOwned) {
+    // 城池守军按当前人数自然增长：越多越慢，战损后从低处重新长。
+    // 村庄的乡勇仍按旧规则补到基准，避免全村都变成兵营。
+    if (site.type === 'town' || site.type === 'castle') {
+      if (site.ownerFaction !== 'bandit') growGarrison(site);
+    } else if (site.playerOwned) {
       site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(0, 2));
     } else if (site.ownerFaction !== 'bandit') {
       site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(1, 3));
@@ -212,6 +238,8 @@ module.exports = {
   nextEquipment,
   upgradeEquipment,
   equipmentBonus,
+  garrisonGrowthRate,
+  growGarrison,
   dailyMarket,
   dailyIncome,
 };
