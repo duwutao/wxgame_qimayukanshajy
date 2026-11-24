@@ -8045,15 +8045,28 @@ function ensureCam(app) {
   }
   const maxX = st.world.w * TS - app.runtime.width;
   const maxY = st.world.h * TS - box.h;
-  app.mapCam.x = clamp(app.mapCam.x, Math.min(0, maxX), Math.max(0, maxX));
-  app.mapCam.y = clamp(app.mapCam.y, Math.min(0, maxY), Math.max(0, maxY));
+  // 缩到整张天下比屏幕还小的时候，就把它摆在正中，别贴边
+  if (maxX < 0) app.mapCam.x = maxX / 2;
+  else app.mapCam.x = clamp(app.mapCam.x, 0, maxX);
+  if (maxY < 0) app.mapCam.y = maxY / 2;
+  else app.mapCam.y = clamp(app.mapCam.y, 0, maxY);
 }
 
-/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人；双指可以在这之间无级放大 */
-const ZOOM_MIN = 0.6;
+/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人；双指可以一直缩到整张天下 */
 const ZOOM_MAX = 1.8;
-const ZOOM_STEPS = [0.72, 1, 1.42];
 const ZOOM_NAMES = ['远望', '常规', '近看'];
+
+function fitZoom(app) {
+  const st = app.state;
+  if (!st || !st.world) return 0.6;
+  const box = mapBox(app);
+  return Math.min(app.runtime.width / (st.world.w * TILE), box.h / (st.world.h * TILE));
+}
+
+/** 最小缩放：刚好把整张天下装进屏幕（留一点边），再小就没意义了 */
+function minZoom(app) {
+  return Math.max(0.1, fitZoom(app) * 0.98);
+}
 
 function zoomName(z) {
   if (z < 0.86) return ZOOM_NAMES[0];
@@ -8063,13 +8076,13 @@ function zoomName(z) {
 
 function setZoom(app) {
   if (app.mapZoom === undefined || app.mapZoom === null) app.mapZoom = 1;
-  app.mapZoom = clamp(app.mapZoom, ZOOM_MIN, ZOOM_MAX);
+  app.mapZoom = clamp(app.mapZoom, minZoom(app), ZOOM_MAX);
   TS = TILE * app.mapZoom;
 }
 
 function applyZoom(app, dir) {
   const cur = app.mapZoom || 1;
-  const next = clamp(cur * (dir > 0 ? 1.25 : 1 / 1.25), ZOOM_MIN, ZOOM_MAX);
+  const next = clamp(cur * (dir > 0 ? 1.25 : 1 / 1.25), minZoom(app), ZOOM_MAX);
   app.mapZoom = next;
   TS = TILE * next;
   // 换档后重新把玩家摆到正中，别让视野莫名跳到边角
@@ -8081,7 +8094,7 @@ function applyZoom(app, dir) {
   };
   app.mapFree = false;
   ensureCam(app);
-  app.showToast('地图：' + zoomName(next), 1.2);
+  app.showToast('地图：' + zoomName(next) + ' ×' + next.toFixed(1), 1.2);
 }
 
 function drawZoomButtons(ctx, app, box, w) {
@@ -8381,7 +8394,7 @@ const MapScene = {
     const box = mapBox(app);
     if (cy < box.top || cy > box.top + box.h) return;
     const oldTS = TS;
-    const next = clamp(app.mapPinch.zoom * scale, ZOOM_MIN, ZOOM_MAX);
+    const next = clamp(app.mapPinch.zoom * scale, minZoom(app), ZOOM_MAX);
     const nextTS = TILE * next;
     if (!isFinite(nextTS) || nextTS <= 0) return;
 
@@ -8590,6 +8603,20 @@ function drawSites(ctx, app, cam, box, w) {
     const sy = box.top + site.y * TS - cam.y;
     if (sx < -TS * 2 || sx > w + TS || sy < box.top - TS || sy > box.top + box.h + TS) return;
 
+    // 拉远看整张天下时，城池收成势力色小点，不铺名字，免得糊成一锅粥
+    if ((app.mapZoom || 1) < 0.45) {
+      const col = site.ownerFaction && FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#7a7266';
+      const r = site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
+      ctx.beginPath();
+      ctx.arc(sx + TS / 2, sy + TS / 2, r, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.lineWidth = site.playerOwned ? 2 : 1;
+      ctx.strokeStyle = site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
+      ctx.stroke();
+      return;
+    }
+
     const sprite = assets.site[site.type] || assets.site.village;
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
@@ -8641,12 +8668,24 @@ function drawUnits(ctx, app, cam, box, w) {
 
   // 匪团：一整队人（按档位换造型），人一眼能看出该不该惹
   const z = app.mapZoom || 1;
+  const low = z < 0.45;
   const nowH = stateLib.gameHours(st);
   st.parties.forEach(function (p) {
     const up = stateLib.unitAnimPos(p, nowH);
     const sx = up.x * TS - cam.x + TS / 2;
     const sy = box.top + up.y * TS - cam.y + TS / 2;
     if (sx < -40 || sx > w + 40 || sy < box.top - 40 || sy > box.top + box.h + 40) return;
+    // 整张天下：匪团收成一个小色点
+    if (low) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = p.color || '#7a3a2a';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(10,8,6,0.6)';
+      ctx.stroke();
+      return;
+    }
     const icon = assets.banditPartyFor(p.banditTier || 'qing', p.color);
     const sz = (p.banditTier === 'hong' ? 70 : p.banditTier === 'cheng' ? 64 : 56) * z;
     ctx.drawImage(icon, sx - sz / 2, sy - sz * 0.78, sz, sz);
@@ -8710,6 +8749,16 @@ function drawUnits(ctx, app, cam, box, w) {
     const hostile = stateLib.isHostileFaction(st, lord.faction);
     const col = FACTIONS[lord.faction] ? FACTIONS[lord.faction].color : '#999';
 
+    // 整张天下：领主收成一个势力色方块，敌对的套红圈
+    if (low) {
+      ctx.fillStyle = col;
+      ctx.fillRect(sx - 3, sy - 3, 6, 6);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = hostile ? '#d25a42' : 'rgba(10,8,6,0.7)';
+      ctx.strokeRect(sx - 4, sy - 4, 8, 8);
+      return;
+    }
+
     if (hostile) {
       ctx.fillStyle = 'rgba(180,60,45,0.85)';
       ctx.beginPath();
@@ -8771,7 +8820,7 @@ function drawRoute(ctx, app, cam, box) {
   ctx.rect(0, box.top, app.runtime.width, box.h);
   ctx.clip();
   ctx.strokeStyle = 'rgba(240,192,96,0.55)';
-  ctx.lineWidth = 3 * (app.mapZoom || 1);
+  ctx.lineWidth = Math.max(1.2, 3 * (app.mapZoom || 1));
   ctx.setLineDash([8, 8]);
   ctx.beginPath();
   const sx0 = p.x * TS + TS / 2 - cam.x;
@@ -8787,7 +8836,7 @@ function drawRoute(ctx, app, cam, box) {
   const ey = box.top + last.y * TS + TS / 2 - cam.y;
   ctx.strokeStyle = 'rgba(240,192,96,0.9)';
   ctx.beginPath();
-  ctx.arc(ex, ey, 10 * (app.mapZoom || 1), 0, Math.PI * 2);
+  ctx.arc(ex, ey, Math.max(4, 10 * (app.mapZoom || 1)), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -8853,6 +8902,19 @@ function drawPlayerOnMap(ctx, app, cam, box) {
   const walk = p.stepTo ? Math.abs(Math.sin(p.stepProgress * Math.PI)) : 0;
   const sx = pos.gx * TS + TS / 2 - cam.x;
   const sy = box.top + pos.gy * TS + TS / 2 - cam.y - walk * TS * 0.078;
+
+  // 整张天下：自己收成一枚金点，位置一眼能找到
+  if ((app.mapZoom || 1) < 0.45) {
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0c060';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#2a1c08';
+    ctx.stroke();
+    return;
+  }
+
   pixel.drawPlayer(ctx, app.assets, sx, sy, TS, app.mapPhase || 0, p.facing || 1);
 
   // 头顶旗标（跟着缩放一起变大变小）
