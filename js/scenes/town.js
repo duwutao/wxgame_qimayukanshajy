@@ -57,7 +57,6 @@ function statusBar(app, y) {
   const count = army.troopCount(p.troops);
   const cap = stateLib.capacity(app.state);
   const need = stateLib.nextFoodNeed(app.state);
-  const foodCap = army.foodCap(p.troops);
   const foodShort = p.food < need;
 
   ctx.fillStyle = '#1d1711';
@@ -65,7 +64,7 @@ function statusBar(app, y) {
 
   const cells = [
     { k: '金钱', v: p.gold, c: '#f0c060' },
-    { k: '粮草', v: p.food + ' / ' + foodCap, c: foodShort ? '#e06a52' : p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '粮草', v: p.food, c: foodShort ? '#e06a52' : p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '声望', v: p.renown, c: '#c98f6a' },
     { k: '史简', v: p.shi, c: '#b98fd8' },
@@ -137,6 +136,18 @@ function menuItems(app, site) {
       }
     }
   };
+
+  // 打下来的城与村都在这里点将；第一座城之后才需要，但入口从第一块地就开着
+  if (site.playerOwned) {
+    const owned = app.state.world.sites.filter(function (s) { return s.playerOwned && s.type !== 'camp'; });
+    const assigned = owned.filter(function (s) { return !!stateLib.siteLord(app.state, s); }).length;
+    list.push({
+      id: 'm_fief', label: '封地 · 点将',
+      sub: '把城与村封给领主；队中英雄有封地才能出镇',
+      fill: '#33291d', right: assigned + ' / ' + owned.length + ' 已封',
+      onTap: function () { app.push('fief', { siteId: site.id }); },
+    });
+  }
 
   if (isVillage) {
     list.push({
@@ -838,6 +849,15 @@ function renderHall(app, site) {
   bar(ctx, PAD, 456, w - PAD * 2, 10, (rel + 100) / 200, rel < -25 ? UI_COLORS.danger : rel > 25 ? UI_COLORS.good : UI_COLORS.accent);
 
   let y = 490;
+
+  const fiefLord = stateLib.siteLord(st, site);
+  if (fiefLord) {
+    text(ctx, '封地领主：' + fiefLord.name + ' · Lv' + stateLib.lordLevel(fiefLord) +
+      ' · 兵 ' + army.troopCount(fiefLord.troops) + ' / ' + stateLib.lordTroopCap(fiefLord), PAD, y - 8, {
+        size: 17, color: '#e6d7b6',
+      });
+    y += 34;
+  }
 
   if (!p.faction && !hostile) {
     const req = stateLib.joinRenownReq(f);

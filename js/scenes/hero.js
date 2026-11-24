@@ -170,11 +170,16 @@ const HeroScene = {
     app.ui.button(ctx, 20, by, third, 76, '拉家常', {
       id: 'hero_talk', size: 20, onTap: function () { this.say(app); }.bind(this),
     });
-    app.ui.button(ctx, 20 + (third + 12), by, third, 76, '封为领主', {
-      id: 'hero_promote', size: 20, fill: '#2c2a40', onTap: function () {
-        const r = stateLib.promoteHero(st, hh.id);
-        app.showToast(r.msg, 3);
-        if (r.ok) app.pop();
+    app.ui.button(ctx, 20 + (third + 12), by, third, 76, '封地出镇', {
+      id: 'hero_promote', size: 20, fill: '#33291d', onTap: function () {
+        const free = st.world.sites.filter(function (s) {
+          return s.playerOwned && s.type !== 'camp' && !stateLib.siteLord(st, s);
+        });
+        if (!free.length) {
+          app.showToast('名下没有空的封地。先去城里的“封地 · 点将”收回一处。', 3);
+          return;
+        }
+        app.push('fief', { heroId: hh.id });
       },
     });
     app.ui.button(ctx, 20 + (third + 12) * 2, by, third, 76, '让他走', {

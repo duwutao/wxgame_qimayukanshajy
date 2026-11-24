@@ -282,6 +282,7 @@ function createGame(opts) {
 
   syncPlayerFaction(null);
   spawnLords(state);
+  autoAssignFiefs(state);
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, 8);
   spawnChaseParty(state, spawn);
@@ -313,6 +314,106 @@ function findFreeSpotNear(state, cx, cy, radius) {
   return null;
 }
 
+/* ---------------------------------------------------------------- 封地 */
+/**
+ * 封地是据点上的一个人事标记：site.lordId 指向 state.lords 里的领主。
+ * 城、关隘、村庄都能封；山寨不算领地。标记跟着 world 一起存档，
+ * 不另起一套势力数据，旧档没有这个字段时按 null / 自动补封处理。
+ */
+
+function siteLord(state, site) {
+  if (!state || !site || !site.lordId) return null;
+  return (state.lords || []).filter(function (l) {
+    return l.id === site.lordId && l.alive;
+  })[0] || null;
+}
+
+function lordFiefs(state, lord) {
+  if (!state || !lord) return [];
+  return (state.world.sites || []).filter(function (s) {
+    return s.lordId === lord.id && s.type !== 'camp';
+  });
+}
+
+/** 旧档/新开局：把无主的 AI 城村按驻地就近封给本势力领主 */
+function autoAssignFiefs(state) {
+  if (!state || !state.world) return;
+  const lords = state.lords || [];
+  state.world.sites.forEach(function (site) {
+    if (site.type === 'camp') {
+      site.lordId = null;
+      return;
+    }
+    const cur = lords.filter(function (l) { return l.id === site.lordId && l.alive; })[0];
+    const okFaction = cur && (site.playerOwned ? cur.faction === 'player' : cur.faction === site.ownerFaction);
+    if (cur && okFaction) return;
+    if (site.lordId && !okFaction) site.lordId = null;
+
+    if (site.playerOwned || !site.ownerFaction || site.ownerFaction === 'bandit') return;
+    const pool = lords.filter(function (l) {
+      return l.alive && !l.prisoner && !l.hidden && l.faction === site.ownerFaction;
+    });
+    if (!pool.length) return;
+
+    // 城优先给把这里当驻地的人；没有就按距离挑最近的一支
+    let best = pool.filter(function (l) { return l.home === site.id; })[0];
+    if (!best) {
+      best = pool.slice().sort(function (a, b) {
+        const da = Math.abs((a.x || 0) - site.x) + Math.abs((a.y || 0) - site.y);
+        const db = Math.abs((b.x || 0) - site.x) + Math.abs((b.y || 0) - site.y);
+        return da - db;
+      })[0];
+    }
+    if (best) site.lordId = best.id;
+  });
+}
+
+/**
+ * 把某个据点封给领主；lordId 传空就是收回。
+ * 玩家只能封自己旗下的领主，AI 只能封本势力的领主。
+ */
+function assignFief(state, siteId, lordId) {
+  const site = siteById(state.world, siteId);
+  if (!site) return { ok: false, msg: '找不到这块地方' };
+  if (site.type === 'camp') return { ok: false, msg: '山寨不是封地' };
+  const lord = lordId
+    ? (state.lords || []).filter(function (l) { return l.id === lordId && l.alive; })[0]
+    : null;
+
+  if (lordId && !lord) return { ok: false, msg: '这个人已经不在军中了' };
+  if (lord) {
+    if (site.playerOwned) {
+      if (lord.faction !== 'player' && lord.faction !== state.player.faction) {
+        return { ok: false, msg: '只能封给自己的臣下' };
+      }
+    } else if (site.ownerFaction && lord.faction !== site.ownerFaction) {
+      return { ok: false, msg: '这块地不是他的势力打下来的' };
+    }
+  }
+
+  if (!lord) {
+    const old = siteLord(state, site);
+    site.lordId = null;
+    return { ok: true, msg: old ? '收回了' + site.name + '的封地' : site.name + '本来就没有封主' };
+  }
+
+  const old = siteLord(state, site);
+  if (old && old.id === lord.id) {
+    return { ok: true, msg: site.name + '本来就封给了' + lord.name };
+  }
+
+  site.lordId = lord.id;
+  // 没有主驻地的人，第一块封地就是他的驻地；已有驻地的不搬
+  if (!lord.home || !siteById(state.world, lord.home)) lord.home = site.id;
+  pushLog(state, (old ? '改封' : '封地') + '：' + site.name + '归' + lord.name + '。', 'fief');
+  return {
+    ok: true,
+    msg: (old ? '改封' : '封地') + '：' + site.name + '归' + lord.name,
+    lordId: lord.id,
+    siteId: site.id,
+  };
+}
+
 function lordFromDef(state, def) {
   const home = siteById(state.world, def.home);
   const spot = home
@@ -324,6 +425,7 @@ function lordFromDef(state, def) {
     title: def.title,
     faction: def.faction,
     home: def.home,
+    level: lordLevelForRank(LORD_RANK[def.id] || 'general'),
     x: spot.x,
     y: spot.y,
     troops: deepCopy(def.soldiers),
@@ -1157,11 +1259,12 @@ function moveParties(state) {
   fightNeighbors(state);
 }
 
-/** 按编制给领主补人：先补缺得最多的兵种 */
+/** 按编制给领主补人：先补缺得最多的兵种；不超过等级带兵上限 */
 function refillLord(lord, n) {
   const def = lord.defTroops || {};
   if (!lord.troops) lord.troops = {};
-  let left = Math.max(0, Math.round(n));
+  const cap = lordTroopCap(lord);
+  let left = Math.min(Math.max(0, Math.round(n)), Math.max(0, cap - army.troopCount(lord.troops)));
   while (left > 0) {
     let best = null;
     Object.keys(def).forEach(function (id) {
@@ -1182,6 +1285,8 @@ function recruitLordFromSite(state, lord, site, quota) {
   const pool = site.lordRecruits || {};
   const list = site.recruitList || [];
   let left = Math.max(0, Math.round(quota));
+  const cap = lordTroopCap(lord);
+  left = Math.min(left, Math.max(0, cap - army.troopCount(lord.troops || {})));
   let got = 0;
   while (left > 0) {
     let best = null;
@@ -1209,7 +1314,7 @@ function lordRecruitTick(state) {
     const site = siteAt(state.world, lord.x, lord.y);
     if (!site || (site.type !== 'town' && site.type !== 'castle' && site.type !== 'village')) return;
     if (site.ownerFaction !== lord.faction) return;
-    const full = army.troopCount(lord.defTroops || {});
+    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
     const now = army.troopCount(lord.troops || {});
     if (full <= 0 || now >= full) return;
     const quota = Math.max(1, Math.min(4, Math.round((full - now) * 0.12)));
@@ -1948,6 +2053,8 @@ function takeSite(state, site) {
     site.playerOwned = true;
     site.faction = p.faction || site.faction;
     site.ownerFaction = p.faction || null;
+    // 打下来的地方先不自动封人，等玩家在封地页点将
+    site.lordId = null;
     site.garrison = Math.max(10, Math.round(site.garrisonBase * 0.35));
     site.garrisonBase = site.garrison;
     site.color = p.country && p.country.color ? p.country.color : '#d9a441';
@@ -2205,9 +2312,34 @@ const LORD_RANK = {
 };
 const RANK_NAME = { king: '君主', lord: '领兵者', general: '将领' };
 const RANK_RATE = { king: 5, lord: 3, general: 2 };
+// 等级只决定带兵上限，不决定地位；君主 9 级、领兵者 7 级、普通将领 5 级。
+const LORD_LEVEL_BY_RANK = { king: 9, lord: 7, general: 5 };
 
 function lordRank(lord) {
   return LORD_RANK[lord.id] || 'general';
+}
+
+function lordLevelForRank(rank) {
+  return LORD_LEVEL_BY_RANK[rank] || LORD_LEVEL_BY_RANK.general;
+}
+
+function lordLevel(lord) {
+  if (!lord) return 1;
+  const explicit = Number(lord.level);
+  if (explicit >= 1) return Math.max(1, Math.min(10, Math.round(explicit)));
+  return lordLevelForRank(lordRank(lord));
+}
+
+/** 等级带兵上限：1 级 70，6 级 170，10 级 250；历史领主不低于原编制 */
+function lordCapForLevel(level) {
+  const lv = Math.max(1, Math.min(10, Math.round(Number(level) || 1)));
+  return 50 + lv * 20;
+}
+
+function lordTroopCap(lord) {
+  if (!lord) return 30;
+  const defCount = army.troopCount(lord.defTroops || lord.troops || {});
+  return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
 }
 
 function lordLines(lord) {
@@ -2429,39 +2561,64 @@ function applyCampaignEffect(state, id) {
 
 /* ---------------------------------------------------------------- 封领主 */
 
-/** 把队里的英雄封成领主：他自己带一队人马出去单干 */
-function promoteHero(state, heroId) {
+/** 按等级给出目标编制：等级越高，能带的兵越多，兵种也更齐 */
+function lordRosterForLevel(level, total) {
+  const lv = Math.max(1, Math.min(10, Math.round(Number(level) || 1)));
+  const size = Math.max(1, Math.round(Number(total) || 1));
+  const cav = lv >= 7 ? Math.round(size * 0.18) : 0;
+  const spear = lv >= 4 ? Math.round(size * 0.24) : 0;
+  const out = { militia: Math.max(0, size - cav - spear) };
+  if (spear > 0) out.spear = spear;
+  if (cav > 0) out.cav = cav;
+  return out;
+}
+
+/**
+ * 把队里的英雄封成领主：必须先指定一块城/村作为封地，
+ * 有了封地他才能离开主角的队伍，自己带兵出去。
+ */
+function promoteHero(state, heroId, siteId) {
   const p = state.player;
   const hero = (p.heroes || []).filter(function (h) { return h.id === heroId; })[0];
   if (!hero) return { ok: false, msg: '队伍里没有这个人' };
-  const owned = state.world.sites.filter(function (s) { return s.playerOwned; });
-  if (!owned.length) return { ok: false, msg: '名下得先有一座城，才有地方让他驻' };
-  const home = owned[0];
-  const lv = hero.level || 1;
+  const site = siteById(state.world, siteId);
+  if (!site) return { ok: false, msg: '先给他选一块封地，他才能出镇' };
+  if (site.type === 'camp') return { ok: false, msg: '山寨不能当封地' };
+  if (!site.playerOwned) return { ok: false, msg: '这块地方不是你的' };
+  const current = siteLord(state, site);
+  if (current) return { ok: false, msg: site.name + '已经封给' + current.name + '了，先收回再封' };
+
+  const lv = Math.max(1, Math.min(10, Math.round(hero.level || 1)));
   const heroDef = heroes.heroById(hero.id) || {};
   const heroName = heroDef.name || hero.name || hero.id;
-  const troops = { militia: 18 + lv * 4 };
-  if (lv >= 4) troops.spear = Math.round(lv * 2.5);
-  if (lv >= 7) troops.cav = Math.round(lv * 1.5);
   const id = 'hero_' + hero.id;
   if (state.lords.some(function (l) { return l.id === id; })) {
     return { ok: false, msg: '他已经在外头带兵了' };
   }
+
+  // 目标编制按等级走，封地封多大就带多少；刚出镇只带一半，之后在封地补满
+  const full = lordRosterForLevel(lv, lordCapForLevel(lv));
+  const troops = {};
+  Object.keys(full).forEach(function (tid) {
+    const n = Math.max(0, Math.round(full[tid] * 0.55));
+    if (n > 0) troops[tid] = n;
+  });
   const lord = {
     id: id,
     name: heroName,
     title: '你的家臣',
     faction: p.faction && FACTIONS[p.faction] ? p.faction : 'player',
-    home: home.id,
-    x: home.x,
-    y: home.y,
+    home: site.id,
+    level: lv,
+    x: site.x,
+    y: site.y,
     troops: deepCopy(troops),
     morale: 80,
     sight: 6,
     chasing: false,
     alive: true,
     respawnDay: 0,
-    defTroops: deepCopy(troops),
+    defTroops: deepCopy(full),
     wander: null,
     dead: false,
     retired: false,
@@ -2469,15 +2626,20 @@ function promoteHero(state, heroId) {
     hidden: null,
     resting: false,
     hero: true,
+    independent: true,
   };
+  site.lordId = lord.id;
   state.lords.push(lord);
   p.heroes = p.heroes.filter(function (h) { return h.id !== heroId; });
   p.renown += 40;
-  pushLog(state, '你把' + heroName + '封为领主，拨了' + (18 + lv * 4) + ' 名乡勇。他跪下磕了个头，第二天就带着人出城了。');
+  const startCount = army.troopCount(troops);
+  pushLog(state, '你把' + heroName + '封为' + site.name + '的领主，拨了' + startCount +
+    ' 名乡勇。他跪下磕了个头，第二天就带着人出镇了。', 'fief');
   return {
     ok: true,
-    msg: heroName + '封为领主，驻' + home.name + '（声望 +40）',
+    msg: heroName + '封为' + site.name + '领主（Lv' + lv + ' · 上限 ' + lordTroopCap(lord) + ' 兵，声望 +40）',
     lordId: id,
+    siteId: site.id,
   };
 }
 
@@ -2607,6 +2769,11 @@ function moveLordToFaction(state, lord, target) {
   lord.faction = target;
   if (city) {
     lord.home = city.id;
+    // 旧旗的封地收回；新投的城如果还没封主，就由他接
+    state.world.sites.forEach(function (s) {
+      if (s.lordId === lord.id && s.ownerFaction !== target) s.lordId = null;
+    });
+    if (!city.lordId) city.lordId = lord.id;
     const spot = findFreeSpotNear(state, city.x, city.y, 2) || city;
     lord.x = spot.x;
     lord.y = spot.y;
@@ -2978,6 +3145,7 @@ function deserialize(json) {
     if (l.hidden === undefined) l.hidden = null;
     if (l.resting === undefined) l.resting = false;
     if (l.prisoner === undefined) l.prisoner = null;
+    if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
   const known = {};
   state.lords.forEach(function (l) { known[l.id] = true; });
@@ -2992,6 +3160,7 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  autoAssignFiefs(state);
   war.init(state);
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
@@ -3079,6 +3248,13 @@ module.exports = {
   recruitPrisoner,
   executePrisoner,
   promoteHero,
+  siteLord,
+  lordFiefs,
+  autoAssignFiefs,
+  assignFief,
+  lordLevel,
+  lordCapForLevel,
+  lordTroopCap,
   useHistory,
   renownTitle,
   pushLog,

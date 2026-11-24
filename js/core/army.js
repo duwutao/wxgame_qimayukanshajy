@@ -147,9 +147,23 @@ function distributeLosses(troops, totalLoss) {
   return losses;
 }
 
-/** 部队总人数上限，靠声望提升；开局溃兵允许超编到 30 */
+/**
+ * 部队总人数上限，靠声望提升；开局溃兵允许超编到 30。
+ *
+ * 每 100 声望算一档，第一档 +30 人，之后每档的增幅只剩上一档的 0.9
+ * （锐减度）。前 100 声望 +30，第二个 100 只 +27，再往后 +24.3……
+ * 名声越大，能多带的人越少；上限渐进到 330，不会无限膨胀。
+ */
+const CAPACITY_BASE = 30;
+const CAPACITY_FIRST_STEP = 30;
+const CAPACITY_DECAY = 0.9;
+
 function troopCapacity(renown) {
-  return Math.max(30, 20 + Math.floor((renown || 0) * 0.35));
+  const r = Math.max(0, Number(renown) || 0);
+  const blocks = r / 100;
+  const cap = CAPACITY_BASE
+    + CAPACITY_FIRST_STEP * (1 - Math.pow(CAPACITY_DECAY, blocks)) / (1 - CAPACITY_DECAY);
+  return Math.max(CAPACITY_BASE, Math.floor(cap));
 }
 
 module.exports = {

@@ -818,17 +818,22 @@ ok('招降后归玩家所属势力（无主则是自己的旗）', recruited && 
 // 封领主
 const st17 = stateLib.createGame({ seed: 777011 });
 st17.events.length = 0;
-st17.world.sites[0].playerOwned = true;
-st17.world.sites[0].ownerFaction = null;
+const fiefHome = st17.world.sites[0];
+fiefHome.playerOwned = true;
+fiefHome.ownerFaction = 'player';
+fiefHome.lordId = null;
 st17.player.heroes = [{ id: 'yujin', level: 6, exp: 0 }];
-const pro = stateLib.promoteHero(st17, 'yujin');
-ok('英雄能封成领主', pro.ok, pro.msg);
+const pro = stateLib.promoteHero(st17, 'yujin', fiefHome.id);
+ok('英雄有封地才能封成领主', pro.ok, pro.msg);
 ok('封完离开队伍', st17.player.heroes.length === 0);
 const newLord = st17.lords.filter(function (l) { return l.id === pro.lordId; })[0];
-ok('新领主有兵有驻地', newLord && armyLib.troopCount(newLord.troops) > 0 && !!newLord.home,
+ok('新领主有兵有驻地', newLord && armyLib.troopCount(newLord.troops) > 0 && !!newLord.home &&
+  fiefHome.lordId === newLord.id,
   newLord ? String(armyLib.troopCount(newLord.troops)) + ' 兵' : '无');
 ok('新领主挂在自己的旗（自立）', newLord && (newLord.faction === 'player' || newLord.faction === st17.player.faction),
   newLord ? newLord.faction : '无');
+ok('新领主等级保留英雄等级', newLord && stateLib.lordLevel(newLord) === 6,
+  newLord ? String(stateLib.lordLevel(newLord)) : '无');
 
 /* ---------------------------------------------------------------- 被追上 */
 
@@ -1022,6 +1027,7 @@ ok('首城到手即自立', stC.player.faction === 'player' && !!stC.player.coun
   stC.player.faction + '/' + JSON.stringify(stC.player.country));
 ok('首城归玩家自立势力', firstCity.playerOwned && firstCity.ownerFaction === 'player',
   firstCity.ownerFaction);
+ok('首城打下来先清空旧封主', !firstCity.lordId, String(firstCity.lordId || 'null'));
 ok('首城弹出定国号事件', stC.events.some(function (e) { return e.type === 'founding'; }));
 const badName = stateLib.foundCountry(stC, '大汉', '#b4463c');
 ok('国号只能一个字', badName.ok === false, badName.msg);
@@ -1113,6 +1119,81 @@ ok('史册记下哗变', stFood.log.some(function (l) { return l.text.indexOf('�
 stFood.player.food = 200;
 stateLib.refreshFoodWarning(stFood);
 ok('补足粮草后告警消除', stFood.foodWarning === null);
+
+/* ---------------------------------------------------------------- 封地与容量 */
+
+group('封地 · 领主等级 · 声望容量');
+
+// 开局：所有有主城/村都有本势力领主，山寨除外
+const stFief = stateLib.createGame({ seed: 777012 });
+const fiefSites = stFief.world.sites.filter(function (s) {
+  return s.type !== 'camp' && s.ownerFaction;
+});
+ok('有主城村都有封主', fiefSites.every(function (s) {
+  const l = stateLib.siteLord(stFief, s);
+  return l && l.faction === s.ownerFaction;
+}), fiefSites.filter(function (s) { return !stateLib.siteLord(stFief, s); }).length + ' 处无封主');
+ok('封主数量覆盖城与村', fiefSites.length >= 40, String(fiefSites.length));
+
+// 玩家封地：一领主可管多处，收回后互不影响
+const stFief2 = stateLib.createGame({ seed: 777013 });
+const homeA = stFief2.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+const homeB = stFief2.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+homeA.playerOwned = true; homeA.ownerFaction = 'player'; homeA.lordId = null;
+homeB.playerOwned = true; homeB.ownerFaction = 'player'; homeB.lordId = null;
+stFief2.player.heroes = [{ id: 'yujin', level: 6, exp: 0 }];
+const pro2 = stateLib.promoteHero(stFief2, 'yujin', homeA.id);
+ok('英雄先封城', pro2.ok, pro2.msg);
+const lord2 = stFief2.lords.filter(function (l) { return l.id === pro2.lordId; })[0];
+const assignB = stateLib.assignFief(stFief2, homeB.id, lord2.id);
+ok('同一领主还能管村庄', assignB.ok && homeB.lordId === lord2.id, assignB.msg);
+ok('一个领主两处封地', stateLib.lordFiefs(stFief2, lord2).length === 2,
+  String(stateLib.lordFiefs(stFief2, lord2).length));
+const clearA = stateLib.assignFief(stFief2, homeA.id, null);
+ok('收回一处不误伤另一处', clearA.ok && homeA.lordId === null && homeB.lordId === lord2.id, clearA.msg);
+stFief2.player.heroes = [{ id: 'yuejin', level: 5, exp: 0 }];
+const occupied = stateLib.promoteHero(stFief2, 'yuejin', homeB.id);
+ok('已有封主的地不能再封给别人', !occupied.ok, occupied.msg);
+
+// 等级带兵上限：君主按原编制不缩水，独立英雄按等级涨
+const cao = stFief.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+ok('君主带兵上限不低于原编制', cao && stateLib.lordTroopCap(cao) >= armyLib.troopCount(cao.defTroops),
+  cao ? stateLib.lordTroopCap(cao) + ' / ' + armyLib.troopCount(cao.defTroops) : '无');
+ok('Lv6 独立领主上限 170', newLord && stateLib.lordTroopCap(newLord) === 170,
+  newLord ? String(stateLib.lordTroopCap(newLord)) : '无');
+ok('Lv6 独立领主编制补到上限', newLord && armyLib.troopCount(newLord.defTroops) === 170,
+  newLord ? String(armyLib.troopCount(newLord.defTroops)) : '无');
+
+// 主角声望容量：30 起步，每 100 声望的增幅递减
+const capAt = function (r) { return armyLib.troopCapacity(r); };
+const cap0 = capAt(0);
+const cap100 = capAt(100);
+const cap200 = capAt(200);
+const cap300 = capAt(300);
+const cap400 = capAt(400);
+const cap500 = capAt(500);
+const cap600 = capAt(600);
+const cap550 = capAt(550);
+const cap1000 = capAt(1000);
+ok('零声望容量仍是 30', cap0 === 30, String(cap0));
+ok('第一档 +30', cap100 - cap0 === 30, String(cap100 - cap0));
+ok('第二档 +27', cap200 - cap100 === 27, String(cap200 - cap100));
+ok('第三档 +24', cap300 - cap200 === 24, String(cap300 - cap200));
+ok('增幅逐档锐减', (cap100 - cap0) > (cap200 - cap100) &&
+  (cap200 - cap100) > (cap300 - cap200) &&
+  (cap300 - cap200) > (cap400 - cap300) &&
+  (cap400 - cap300) > (cap500 - cap400) &&
+  (cap500 - cap400) > (cap600 - cap500),
+  [cap0, cap100, cap200, cap300, cap400, cap500, cap600].join('/'));
+ok('一千声望容量不超二百三', cap1000 <= 230, String(cap1000));
+
+// 存档保留封主与等级
+const savedFief = stateLib.serialize(stFief2);
+const backFief = stateLib.deserialize(savedFief);
+ok('存档保留据点封主', !!backFief && backFief.world.sites.filter(function (s) { return s.id === homeB.id; })[0].lordId === lord2.id,
+  backFief ? String(backFief.world.sites.filter(function (s) { return s.id === homeB.id; })[0].lordId) : '无存档');
+const backLord = backFief && backFief.lords.filter(function (l) { return l.id === lord2.id; })[0];
+ok('存档保留领主等级', !!backLord && backLord.level === 6, backLord ? String(backLord.level) : '无存档');
 
 /* ---------------------------------------------------------------- 收尾 */
 

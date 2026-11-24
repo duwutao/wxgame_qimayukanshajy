@@ -169,6 +169,41 @@ smoke('城池：领主府', function () {
   app.top().scene.render(app);
 });
 
+smoke('封地：列表/点将/英雄选封地', function () {
+  const st = app.state;
+  const city = st.world.sites.filter(function (s) { return s.id === 'chenliu'; })[0];
+  const old = {
+    playerOwned: city.playerOwned, ownerFaction: city.ownerFaction, lordId: city.lordId,
+    color: city.color, banner: city.banner,
+  };
+  const oldHeroes = (st.player.heroes || []).slice();
+  city.playerOwned = true;
+  city.ownerFaction = 'player';
+  city.lordId = null;
+  st.player.heroes = [{ id: 'yujin', level: 6, exp: 0 }];
+  app.push('fief', { siteId: city.id });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('封地列表有城池行', app.ui.items.some(function (it) { return it.id === 'fief_site_' + city.id; }));
+  const sc = app.top().scene;
+  sc.mode = 'lords';
+  app.ui.begin();
+  sc.render(app);
+  ok('点将页列出队中英雄', app.ui.items.some(function (it) { return it.id === 'fief_lord_hero_yujin'; }));
+  sc.mode = 'pickHero';
+  sc.heroId = 'yujin';
+  app.ui.begin();
+  sc.render(app);
+  ok('英雄选封地页列出空封地', app.ui.items.some(function (it) { return it.id === 'fief_hero_site_' + city.id; }));
+  app.pop();
+  city.playerOwned = old.playerOwned;
+  city.ownerFaction = old.ownerFaction;
+  city.lordId = old.lordId;
+  city.color = old.color;
+  city.banner = old.banner;
+  st.player.heroes = oldHeroes;
+});
+
 smoke('村庄页（招兵/市场/劫掠）', function () {
   app.push('town', { siteId: 'longxi' });
   app.ui.begin();

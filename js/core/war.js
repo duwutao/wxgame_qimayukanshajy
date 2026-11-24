@@ -799,6 +799,11 @@ function resolveSiege(state, cp, day) {
     site.ownerFaction = cp.faction;
     site.faction = cp.faction;
     site.playerOwned = false;
+    // 夺城后由攻方领兵者接管；没有在场领主就等本势力最近的人来接
+    site.lordId = null;
+    const newFiefLord = attackers.filter(function (l) { return l && l.alive && !l.prisoner; })[0]
+      || state.lords.filter(function (l) { return l.alive && l.faction === cp.faction; })[0];
+    if (newFiefLord) site.lordId = newFiefLord.id;
     site.garrison = Math.max(28, Math.round(site.garrisonBase * 0.45));
     site.garrisonBase = site.garrison;
     site.color = FACTIONS[cp.faction] ? FACTIONS[cp.faction].color : site.color;
