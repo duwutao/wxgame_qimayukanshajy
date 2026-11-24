@@ -264,7 +264,7 @@ ok('拿城统计 +1', st4.stats.sitesTaken === 1);
 
 group('战役链');
 const st5 = stateLib.createGame({ seed: 555 });
-st5.campaign.stage = 2;
+st5.campaign.stage = 4;
 const wuchao = stateLib.startCampaignBattle(st5, 'wuchao');
 ok('乌巢战役可开', !!wuchao && wuchao.b.initialCount === 170, String(wuchao && wuchao.b.initialCount));
 ok('乌巢是火攻战场', wuchao.fireGround === true);
@@ -276,7 +276,7 @@ ok('乌巢可胜', res.result === 'win', res.result);
 ok('乌巢改写袁军', st5.flags.win_act2 === true && st5.world.sites.filter(function (s) {
   return s.ownerFaction === 'yuan';
 }).every(function (s) { return s.garrisonBase <= 80; }));
-ok('战役推进到第三幕', st5.campaign.stage >= 3, String(st5.campaign.stage));
+ok('战役推进到第三幕', st5.campaign.stage >= 5, String(st5.campaign.stage));
 
 /* ---------------------------------------------------------------- 结局 */
 
@@ -725,9 +725,82 @@ stateLib.update(st20, 1.3);
 const h1 = st20.clock.day * 24 + st20.clock.hour;
 ok('原地不动时辰也在走', h1 - h0 >= 4, h0 + ' → ' + h1);
 
+/* ---------------------------------------------------------------- 前期剧情 / NPC 走路 */
+
+group('前期剧情与 NPC 走路');
+
+const st21 = stateLib.createGame({ seed: 2121 });
+st21.events.length = 0;
+// 先走正路：三十人成军，立刻弹出濮阳的幕间
+st21.campaign.stage = 1;
+st21.player.atSiteId = 'chenliu';
+st21.player.troops = { militia: 30 };
+stateLib.advanceCampaign(st21);
+ok('三十人成军后弹出濮阳幕间', st21.campaign.stage === 2 &&
+  st21.events.some(function (e) { return e.type === 'chapter' && e.chapterId === 'act1b'; }),
+  String(st21.campaign.stage));
+st21.events.length = 0;
+
+st21.campaign.stage = 2;
+const puyang = st21.world.sites.filter(function (s) { return s.id === 'puyang'; })[0];
+st21.player.atSiteId = 'puyang';
+const raidObj = stateLib.campaignObjective(st21, puyang);
+ok('濮阳有幕间小仗', !!raidObj && raidObj.id === 'puyang_raid' && raidObj.needTroops === 45,
+  raidObj ? raidObj.id + '/' + raidObj.needTroops : '无');
+ok('三十人还打不动濮阳', stateLib.tryCampaignBattle(st21) === null);
+st21.player.troops = { militia: 30, spear: 15 };
+st21.flags.campaignCool = 0;
+const raidBattle = stateLib.tryCampaignBattle(st21);
+ok('四十五人能打濮阳小仗', !!raidBattle && raidBattle.b.initialCount === 55, String(raidBattle && raidBattle.b.initialCount));
+raidBattle.b.troops = { militia: 4 };
+while (!raidBattle.finished) raidBattle.step();
+st21.player.troops = { militia: 40, spear: 10 };
+stateLib.resolveBattle(st21, raidBattle);
+ok('濮阳小仗算进剧情', st21.flags.win_act1b === true && st21.campaign.stage === 3,
+  String(st21.campaign.stage));
+
+st21.player.troops = { militia: 60 };
+st21.player.food = 90;
+const goldB = st21.player.gold;
+const foodB = st21.player.food;
+stateLib.advanceCampaign(st21);
+ok('整军幕间要求 60 人 80 粮', st21.campaign.stage === 4, String(st21.campaign.stage));
+ok('整军给了钱粮', st21.player.gold === goldB + 200 && st21.player.food === foodB + 30,
+  '+' + (st21.player.gold - goldB) + '金 +' + (st21.player.food - foodB) + '粮');
+
+st21.player.food = 200;
+st21.player.troops = { militia: 60 };
+st21.player.atSiteId = 'guandu';
+st21.flags.campaignCool = 0;
+ok('六十人还不够打乌巢', stateLib.tryCampaignBattle(st21) === null);
+st21.player.troops = { militia: 90 };
+st21.flags.campaignCool = 0;
+const wuchaoB = stateLib.tryCampaignBattle(st21);
+ok('九十人才放行乌巢', !!wuchaoB && wuchaoB.b.initialCount === 170,
+  String(wuchaoB && wuchaoB.b.initialCount));
+
+// NPC 不再瞬移：格子上算到了，但画面上要一步一步走过去
+const st22 = stateLib.createGame({ seed: 2222 });
+st22.events.length = 0;
+stateLib.advanceTime(st22, 3);
+stateLib.update(st22, 0.06);
+const walker = st22.parties.filter(function (q) { return q.stepFrom && q.stepTo; })[0] ||
+  st22.lords.filter(function (l) { return l.stepFrom && l.stepTo; })[0];
+ok('NPC 迈步有起终点', !!walker && !!walker.stepFrom && !!walker.stepTo);
+if (walker) {
+  const mid = stateLib.unitAnimPos(walker, walker.stepStartH + walker.stepHours / 2);
+  const between = (mid.x - walker.stepFrom.x) * (mid.x - walker.stepTo.x) < 0 ||
+    (mid.y - walker.stepFrom.y) * (mid.y - walker.stepTo.y) < 0;
+  ok('半路上画在两格之间', between, JSON.stringify(mid));
+  const end = stateLib.unitAnimPos(walker, walker.stepStartH + walker.stepHours + 0.01);
+  ok('走完落在目标格', Math.abs(end.x - walker.x) < 1e-6 && Math.abs(end.y - walker.y) < 1e-6);
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
 console.log('通过 ' + pass + ' 项，失败 ' + fail + ' 项');
 console.log('='.repeat(44));
 process.exit(fail ? 1 : 0);
+
+

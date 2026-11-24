@@ -158,7 +158,7 @@ function menuItems(app, site) {
     list.push({
       id: 'm_market', label: '市场', sub: '粮草 · 货物 · 军械',
       right: '粮 ' + economy.foodPrice(site) + ' 金/单位',
-      onTap: function () { app.townView.view = 'market'; app.townView.tab = 'goods'; },
+      onTap: function () { app.townView.view = 'market'; app.townView.tab = 'food'; },
     });
     list.push({
       id: 'm_tavern', label: '酒馆', sub: '接活 · 打听消息 · 招募英雄', right: '→',
@@ -368,12 +368,12 @@ function renderGoods(app, site) {
   const p = app.state.player;
   const carried = trade.goodsCount(p);
 
-  text(ctx, '驮队 ' + carried + ' / ' + trade.GOODS_CAP + ' 件', PAD, 360, { size: 21, color: '#efe3c6' });
-  text(ctx, '买低卖高，异地差价就是利润', w - PAD, 366, {
-    size: 15, align: 'right', color: '#8a8070',
+  text(ctx, '驮队 ' + carried + ' / ' + trade.GOODS_CAP + ' 件', PAD, 388, { size: 21, color: '#efe3c6' });
+  text(ctx, '这里只是货，不顶口粮：低价买进、别城卖出，赚的是转手的差价。', PAD, 362, {
+    size: 15, color: '#c9a05a',
   });
 
-  const top = 396;
+  const top = 428;
   const cw = (w - PAD * 2 - 10) / 2;
   const rh = 96;
 
@@ -521,8 +521,8 @@ function renderMarket(app, site, tab) {
   const st = app.state;
 
   const tabs = [
-    { id: 'goods', label: '货物' },
     { id: 'food', label: '粮草' },
+    { id: 'goods', label: '货物' },
     { id: 'arms', label: '军械' },
   ];
   const tw = (w - PAD * 2) / 3;
@@ -872,7 +872,7 @@ const TownScene = {
     app.townView = {
       siteId: params.siteId,
       view: params.view || 'menu',
-      tab: 'goods',
+      tab: 'food',
       goodId: null,
       estimate: null,
       scroll: 0,
@@ -932,4 +932,5 @@ const TownScene = {
 };
 
 module.exports = TownScene;
+
 

@@ -557,6 +557,7 @@ function update(state, dtSeconds) {
   if (state.gameOver) return;
   const dt = dtSeconds * (state.timeScale || 1);
   const p = state.player;
+  settleUnitSteps(state);
 
   if (p.route.length && p.stepTo) {
     // 一步一步走：一帧最多交代一格，落格后立刻刷新插值起点，
@@ -790,6 +791,49 @@ function nearestBandit(state, lord, range) {
   return best;
 }
 
+/* ------------------------------------------------------------ NPC 走路 */
+
+/** NPC 当前该画在哪：按游戏时辰在两格之间插值，跟主角一样一步一步走 */
+function unitAnimPos(unit, nowH) {
+  if (!unit.stepFrom || !unit.stepTo) return { x: unit.x, y: unit.y };
+  const dur = unit.stepHours || NPC_STEP_HOURS;
+  if (dur <= 0) return { x: unit.x, y: unit.y };
+  const t = (nowH - (unit.stepStartH || 0)) / dur;
+  if (t >= 1) return { x: unit.x, y: unit.y };
+  const k = Math.max(0, t);
+  return {
+    x: unit.stepFrom.x + (unit.stepTo.x - unit.stepFrom.x) * k,
+    y: unit.stepFrom.y + (unit.stepTo.y - unit.stepFrom.y) * k,
+  };
+}
+
+/** 迈一步：格子上立刻算到新位置，画面上用 stepHours 个时辰走过去 */
+function stepUnitTo(state, unit, step, hours) {
+  const nowH = gameHours(state);
+  const from = unitAnimPos(unit, nowH);
+  unit.stepFrom = from;
+  unit.stepTo = { x: step.x, y: step.y };
+  unit.stepStartH = nowH;
+  unit.stepHours = Math.max(0.4, hours);
+  unit.x = step.x;
+  unit.y = step.y;
+}
+
+/** 结算走完的那一步，别让插值数据一直挂着 */
+function settleUnitSteps(state) {
+  const nowH = gameHours(state);
+  state.parties.concat(state.lords).forEach(function (u) {
+    if (!u.stepFrom || !u.stepTo) return;
+    const dur = u.stepHours || NPC_STEP_HOURS;
+    if (nowH - (u.stepStartH || 0) >= dur) {
+      u.stepFrom = null;
+      u.stepTo = null;
+      u.stepStartH = null;
+      u.stepHours = null;
+    }
+  });
+}
+
 function moveParties(state) {
   const p = state.player;
   state.parties.forEach(function (party) {
@@ -819,8 +863,7 @@ function moveParties(state) {
     if (!target) return;
     const step = greedyStep(state, party, target);
     if (step) {
-      party.x = step.x;
-      party.y = step.y;
+      stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
     }
   });
 
@@ -909,8 +952,7 @@ function moveLords(state) {
     if (!target) return;
     const step = greedyStep(state, lord, target);
     if (step) {
-      lord.x = step.x;
-      lord.y = step.y;
+      stepUnitTo(state, lord, step, NPC_STEP_HOURS * 2);
     }
   });
 }
@@ -946,8 +988,7 @@ function retreatFrom(state, unit, threat) {
     }
   });
   if (best) {
-    unit.x = best.x;
-    unit.y = best.y;
+    stepUnitTo(state, unit, best, NPC_STEP_HOURS);
     return true;
   }
   return false;
@@ -1142,6 +1183,12 @@ function startSiege(state, site) {
 /** 战役专用战斗：预设敌军，带场景加成 */
 function startCampaignBattle(state, id) {
   const configs = {
+    puyang_raid: {
+      name: '黄巾余部', faction: 'bandit', morale: 60,
+      troops: { militia: 35, bandit: 12, spear: 8 },
+      context: { kind: 'campaign', campaignId: 'act1b', siteName: '濮阳城外' },
+      fire: false,
+    },
     wuchao: {
       name: '乌巢粮营', faction: 'yuan', morale: 55,
       troops: { militia: 80, spear: 50, cav: 30, heavy: 10 },
@@ -1717,7 +1764,9 @@ function campaignState(state) {
 const CAMPAIGN_HINT = {
   reach_chenliu: '往东走到陈留。路上别停，西凉铁骑会追。',
   troops_30: '在陈留一带招兵，凑到 30 人；市集里也备点粮。',
-  win_wuchao: '回官渡。到了就会有一场硬仗。',
+  win_puyang: '带上 45 人以上去濮阳。黄巾余部就在城外截粮，到了就开打。',
+  troops_60_food: '募到 60 人、粮草备足 80。人不够就往北走，去了乌巢也是送。',
+  win_wuchao: '带 90 人以上回官渡。到了就会有一场硬仗。',
   take_xiapi: '南下打下邳。',
   win_chibi: '去赤壁或柴桑，水战自己会来。',
   win_yiling: '去夷陵。',
@@ -1753,6 +1802,7 @@ function advanceCampaign(state) {
     if (ch.reward) {
       if (ch.reward.renown) state.player.renown += ch.reward.renown;
       if (ch.reward.gold) state.player.gold += ch.reward.gold;
+      if (ch.reward.food) state.player.food += ch.reward.food;
       if (ch.reward.shi) state.player.shi += ch.reward.shi;
       if (ch.reward.banner) {
         state.player.banner = true;
@@ -1763,7 +1813,9 @@ function advanceCampaign(state) {
     if (ch.id === 'prologue') {
       state.parties = state.parties.filter(function (p) { return !p.scripted; });
     }
-    state.events.push({ type: 'chapter', chapterId: ch.id });
+    // 卡片是"下一章开场"：让人先看见接下来的故事，而不是回头讲上一章
+    const next = CAMPAIGN[c.stage];
+    state.events.push({ type: 'chapter', chapterId: next ? next.id : ch.id });
     pushLog(state, '【' + ch.title + '】' + (ch.after || ''));
     advanceCampaign(state);
   }
@@ -1782,6 +1834,8 @@ function checkCampaign(state, key) {
     return false;
   }
   if (key === 'win_wuchao') return !!state.flags['win_act2'];
+  if (key === 'win_puyang') return !!state.flags['win_act1b'];
+  if (key === 'troops_60_food') return count >= 60 && p.food >= 80;
   if (key === 'take_xiapi') {
     const s = siteById(state.world, 'xiapi');
     return !!(s && s.playerOwned) || !!state.flags.lvbuBeaten || !!state.flags['win_act3'];
@@ -1796,10 +1850,11 @@ function checkCampaign(state, key) {
 function campaignObjective(state, site) {
   if (!site) return null;
   const stage = state.campaign.stage;
-  if (stage === 2 && site.id === 'guandu') return { id: 'wuchao', name: '乌巢粮营' };
-  if (stage === 4 && (site.id === 'chibi' || site.id === 'chaisang')) return { id: 'chibi', name: '曹操水寨' };
-  if (stage === 5 && site.id === 'yiling') return { id: 'yiling', name: '连营守军' };
-  if (stage === 6 && ['xuchang', 'chengdu', 'jianye', 'ye'].indexOf(site.id) >= 0) {
+  if (stage === 2 && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
+  if (stage === 4 && site.id === 'guandu') return { id: 'wuchao', name: '乌巢粮营', needTroops: 90 };
+  if (stage === 6 && (site.id === 'chibi' || site.id === 'chaisang')) return { id: 'chibi', name: '曹操水寨' };
+  if (stage === 7 && site.id === 'yiling') return { id: 'yiling', name: '连营守军' };
+  if (stage === 8 && ['xuchang', 'chengdu', 'jianye', 'ye'].indexOf(site.id) >= 0) {
     return { id: 'final', name: '无旗亲军', needTroops: 250 };
   }
   return null;
@@ -1822,7 +1877,10 @@ function tryCampaignBattle(state) {
 
 /** 战役好感/后果：乌巢一把火，袁军全线松动 */
 function applyCampaignEffect(state, id) {
-  if (id === 'act2') {
+  if (id === 'act1b') {
+    state.flags['win_act1b'] = true;
+    pushLog(state, '濮阳城外的黄巾散了，粮车一辆不少地推进了城。');
+  } else if (id === 'act2') {
     state.flags['win_act2'] = true;
     changeRelation(state, 'yuan', -70);
     state.world.sites.forEach(function (s) {
@@ -2361,6 +2419,7 @@ module.exports = {
   SAVE_VERSION,
   createGame,
   update,
+  unitAnimPos,
   goTo,
   currentPos,
   stopMoving,

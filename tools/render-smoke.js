@@ -469,6 +469,39 @@ smoke('大地图：自由视野 + 跳回原处', function () {
   ok('点了就回自己身边', app.mapFree === false);
 });
 
+smoke('市场默认先看粮草，货物有转卖备注', function () {
+  app.state = stateLib.createGame({ seed: 4324 });
+  app.state.events.length = 0;
+  app.state.player.atSiteId = 'chenliu';
+  app.replace('town', { siteId: 'chenliu' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const market = app.ui.items.filter(function (b) { return b.id === 'm_market'; })[0];
+  ok('菜单里有市场', !!market);
+  if (market) market.onTap();
+  ok('进市场先落在粮草页', app.townView.tab === 'food', app.townView.tab);
+  app.ui.begin();
+  app.top().scene.render(app);
+  const idf = app.ui.items.filter(function (b) { return b.id === 'tab_food'; })[0];
+  const idg = app.ui.items.filter(function (b) { return b.id === 'tab_goods'; })[0];
+  ok('粮草标签排在货物前面', !!idf && !!idg && idf.x < idg.x);
+  app.townView.tab = 'goods';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('货物页画得出来', true);
+});
+
+smoke('新增幕间章节卡', function () {
+  app.state = stateLib.createGame({ seed: 4325 });
+  app.state.events.length = 0;
+  app.replace('map');
+  app.push('chapter', { id: 'act1b' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('濮阳幕间卡有正文', !!app.chapterView && !!app.chapterView.ch && app.chapterView.ch.id === 'act1b');
+  app.pop();
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {

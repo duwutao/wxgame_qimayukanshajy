@@ -589,9 +589,11 @@ function drawUnits(ctx, app, cam, box, w) {
 
   // 匪团：一整队人（按档位换造型），人一眼能看出该不该惹
   const z = app.mapZoom || 1;
+  const nowH = stateLib.gameHours(st);
   st.parties.forEach(function (p) {
-    const sx = p.x * TS - cam.x + TS / 2;
-    const sy = box.top + p.y * TS - cam.y + TS / 2;
+    const up = stateLib.unitAnimPos(p, nowH);
+    const sx = up.x * TS - cam.x + TS / 2;
+    const sy = box.top + up.y * TS - cam.y + TS / 2;
     if (sx < -40 || sx > w + 40 || sy < box.top - 40 || sy > box.top + box.h + 40) return;
     const icon = assets.banditPartyFor(p.banditTier || 'qing', p.color);
     const sz = (p.banditTier === 'hong' ? 70 : p.banditTier === 'cheng' ? 64 : 56) * z;
@@ -649,8 +651,9 @@ function drawUnits(ctx, app, cam, box, w) {
   // 领主
   st.lords.forEach(function (lord) {
     if (!lord.alive) return;
-    const sx = lord.x * TS - cam.x + TS / 2;
-    const sy = box.top + lord.y * TS - cam.y + TS / 2;
+    const up = stateLib.unitAnimPos(lord, nowH);
+    const sx = up.x * TS - cam.x + TS / 2;
+    const sy = box.top + up.y * TS - cam.y + TS / 2;
     if (sx < -50 || sx > w + 50 || sy < box.top - 50 || sy > box.top + box.h + 50) return;
     const hostile = stateLib.isHostileFaction(st, lord.faction);
     const col = FACTIONS[lord.faction] ? FACTIONS[lord.faction].color : '#999';
@@ -880,8 +883,10 @@ function drawTop(ctx, app, w) {
   text(ctx, '第 ' + st.clock.day + ' 天 ' + pad(hour) + ' 时', 16, 12, { size: 20, color: '#c9bda2' });
 
   const fac = p.faction ? FACTIONS[p.faction].full : '无主';
-  text(ctx, p.flagName === '无旗' ? p.name : p.flagName, 16, 40, { size: 24, color: '#f0c060' });
-  text(ctx, '· ' + stateLib.renownTitle(p.renown) + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
+  const title = stateLib.renownTitle(p.renown);
+  // 没有旗的时候，左上角挂的就是声望换来的称号：一仗一仗往上走
+  text(ctx, p.flagName === '无旗' ? title : p.flagName, 16, 40, { size: 24, color: '#f0c060' });
+  text(ctx, '· ' + (p.flagName === '无旗' ? p.name : title) + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
   // 倍速
   const speeds = [1, 2, 3];
