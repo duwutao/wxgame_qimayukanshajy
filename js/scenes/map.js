@@ -220,6 +220,7 @@ const MapScene = {
     app.mapDrag = null;
     app.follow = null;
     app.mapFree = false;
+    app.siegePrompt = null;
     ensureCam(app);
     flows.process(app);
     if (app.state && app.state.player.atSiteId) {
@@ -293,7 +294,9 @@ const MapScene = {
     drawTop(ctx, app, w);
     drawBottom(ctx, app, w, box);
     drawZoomButtons(ctx, app, box, w);
+    drawSiegeStatus(ctx, app, box, w);
     drawFreeHint(ctx, app, box, w);
+    drawSiegePrompt(ctx, app, box, w);
   },
 
   onTouchStart(app, x, y) {
@@ -323,6 +326,8 @@ const MapScene = {
     if (!d) return;
     if (d.dragging) return;
     if (app.lastHit) return;
+    // 围城去留弹窗开着时，只认弹窗里的两个按钮；点外面不误操作地图
+    if (app.siegePrompt) return;
     const box = mapBox(app);
     if (y < TOP_H || y > TOP_H + box.h) return;
 
@@ -348,6 +353,23 @@ const MapScene = {
 
     // 先看脚下是不是城：自己和城在同一格时，优先点城（不然总说"已经在这里"）
     const site = siteAt(st.world, tx, ty);
+
+    // 城下扎营时，点围着的城=看围营进度；点别处=先问一句继续围还是拔营
+    const siegeSite = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
+    if (siegeSite) {
+      if (site && site.id === siegeSite.id) {
+        st.player.atSiteId = siegeSite.id;
+        app.push('town', { siteId: siegeSite.id, view: 'siege' });
+      } else {
+        app.siegePrompt = {
+          siteId: siegeSite.id,
+          x: x,
+          y: y,
+        };
+      }
+      return;
+    }
+
     if (site) {
       const onSite = st.player.x === site.x && st.player.y === site.y;
       if (onSite) {
@@ -363,8 +385,8 @@ const MapScene = {
             if (site.type === 'town' || site.type === 'castle') {
               const r = stateLib.beginPlayerSiege(st, site);
               if (r.ok) {
-                app.push('town', { siteId: site.id, view: 'siege' });
-                app.showToast('城下扎营：需围 ' + r.days + ' 天，围成后才能决战。', 2.6);
+                // 扎营后不跳围城页：留在大地图看时辰流动，围满再点城下营寨
+                app.showToast('城下扎营：需围 ' + r.days + ' 天，围成后才能决战。', 3);
               } else {
                 app.showToast(r.msg, 2.4);
               }
@@ -635,7 +657,7 @@ function drawSites(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
   const lowZoom = (app.mapZoom || 1) < 0.45;
-  const capitalLabels = [];
+  const lowZoomLabels = [];
 
   ctx.save();
   ctx.beginPath();
@@ -655,9 +677,11 @@ function drawSites(ctx, app, cam, box, w) {
     const playerColor = FACTIONS.player ? FACTIONS.player.color : '#d9a441';
     const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
 
-    // 拉远看整张天下时，城池收成势力色小点；国都仍要留名字，不许缩成无名点
+    // 拉远看整张天下时，城池收成势力色小点；城与关隘的名字照样留在图上
     if (lowZoom) {
-      const col = site.ownerFaction && FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#7a7266';
+      const col = site.playerOwned ? playerColor
+        : site.playerBlocked ? '#b4463c'
+          : site.ownerFaction && FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#7a7266';
       const r = isCapital ? 4.6 : site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
       ctx.beginPath();
       ctx.arc(sx + TS / 2, sy + TS / 2, r, 0, Math.PI * 2);
@@ -669,8 +693,14 @@ function drawSites(ctx, app, cam, box, w) {
           : siege ? '#e06a42'
             : site.playerOwned ? playerColor : 'rgba(10,8,6,0.65)';
       ctx.stroke();
-      if (isCapital) {
-        capitalLabels.push({ site: site, sx: sx + TS / 2, sy: sy + TS / 2, color: col });
+      if (site.type === 'town' || site.type === 'castle') {
+        lowZoomLabels.push({
+          site: site,
+          sx: sx + TS / 2,
+          sy: sy + TS / 2,
+          color: site.playerOwned ? playerColor : '#ffe9c4',
+          cap: isCapital,
+        });
       }
       return;
     }
@@ -678,8 +708,14 @@ function drawSites(ctx, app, cam, box, w) {
     const sprite = assets.site[site.type] || assets.site.village;
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
-    // 势力旗
-    if (site.ownerFaction) {
+    // 势力旗：无主城围攻失败后，城头插一面“仇”字赤旗，和敌对城一个待遇
+    if (site.playerBlocked && !site.ownerFaction) {
+      ctx.fillStyle = '#b4463c';
+      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
+      ctx.fillStyle = 'rgba(255,235,210,0.8)';
+      ctx.fillRect(sx + TS - 16, sy + 4, 12, 2);
+      text(ctx, '仇', sx + TS - 10, sy + 6, { size: 13, align: 'center', color: '#fff' });
+    } else if (site.ownerFaction) {
       const col = FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#8f8f86';
       ctx.fillStyle = col;
       ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
@@ -715,39 +751,49 @@ function drawSites(ctx, app, cam, box, w) {
     if (site.playerOwned) ctx.fillRect(bx, by, tw + 16, 2);
     text(ctx, label, sx + TS / 2, by + 5, {
       size, align: 'center',
-      color: site.playerOwned ? playerColor : isTown ? '#f2e7cd' : isCastle ? '#ded2b6' : '#b9ad92',
+      color: site.playerOwned ? playerColor : site.playerBlocked ? '#e0a090'
+        : isTown ? '#f2e7cd' : isCastle ? '#ded2b6' : '#b9ad92',
       shadow: true,
     });
   });
 
-  // 极小缩放：国都名牌单独画在外圈，保证十座都城在任何缩放下都认得出
-  if (lowZoom && capitalLabels.length) {
+  // 极小缩放：城与关隘的名字都单独画在外圈。能避让就避让，避不开也至少保留名字，
+  // 免得整张天下缩下去以后只剩一堆无名点。
+  if (lowZoom && lowZoomLabels.length) {
     const placed = [];
-    capitalLabels.forEach(function (l) {
+    // 国都先排，再排一般城与关隘
+    lowZoomLabels.sort(function (a, b) { return (b.cap ? 1 : 0) - (a.cap ? 1 : 0); });
+    lowZoomLabels.forEach(function (l) {
       const name = l.site.name;
-      ctx.font = 'bold 11px "PingFang SC","Microsoft YaHei",sans-serif';
+      // 缩到整张天下时，城名至少保留到能认出字的尺寸；宁可略挤，也不让名字变成黑点
+      const fs = l.cap ? 16 : 14;
+      ctx.font = 'bold ' + fs + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(name).width;
+      const boxH = fs + 4;
       const candidates = [
-        { x: l.sx - tw / 2, y: l.sy + 7 },
-        { x: l.sx - tw / 2, y: l.sy - 19 },
-        { x: l.sx + 6, y: l.sy - 6 },
-        { x: l.sx - tw - 6, y: l.sy - 6 },
-        { x: l.sx - tw / 2, y: l.sy + 23 },
+        { x: l.sx - tw / 2, y: l.sy + 6 },
+        { x: l.sx - tw / 2, y: l.sy - boxH - 6 },
+        { x: l.sx + 6, y: l.sy - boxH / 2 },
+        { x: l.sx - tw - 6, y: l.sy - boxH / 2 },
+        { x: l.sx - tw / 2, y: l.sy + boxH + 8 },
+        { x: l.sx - tw / 2, y: l.sy - boxH * 2 - 8 },
       ];
       let spot = null;
       for (let i = 0; i < candidates.length; i++) {
         const c = candidates[i];
         if (!placed.some(function (r) {
-          return c.x < r.x + r.w && c.x + tw + 6 > r.x && c.y < r.y + r.h && c.y + 15 > r.y;
+          return c.x < r.x + r.w && c.x + tw + 6 > r.x && c.y < r.y + r.h && c.y + boxH > r.y;
         })) { spot = c; break; }
       }
       if (!spot) spot = candidates[0];
-      placed.push({ x: spot.x, y: spot.y, w: tw + 6, h: 15 });
-      ctx.fillStyle = 'rgba(8,6,4,0.88)';
-      ctx.fillRect(spot.x, spot.y, tw + 6, 15);
-      ctx.fillStyle = l.color;
-      ctx.fillRect(spot.x, spot.y, 2, 15);
-      text(ctx, name, spot.x + 5, spot.y + 2, { size: 11, color: '#ffe9c4' });
+      placed.push({ x: spot.x, y: spot.y, w: tw + 6, h: boxH });
+      ctx.fillStyle = 'rgba(8,6,4,0.86)';
+      ctx.fillRect(spot.x, spot.y, tw + 6, boxH);
+      ctx.fillStyle = l.cap ? '#ffe0a8' : l.color;
+      ctx.fillRect(spot.x, spot.y, 2, boxH);
+      text(ctx, name, spot.x + 4, spot.y + 1, {
+        size: fs, color: l.cap ? '#ffe9c4' : l.color,
+      });
     });
   }
   ctx.restore();
@@ -1192,6 +1238,86 @@ function drawTop(ctx, app, w) {
   // 战役目标不放在顶栏了，改成地图上的任务卡（见 drawQuestCard）
 }
 
+/** 地图上的围营卡：不打开城页也能看到第几天、还差几个时辰 */
+function drawSiegeStatus(ctx, app, box, w) {
+  const st = app.state;
+  const ps = st && st.playerSiege;
+  if (!ps || app.siegePrompt) return;
+  const site = siteById(st.world, ps.siteId);
+  if (!site) return;
+  const now = stateLib.gameHours(st);
+  const left = Math.max(0, ps.readyHour - now);
+  const ready = ps.stage === 'ready' || left <= 0;
+  const day = Math.min(ps.days, Math.floor(Math.max(0, now - ps.startHour) / 24) + 1);
+  const pw = Math.min(520, w - 20);
+  const ph = 82;
+  const x = 10;
+  const y = box.top + 136;
+  const ratio = Math.max(0, Math.min(1, 1 - left / (ps.days * 24)));
+
+  ctx.fillStyle = 'rgba(10,8,6,0.88)';
+  ctx.fillRect(x, y, pw, ph);
+  ctx.fillStyle = ready ? '#8fbf7a' : '#d9a441';
+  ctx.fillRect(x, y, 4, ph);
+  text(ctx, '围城 · ' + site.name, x + 16, y + 6, { size: 20, color: '#f0c060' });
+  text(ctx, ready ? '已围成 · 点这里决战' : '第 ' + day + ' / ' + ps.days + ' 天 · 还需 ' + Math.ceil(left) + ' 时辰',
+    x + 16, y + 30, { size: 15, color: ready ? '#8fbf7a' : '#c9bda2' });
+  text(ctx, '时辰在大地图上流动', x + pw - 12, y + 8, {
+    size: 12, align: 'right', color: '#8a8070',
+  });
+  bar(ctx, x + 16, y + 54, pw - 32, 10, ratio, ready ? '#8fbf7a' : '#c97a42');
+  app.ui.rect('siege_status', x, y, pw, ph, function () {
+    st.player.atSiteId = site.id;
+    app.push('town', { siteId: site.id, view: 'siege' });
+  });
+}
+
+/** 围城中点别处：先问是继续围，还是拔营离开 */
+function drawSiegePrompt(ctx, app, box, w) {
+  const sp = app.siegePrompt;
+  if (!sp) return;
+  const st = app.state;
+  const site = siteById(st.world, sp.siteId);
+  if (!site) { app.siegePrompt = null; return; }
+
+  ctx.fillStyle = 'rgba(6,4,3,0.72)';
+  ctx.fillRect(0, 0, w, app.runtime.height);
+  // 弹窗开着时，只让弹窗的两个按钮接点击；后面的地图按钮全部作废
+  app.ui.items.length = 0;
+  app.ui.pressed = null;
+  const pw = Math.min(620, w - 36);
+  const ph = 320;
+  const x = (w - pw) / 2;
+  const y = box.top + Math.max(60, (box.h - ph) / 2);
+  panel(ctx, x, y, pw, ph, { fill: '#241c14', shadow: true });
+
+  text(ctx, '还在围' + site.name, x + 26, y + 24, { size: 30, color: '#f0c060' });
+  const lines = wrap(ctx, '城下营寨已经扎好，围城时辰还在走。要留在这里继续围，还是拔营去别处？', pw - 52, 18);
+  lines.slice(0, 2).forEach(function (ln, i) {
+    text(ctx, ln, x + 26, y + 76 + i * 26, { size: 18, color: '#efe3c6' });
+  });
+  text(ctx, '拔营后，之前围掉的时辰就白费了。', x + 26, y + 138, {
+    size: 15, color: '#a2947a',
+  });
+
+  const bw = (pw - 52 - 14) / 2;
+  app.ui.button(ctx, x + 26, y + 188, bw, 78, '继续围城', {
+    id: 'siege_prompt_keep', size: 24, fill: '#33271b', onTap: function () {
+      app.siegePrompt = null;
+    },
+  });
+  app.ui.button(ctx, x + 26 + bw + 14, y + 188, bw, 78, '拔营离开', {
+    id: 'siege_prompt_leave', size: 24, fill: '#4a241c', onTap: function () {
+      const r = stateLib.cancelPlayerSiege(st);
+      app.siegePrompt = null;
+      app.showToast(r.msg || '已拔营离开。', 2.4);
+    },
+  });
+  text(ctx, '围城计时只在大地图上流动', x + pw / 2, y + ph - 42, {
+    size: 14, align: 'center', color: '#8a8070',
+  });
+}
+
 function drawBottom(ctx, app, w, box) {
   const y0 = box.top + box.h;
   ctx.fillStyle = '#171310';
@@ -1217,9 +1343,12 @@ function drawBottom(ctx, app, w, box) {
   const p = st.player;
   const wars = stateLib.factionWars(st);
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
-  const hint = (p.route && p.route.length
-    ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))
+  const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
+  const hint = (siegeNow
+    ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
+    : (p.route && p.route.length
+      ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
+      : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移')))
     + warTxt;
   text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
 }

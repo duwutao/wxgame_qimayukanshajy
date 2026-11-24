@@ -298,6 +298,100 @@ function createRuntime() {
         if (pinch || blocked) endPinch(remain);
       }, { passive: false });
     },
+    /** 系统键盘输入：浏览器用临时输入框，小游戏用 showKeyboard；返回可关闭的句柄 */
+    askText: function (opts) {
+      const o = opts || {};
+      if (host === 'web' && typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = Math.max(1, Math.min(8, o.maxLength || 4));
+        input.setAttribute('inputmode', 'text');
+        input.setAttribute('autocomplete', 'off');
+        input.placeholder = o.placeholder || '输入文字';
+        input.value = o.value || '';
+        // 电脑调试时舞台缩在左上角，输入框也要跟着舞台走，不能飘到整页中心
+        const stage = document.getElementById('stage');
+        const stageRect = stage && stage.getBoundingClientRect ? stage.getBoundingClientRect() : null;
+        const inputLeft = stageRect && stageRect.width ? (stageRect.left + stageRect.width / 2) : null;
+        const inputTop = stageRect && stageRect.height ? (stageRect.top + Math.max(24, stageRect.height * 0.12)) : null;
+        input.style.cssText = 'position:fixed;left:' + (inputLeft === null ? '50%' : inputLeft + 'px') +
+          ';top:' + (inputTop === null ? '12%' : inputTop + 'px') + ';transform:translateX(-50%);' +
+          'z-index:99999;width:300px;height:50px;font-size:24px;text-align:center;color:#f0c060;' +
+          'background:#241c14;border:2px solid #d9a441;border-radius:4px;outline:none;' +
+          'font-family:"PingFang SC","Microsoft YaHei",sans-serif;';
+        document.body.appendChild(input);
+        let closed = false;
+        const close = function () {
+          if (closed) return;
+          closed = true;
+          if (input.parentNode) input.parentNode.removeChild(input);
+        };
+        const read = function () { if (o.onInput) o.onInput(input.value); };
+        input.addEventListener('input', read);
+        input.addEventListener('compositionend', read);
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            read();
+            if (o.onDone) o.onDone(input.value);
+            close();
+          }
+        });
+        input.addEventListener('blur', function () {
+          setTimeout(function () {
+            if (o.onDone) o.onDone(input.value);
+            close();
+          }, 0);
+        });
+        setTimeout(function () { input.focus(); }, 30);
+        return {
+          kind: 'web',
+          close: close,
+          setValue: function (v) { input.value = v; },
+          focus: function () { input.focus(); },
+        };
+      }
+      if (api && typeof api.showKeyboard === 'function') {
+        const inputHandler = function (res) {
+          if (o.onInput) o.onInput(res && res.value);
+        };
+        let closed = false;
+        const confirmHandler = function (res) {
+          if (o.onDone) o.onDone(res && res.value);
+          close();
+        };
+        const close = function () {
+          if (closed) return;
+          closed = true;
+          try {
+            if (api.offKeyboardInput) api.offKeyboardInput(inputHandler);
+            if (api.offKeyboardConfirm) api.offKeyboardConfirm(confirmHandler);
+            if (api.hideKeyboard) api.hideKeyboard();
+          } catch (e) { /* ignore */ }
+        };
+        if (api.onKeyboardInput) api.onKeyboardInput(inputHandler);
+        if (api.onKeyboardConfirm) api.onKeyboardConfirm(confirmHandler);
+        try {
+          api.showKeyboard({
+            defaultValue: o.value || '',
+            maxLength: o.maxLength || 1,
+            multiple: false,
+            confirmHold: false,
+            confirmType: 'done',
+          });
+        } catch (e) {
+          close();
+          return null;
+        }
+        return {
+          kind: 'mini',
+          close: close,
+          setValue: function () {},
+          focus: function () {},
+        };
+      }
+      return null;
+    },
+
     storage: {
       get: function (key) {
         try {

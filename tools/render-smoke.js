@@ -802,6 +802,74 @@ smoke('扎营：国号与旗色入口', function () {
   app.pop();
 });
 
+smoke('无主之城：菜单围攻 → 回大地图扎营', function () {
+  const st = app.state = stateLib.createGame({ seed: 9201 });
+  st.events.length = 0;
+  const site = st.world.sites.filter(function (s) {
+    return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+  })[0];
+  app.replace('map');
+  st.player.atSiteId = site.id;
+  app.push('town', { siteId: site.id });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const siegeBtn = app.ui.items.filter(function (it) { return it.id === 'm_besiege'; })[0];
+  ok('无主城菜单有围攻', !!siegeBtn);
+  if (siegeBtn) siegeBtn.onTap();
+  ok('围攻后回大地图', app.stack[app.stack.length - 1].name === 'map',
+    app.stack[app.stack.length - 1].name);
+  ok('围攻状态建立', !!st.playerSiege && st.playerSiege.siteId === site.id);
+  stateLib.cancelPlayerSiege(st);
+});
+
+smoke('围城去留：点别处 → 继续围城 / 拔营离开', function () {
+  const st = app.state = stateLib.createGame({ seed: 9202 });
+  st.events.length = 0;
+  const site = st.world.sites.filter(function (s) {
+    return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+  })[0];
+  st.playerSiege = null;
+  stateLib.beginPlayerSiege(st, site);
+  app.replace('map');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const mapScene = app.top().scene;
+  app.lastHit = null;
+  mapScene.onTouchStart(app, 180, 300);
+  mapScene.onTouchEnd(app, 180, 300);
+  ok('点别处弹出围城去留', !!app.siegePrompt, JSON.stringify(app.siegePrompt));
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('弹窗有继续与离开', app.ui.items.some(function (it) { return it.id === 'siege_prompt_keep'; }) &&
+    app.ui.items.some(function (it) { return it.id === 'siege_prompt_leave'; }));
+  const keep = app.ui.items.filter(function (it) { return it.id === 'siege_prompt_keep'; })[0];
+  if (keep) keep.onTap();
+  ok('继续围城保留围营', !app.siegePrompt && !!st.playerSiege);
+  app.lastHit = null;
+  mapScene.onTouchStart(app, 180, 300);
+  mapScene.onTouchEnd(app, 180, 300);
+  app.ui.begin();
+  app.top().scene.render(app);
+  const leave = app.ui.items.filter(function (it) { return it.id === 'siege_prompt_leave'; })[0];
+  ok('再次点别处仍能弹窗', !!leave);
+  if (leave) leave.onTap();
+  ok('拔营离开清掉围城', !app.siegePrompt && !st.playerSiege);
+});
+
+smoke('立国页：自定义国号入口', function () {
+  const st = app.state = stateLib.createGame({ seed: 9203 });
+  st.events.length = 0;
+  st.player.country = { name: '', color: '#d9a441', foundedDay: 1 };
+  st.player.faction = 'player';
+  app.replace('founding');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const custom = app.ui.items.filter(function (it) { return it.id === 'name_custom'; })[0];
+  ok('立国页有自定义输入', !!custom);
+  if (custom) custom.onTap();
+  ok('没有系统键盘时能降级提示', !!app.toast, app.toast && app.toast.text);
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {

@@ -1,7 +1,6 @@
 /**
  * 天下大势：可缩放的势力总图
- * 缩小（zoom=1）整图适配，标出所有城池名；
- * 放大（zoom>1）铺上各势力领土色、描州界，只留都城与重镇名。
+ * 任何缩放级别都保留城与关隘的名字；放大时铺上各势力领土色、描州界。
  */
 
 const { REGIONS, FACTIONS, CAPITAL_IDS } = require('../data/china.js');
@@ -223,22 +222,32 @@ const AtlasScene = {
         ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, 1);
       }
 
-      // 名字显示规则：放大只留都城，缩小写全部城名；都城无论缩放都不许消失
+      // 城与关隘的名字在天下大势的每个缩放级别都保留：能避让就避让，避不开也不隐藏
       const isCap = CAPITAL_IDS.indexOf(s.id) >= 0;
-      if (detailed && !isCap) return;
-      if (!detailed && !big && zoom > 1.2) return;
-
-      const fs = detailed ? 13 : 11;
+      const fs = detailed ? (isCap ? 20 : 18) : (isCap ? 16 : 14);
       ctx.font = 'bold ' + fs + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(s.name).width;
-      const bx = sx - tw / 2 - 3;
-      const by = sy + sz / 2 + 1;
-      const fits = labelFits(placed, bx, by, tw + 6, fs + 5);
-      if (!fits && !isCap) return;
-      if (fits) placed.push({ x: bx, y: by, w: tw + 6, h: fs + 5 });
-      ctx.fillStyle = 'rgba(8,6,4,0.78)';
-      ctx.fillRect(bx, by, tw + 6, fs + 4);
-      text(ctx, s.name, sx, by + 2, {
+      const spots = [
+        { x: sx - tw / 2 - 3, y: sy + sz / 2 + 1 },
+        { x: sx - tw / 2 - 3, y: sy - sz / 2 - fs - 5 },
+        { x: sx + sz / 2 + 4, y: sy - fs / 2 },
+        { x: sx - sz / 2 - tw - 7, y: sy - fs / 2 },
+        { x: sx - tw / 2 - 3, y: sy + sz / 2 + fs + 7 },
+      ];
+      let spot = null;
+      for (let si = 0; si < spots.length; si++) {
+        const c = spots[si];
+        if (labelFits(placed, c.x, c.y, tw + 6, fs + 4)) { spot = c; break; }
+      }
+      if (!spot) spot = spots[0];
+      placed.push({ x: spot.x, y: spot.y, w: tw + 6, h: fs + 4 });
+      ctx.fillStyle = 'rgba(8,6,4,0.82)';
+      ctx.fillRect(spot.x, spot.y, tw + 6, fs + 4);
+      if (s.playerOwned) {
+        ctx.fillStyle = playerColor;
+        ctx.fillRect(spot.x, spot.y, tw + 6, 2);
+      }
+      text(ctx, s.name, spot.x + tw / 2 + 3, spot.y + 1, {
         size: fs, align: 'center', color: s.playerOwned ? playerColor : '#ece1c8',
       });
     });
@@ -304,10 +313,10 @@ const AtlasScene = {
     }).length;
     const warLine = sieges.length
       ? '围城中：' + sieges.slice(0, 2).join(' · ') + (sieges.length > 2 ? ' 等 ' + sieges.length + ' 处' : '')
-      : (marches ? marches + ' 路诸侯正在开拔 · 双击放大看城名' : '四境暂无围城 · 双击放大看城名');
+      : (marches ? marches + ' 路诸侯正在开拔 · 城名常显' : '四境暂无围城 · 城名常显');
     text(ctx, warLine, MAP_LEFT, legendY + 56, { size: 14, color: sieges.length ? '#e0a050' : '#8a8070' });
 
-    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色常显 · 放大看州界与都城', MAP_LEFT, legendY + 80, {
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色与城名常显 · 放大看州界', MAP_LEFT, legendY + 80, {
       size: 13, color: '#8a8070',
     });
   },

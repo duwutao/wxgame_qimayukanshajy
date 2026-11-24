@@ -182,6 +182,20 @@ function menuItems(app, site) {
       });
     }
   } else {
+    // 无主之城：门开着，但也可以直接翻脸围城。围下来就是你的第一块城砖。
+    if (!site.ownerFaction && !site.playerOwned) {
+      list.push({
+        id: 'm_besiege', label: '围攻 · 无主之城',
+        sub: '围足时辰再决战；打下来，这座城就挂你的旗',
+        fill: '#4a241c', right: '→',
+        onTap: function () {
+          const r = stateLib.beginPlayerSiege(app.state, site);
+          if (!r.ok) { app.showToast(r.msg, 2.4); return; }
+          app.showToast('城下扎营：需围 ' + r.days + ' 天，回大地图等时辰，围成后才能决战。', 3);
+          app.pop();
+        },
+      });
+    }
     list.push({
       id: 'm_recruit', label: '招兵', sub: '花钱买人，价钱随城而变', right: '→',
       onTap: function () { app.townView.view = 'recruit'; },
@@ -661,7 +675,8 @@ function locateQuest(app, q) {
   const st = app.state;
   const pos = stateLib.questTargetPos(st, q);
   if (!pos) {
-    app.showToast('这个目标已经不在了。', 2.2);
+    app.showToast(q && q.failed ? (q.failReason || '目标已经被其他势力清剿') + '，任务已失败。'
+      : '这个目标已经不在了。', 2.6);
     return;
   }
   app.mapQuestFocus = q.id;
@@ -895,8 +910,8 @@ function renderHall(app, site) {
         if (sieging) { app.townView.view = 'siege'; return; }
         const r = stateLib.beginPlayerSiege(st, site);
         if (!r.ok) { app.showToast(r.msg, 2.4); return; }
-        app.townView.view = 'siege';
-        app.showToast(r.msg, 2.4);
+        app.showToast('城下扎营：回大地图等时辰，围成后才能决战。', 3);
+        app.pop();
       },
     });
     text(ctx, sieging ? '围城营已扎下，继续等时辰' : '城有城墙：先围 1-2 天，围成后才能决战', PAD, y + 94, {
@@ -988,8 +1003,9 @@ function renderSiege(app, site) {
     app.ui.button(ctx, PAD, 420, w - PAD * 2, 88, '开始围城', {
       id: 'siege_begin', size: 26, fill: '#4a241c', onTap: function () {
         const r = stateLib.beginPlayerSiege(st, site);
-        app.showToast(r.msg, 2.4);
-        if (r.ok) app.townView.view = 'siege';
+        if (!r.ok) { app.showToast(r.msg, 2.4); return; }
+        app.showToast('城下扎营：回大地图等时辰，围成后才能决战。', 3);
+        app.pop();
       },
     });
     app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '回大地图', {
@@ -1015,13 +1031,14 @@ function renderSiege(app, site) {
     size: 15, color: '#8a8070',
   });
 
-  app.ui.button(ctx, PAD, 610, w - PAD * 2, 88, ready ? '再围半日（已可决战）' : '再围一日', {
-    id: 'siege_wait', size: 24, fill: ready ? '#2a2a26' : '#33271b', disabled: ready,
-    onTap: function () {
-      const r = stateLib.advancePlayerSiege(st, site, 24);
-      app.showToast(r.msg, 2.4);
-    },
-  });
+  app.ui.button(ctx, PAD, 610, w - PAD * 2, 88,
+    ready ? '回大地图 · 围城已成' : '回大地图 · 时辰照走', {
+      id: 'siege_wait', size: 24, fill: '#33271b',
+      onTap: function () {
+        app.showToast(ready ? '围城已成：回地图点城下营寨，即可决战。' : '回大地图看时辰流动；围满再回来决战。', 2.4);
+        app.pop();
+      },
+    });
 
   app.ui.button(ctx, PAD, 718, w - PAD * 2, 96, ready ? '决战 · 攻城' : '决战（先把城围成）', {
     id: 'siege_storm', size: 28, fill: '#4a241c', disabled: !ready, onTap: function () {
@@ -1039,7 +1056,7 @@ function renderSiege(app, site) {
     },
   });
 
-  text(ctx, '围城越久，守军越慌；但粮草也在一日日少。', w / 2, 936, {
+  text(ctx, '围城计时只在大地图上走：时辰每流一点，壕沟就往城门推进一点。', w / 2, 936, {
     size: 15, align: 'center', color: '#8a8070',
   });
   app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '回大地图', {

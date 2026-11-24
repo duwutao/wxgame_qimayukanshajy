@@ -43,8 +43,18 @@ function selectedColorName(hex) {
   return hex;
 }
 
+/** 从输入里取第一个汉字；国号只能一个字，拼音、空格、标点都不算 */
+function pickCountryChar(value) {
+  const chars = Array.from(String(value === undefined || value === null ? '' : value));
+  for (let i = 0; i < chars.length; i++) {
+    if (/^[\u4e00-\u9fa5]$/.test(chars[i])) return chars[i];
+  }
+  return null;
+}
+
 const FoundingScene = {
   enter(app, params) {
+    this.closeCustomInput();
     const c = app.state.player.country;
     this.editing = !!(params && params.edit);
     this.step = 0;
@@ -54,6 +64,54 @@ const FoundingScene = {
   },
 
   update() {},
+
+  /** 调出系统键盘输入一个汉字：输入能力交给 platform，小游戏和浏览器共用一套入口 */
+  openCustomInput(app) {
+    const self = this;
+    if (this._textHandle) {
+      this._textHandle.focus();
+      return;
+    }
+    if (!app.runtime.askText) {
+      app.showToast('当前设备不方便调键盘，点字表里的字也能定国号。', 2.4);
+      return;
+    }
+    const handle = app.runtime.askText({
+      value: self.name || '',
+      maxLength: 4,
+      placeholder: '输入一个汉字',
+      onInput: function (value) {
+        const ch = pickCountryChar(value);
+        if (!ch) return;
+        self.name = ch;
+        if (self._textHandle) self._textHandle.setValue(ch);
+        app.showToast('国号已输入：' + ch, 1.6);
+      },
+      onDone: function (value) {
+        const ch = pickCountryChar(value);
+        if (ch) self.name = ch;
+        self.closeCustomInput();
+      },
+    });
+    if (!handle) {
+      app.showToast('当前设备不方便调键盘，点字表里的字也能定国号。', 2.4);
+      return;
+    }
+    self._textHandle = handle;
+    app.showToast('请用键盘输入一个汉字国号。', 2.2);
+  },
+
+  closeCustomInput() {
+    if (this._textHandle) {
+      const h = this._textHandle;
+      this._textHandle = null;
+      try { h.close(); } catch (e) { /* ignore */ }
+    }
+  },
+
+  leave() {
+    this.closeCustomInput();
+  },
 
   render(app) {
     const ctx = app.runtime.ctx;
@@ -129,6 +187,9 @@ const FoundingScene = {
     app.ui.button(ctx, PAD, gy, 210, 68, this.page ? '上一组字' : '换一组字', {
       id: 'name_page', size: 22, fill: '#2c2418', onTap: function () { self.page = self.page ? 0 : 1; },
     });
+    app.ui.button(ctx, PAD + 230, gy, 150, 68, '自定义', {
+      id: 'name_custom', size: 20, fill: '#2c2418', onTap: function () { self.openCustomInput(app); },
+    });
     app.ui.button(ctx, w - PAD - 330, gy, 330, 68,
       this.name ? '国号「' + this.name + '」 · 下一步' : '先选一个字', {
         id: 'name_next', size: 23, fill: '#4a3a20',
@@ -136,9 +197,12 @@ const FoundingScene = {
         onTap: function () { self.step = 1; },
       });
 
+    text(ctx, '不想用字表里的字，可以自己输入一个汉字。', PAD, gy + 82, {
+      size: 15, color: '#8a8070',
+    });
     // 如果读的是旧档国号，正好不在这两页里：也让它能继续改色
     if (this.name && NAME_PAGES[0].indexOf(this.name) < 0 && NAME_PAGES[1].indexOf(this.name) < 0) {
-      text(ctx, '当前国号「' + this.name + '」不在字表里，仍可直接下一步换色。', PAD, gy + 82, {
+      text(ctx, '当前国号「' + this.name + '」不在字表里，仍可直接下一步换色。', PAD, gy + 108, {
         size: 15, color: '#a2947a',
       });
     }

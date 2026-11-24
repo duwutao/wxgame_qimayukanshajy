@@ -22,7 +22,7 @@ function process(app) {
       if (!site) continue;
       const r = stateLib.beginPlayerSiege(st, site);
       if (r.ok) {
-        app.push('town', { siteId: site.id, view: 'siege' });
+        // 围城不跳页：人留在城下，时辰在大地图上走，围满再点营寨决战
         app.showToast('城下扎营：需围 ' + r.days + ' 天，围成后才能决战。', 3);
         return;
       }
@@ -42,6 +42,10 @@ function process(app) {
     }
     if (ev.type === 'warning') {
       app.showToast(ev.text || ev.title || '军中告急！', 4.5);
+      continue;
+    }
+    if (ev.type === 'quest-failed') {
+      app.showToast(ev.text || ev.title || '酒馆任务失败。', 4.5);
       continue;
     }
     if (ev.type === 'encounter') {

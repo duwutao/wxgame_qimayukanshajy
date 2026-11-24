@@ -1076,6 +1076,110 @@ ok('围成后可开战', !!stateLib.startSiege(stS, castle));
 stateLib.cancelPlayerSiege(stS);
 ok('撤围清掉围城状态', stS.playerSiege === null);
 
+group('无主之城：可围、失败封锁');
+
+const stU = stateLib.createGame({ seed: 9005 });
+stU.events.length = 0;
+const neutralTown = stU.world.sites.filter(function (s) {
+  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+})[0];
+ok('无主城默认可进入', !stateLib.isHostileSite(stU, neutralTown) && stateLib.siteStatus(stU, neutralTown) === '无主',
+  stateLib.siteStatus(stU, neutralTown));
+const beginNeutral = stateLib.beginPlayerSiege(stU, neutralTown);
+ok('无主城也能开始围攻', beginNeutral.ok && stU.playerSiege && stU.playerSiege.siteId === neutralTown.id,
+  beginNeutral.msg);
+neutralTown.playerBlocked = true;
+ok('围攻失败后无主城转为敌对', stateLib.isHostileSite(stU, neutralTown) && stateLib.siteStatus(stU, neutralTown) === '敌对',
+  stateLib.siteStatus(stU, neutralTown));
+ok('封锁后不能再进城歇息', stateLib.startRest(stU, neutralTown).ok === false);
+ok('封锁后仍能重新围攻', stateLib.cancelPlayerSiege(stU).ok &&
+  stateLib.beginPlayerSiege(stU, neutralTown).ok);
+
+// 真打输一次：围城状态清掉，无主城记仇
+neutralTown.playerBlocked = false;
+stateLib.cancelPlayerSiege(stU);
+const beginFail = stateLib.beginPlayerSiege(stU, neutralTown);
+stU.playerSiege.stage = 'ready';
+stU.playerSiege.readyHour = stateLib.gameHours(stU) - 1;
+const failBattle = stateLib.startSiege(stU, neutralTown);
+ok('围成后能开决战', !!failBattle);
+failBattle.finish('lose');
+stateLib.resolveBattle(stU, failBattle);
+ok('围攻失败后城头记仇', neutralTown.playerBlocked === true && !stateLib.isHostileSite(stU, neutralTown) === false);
+ok('围攻失败后只能强攻', stateLib.isHostileSite(stU, neutralTown) && stateLib.startRest(stU, neutralTown).ok === false);
+
+// 真打赢一次：无主城落到玩家手里，之前记下的封锁也一并清掉
+const stWin = stateLib.createGame({ seed: 9010 });
+stWin.events.length = 0;
+const winTown = stWin.world.sites.filter(function (s) {
+  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+})[0];
+winTown.playerBlocked = true;
+const beginWin = stateLib.beginPlayerSiege(stWin, winTown);
+stWin.playerSiege.stage = 'ready';
+stWin.playerSiege.readyHour = stateLib.gameHours(stWin) - 1;
+const winBattle = stateLib.startSiege(stWin, winTown);
+winBattle.finish('win');
+stateLib.resolveBattle(stWin, winBattle);
+ok('围攻胜利后无主城归玩家', winTown.playerOwned === true && winTown.ownerFaction === 'player',
+  winTown.playerOwned + '/' + winTown.ownerFaction);
+ok('夺城后清掉旧封锁', winTown.playerBlocked === false && !stateLib.isHostileSite(stWin, winTown));
+ok('夺下第一座城会触发立国旗号', !!stWin.player.country && stWin.player.faction === 'player');
+
+group('围城计时走大地图时间');
+
+const stTime = stateLib.createGame({ seed: 9008 });
+stTime.events.length = 0;
+const timeTown = stTime.world.sites.filter(function (s) {
+  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+})[0];
+stateLib.beginPlayerSiege(stTime, timeTown);
+const dayBefore = stTime.clock.day;
+// 大地图站着不动，围营照样让时辰走：6.5 秒 ≈ 25 时辰
+stateLib.update(stTime, 6.5);
+ok('围城时大地图时辰流动', stTime.clock.day > dayBefore, 'day ' + dayBefore + '→' + stTime.clock.day);
+ok('围满后自动标记可决战', stTime.playerSiege && stTime.playerSiege.stage === 'ready' &&
+  stTime.playerSiege.readyAnnounced === true, stTime.playerSiege && stTime.playerSiege.stage);
+ok('围城成就会推到大地图', stTime.events.some(function (e) {
+  return e.type === 'warning' && e.title === '围城已成';
+}));
+
+group('酒馆任务：目标被其他势力清剿');
+
+const stQF = stateLib.createGame({ seed: 9006 });
+stQF.events.length = 0;
+const failParty = stQF.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+const failQuest = {
+  id: 'q_fail', type: 'hunt', siteId: 'chenliu', siteName: '陈留', faction: 'wei',
+  acceptedDay: 1, done: false, targetPartyId: failParty.id, title: '清剿' + failParty.name,
+  text: '清剿匪团', reward: { gold: 180, renown: 24 },
+};
+stQF.quests.push(failQuest);
+const qGoldBefore = stQF.player.gold;
+const qRenownBefore = stQF.player.renown;
+stQF.parties = stQF.parties.filter(function (p) { return p.id !== failParty.id; });
+const failedCount = stateLib.checkQuestTargets(stQF);
+ok('目标不在会判定失败', failedCount === 1 && failQuest.done === true && failQuest.failed === true);
+ok('失败文案点名其他势力清剿', failQuest.failReason === '目标已经被其他势力清剿', failQuest.failReason);
+ok('失败不发金钱', stQF.player.gold === qGoldBefore, stQF.player.gold + '/' + qGoldBefore);
+ok('失败不发声望', stQF.player.renown === qRenownBefore, stQF.player.renown + '/' + qRenownBefore);
+ok('失败后地图点位消失', stateLib.questTargetPos(stQF, failQuest) === null);
+ok('失败会推一条任务失败提示', stQF.events.some(function (e) {
+  return e.type === 'quest-failed' && e.text.indexOf('目标已经被其他势力清剿') >= 0;
+}));
+
+const stQK = stateLib.createGame({ seed: 9007 });
+stQK.events.length = 0;
+const killParty = stQK.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+const killQuest = {
+  id: 'q_kill', type: 'hunt', siteId: 'chenliu', siteName: '陈留', faction: 'wei',
+  acceptedDay: 1, done: false, targetPartyId: killParty.id, title: '清剿' + killParty.name,
+  text: '清剿匪团', reward: { gold: 180, renown: 24 },
+};
+stQK.quests.push(killQuest);
+stateLib.completeQuests(stQK, 'hunt', killParty.id);
+ok('玩家自己打散目标算交差', killQuest.done === true && !killQuest.failed && stQK.player.gold === 460 + 180);
+
 group('灭亡后就近择主');
 const stN = stateLib.createGame({ seed: 9004 });
 stN.events.length = 0;

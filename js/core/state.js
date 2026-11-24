@@ -625,13 +625,15 @@ function isHostileSite(state, site) {
   // 洗劫过的山寨不再是军事目标：只剩废墟，点进去看火烧过的空营
   if (site.type === 'camp') return !site.cleared;
   if (site.playerOwned) return false;
+  // 无主城围攻失败后，城头只认刀：玩家不能再进城，只能重新围、再决战
+  if (site.playerBlocked) return true;
   return isHostileFaction(state, site.ownerFaction);
 }
 
 function siteStatus(state, site) {
   if (site.playerOwned) return '你的领地';
   if (site.type === 'camp') return site.cleared ? '废墟 · 已洗劫' : '贼巢 · 可攻';
-  if (!site.ownerFaction) return '无主';
+  if (!site.ownerFaction) return site.playerBlocked ? '敌对' : '无主';
   if (isHostileFaction(state, site.ownerFaction)) return '敌对';
   return '可进入';
 }
@@ -904,6 +906,8 @@ function update(state, dtSeconds, opts) {
   settleUnitSteps(state);
   // 每帧顺手看看下一顿够不够；第一次不够就告警，别等到哗变才说
   warnFoodShortage(state);
+  // 酒馆目标被乱军清剿后，任务与地图点位都要当场收掉
+  checkQuestTargets(state);
 
   if (p.route.length && p.stepTo) {
     // 一步一步走：一帧最多交代一格，落格后立刻刷新插值起点，
@@ -952,8 +956,8 @@ function update(state, dtSeconds, opts) {
 
     checkPursuit(state);
   } else {
-    // 跟骑砍一样：玩家站着不动，时间就停；只有进城修养、在大地图上看天下时，外面才照常走
-    if (isResting(state)) advanceTime(state, dt / HOUR_SECONDS);
+    // 跟骑砍一样：玩家站着不动，时间就停；进城修养或城下围营时，外面照常走
+    if (isResting(state) || state.playerSiege) advanceTime(state, dt / HOUR_SECONDS);
     checkPursuit(state);
   }
 
@@ -969,8 +973,12 @@ function update(state, dtSeconds, opts) {
     if (war.siegeTick) war.siegeTick(state);
     checkPursuit(state);
     advanceCampaign(state);
+    checkQuestTargets(state);
+    checkPlayerSiegeReady(state);
     if (state.events.length && !ignoreEvents) return;
   }
+  checkQuestTargets(state);
+  checkPlayerSiegeReady(state);
 }
 
 function onArrive(state, x, y) {
@@ -1648,6 +1656,7 @@ function beginPlayerSiege(state, site) {
       readyHour: now + days * 24,
       days: days,
       stage: 'camp',
+      readyAnnounced: false,
     };
     stopMoving(state);
     state.player.atSiteId = site.id;
@@ -1683,6 +1692,7 @@ function advancePlayerSiege(state, site, hours) {
   const leftNow = Math.max(0, ps.readyHour - gameHours(state));
   if (leftNow <= 0) {
     ps.stage = 'ready';
+    ps.readyAnnounced = true;
     pushLog(state, site.name + '城头开始挂白旗。围城的壕沟已经推到城门下，可以决战了。', 'siege');
   }
   return {
@@ -1692,6 +1702,24 @@ function advancePlayerSiege(state, site, hours) {
     msg: leftNow <= 0 ? '围城已成，可以决战'
       : (total >= 24 ? '又围了一日，城中还没开门' : '又围了' + total + '个时辰，城中还没开门'),
   };
+}
+
+/** 大地图上的围城计时：时辰在城外照常流，围满了就挂白旗并只喊一次 */
+function checkPlayerSiegeReady(state) {
+  const ps = state.playerSiege;
+  if (!ps || ps.readyAnnounced) return false;
+  if (gameHours(state) < ps.readyHour) return false;
+  const site = siteById(state.world, ps.siteId);
+  ps.stage = 'ready';
+  ps.readyAnnounced = true;
+  pushLog(state, (site ? site.name : '敌城') +
+    '城头开始挂白旗。围城的壕沟已经推到城门下，可以决战了。', 'siege');
+  state.events.push({
+    type: 'warning',
+    title: '围城已成',
+    text: (site ? site.name : '敌城') + '已经围成，随时可以决战。',
+  });
+  return true;
 }
 
 /** 撤围：把营拔了，退回旁边的野地 */
@@ -1939,6 +1967,8 @@ function resolveBattle(state, battle) {
     const ctx = battle.context;
     if (ctx.kind === 'party' || ctx.kind === 'chase') {
       state.parties = state.parties.filter(function (x) { return x.id !== ctx.partyId; });
+      // 玩家自己打散猎匪目标，算交差；被别的势力清剿才算失败
+      completeQuests(state, 'hunt', ctx.partyId);
       pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金钱，声望 +' + renownGain + '。');
       if (ctx.kind === 'chase') {
         pushLog(state, '西凉铁骑退了。你回头看了一眼洛阳的方向，没再回头。');
@@ -2003,6 +2033,11 @@ function resolveBattle(state, battle) {
       state.playerSiege && state.playerSiege.siteId === battle.context.siteId) {
     const s = siteById(state.world, battle.context.siteId);
     state.playerSiege = null;
+    // 无主城一战没打下，守军就认死了你：门不再开，只能重新围、再决战
+    if (s && !s.playerOwned && !s.ownerFaction && !s.playerBlocked) {
+      s.playerBlocked = true;
+      pushLog(state, '攻' + s.name + '没成，城头把门关死了。从今往后你只能围城强攻，不能再进城。', 'siege');
+    }
     pushLog(state, '攻城没成，' + (s ? s.name : '城下') + '的围营散了，只能退回野地。', 'siege');
   }
 
@@ -2037,12 +2072,15 @@ function beginSelfRule(state, site) {
 function takeSite(state, site) {
   const p = state.player;
   if (state.playerSiege && state.playerSiege.siteId === site.id) state.playerSiege = null;
+  // 城头换了主人（玩家或 AI），旧日的“围城失败封锁”就作废
+  site.playerBlocked = false;
   if (site.type === 'camp') {
     site.cleared = true;
     site.looted = true;
     site.lootedDay = state.clock.day;
     site.respawnDay = state.clock.day + CAMP_RESPAWN_DAYS;
     site.garrison = 0;
+    completeQuests(state, 'scout', site.id);
     p.renown += 45;
     p.gold += 120;
     pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。过 ' + CAMP_RESPAWN_DAYS + ' 天再来，看还有没有人聚起来。');
@@ -2076,7 +2114,7 @@ function takeSite(state, site) {
 
 /** 酒馆任务的目标坐标：怪物队伍、贼巢或交粮城 */
 function questTargetPos(state, quest) {
-  if (!quest || quest.done) return null;
+  if (!quest || quest.done || quest.failed) return null;
   if (quest.type === 'hunt') {
     const party = (state.parties || []).filter(function (p) { return p.id === quest.targetPartyId; })[0];
     if (!party || army.troopCount(party.troops || {}) <= 0) return null;
@@ -2152,9 +2190,58 @@ function completeQuests(state, type, targetId) {
   state.quests.forEach(function (q) {
     if (q.done || q.type !== type) return;
     if (type === 'hunt' && q.targetPartyId !== targetId) return;
+    if (type === 'scout' && q.targetSiteId !== targetId) return;
     q.done = true;
     finishQuest(state, q);
   });
+}
+
+/** 目标已经没了，任务直接作废：不发赏钱、不留地图点位，只在酒馆里留一句交代 */
+function failQuest(state, q, reason) {
+  if (!q || q.done) return false;
+  q.done = true;
+  q.failed = true;
+  q.failReason = reason || '目标已经被其他势力清剿';
+  q.failedDay = state.clock.day;
+  pushLog(state, '酒馆的差事黄了：' + (q.title || '那桩事') + '。' + q.failReason +
+    '，赏钱也没了。', 'quest');
+  state.events.push({
+    type: 'quest-failed',
+    title: '任务失败',
+    text: q.failReason + '，任务自动失败，赏钱不再发放。',
+    questId: q.id,
+  });
+  return true;
+}
+
+/** 目标不在=被其他势力清剿；只判定一次，已完成/已失败的不重复喊 */
+function checkQuestTargets(state) {
+  if (!state || !state.quests || !state.quests.length) return 0;
+  let failed = 0;
+  state.quests.forEach(function (q) {
+    if (!q || q.done) return;
+    if (q.type === 'hunt') {
+      const party = (state.parties || []).filter(function (p) { return p.id === q.targetPartyId; })[0];
+      if (!party || army.troopCount(party.troops || {}) <= 0) {
+        if (failQuest(state, q, '目标已经被其他势力清剿')) failed++;
+      }
+      return;
+    }
+    if (q.type === 'scout') {
+      const site = siteById(state.world, q.targetSiteId);
+      if (!site || site.cleared) {
+        if (failQuest(state, q, '目标已经被其他势力清剿')) failed++;
+      }
+      return;
+    }
+    if (q.type === 'grain') {
+      const site = siteById(state.world, q.siteId);
+      if (!site || (q.faction && site.ownerFaction !== q.faction)) {
+        if (failQuest(state, q, '目标已经被其他势力清剿')) failed++;
+      }
+    }
+  });
+  return failed;
 }
 
 function deliverGrain(state, quest) {
@@ -3203,6 +3290,7 @@ module.exports = {
   startSiege,
   beginPlayerSiege,
   advancePlayerSiege,
+  checkPlayerSiegeReady,
   cancelPlayerSiege,
   PLAYER_SIEGE_DAYS,
   startCampaignBattle,
@@ -3219,6 +3307,8 @@ module.exports = {
   deliverGrain,
   checkScoutQuest,
   completeQuests,
+  checkQuestTargets,
+  failQuest,
   joinFaction,
   declareWar,
   prisonersOf,
