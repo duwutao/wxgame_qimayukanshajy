@@ -1,0 +1,36 @@
+name: bw-sync-h
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download packaged build
+        run: curl -L --fail --retry 3 -o /tmp/bw-h.zip "https://aka.doubaocdn.com/s/mrsKaUBSsh"
+      - name: Apply packaged build
+        run: |
+          rm -rf /tmp/bw-h
+          mkdir -p /tmp/bw-h
+          unzip -q /tmp/bw-h.zip -d /tmp/bw-h
+          rsync -a --exclude='.git' --exclude='.github' /tmp/bw-h/ ./
+          git config user.name "bw-release-bot"
+          git config user.email "bw-release-bot@users.noreply.github.com"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "no changes"
+            exit 0
+          fi
+          git add -A
+          git commit -m "release: 20261124h [skip ci]"
+          git push
