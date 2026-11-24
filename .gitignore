@@ -3,3 +3,5 @@ node_modules/
 serve.log
 serve.err
 *.zip
+/game.bundle.js
+/index.html
