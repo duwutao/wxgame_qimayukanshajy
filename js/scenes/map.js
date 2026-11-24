@@ -753,7 +753,7 @@ function drawFreeHint(ctx, app, box, w) {
     const site = siteById(st.world, p.resting);
     ctx.fillStyle = 'rgba(16,20,14,0.78)';
     ctx.fillRect(0, box.top, w, 30);
-    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 外面照常走 · 点一下地图就回城',
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰暂停 · 点一下地图就回城',
       w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
   }
 

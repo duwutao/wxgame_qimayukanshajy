@@ -606,8 +606,7 @@ function update(state, dtSeconds) {
 
     checkPursuit(state);
   } else {
-    // 跟骑砍一样：站着不动，天下不动；只有进城修养、看着大地图的时候才走时辰
-    if (isResting(state)) advanceTime(state, dt / HOUR_SECONDS);
+    // 跟骑砍一样：玩家不动，时间就停——站着不走、修养看地图，全都不流时辰
     checkPursuit(state);
   }
 
