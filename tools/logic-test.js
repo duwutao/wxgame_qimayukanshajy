@@ -723,7 +723,17 @@ st20.events.length = 0;
 const h0 = st20.clock.day * 24 + st20.clock.hour;
 stateLib.update(st20, 1.3);
 const h1 = st20.clock.day * 24 + st20.clock.hour;
-ok('原地不动时辰也在走', h1 - h0 >= 4, h0 + ' → ' + h1);
+ok('站着不动时辰不流动', h1 - h0 < 1e-6, h0 + ' → ' + h1);
+const restSite = st20.world.sites.filter(function (s) { return s.id === 'chenliu'; })[0];
+const rr = stateLib.startRest(st20, restSite);
+ok('能进城修养', rr.ok, rr.msg);
+stateLib.update(st20, 1.3);
+const h2 = st20.clock.day * 24 + st20.clock.hour;
+ok('修养看地图时辰照走', h2 - h1 >= 4, h1 + ' → ' + h2);
+stateLib.stopRest(st20);
+stateLib.update(st20, 1.3);
+const h3 = st20.clock.day * 24 + st20.clock.hour;
+ok('修养结束又回到不动不走', h3 - h2 < 1e-6, h2 + ' → ' + h3);
 
 /* ---------------------------------------------------------------- 前期剧情 / NPC 走路 */
 

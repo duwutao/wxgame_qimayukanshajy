@@ -5596,8 +5596,8 @@ function update(state, dtSeconds) {
 
     checkPursuit(state);
   } else {
-    // 站着不动，时间也照走：在城里歇着、拉开地图看天下，都算过了时辰
-    advanceTime(state, dt / HOUR_SECONDS);
+    // 跟骑砍一样：站着不动，天下不动；只有进城修养、看着大地图的时候才走时辰
+    if (isResting(state)) advanceTime(state, dt / HOUR_SECONDS);
     checkPursuit(state);
   }
 
@@ -9556,10 +9556,17 @@ function menuItems(app, site) {
   const toggleRest = function () {
     if (resting) {
       stateLib.stopRest(app.state);
+      app.restView = null;
       app.showToast('收拾行装，准备上路。', 2);
+      app.pop();
     } else {
       const r = stateLib.startRest(app.state, site);
       app.showToast(r.msg, 2.4);
+      if (r.ok) {
+        // 跟骑砍一样：选"修养"就直接出门看大地图，时辰照走，点一下再回城
+        app.restView = site.id;
+        app.pop();
+      }
     }
   };
 
@@ -9637,19 +9644,9 @@ function menuItems(app, site) {
     }
     list.push({
       id: 'm_rest', label: resting ? '结束休整 · 上路' : '进城休整',
-      sub: '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', fill: '#26372a',
+      sub: resting ? '再点一下就收拾行装，回大地图' : '选了就出城看天下：时辰照走，粮耗减半，没人追你',
+      fill: '#26372a',
       right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
-    });
-  }
-
-  // 歇着的时候也想看看外头的天下
-  if (resting && !isVillage) {
-    list.push({
-      id: 'm_lookmap', label: '出门看看 · 大地图', sub: '人还在城里歇着，时间照走 · 点一下地图就回来',
-      fill: '#223042', right: '→', onTap: function () {
-        app.restView = site.id;
-        app.pop();
-      },
     });
   }
   return list;

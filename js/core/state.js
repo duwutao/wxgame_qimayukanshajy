@@ -606,8 +606,8 @@ function update(state, dtSeconds) {
 
     checkPursuit(state);
   } else {
-    // 站着不动，时间也照走：在城里歇着、拉开地图看天下，都算过了时辰
-    advanceTime(state, dt / HOUR_SECONDS);
+    // 跟骑砍一样：站着不动，天下不动；只有进城修养、看着大地图的时候才走时辰
+    if (isResting(state)) advanceTime(state, dt / HOUR_SECONDS);
     checkPursuit(state);
   }
 

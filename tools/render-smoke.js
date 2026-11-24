@@ -502,6 +502,35 @@ smoke('新增幕间章节卡', function () {
   app.pop();
 });
 
+smoke('修养直接出城看地图，点一下回城，离城能走', function () {
+  const st = app.state = stateLib.createGame({ seed: 4326 });
+  st.events.length = 0;
+  st.player.atSiteId = 'chenliu';
+  app.replace('map');
+  app.push('town', { siteId: 'chenliu' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const rest = app.ui.items.filter(function (b) { return b.id === 'm_rest'; })[0];
+  ok('菜单有进城修养', !!rest);
+  ok('没有多余出门按钮', !app.ui.items.some(function (b) { return b.id === 'm_lookmap'; }));
+  if (rest) rest.onTap();
+  ok('点修养直接落在大地图', app.stack[app.stack.length - 1].name === 'map');
+  ok('地图记住在城里歇着', app.restView === 'chenliu' && !!st.player.resting);
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('地图上有回城提示', true);
+  // 点一下地图 → 回城界面
+  app.onStart(200, 620);
+  app.onEnd(200, 620);
+  ok('点地图回到城市界面', app.stack[app.stack.length - 1].name === 'town');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const leave = app.ui.items.filter(function (b) { return b.id === 'leave'; })[0];
+  ok('城市界面仍有离城', !!leave);
+  if (leave) leave.onTap();
+  ok('离城回地图并结束修养', app.stack[app.stack.length - 1].name === 'map' && !st.player.resting);
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {
