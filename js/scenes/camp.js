@@ -10,15 +10,73 @@ const scenery = require('../render/scenery.js');
 const { siteById } = require('../core/world.js');
 const army = require('../core/army.js');
 const { FACTIONS } = require('../data/china.js');
+const flows = require('./flows.js');
 
 const PAD = 16;
 
+function factionLabel(st, id) {
+  if (id === 'player') {
+    return (st.player.country && st.player.country.name)
+      ? st.player.country.name + '国' : '你的旗';
+  }
+  return (FACTIONS[id] || {}).full || id;
+}
+
+function gameClockText(st) {
+  const hour = Math.floor(st.clock.hour);
+  const pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return '第 ' + st.clock.day + ' 天 ' + pad(hour) + ' 时';
+}
+
 const CampScene = {
-  enter(app) {
-    this.view = 'menu';
+  enter(app, params) {
+    const p = params || {};
     this.lastLine = '';
+    this.flowStartH = 0;
+    this.foreignScroll = 0;
+    this.drag = null;
+    this.dragMoved = 0;
+    // 从大地图点回来（或营中再点扎营）时，直接停在“继续/拔营”这一页。
+    if (p.pause || (app.state && app.state.campFlow)) {
+      this.view = 'pause';
+      this.pauseLine = p.reason || '你把时辰按住了。';
+      if (app.state) app.state.campFlow = false;
+      return;
+    }
+    this.view = 'menu';
+    if (app.state) {
+      app.state.campFlow = false;
+      if (app.state.player && app.state.player.route && app.state.player.route.length) {
+        stateLib.stopMoving(app.state);
+      }
+    }
   },
-  update() {},
+  update(app, dt) {
+    const st = app.state;
+    if (!st) return;
+    if (this.view !== 'flowing') {
+      st.campFlow = false;
+      return;
+    }
+    st.campFlow = true;
+    if (!this.flowStartH) this.flowStartH = stateLib.gameHours(st);
+    stateLib.update(st, dt, { ignoreEvents: true });
+    if (st.gameOver) {
+      this.pause(app, '旅途已经结束。');
+      return;
+    }
+    // 天下出了事，先把时辰停住，让玩家看完再决定继续还是拔营。
+    if (st.events.length) {
+      this.pause(app, '营外来了军情，时辰先停。');
+      flows.process(app);
+    }
+  },
+
+  pause(app, reason) {
+    this.view = 'pause';
+    this.pauseLine = reason || '你把时辰按住了。';
+    if (app.state) app.state.campFlow = false;
+  },
 
   render(app) {
     const ctx = app.runtime.ctx;
@@ -67,11 +125,25 @@ const CampScene = {
         PAD + 10, 142, { size: 14, color: '#e06a52' });
     }
 
-    if (this.view === 'wait') this.renderWait(app, ctx, w, h);
-    else this.renderMenu(app, ctx, w, h);
+    if (this.view === 'flowing') {
+      this.renderFlowing(app, ctx, w, h);
+      return;
+    }
+    if (this.view === 'pause') {
+      this.renderPause(app, ctx, w, h);
+      return;
+    }
+    if (this.view === 'foreign') {
+      this.renderForeign(app, ctx, w, h);
+      return;
+    }
+    this.renderMenu(app, ctx, w, h);
 
     app.ui.button(ctx, PAD, h - 78, w - PAD * 2, 58, '拔营', {
-      id: 'camp_back', size: 24, onTap: function () { app.pop(); },
+      id: 'camp_back', size: 24, onTap: function () {
+        if (app.state) app.state.campFlow = false;
+        app.pop();
+      },
     });
   },
 
@@ -93,8 +165,18 @@ const CampScene = {
         onTap: function () { app.push('atlas'); },
       },
       {
-        label: '在这里待一会儿', sub: '原地等 2 时辰到 3 日', hint: '不赶路，让天下自己动',
-        onTap: function () { this.view = 'wait'; }.bind(this),
+        label: '在这里扎住 · 让时辰走',
+        sub: '不选几个时辰，天下自己慢慢走', hint: '点屏幕任意处停下',
+        onTap: function () {
+          // 和进城休息一个道理：收了营帐回大地图，让时辰在外面流。
+          app.pop();
+          if (app.state) app.state.campFlow = true;
+        },
+      },
+      {
+        label: '外国战事', sub: wars.length ? wars.length + ' 处交兵' : '四境暂时太平',
+        hint: '看哪两家正在打',
+        onTap: function () { this.foreignScroll = 0; this.view = 'foreign'; }.bind(this),
       },
       {
         label: '招降俘虏', sub: mine.length ? '牢里捆着 ' + mine.length + ' 位领主' : '牢里暂时空着',
@@ -120,28 +202,144 @@ const CampScene = {
       },
     ];
 
-    const rowH = rows.length >= 5 ? 92 : 104;
-    const rowGap = rows.length >= 5 ? 8 : 12;
+    const rowGap = 6;
+    const buttonY = h - 78;
+    const rowH = Math.max(58, Math.min(78,
+      Math.floor((buttonY - 194 - 28 - rowGap * (rows.length - 1)) / rows.length)));
     let y = 194;
     rows.forEach(function (r, i) {
       app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
         id: 'camp_' + i, disabled: r.disabled, fill: 'rgba(38,29,20,0.9)', onTap: r.onTap,
       });
-      text(ctx, r.label, PAD + 20, y + (rowH >= 100 ? 16 : 10), {
-        size: rowH >= 100 ? 26 : 24, color: r.disabled ? '#6a6050' : '#f0c060',
+      text(ctx, r.label, PAD + 20, y + 8, {
+        size: rowH >= 72 ? 23 : 20, color: r.disabled ? '#6a6050' : '#f0c060',
       });
-      text(ctx, r.sub, PAD + 20, y + (rowH >= 100 ? 52 : 42), { size: 16, color: '#c9bda2' });
-      text(ctx, r.hint, w - PAD - 20, y + (rowH >= 100 ? 72 : 64), {
-        size: 13, align: 'right', color: '#8a8070',
+      text(ctx, r.sub, PAD + 20, y + 33, { size: 14, color: '#c9bda2' });
+      text(ctx, r.hint, w - PAD - 20, y + 53, {
+        size: 12, align: 'right', color: '#8a8070',
       });
       y += rowH + rowGap;
     });
 
     const line = '火堆不灭，斥候放出。营里的人都在等你一句话。';
-    let ly = y + 12;
-    wrap(ctx, line, w - PAD * 2, 15).slice(0, 2).forEach(function (l) {
-      text(ctx, l, PAD, ly, { size: 15, color: '#8a8070' });
-      ly += 22;
+    let ly = y + 10;
+    wrap(ctx, line, w - PAD * 2, 15).slice(0, 1).forEach(function (l) {
+      if (ly < buttonY - 4) text(ctx, l, PAD, ly, { size: 14, color: '#8a8070' });
+    });
+  },
+
+  renderFlowing(app, ctx, w, h) {
+    const st = app.state;
+    const nowH = stateLib.gameHours(st);
+    const elapsed = Math.max(0, nowH - (this.flowStartH || nowH));
+    const days = Math.floor(elapsed / 24);
+    const hours = Math.floor(elapsed % 24);
+    const elapsedText = (days > 0 ? days + ' 天 ' : '') + hours + ' 个时辰';
+
+    text(ctx, '时辰在走', PAD + 4, 190, { size: 34, color: '#f0c060' });
+    text(ctx, '营火不灭，天下照常流转；不用再选等几个时辰。', PAD + 4, 238, {
+      size: 16, color: '#a2947a',
+    });
+
+    panel(ctx, PAD, 292, w - PAD * 2, 204, { fill: 'rgba(30,23,16,0.92)' });
+    text(ctx, gameClockText(st), PAD + 22, 316, { size: 30, color: '#efe3c6' });
+    text(ctx, '这一回已经过去 ' + elapsedText, PAD + 22, 366, { size: 18, color: '#c9bda2' });
+    text(ctx, '斥候在外，粮车在侧；你可以一直看着，也可以随时按住。', PAD + 22, 402, {
+      size: 15, color: '#8a8070',
+    });
+    text(ctx, '世界时间：' + (st.timeScale || 1) + 'x', PAD + 22, 434, {
+      size: 15, color: '#8a8070',
+    });
+
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin((app.runtime.now ? app.runtime.now() : Date.now()) / 900));
+    ctx.fillStyle = 'rgba(240,192,96,' + pulse.toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.arc(w / 2, h - 144, 5, 0, Math.PI * 2);
+    ctx.fill();
+    text(ctx, '点屏幕任意处 · 停下时辰', w / 2, h - 130, {
+      size: 18, align: 'center', color: '#a2947a',
+    });
+    text(ctx, '停下后可以选择继续，或拔营离开。', w / 2, h - 102, {
+      size: 14, align: 'center', color: '#6a6050',
+    });
+  },
+
+  renderPause(app, ctx, w, h) {
+    const st = app.state;
+    text(ctx, '时辰停住了', PAD + 4, 190, { size: 34, color: '#f0c060' });
+    text(ctx, this.pauseLine || '你把时辰按住了。', PAD + 4, 238, { size: 16, color: '#a2947a' });
+
+    panel(ctx, PAD, 292, w - PAD * 2, 146, { fill: 'rgba(30,23,16,0.92)' });
+    text(ctx, gameClockText(st), PAD + 22, 314, { size: 28, color: '#efe3c6' });
+    text(ctx, '继续让时辰走，或者收拾营帐离开。', PAD + 22, 362, {
+      size: 16, color: '#c9bda2',
+    });
+
+    app.ui.button(ctx, PAD, h - 226, w - PAD * 2, 78, '继续让时辰走', {
+      id: 'camp_flow_continue', size: 26, fill: '#3a2c1e', onTap: function () {
+        app.pop();
+        if (app.state) app.state.campFlow = true;
+      },
+    });
+    app.ui.button(ctx, PAD, h - 136, w - PAD * 2, 78, '拔营离开', {
+      id: 'camp_flow_leave', size: 26, fill: '#4a241c', onTap: function () {
+        if (app.state) app.state.campFlow = false;
+        app.pop();
+      },
+    });
+  },
+
+  renderForeign(app, ctx, w, h) {
+    const st = app.state;
+    const wars = stateLib.factionWars(st);
+    text(ctx, '外国战事', PAD + 4, 190, { size: 32, color: '#f0c060' });
+    text(ctx, '只看别家交兵，不替你决定和谁开战。', PAD + 4, 234, { size: 15, color: '#a2947a' });
+
+    const y0 = 278;
+    const rowH = 64;
+    const gap = 8;
+    const viewBottom = h - 154;
+    const viewH = Math.max(120, viewBottom - y0);
+    this.foreignMax = Math.max(0, wars.length * (rowH + gap) - viewH);
+    this.foreignScroll = Math.max(0, Math.min(this.foreignMax, this.foreignScroll || 0));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, y0, w, viewH);
+    ctx.clip();
+    wars.forEach(function (war, i) {
+      const ry = y0 + i * (rowH + gap) - (app.top().scene.foreignScroll || 0);
+      if (ry < y0 - rowH || ry > y0 + viewH + rowH) return;
+      ctx.fillStyle = i % 2 ? '#201a14' : '#261f17';
+      ctx.fillRect(PAD, ry, w - PAD * 2, rowH);
+      const a = factionLabel(st, war.a);
+      const b = factionLabel(st, war.b);
+      const isMine = war.a === 'player' || war.b === 'player';
+      text(ctx, a + ' 与 ' + b, PAD + 16, ry + 10, { size: 20, color: '#efe3c6' });
+      text(ctx, '交兵 ' + Math.max(0, war.days) + ' 天' + (isMine ? ' · 其中有你' : ''),
+        PAD + 16, ry + 38, { size: 14, color: isMine ? '#f0c060' : '#8a8070' });
+    });
+    ctx.restore();
+
+    if (!wars.length) {
+      text(ctx, '四境暂时没有两家交兵。', PAD + 8, y0 + 8, { size: 20, color: '#8a8070' });
+    }
+    if (this.foreignMax > 0) {
+      const thumbH = Math.max(30, viewH * (viewH / (wars.length * (rowH + gap))));
+      const thumbY = y0 + (viewH - thumbH) * (this.foreignScroll / this.foreignMax);
+      ctx.fillStyle = 'rgba(80,66,46,0.4)';
+      ctx.fillRect(w - 8, y0, 4, viewH);
+      ctx.fillStyle = '#8a7448';
+      ctx.fillRect(w - 8, thumbY, 4, thumbH);
+    }
+
+    text(ctx, '滚轮 / 上下拖动可看全部。', PAD, h - 150, {
+      size: 14, color: '#8a8070',
+    });
+    app.ui.button(ctx, PAD, h - 78, w - PAD * 2, 58, '返回营帐', {
+      id: 'camp_foreign_back', size: 24, fill: '#241c14', onTap: function () {
+        this.view = 'menu';
+      }.bind(this),
     });
   },
 
@@ -179,9 +377,36 @@ const CampScene = {
     });
   },
 
-  onTouchStart() {},
-  onTouchMove() {},
-  onTouchEnd() {},
+  onTouchStart(app, x, y) {
+    this.drag = { y: y, scroll: this.foreignScroll || 0, moved: 0 };
+  },
+
+  onTouchMove(app, x, y) {
+    if (this.view !== 'foreign' || !this.drag) return;
+    const dy = y - this.drag.y;
+    if (Math.abs(dy) > 5) this.drag.moved = Math.abs(dy);
+    if (this.drag.moved > 5) {
+      app.ui.pressed = null;
+      this.foreignScroll = Math.max(0, Math.min(this.foreignMax || 0, this.drag.scroll - dy));
+    }
+  },
+
+  onTouchEnd(app, x, y) {
+    this.drag = null;
+    if (this.view === 'flowing' && !app.lastHit) {
+      this.pause(app, '你把时辰按住了。');
+    }
+  },
+
+  onWheel(app, dy) {
+    if (this.view !== 'foreign') return;
+    this.foreignScroll = Math.max(0, Math.min(this.foreignMax || 0,
+      (this.foreignScroll || 0) + dy));
+  },
+
+  leave(app) {
+    if (app.state) app.state.campFlow = false;
+  },
 };
 
 module.exports = CampScene;

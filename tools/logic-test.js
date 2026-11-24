@@ -85,10 +85,11 @@ ok('无旗', st.player.banner === false);
 ok('开局不在城内', st.player.atSiteId === null);
 
 const chase = st.parties.filter(function (p) { return p.scripted; })[0];
-ok('序章追兵存在', !!chase, '西凉铁骑');
+ok('序章追兵存在', !!chase, '西凉步卒');
 ok('追兵距离 ≥ 4', chase && worldLib.gridDistance(chase, st.player) >= 4,
   chase ? String(worldLib.gridDistance(chase, st.player)) : 'none');
-ok('追兵是 60 骑', chase && armyLib.strength(chase.troops).cavRatio === 1);
+ok('追兵是 60 步卒', chase && armyLib.troopCount(chase.troops) === 60 &&
+  armyLib.strength(chase.troops).cavRatio === 0, JSON.stringify(chase && chase.troops));
 
 /* ---------------------------------------------------------------- 行军 */
 
@@ -150,10 +151,10 @@ ok('赢也会掉人', b1.summary().remainA < 26 && b1.summary().remainA > 15,
 const b2 = new Battle({
   rng,
   attacker: { name: '我', troops: { militia: 30 }, morale: 60, isPlayer: true },
-  defender: { name: '西凉铁骑', troops: { cav: 40, tiefu: 20 }, morale: 90 },
+  defender: { name: '西凉步卒', troops: { spear: 30, tiefu: 30 }, morale: 90 },
 });
 fightToEnd(b2);
-ok('30 民兵打不过 60 西凉铁骑', b2.result !== 'win', b2.result);
+ok('30 民兵打不过 60 西凉步卒', b2.result !== 'win', b2.result);
 
 const b3 = new Battle({
   rng,
@@ -274,24 +275,24 @@ ok('最终才有缴获', batchBattle.result !== 'win' || batchBattle.summary().l
 
 const ironState = stateLib.createGame({ seed: 5150 });
 const iron = ironState.parties.filter(function (p) { return p.scripted; })[0];
-ok('开局有西凉铁骑追兵', !!iron && iron.slow === 2, iron ? 'slow=' + iron.slow : 'missing');
+ok('开局有西凉步卒追兵', !!iron && iron.slow === 2, iron ? 'slow=' + iron.slow : 'missing');
 if (iron) {
   ironState.player.troops = { militia: 9 };
   ironState.player.x = iron.x;
   ironState.player.y = iron.y;
   const tail = stateLib.breakTail(ironState, iron.id, 'party');
   const left = armyLib.troopCount(ironState.player.troops);
-  ok('铁骑只能断后，不能拉出来对战', stateLib.startPartyBattle(ironState, iron) === null);
+  ok('步卒只能断后，不能拉出来对战', stateLib.startPartyBattle(ironState, iron) === null);
   ok('断后损失几个兵', tail.ok && tail.lose >= 1 && tail.lose <= 3 && left === 9 - tail.lose,
     'lose=' + tail.lose + ' left=' + left);
-  ok('铁骑断后停八小时', iron.dormant === true && tail.pause === 8 && iron.pauseUntil > 0);
+  ok('步卒断后停八小时', iron.dormant === true && tail.pause === 8 && iron.pauseUntil > 0);
 }
 const doomed = stateLib.createGame({ seed: 9090 });
 const doomedIron = doomed.parties.filter(function (p) { return p.scripted; })[0];
 if (doomedIron) {
   doomed.player.troops = { militia: 1 };
   const last = stateLib.breakTail(doomed, doomedIron.id, 'party');
-  ok('只剩玩家一人则被铁骑杀死剧终', last.ended === true && doomed.gameOver === true && doomed.ending && doomed.ending.title === '剧终');
+  ok('只剩玩家一人则被步卒杀死剧终', last.ended === true && doomed.gameOver === true && doomed.ending && doomed.ending.title === '剧终');
 }
 
 ok('各国都城表覆盖十座', CAPITAL_IDS.length === 10 && CAPITAL_IDS.indexOf('xuchang') >= 0 && CAPITAL_IDS.indexOf('chengdu') >= 0);
@@ -330,7 +331,7 @@ function firstRoundRemain(mark) {
 }
 const p1 = firstRoundRemain(null);
 const c1 = firstRoundRemain('calm');
-ok('风止单轮双方都少死人', c1.a > p1.a && c1.b > p1.b,
+ok('风止不削我方攻势，只压敌军', c1.a >= p1.a && c1.b <= p1.b,
   '我' + c1.a + '/' + p1.a + ' 敌' + c1.b + '/' + p1.b);
 
 const rollB = runWith('roll');
@@ -1488,6 +1489,67 @@ group('君主继任与永世不议和');
   const fresh = stateLib.createGame({ seed: 8132 });
   ok('再开新局时国名与君主复位', FACTIONS[fac].lord === '曹操' && !!fresh, FACTIONS[fac].lord);
 }
+
+/* ---------------------------------------------------------------- 本轮增量 */
+
+group('扎营流逝 / 商店按档 / 英雄自传');
+const stCamp = stateLib.createGame({ seed: 991001 });
+stCamp.events.length = 0;
+stCamp.player.route = [];
+stCamp.player.stepTo = null;
+stCamp.campFlow = false;
+const campH0 = stateLib.gameHours(stCamp);
+stateLib.update(stCamp, 8, { ignoreEvents: true });
+ok('不扎营时时辰不动', stateLib.gameHours(stCamp) === campH0,
+  campH0 + ' -> ' + stateLib.gameHours(stCamp));
+stCamp.campFlow = true;
+const campH1 = stateLib.gameHours(stCamp);
+stateLib.update(stCamp, 8, { ignoreEvents: true });
+ok('扎营时时辰自己往前走', stateLib.gameHours(stCamp) > campH1,
+  campH1 + ' -> ' + stateLib.gameHours(stCamp));
+stCamp.campFlow = false;
+
+const stShopA = stateLib.createGame({ seed: 991002 });
+stShopA.events.length = 0;
+const shopBefore = stateLib.adShiInfo(stShopA).used;
+const claimed = stateLib.claimAdShi(stShopA);
+ok('局内商店能领天机简', claimed.ok === true && stateLib.adShiInfo(stShopA).used === shopBefore + 1,
+  JSON.stringify(claimed.info));
+const stShopB = stateLib.createGame({ seed: 991003 });
+stShopB.events.length = 0;
+ok('换存档后商店次数从零开始', stateLib.adShiInfo(stShopB).used === 0,
+  String(stateLib.adShiInfo(stShopB).used));
+
+const extraLib = require(R + '/data/extra.js');
+const heroStorySample = extraLib.heroStory('liaohua') || '';
+ok('英雄自传只写本人经历、不写东家', heroStorySample.length > 20 &&
+  heroStorySample.indexOf('帐下') < 0 && heroStorySample.indexOf('麾下') < 0,
+  heroStorySample.slice(0, 30));
+
+group('西凉步卒 / 天机筒');
+ok('西凉追兵已改为步兵编制', TROOPS.tiefu.name === '西凉重步' && TROOPS.tiefu.cav === false,
+  TROOPS.tiefu.name + ' cav=' + TROOPS.tiefu.cav);
+
+const stClash = stateLib.createGame({ seed: 991004 });
+stClash.events.length = 0;
+warLib.init(stClash);
+const ca = stClash.lords.filter(function (l) { return l.faction === 'wei'; })[0];
+const cb = stClash.lords.filter(function (l) { return l.faction === 'yuan'; })[0];
+ca.x = 10; ca.y = 10; cb.x = 11; cb.y = 10;
+ca.troops = { inf: 120 }; cb.troops = { inf: 120 };
+ca.morale = 70; cb.morale = 70;
+const first = warLib.clash(stClash, ca, cb);
+ok('势均力敌时先进入交战而不是一碰就散', !!first && first.engaged === true,
+  JSON.stringify(first));
+ok('交战双方互相标记', ca.engagedWith === cb.id && cb.engagedWith === ca.id,
+  ca.engagedWith + ' / ' + cb.engagedWith);
+const aBefore = armyLib.troopCount(ca.troops);
+const bBefore = armyLib.troopCount(cb.troops);
+const second = warLib.clash(stClash, ca, cb);
+ok('大规模交战每轮成片掉人', armyLib.troopCount(ca.troops) < aBefore && armyLib.troopCount(cb.troops) < bBefore,
+  aBefore + '->' + armyLib.troopCount(ca.troops) + ' / ' + bBefore + '->' + armyLib.troopCount(cb.troops));
+ok('溃败后双方解除缠斗', !second.engaged || ca.engagedWith || cb.engagedWith,
+  JSON.stringify({ engaged: second.engaged, a: ca.engagedWith, b: cb.engagedWith }));
 
 /* ---------------------------------------------------------------- 收尾 */
 

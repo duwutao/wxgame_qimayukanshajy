@@ -2,7 +2,7 @@
  * 英雄层：不起眼的将领可招募，随队不死，靠打仗升级（1-10）
  */
 
-const { HEROES, HERO_MAX_LEVEL, HERO_BONUS } = require('../data/extra.js');
+const { HEROES, HERO_MAX_LEVEL, HERO_BONUS, heroStory } = require('../data/extra.js');
 const { siteById, gridDistance } = require('./world.js');
 
 const EXP_PER_LEVEL = 16;
@@ -52,6 +52,11 @@ function offersAt(state, site) {
 function heroById(id) {
   for (let i = 0; i < HEROES.length; i++) if (HEROES[i].id === id) return HEROES[i];
   return null;
+}
+
+/** 酒馆自传：本人的经历，而不是“谁帐下”的旧履历 */
+function storyOf(id) {
+  return heroStory(id) || (heroById(id) || {}).bio || '';
 }
 
 function hireHero(state, site, heroId) {
@@ -157,6 +162,7 @@ module.exports = {
   resolveHeroSites,
   offersAt,
   heroById,
+  storyOf,
   heroCap,
   hireHero,
   heroBonus,

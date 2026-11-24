@@ -16,7 +16,11 @@ const { siteById, regionDef } = require('../core/world.js');
 const { FACTIONS } = require('../data/china.js');
 
 const PAD = 24;
-const PER_PAGE = 8;
+const LIST_BOTTOM_GAP = 160;
+const SITE_ROW_H = 122;
+const SITE_GAP = 12;
+const LORD_ROW_H = 112;
+const LORD_GAP = 10;
 
 function siteKind(site) {
   return site.type === 'town' ? '城' : site.type === 'castle' ? '关隘' : site.type === 'village' ? '村' : '地';
@@ -49,6 +53,10 @@ const FiefScene = {
     this.mode = this.heroId ? 'pickHero' : (this.siteId ? 'list' : 'list');
     this.page = 0;
     this.sitePage = 0;
+    this.scrolls = { list: 0, pickHero: 0, lords: 0 };
+    this.scrollMax = 0;
+    this.drag = null;
+    this.dragMoved = 0;
     this.msg = '';
   },
 
@@ -103,22 +111,41 @@ const FiefScene = {
     });
   },
 
-  pageNav(app, ctx, w, h, total, per, page, setPage) {
-    if (total <= per) return;
-    const pages = Math.ceil(total / per);
-    const y = h - 206;
-    app.ui.button(ctx, PAD, y, 150, 56, '上一页', {
-      id: 'fief_prev', size: 20, fill: '#241c14',
-      disabled: page <= 0,
-      onTap: function () { setPage(page - 1); },
-    });
-    app.ui.button(ctx, w - PAD - 150, y, 150, 56, '下一页', {
-      id: 'fief_next', size: 20, fill: '#241c14',
-      disabled: page >= pages - 1,
-      onTap: function () { setPage(page + 1); },
-    });
-    text(ctx, '第 ' + (page + 1) + ' / ' + pages + ' 页', w / 2, y + 32, {
-      size: 17, align: 'center', color: '#8a8070',
+  scrollKey() {
+    return this.mode === 'lords' ? 'lords' : (this.mode === 'pickHero' ? 'pickHero' : 'list');
+  },
+
+  scrollValue() {
+    return this.scrolls[this.scrollKey()] || 0;
+  },
+
+  setScroll(v) {
+    this.scrolls[this.scrollKey()] = Math.max(0, Math.min(this.scrollMax || 0, v || 0));
+  },
+
+  scrollView(h, y0) {
+    const bottom = h - LIST_BOTTOM_GAP;
+    return { y0: y0, bottom: bottom, height: Math.max(120, bottom - y0) };
+  },
+
+  setupScroll(contentH, viewH) {
+    this.scrollMax = Math.max(0, contentH - viewH);
+    const key = this.scrollKey();
+    this.scrolls[key] = Math.max(0, Math.min(this.scrollMax, this.scrolls[key] || 0));
+    return this.scrolls[key];
+  },
+
+  scrollBar(ctx, w, view, scroll, contentH) {
+    if (this.scrollMax <= 0) return;
+    const trackH = view.height;
+    ctx.fillStyle = 'rgba(80,66,46,0.35)';
+    ctx.fillRect(w - 8, view.y0, 4, trackH);
+    const thumbH = Math.max(34, trackH * (view.height / contentH));
+    const thumbY = view.y0 + (trackH - thumbH) * (scroll / this.scrollMax);
+    ctx.fillStyle = '#8a7448';
+    ctx.fillRect(w - 8, thumbY, 4, thumbH);
+    text(ctx, '滚轮 / 上下拖动查看全部', PAD, view.bottom + 8, {
+      size: 14, color: '#8a8070',
     });
   },
 
@@ -137,24 +164,26 @@ const FiefScene = {
       return;
     }
 
-    const pages = Math.max(1, Math.ceil(all.length / PER_PAGE));
-    if (this.page >= pages) this.page = pages - 1;
-    if (this.page < 0) this.page = 0;
-    const rows = all.slice(this.page * PER_PAGE, (this.page + 1) * PER_PAGE);
     const y0 = 168;
-    const rowH = 122;
-    const gap = 12;
+    const view = this.scrollView(h, y0);
+    const contentH = all.length * (SITE_ROW_H + SITE_GAP);
+    const scroll = this.setupScroll(contentH, view.height);
 
-    rows.forEach(function (site, i) {
-      const y = y0 + i * (rowH + gap);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, view.y0, w, view.height);
+    ctx.clip();
+    all.forEach(function (site, i) {
+      const y = y0 + i * (SITE_ROW_H + SITE_GAP) - scroll;
+      if (y < view.y0 - SITE_ROW_H || y > view.bottom + SITE_ROW_H) return;
       const lord = stateLib.siteLord(st, site);
       const isSelf = stateLib.siteSelfFief(st, site);
-      app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
+      app.ui.button(ctx, PAD, y, w - PAD * 2, SITE_ROW_H, '', {
         id: 'fief_site_' + site.id, fill: site.id === app.state.player.atSiteId ? '#2f291f' : '#241c14',
         onTap: function () {
           app.top().scene.siteId = site.id;
           app.top().scene.mode = 'lords';
-          app.top().scene.page = 0;
+          app.top().scene.scrolls.lords = 0;
         },
       });
       text(ctx, site.name, PAD + 22, y + 16, { size: 30, color: '#efe3c6' });
@@ -163,13 +192,11 @@ const FiefScene = {
         PAD + 22, y + 86, { size: 16, color: isSelf ? '#f0c060' : lord ? '#d8c79e' : '#8fbf7a' });
       text(ctx, '点将 →', w - PAD - 20, y + 42, { size: 20, align: 'right', color: '#f0c060' });
     });
+    ctx.restore();
 
-    this.pageNav(app, ctx, w, h, all.length, PER_PAGE, this.page, function (n) {
-      app.top().scene.page = n;
-    });
-    const helpY = all.length > PER_PAGE ? h - 252 : h - 148;
+    this.scrollBar(ctx, w, view, scroll, contentH);
     text(ctx, '封地不占编制。一位领主最多管一处城村；自己可以直辖多处，按周收税。',
-      PAD, helpY, { size: 15, color: '#8a8070' });
+      PAD, view.bottom + 30, { size: 15, color: '#8a8070' });
     this.footerButton(app, ctx, w, h, '返回城池', 'fief_back', function () { app.pop(); }, '#241c14');
   },
 
@@ -194,15 +221,18 @@ const FiefScene = {
     }
 
     const y0 = 158;
-    const rowH = 122;
-    const gap = 12;
-    const pages = Math.max(1, Math.ceil(free.length / PER_PAGE));
-    if (this.sitePage >= pages) this.sitePage = pages - 1;
-    if (this.sitePage < 0) this.sitePage = 0;
-    const shown = free.slice(this.sitePage * PER_PAGE, (this.sitePage + 1) * PER_PAGE);
-    shown.forEach(function (site, i) {
-      const y = y0 + i * (rowH + gap);
-      app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
+    const view = this.scrollView(h, y0);
+    const contentH = free.length * (SITE_ROW_H + SITE_GAP);
+    const scroll = this.setupScroll(contentH, view.height);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, view.y0, w, view.height);
+    ctx.clip();
+    free.forEach(function (site, i) {
+      const y = y0 + i * (SITE_ROW_H + SITE_GAP) - scroll;
+      if (y < view.y0 - SITE_ROW_H || y > view.bottom + SITE_ROW_H) return;
+      app.ui.button(ctx, PAD, y, w - PAD * 2, SITE_ROW_H, '', {
         id: 'fief_hero_site_' + site.id, fill: '#241c14',
         onTap: function () {
           const r = stateLib.promoteHero(st, hero.id, site.id);
@@ -215,14 +245,11 @@ const FiefScene = {
       text(ctx, '封给他 · 独立带兵', PAD + 22, y + 86, { size: 16, color: '#8fbf7a' });
       text(ctx, '选此地 →', w - PAD - 20, y + 42, { size: 20, align: 'right', color: '#f0c060' });
     });
+    ctx.restore();
 
-    this.pageNav(app, ctx, w, h, free.length, PER_PAGE, this.sitePage, function (n) {
-      app.top().scene.sitePage = n;
-    });
+    this.scrollBar(ctx, w, view, scroll, contentH);
     text(ctx, '封地后英雄从队伍中移出，带一半编制出镇，之后在封地补满。', PAD,
-      free.length > PER_PAGE ? h - 252 : h - 148, {
-        size: 15, color: '#8a8070',
-      });
+      view.bottom + 30, { size: 15, color: '#8a8070' });
     this.footerButton(app, ctx, w, h, '取消', 'fief_hero_back', function () { app.pop(); }, '#241c14');
   },
 
@@ -269,16 +296,22 @@ const FiefScene = {
     }
 
     const y0 = 158;
-    const rowH = 112;
-    const gap = 10;
-    const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-    if (this.page >= pages) this.page = pages - 1;
-    if (this.page < 0) this.page = 0;
-    rows.slice(this.page * PER_PAGE, (this.page + 1) * PER_PAGE).forEach(function (row, i) {
-      const y = y0 + i * (rowH + gap);
+    const view = this.scrollView(h, y0);
+    if (current || selfCurrent) view.bottom = h - 254;
+    view.height = Math.max(120, view.bottom - view.y0);
+    const contentH = rows.length * (LORD_ROW_H + LORD_GAP);
+    const scroll = this.setupScroll(contentH, view.height);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, view.y0, w, view.height);
+    ctx.clip();
+    rows.forEach(function (row, i) {
+      const y = y0 + i * (LORD_ROW_H + LORD_GAP) - scroll;
+      if (y < view.y0 - LORD_ROW_H || y > view.bottom + LORD_ROW_H) return;
       const isCurrent = (row.kind === 'self' && selfCurrent) ||
         (row.kind === 'lord' && current && current.id === row.id);
-      app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
+      app.ui.button(ctx, PAD, y, w - PAD * 2, LORD_ROW_H, '', {
         id: 'fief_lord_' + row.kind + '_' + row.id,
         fill: isCurrent ? '#33291d' : '#241c14',
         onTap: function () {
@@ -293,7 +326,7 @@ const FiefScene = {
           app.showToast(r.msg, 3);
           if (r.ok) {
             app.top().scene.mode = 'list';
-            app.top().scene.page = 0;
+            app.top().scene.scrolls.list = 0;
           }
         },
       });
@@ -302,16 +335,12 @@ const FiefScene = {
       text(ctx, isCurrent ? '当前封主' : (row.kind === 'self' ? '收归自己 →' : row.kind === 'hero' ? '封地出镇 →' : '封给他 →'),
         w - PAD - 20, y + 38, { size: 18, align: 'right', color: isCurrent ? '#8fbf7a' : '#f0c060' });
     });
+    ctx.restore();
 
-    if (rows.length) {
-      this.pageNav(app, ctx, w, h, rows.length, PER_PAGE, this.page, function (n) {
-        app.top().scene.page = n;
-      });
-    }
+    this.scrollBar(ctx, w, view, scroll, contentH);
 
     if (current || selfCurrent) {
-      const clearY = rows.length > PER_PAGE ? h - 276 : h - 190;
-      app.ui.button(ctx, PAD, clearY, w - PAD * 2, 64,
+      app.ui.button(ctx, PAD, h - 190, w - PAD * 2, 64,
         current ? '收回 ' + current.name + ' 的这块封地' : '收回自己直辖（改封他人）', {
         id: 'fief_clear', size: 19, fill: '#3a2418',
         onTap: function () {
@@ -324,8 +353,30 @@ const FiefScene = {
 
     this.footerButton(app, ctx, w, h, '返回封地列表', 'fief_lords_back', function () {
       app.top().scene.mode = 'list';
-      app.top().scene.page = 0;
+      app.top().scene.scrolls.list = 0;
     }, '#241c14');
+  },
+  onTouchStart(app, x, y) {
+    this.drag = { y: y, scroll: this.scrollValue(), moved: 0 };
+  },
+
+  onTouchMove(app, x, y) {
+    if (!this.drag) return;
+    const dy = y - this.drag.y;
+    if (Math.abs(dy) > 5) {
+      this.drag.moved = Math.abs(dy);
+      // 拖动时取消按钮的按下态，松手不会误点进封地。
+      app.ui.pressed = null;
+      this.setScroll(this.drag.scroll - dy);
+    }
+  },
+
+  onTouchEnd() {
+    this.drag = null;
+  },
+
+  onWheel(app, dy) {
+    this.setScroll(this.scrollValue() + dy);
   },
 };
 

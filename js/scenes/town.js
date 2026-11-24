@@ -593,6 +593,15 @@ function renderVillage(app, site) {
   backButton(app, h - 84);
 }
 
+function equipEffectText(tier) {
+  if (!tier) return '无';
+  const parts = [];
+  if (tier.atkPct) parts.push('攻击 +' + Math.round(tier.atkPct * 100) + '%');
+  if (tier.defPct) parts.push('防御 +' + Math.round(tier.defPct * 100) + '%');
+  if (tier.speedPct) parts.push('行军 +' + Math.round(tier.speedPct * 100) + '%');
+  return parts.length ? parts.join(' · ') : '无加成';
+}
+
 function renderMarket(app, site, tab) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
@@ -667,9 +676,11 @@ function renderMarket(app, site, tab) {
     text(ctx, eq.name, PAD + 18, y + 12, { size: 20, color: '#a2947a' });
     text(ctx, cur.name, PAD + 96, y + 10, { size: 26, color: '#efe3c6' });
     text(ctx, '第 ' + (level + 1) + ' / ' + eq.tiers.length + ' 档 · ' +
-      (next ? '下一档：' + next.name + ' · ' + next.price + '金钱' : '已是顶配'), PAD + 18, y + 58, {
+      (next ? '下一档：' + next.name + ' · ' + next.price + '金钱' : '已是顶配'), PAD + 18, y + 56, {
       size: 17, color: next ? '#f0c060' : '#8a8070',
     });
+    text(ctx, '本级 ' + equipEffectText(cur) + ' ／ 下阶 ' + (next ? equipEffectText(next) : '已顶配'),
+      PAD + 18, y + 82, { size: 14, color: '#a2947a' });
     if (next) {
       app.ui.button(ctx, w - PAD - 150, y + 24, 132, 56, '换装', {
         id: 'up_' + slot, size: 22, disabled: st.player.gold < next.price, onTap: function () {
@@ -772,7 +783,7 @@ function renderTavern(app, site) {
       panel(ctx, PAD, y, w - PAD * 2, 150, { fill: '#201a14' });
       text(ctx, h.name, PAD + 18, y + 12, { size: 26, color: '#efe3c6' });
       text(ctx, '1-10 级 · 随队不死 · 打仗涨级', PAD + 150, y + 20, { size: 15, color: '#8a8070' });
-      wrap(ctx, h.bio, w - PAD * 2 - 200, 15).slice(0, 2).forEach(function (ln, i) {
+      wrap(ctx, heroes.storyOf(h.id) || h.bio, w - PAD * 2 - 200, 15).slice(0, 2).forEach(function (ln, i) {
         text(ctx, ln, PAD + 18, y + 52 + i * 22, { size: 15, color: '#a2947a' });
       });
       const b = heroes.bonusOf(h.id, 1);

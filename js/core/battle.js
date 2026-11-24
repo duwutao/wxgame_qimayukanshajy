@@ -172,14 +172,15 @@ class Battle {
     if (sa.pierceRatio > 0.12) defB *= 0.82;
     if (sb.pierceRatio > 0.12) defA *= 0.82;
 
-    // 天机简效果：只有增益，没有反噬
+    // 天机简效果：只利己，不反噬
     if (this.shiMark === 'wind') {
       atkA *= 1.90;
       if (this.fireGround) atkA *= 1.50;
     }
     if (this.shiMark === 'calm' && this.shiRounds > 0) {
-      atkA *= 0.30;
-      atkB *= 0.30;
+      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
+      if (this.a.isPlayer) atkB *= 0.30;
+      else if (this.b.isPlayer) atkA *= 0.30;
       this.shiRounds -= 1;
     }
 

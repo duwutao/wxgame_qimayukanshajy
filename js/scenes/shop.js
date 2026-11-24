@@ -1,5 +1,5 @@
 /**
- * 天机简商店：看一段军情广告，领两支天机简。
+ * 局内商店：看一段军情广告，领两支天机简。
  * 每日上限 5 次（共 10 支），由 state.adShiInfo 记录，跨天自动重置。
  * 广告 SDK 尚未接入：runtime.showRewardedAd 已留好接口，浏览器里模拟观看。
  */
@@ -36,8 +36,8 @@ const ShopScene = {
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
 
-    text(ctx, '天机简商店', PAD, 30, { size: 44, color: '#f0c060' });
-    text(ctx, '军情广告换天机 · 一天最多十支', PAD, 90, { size: 18, color: '#a2947a' });
+    text(ctx, '商店', PAD, 30, { size: 44, color: '#f0c060' });
+    text(ctx, '军情广告换天机 · 只记在当前存档 · 每天最多 5 次', PAD, 90, { size: 18, color: '#a2947a' });
 
     panel(ctx, PAD, 140, w - PAD * 2, 250, { fill: 'rgba(36,26,18,0.94)' });
     text(ctx, '天机简', PAD + 24, 162, { size: 28, color: '#d9a441' });
@@ -45,7 +45,7 @@ const ShopScene = {
     text(ctx, p ? '军帐中现有 ' + p.shi + ' 支' : '还没有军帐：先开一局，天机简才记在你名下。',
       PAD + 24, 208, { size: 18, color: p ? '#e6dbc2' : '#8a8070' });
     const intro = '每一支能在战局里写下一句话：南风起、风止、名册。'
-      + '这一版只保留增益，不再反噬天下关系；效果按旧版翻倍。';
+      + '风止只压敌军的攻势，不会反过来削自己的兵。';
     const ls = wrap(ctx, intro, w - PAD * 2 - 48, 17);
     ls.slice(0, 3).forEach(function (l, i) {
       text(ctx, l, PAD + 24, 244 + i * 26, { size: 16, color: '#a2947a' });
@@ -57,9 +57,10 @@ const ShopScene = {
     const info = st ? stateLib.adShiInfo(st) : { max: 5, used: 0, left: 0, shiPer: 2 };
     text(ctx, '今日可领 ' + info.left + ' / ' + info.max + ' 次 · 每次 ' + info.shiPer + ' 支',
       PAD, 420, { size: 20, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
-    text(ctx, '已领 ' + (info.used * info.shiPer) + ' 支；明天再来会重新计数。', PAD, 456, {
+    text(ctx, '当前存档已领 ' + (info.used * info.shiPer) + ' 支；明日重新计数。', PAD, 456, {
       size: 16, color: '#8a8070',
     });
+    text(ctx, '换一个存档，这份次数从零开始。', PAD, 482, { size: 14, color: '#6a6050' });
 
     const can = !!st && info.left > 0 && !this.busy;
     app.ui.button(ctx, PAD, 520, w - PAD * 2, 108,

@@ -306,7 +306,7 @@ const FACTIONS = {
   },
   ma: {
     id: 'ma', name: '凉', full: '马腾', color: '#a5824a', banner: '马',
-    lord: '马腾', desc: '西凉铁骑，天下精锐。粮少，人心散。',
+    lord: '马腾', desc: '西凉重步，天下精锐。粮少，人心散。',
   },
   han: {
     id: 'han', name: '汉', full: '汉廷', color: '#8f8f86', banner: '汉',
@@ -587,7 +587,7 @@ const HISTORY_MARKS = {
   },
   calm: {
     id: 'calm', name: '风止', text: '你写下“风止”，风停了，火也停了。',
-    desc: '双方攻击 -70%，持续 3 回合。少死很多人。',
+    desc: '只压敌军攻势 70%，持续 3 回合；我方不受反噬。',
   },
   roll: {
     id: 'roll', name: '名册', text: '你写下阵亡者的名字，他们又站了起来。',
@@ -603,7 +603,7 @@ const CAMPAIGN = [
   {
     id: 'prologue', title: '序章 · 洛阳溃兵',
     goal: '带上剩下的几名弟兄，活着抵达陈留',
-    story: '洛阳城破那夜，你只带出九个人，往东跑。身后是西凉铁骑，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
+    story: '洛阳城破那夜，你只带出九个人，往东跑。身后是西凉重步，脚下是结冰的护城河。\n你不是要赢，你只是要过桥。',
     check: 'reach_chenliu',
     reward: { renown: 20, shi: 1 },
     after: '过桥的时候还剩八个。你数了两遍，怕漏了谁。',

@@ -10,7 +10,8 @@ const { FACTIONS } = require('../data/china.js');
 const { siteById } = require('../core/world.js');
 
 const PAD = 20;
-const PER_PAGE = 8;
+const DIPLO_ROW_H = 112;
+const DIPLO_GAP = 10;
 
 function facName(id) {
   return (FACTIONS[id] || {}).full || id;
@@ -21,6 +22,7 @@ const GovernScene = {
     this.siteId = params && params.siteId;
     this.view = 'main';
     this.page = 0;
+    this.scroll = 0;
     this.choice = null;
     this.msg = '';
   },
@@ -113,25 +115,31 @@ const GovernScene = {
     const ids = Object.keys(FACTIONS).filter(function (id) {
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
-    const pages = Math.max(1, Math.ceil(ids.length / PER_PAGE));
-    if (this.page >= pages) this.page = pages - 1;
-    if (this.page < 0) this.page = 0;
-    const shown = ids.slice(this.page * PER_PAGE, (this.page + 1) * PER_PAGE);
     const y0 = 140;
-    const rowH = 112;
-    const gap = 10;
+    const viewTop = y0;
+    const viewBottom = h - 152;
+    const viewH = Math.max(120, viewBottom - viewTop);
+    const contentH = ids.length * (DIPLO_ROW_H + DIPLO_GAP);
+    const maxScroll = Math.max(0, contentH - viewH);
+    this.scrollMax = maxScroll;
+    this.scroll = Math.max(0, Math.min(maxScroll, this.scroll || 0));
 
-    if (!shown.length) {
+    if (!ids.length) {
       text(ctx, '天下已经没有可以谈的人了。', PAD, 180, { size: 20, color: '#a2947a' });
     }
 
-    shown.forEach(function (id, i) {
-      const y = y0 + i * (rowH + gap);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, viewTop, w, viewH);
+    ctx.clip();
+    ids.forEach(function (id, i) {
+      const y = y0 + i * (DIPLO_ROW_H + DIPLO_GAP) - (app.top().scene.scroll || 0);
+      if (y < viewTop - DIPLO_ROW_H || y > viewBottom + DIPLO_ROW_H) return;
       const fac = FACTIONS[id];
       const fs = st.factionState[id] || {};
       const rel = stateLib.relationOf(st, id);
       const atWar = stateLib.atWarWith(st, id);
-      app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
+      app.ui.button(ctx, PAD, y, w - PAD * 2, DIPLO_ROW_H, '', {
         id: 'gov_fac_' + id, fill: atWar ? '#3a2418' : '#241c14',
         onTap: function () {
           app.top().scene.choice = id;
@@ -139,7 +147,7 @@ const GovernScene = {
         },
       });
       ctx.fillStyle = fac.color;
-      ctx.fillRect(PAD, y, 6, rowH);
+      ctx.fillRect(PAD, y, 6, DIPLO_ROW_H);
       text(ctx, fac.full, PAD + 20, y + 14, { size: 26, color: '#efe3c6' });
       text(ctx, fac.name + ' · 关系 ' + rel + (fs.dead ? ' · 已亡' : ''),
         PAD + 20, y + 52, { size: 16, color: fs.dead ? '#6a6050' : '#a2947a' });
@@ -150,18 +158,22 @@ const GovernScene = {
         : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
           : '点开 →', PAD + 20, y + 84, { size: 15, color: '#8a8070' });
     });
+    ctx.restore();
 
-    if (ids.length > PER_PAGE) {
-      app.ui.button(ctx, PAD, h - 180, 150, 56, '上一页', {
-        id: 'gov_prev', size: 20, fill: '#241c14', disabled: this.page <= 0,
-        onTap: function () { app.top().scene.page -= 1; },
+    if (maxScroll > 0) {
+      const trackH = viewH;
+      ctx.fillStyle = 'rgba(80,66,46,0.35)';
+      ctx.fillRect(w - 8, y0, 4, trackH);
+      const thumbH = Math.max(34, trackH * (viewH / contentH));
+      const thumbY = y0 + (trackH - thumbH) * (this.scroll / maxScroll);
+      ctx.fillStyle = '#8a7448';
+      ctx.fillRect(w - 8, thumbY, 4, thumbH);
+      text(ctx, '滚轮 / 上下拖动查看全部列国', PAD, h - 148, {
+        size: 14, color: '#8a8070',
       });
-      app.ui.button(ctx, w - PAD - 150, h - 180, 150, 56, '下一页', {
-        id: 'gov_next', size: 20, fill: '#241c14', disabled: this.page >= pages - 1,
-        onTap: function () { app.top().scene.page += 1; },
-      });
-      text(ctx, '第 ' + (this.page + 1) + ' / ' + pages + ' 页', w / 2, h - 150, {
-        size: 16, align: 'center', color: '#8a8070',
+    } else {
+      text(ctx, '两国交兵，先看清关系与血债，再递战书或谈和。', PAD, h - 148, {
+        size: 14, color: '#8a8070',
       });
     }
 
@@ -259,6 +271,30 @@ const GovernScene = {
         app.top().scene.view = 'diplo';
       },
     });
+  },
+
+  onTouchStart(app, x, y) {
+    if (this.view !== 'diplo') return;
+    this.drag = { y: y, scroll: this.scroll || 0, moved: 0 };
+  },
+
+  onTouchMove(app, x, y) {
+    if (this.view !== 'diplo' || !this.drag) return;
+    const dy = y - this.drag.y;
+    if (Math.abs(dy) > 5) this.drag.moved = Math.abs(dy);
+    if (this.drag.moved > 5) {
+      app.ui.pressed = null;
+      this.scroll = Math.max(0, Math.min(this.scrollMax || 0, this.drag.scroll - dy));
+    }
+  },
+
+  onTouchEnd() {
+    this.drag = null;
+  },
+
+  onWheel(app, dy) {
+    if (this.view !== 'diplo') return;
+    this.scroll = Math.max(0, Math.min(this.scrollMax || 0, (this.scroll || 0) + dy));
   },
 };
 

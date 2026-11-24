@@ -68,8 +68,8 @@ const TROOPS = {
     desc: '鲜卑单于的亲骑。马力最盛，冲阵最狠。',
   },
   tiefu: {
-    id: 'tiefu', name: '西凉铁骑', tier: 4, atk: 20, def: 14, hp: 36, food: 3, recruit: 176, cav: true, renownReq: 180,
-    desc: '凉州精骑，人马俱甲。中原步兵见了会退半步。',
+    id: 'tiefu', name: '西凉重步', tier: 4, atk: 20, def: 14, hp: 36, food: 3, recruit: 176, cav: false, renownReq: 180,
+    desc: '凉州重甲步卒，持长刀大盾。走得慢，正面极硬。',
   },
   jinjun: {
     id: 'jinjun', name: '禁军', tier: 5, atk: 22, def: 18, hp: 44, food: 2, recruit: 240, renownReq: 300,

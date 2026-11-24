@@ -99,12 +99,15 @@ function process(app) {
       return;
     }
     if (ev.type === 'diplomacy') {
-      // 宣战/议和不打断操作，只弹几息；点一下也能提前收起
+      // 宣战/议和停 7 秒，背景是战场或使团交书；点屏幕任意处直接跳过。
+      const peace = ev.kind === 'peace';
       app.push('news', {
-        title: ev.title || '天下军情',
+        title: ev.title || (peace ? '两家罢兵' : '战书已下'),
         lines: ev.lines || [],
-        tag: ev.kind === 'peace' ? '议和' : '宣战',
-        auto: 5.2,
+        tag: peace ? '议和' : '宣战',
+        auto: 7,
+        art: peace ? 'peace' : 'war',
+        skipAny: true,
       });
       return;
     }

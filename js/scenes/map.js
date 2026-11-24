@@ -147,7 +147,7 @@ function pushUnitPage(app, kind, id) {
   if (kind === 'lord') { app.push('lord', { lordId: id }); return; }
   const party = app.state.parties.filter(function (x) { return x.id === id; })[0];
   if (party && party.scripted) {
-    app.showToast('西凉铁骑只在追上你时才会停下来，不能主动挑战。', 2.4);
+    app.showToast('西凉步卒只在追上你时才会停下来，不能主动挑战。', 2.4);
     return;
   }
   app.push('contact', { partyId: id });
@@ -345,6 +345,13 @@ const MapScene = {
     if (y < TOP_H || y > TOP_H + box.h) return;
 
     const st = app.state;
+
+    // 野地扎营：地图上时辰自己在走，点任意处按住，给出继续/拔营的选择。
+    if (st.campFlow) {
+      st.campFlow = false;
+      app.push('camp', { pause: true, reason: '你在大地图上按住了时辰。' });
+      return;
+    }
 
     // 在城里歇着的时候出来看地图：点一下地图就回城
     if (app.restView) {
@@ -922,10 +929,10 @@ function drawUnits(ctx, app, cam, box, w) {
       size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
     });
 
-    if (p.scuffle > 0) {
+    if (p.engagedWith || p.scuffle > 0) {
       ctx.fillStyle = 'rgba(220,80,50,0.85)';
       ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
-      text(ctx, '交战', sx, sy - 57 * z, { size: Math.round(12 * z), align: 'center', color: '#fff' });
+      text(ctx, '交战中', sx, sy - 57 * z, { size: Math.round(12 * z), align: 'center', color: '#fff' });
     }
     if (p.scripted) {
       ctx.fillStyle = 'rgba(200,60,40,0.9)';
@@ -998,6 +1005,13 @@ function drawUnits(ctx, app, cam, box, w) {
       });
     }
 
+    if (lord.engagedWith) {
+      ctx.fillStyle = 'rgba(220,80,50,0.9)';
+      ctx.fillRect(sx - 24 * z, sy - 58 * z, 48 * z, 16 * z);
+      text(ctx, '交战中', sx, sy - 57 * z, {
+        size: Math.round(12 * z), align: 'center', color: '#fff',
+      });
+    }
     if (lord.chasing) {
       text(ctx, '!', sx, sy - 44 * z, { size: Math.round(22 * z), align: 'center', color: '#e05a42' });
     }
@@ -1411,14 +1425,19 @@ function drawBottom(ctx, app, w, box) {
   ctx.fillStyle = '#3a2c1e';
   ctx.fillRect(0, y0, w, 3);
 
+  function leaveCampFlow() {
+    if (app.state) app.state.campFlow = false;
+  }
   const btns = [
-    { id: 'army', label: '队伍', tap: function () { app.push('army'); } },
-    { id: 'journal', label: '史册', tap: function () { app.push('journal'); } },
+    { id: 'army', label: '队伍', tap: function () { leaveCampFlow(); app.push('army'); } },
+    { id: 'journal', label: '史册', tap: function () { leaveCampFlow(); app.push('journal'); } },
+    // 扎营按钮不自己清 campFlow：CampScene 看到它还在，会直接弹出“继续/拔营”。
     { id: 'camp', label: '扎营', tap: function () { app.push('camp'); } },
-    { id: 'menu', label: '菜单', tap: function () { app.push('menu'); } },
+    { id: 'shop', label: '商店', tap: function () { leaveCampFlow(); app.push('shop'); } },
+    { id: 'menu', label: '菜单', tap: function () { leaveCampFlow(); app.push('menu'); } },
   ];
-  const gap = 10;
-  const bw = (w - 20 - gap * 3) / 4;
+  const gap = 8;
+  const bw = (w - 20 - gap * 4) / 5;
   btns.forEach(function (b, i) {
     app.ui.button(ctx, 10 + i * (bw + gap), y0 + 14, bw, 76, b.label, {
       id: b.id, size: 24, onTap: b.tap,

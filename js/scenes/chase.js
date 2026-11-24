@@ -35,7 +35,7 @@ function recentWarLines(st, n) {
   return out;
 }
 
-/** 西凉铁骑专用：不买路、不对战，只给“留人断后”一条路 */
+/** 西凉步卒专用：不买路、不对战，只给“留人断后”一条路 */
 function renderIronChase(app, ctx, w, h, st, unit) {
   const mine = army.troopCount(st.player.troops);
   const foe = army.troopCount(unit.troops || {});
@@ -46,14 +46,14 @@ function renderIronChase(app, ctx, w, h, st, unit) {
   ctx.fillRect(0, 0, w, 230);
   ctx.globalAlpha = 1;
 
-  text(ctx, '西 凉 铁 骑', w / 2, 22, { size: 20, align: 'center', color: '#e08a70' });
-  text(ctx, '铁骑追上来了', w / 2, 60, { size: 44, align: 'center', color: '#f5e9cf', shadow: true });
+  text(ctx, '西 凉 步 卒', w / 2, 22, { size: 20, align: 'center', color: '#e08a70' });
+  text(ctx, '步卒追上来了', w / 2, 60, { size: 44, align: 'center', color: '#f5e9cf', shadow: true });
   text(ctx, '他们不列阵，也不收买路钱。', w / 2, 120, { size: 18, align: 'center', color: '#c9bda2' });
-  text(ctx, '铁骑只咬住你的后队，你只能留人断后。', w / 2, 150, { size: 18, align: 'center', color: '#c9bda2' });
+  text(ctx, '步卒只咬住你的后队，你只能留人断后。', w / 2, 150, { size: 18, align: 'center', color: '#c9bda2' });
 
   panel(ctx, 20, 198, w - 40, 184, { fill: '#1b1611' });
   text(ctx, '我方 ' + mine + ' 人', 36, 214, { size: 22, color: '#8fb0d8' });
-  text(ctx, '西凉铁骑 ' + foe + ' 人', 36, 254, { size: 22, color: '#d07060' });
+  text(ctx, '西凉步卒 ' + foe + ' 人', 36, 254, { size: 22, color: '#d07060' });
   text(ctx, '他们不会和你摆开阵势打。', 36, 296, { size: 16, color: '#8a8070' });
   text(ctx, '每次被咬住，都要折几个人换八个时辰。', 36, 326, {
     size: 17, color: mine > 1 ? '#d9a441' : '#d06a4a',
@@ -71,7 +71,7 @@ function renderIronChase(app, ctx, w, h, st, unit) {
       if (r.ok) app.pop();
     },
   });
-  text(ctx, mine > 1 ? '折几个人，铁骑会在原地停 8 小时，之后不再主动追你。' : '没有人断后，铁骑会直接踏过去。',
+  text(ctx, mine > 1 ? '折几个人，步卒会在原地停 8 小时，之后不再主动追你。' : '没有人断后，步卒会直接踏过去。',
     w / 2, h - 64, { size: 15, align: 'center', color: '#8a8070' });
 }
 

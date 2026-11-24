@@ -108,13 +108,15 @@ const HeroScene = {
       size: 14, color: '#6a6355',
     });
     text(ctx, '队伍加成：' + (b.text || '无'), 176, 176, { size: 17, color: '#8fb0d8' });
-    text(ctx, '旧地：' + ((siteById(st.world, def.site) || {}).name || def.site || '不明') + '（离开后能在那儿再遇见）', 176, 204, { size: 14, color: '#8a8070' });
+    const ownCountry = st.player.country && st.player.country.name
+      ? st.player.country.name + '国' : '你的旗';
+    text(ctx, '现属：' + ownCountry + '麾下 · 随你行军', 176, 204, { size: 14, color: '#8a8070' });
 
-    // 生平
+    // 生平：只写他自己的经历；当前归属上面已单独标明。
     let y = 288;
     panel(ctx, 16, y, w - 32, 186, { fill: '#1b1611' });
     text(ctx, '生平', 32, y + 12, { size: 15, color: '#8a8070' });
-    const bio = wrap(ctx, def.bio || '来历不明。', w - 64, 16);
+    const bio = wrap(ctx, heroesLib.storyOf(hh.id) || '来历不明。', w - 64, 16);
     bio.slice(0, 6).forEach(function (ln, i) {
       text(ctx, ln, 32, y + 40 + i * 24, { size: 16, color: '#c9c0a8' });
     });

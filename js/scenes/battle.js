@@ -84,6 +84,8 @@ const BattleScene = {
       return;
     }
     if (bv.phase === 'fight') {
+      // 天机简面板一开，决斗就按住不动，等玩家落笔或取消。
+      if (bv.shiOpen) return;
       bv.timer += dt;
       if (bv.timer >= 0.6) {
         bv.timer = 0;
@@ -174,8 +176,8 @@ const BattleScene = {
     // 底部
     const bottom = compact ? Math.max(y2 + 96, h - 232) : Math.max(778, h - 486);
     if (bv.phase === 'prep') {
-      text(ctx, '选一个打法', 16, bottom - 30, { size: 18, color: '#a2947a' });
       if (compact) {
+        text(ctx, '选一个打法', 16, bottom - 30, { size: 18, color: '#a2947a' });
         // 矮屏：四个打法排一行，不占两行高
         const bw4 = (w - 32 - 24) / 4;
         TACTIC_LIST.forEach(function (id, i) {
@@ -191,56 +193,74 @@ const BattleScene = {
         const dline = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 15)[0] || '';
         text(ctx, dline, 16, bottom + 62, { size: 15, color: '#a2947a' });
       } else {
+        // 桌面/高屏：2×2 打法在上，撤离 / 天机简 / 开战贴底，互不压字。
+        const actionY = h - 90;
+        const tacH = 54;
+        const row2 = actionY - 12 - tacH;
+        const row1 = row2 - (tacH + 6);
+        text(ctx, '选一个打法', 16, row1 - 66, { size: 18, color: '#a2947a' });
+        const dline = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 15).slice(0, 1)[0] || '';
+        text(ctx, dline, 16, row1 - 24, { size: 15, color: '#a2947a' });
         TACTIC_LIST.forEach(function (id, i) {
           const t = TACTICS[id];
           const bx = 16 + (i % 2) * (w / 2 - 8);
-          const by = bottom + Math.floor(i / 2) * 70 - 10;
+          const by = row1 + Math.floor(i / 2) * (tacH + 6);
           const active = bv.tactic === id;
-          app.ui.button(ctx, bx, by, w / 2 - 24, 60, t.name, {
-            id: 'tac_' + id, size: 24,
+          app.ui.button(ctx, bx, by, w / 2 - 24, tacH, t.name, {
+            id: 'tac_' + id, size: 22,
             fill: active ? '#4a3620' : '#241c14',
             border: active ? UI_COLORS.accent : UI_COLORS.border,
             onTap: function () { bv.tactic = id; },
           });
         });
-        const dlines = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 16);
-        dlines.slice(0, 2).forEach(function (ln, i) {
-          text(ctx, ln, 16, bottom + 148 + i * 24, { size: 16, color: '#a2947a' });
-        });
       }
 
-      // 战前也能走：撤离不算撤退伤亡，退开之后对方一时追不上
-      const tipY = compact ? h - 128 : h - 134;
-      text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, tipY, {
-        size: compact ? 14 : 15, color: '#8fbf7a',
-      });
+      // 战前也能走：撤离不算撤退伤亡，退开之后对方一时短时间贴不上来
       if (compact) {
-        app.ui.button(ctx, 16, h - 92, 196, 74, '撤离', {
-          id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+        text(ctx, '不想打就撤离：不损一兵，退开后对方短时间贴不上来。', 16, h - 128, {
+          size: 14, color: '#8fbf7a',
+        });
+      }
+      if (compact) {
+        const bw3 = (w - 32 - 16) / 3;
+        app.ui.button(ctx, 16, h - 92, bw3, 74, '撤离', {
+          id: 'leave', size: 22, fill: '#241c14', onTap: function () {
             stateLib.afterRetreat(app.state, b.context);
             app.state.battle = null;
             backToMap(app);
             app.showToast('你退离了战场。', 2);
           },
         });
-        app.ui.button(ctx, 224, h - 92, w - 240, 74, '开战', {
-          id: 'go', size: 28, fill: '#4a2a1a', onTap: function () {
+        app.ui.button(ctx, 16 + bw3 + 8, h - 92, bw3, 74,
+          '天机简 ×' + app.state.player.shi, {
+          id: 'pre_shi', size: 16, fill: '#3a2438',
+          disabled: app.state.player.shi <= 0 || !!b.shiMark,
+          onTap: function () { bv.shiOpen = true; },
+        });
+        app.ui.button(ctx, 16 + (bw3 + 8) * 2, h - 92, bw3, 74, '开战', {
+          id: 'go', size: 24, fill: '#4a2a1a', onTap: function () {
             b.setTactic(bv.tactic);
             bv.phase = 'fight';
             bv.timer = 0;
           },
         });
       } else {
-        app.ui.button(ctx, 16, h - 100, 200, 78, '撤离', {
-          id: 'leave', size: 26, fill: '#241c14', onTap: function () {
+        app.ui.button(ctx, 16, h - 90, 100, 78, '撤离', {
+          id: 'leave', size: 24, fill: '#241c14', onTap: function () {
             stateLib.afterRetreat(app.state, b.context);
             app.state.battle = null;
             backToMap(app);
             app.showToast('你退离了战场。', 2);
           },
         });
-        app.ui.button(ctx, 232, h - 100, w - 248, 78, '开战', {
-          id: 'go', size: 30, fill: '#4a2a1a', onTap: function () {
+        app.ui.button(ctx, 124, h - 90, 112, 78,
+          '天机简 ×' + app.state.player.shi, {
+          id: 'pre_shi', size: 16, fill: '#3a2438',
+          disabled: app.state.player.shi <= 0 || !!b.shiMark,
+          onTap: function () { bv.shiOpen = true; },
+        });
+        app.ui.button(ctx, 244, h - 90, w - 260, 78, '开战', {
+          id: 'go', size: 28, fill: '#4a2a1a', onTap: function () {
             b.setTactic(bv.tactic);
             bv.phase = 'fight';
             bv.timer = 0;

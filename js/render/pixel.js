@@ -668,7 +668,7 @@ function makeUnitSprite(runtime, troopId, color) {
   const main = color || '#8a7a5a';
   const kind = troopId || '';
   const naval = /boat|huochuan/.test(kind);
-  const mounted = !naval && /cav|qishe|tiefu|tengri|xianbei|jinjun/.test(kind);
+  const mounted = !naval && /cav|qishe|tengri|xianbei|jinjun/.test(kind);
   const archer = /archer|crossbow/.test(kind);
   if (mounted && !naval) {
     // 骑

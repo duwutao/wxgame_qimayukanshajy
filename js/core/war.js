@@ -332,9 +332,15 @@ function freeLord(state, lord, why) {
   return lord;
 }
 
+function clearEngagement(a, b) {
+  if (a) a.engagedWith = null;
+  if (b) b.engagedWith = null;
+}
+
 /**
- * 两位领主在路上撞上：打一场小规模的。
- * 败方不会死——溃逃，或者被俘。
+ * 两位领主在路上撞上：不是碰一下就散，而是原地列阵打一场大的。
+ * 每 3 小时结算一轮，双方都成片掉人；打崩之后败方大概率溃逃，
+ * 小概率被俘。交战期间双方都停住不动。
  */
 function clash(state, a, b) {
   const wa = weight(a.troops);
@@ -343,13 +349,17 @@ function clash(state, a, b) {
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
   const totalB = army.troopCount(b.troops);
-  // 碰到一次只打一场前哨战，不是一仗定生死：双方各掉 5%~17%
-  const lossA = Math.max(1, Math.round(totalA * (0.05 + (1 - share) * 0.12)));
-  const lossB = Math.max(1, Math.round(totalB * (0.05 + share * 0.12)));
+
+  a.engagedWith = b.id;
+  b.engagedWith = a.id;
+  a.scuffle = 0;
+  b.scuffle = 0;
+
+  // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
+  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16)));
+  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
-  a.scuffle = 2;
-  b.scuffle = 2;
 
   const remainA = army.troopCount(a.troops);
   const remainB = army.troopCount(b.troops);
@@ -360,58 +370,74 @@ function clash(state, a, b) {
 
   const near = nearPlayer(state, winner, 10);
 
-  // 一边被打空了，或者被打崩了：被俘 / 溃逃
-  const broken = loserRemain <= 0 || loserRemain < 6 || (loserRemain / Math.max(1, winnerRemain)) < 0.28;
+  // 一边被打空了，或者阵线被打穿：被俘 / 溃逃
+  const broken = loserRemain <= 0 || loserRemain < 6 ||
+    (loserRemain / Math.max(1, winnerRemain)) < 0.28;
   if (!broken) {
-    // 势均力敌时打累了各自收兵，弱势的一方更容易先撤
-    const tired = state.rng.next() < 0.35 + (1 - share) * 0.25;
-    if (tired) {
-      moveAway(state, loser);
-      loser.chasing = false;
-      loser.scuffle = 6;
-      if (near) logFn(state, a.name + '与' + b.name + '的前哨战打到天黑，' + loser.name + '先收兵退了，各折了 ' + lossA + '、' + lossB + ' 骑。', 'war');
-      return { draw: true, withdraw: true };
-    }
-    if (near) logFn(state, a.name + '与' + b.name + '在野地里缠上了，各折了 ' + lossA + '、' + lossB + ' 骑，还没分出胜负。', 'war');
-    return { draw: true };
+    // 还在打：双方都不走，地图上显示交战。
+    if (near) logFn(state, a.name + '与' + b.name + '在野地里列阵相攻，双方都不退，阵线上又倒下一片。', 'war');
+    return { engaged: true };
   }
 
+  clearEngagement(a, b);
   const rng = state.rng;
-  // 乱世里保住人比保住脸重要：领主之间只是打散，极少真被捆走
-  const flee = rng.next() < 0.85 || winner.faction === 'bandit';
+  // 乱世里保住人比保住脸重要：打散之后大概率还能跑，极少真被捆走。
+  const flee = rng.next() < 0.82;
   if (flee) {
     loser.alive = true;
     loser.chasing = false;
     moveAway(state, loser);
-    loser.scuffle = 12;
+    loser.scuffle = 10;
     if (near) logFn(state, loser.name + '的阵线先散，带着残兵往野地里跑了，' + winner.name + '也没有死追。', 'war');
     return { flee: true };
   }
 
   capture(state, loser, winner.faction, winner.name);
+  if (near) logFn(state, loser.name + '被' + winner.name + '的部曲围住，当场捆了。', 'war');
   return { capture: true };
 }
 
-/** 每 NPC 步：所有毗邻的敌对领主互殴 */
+/** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
   const list = state.lords.filter(function (l) { return l.alive; });
+  const seen = {};
   let count = 0;
   for (let i = 0; i < list.length; i++) {
     const a = list[i];
     if (!a.alive) continue;
+    // 和匪团缠在一起时由 state 的 fightNeighbors 接管，别在这里抢
+    if (a.engagedWith && String(a.engagedWith).indexOf('party:') === 0) continue;
+    if (a.engagedWith) {
+      const b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
+      if (!b || !b.alive || Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 ||
+          a.faction === b.faction || !atWar(state, a.faction, b.faction)) {
+        a.engagedWith = null;
+        continue;
+      }
+      const pairKey = [a.id, b.id].sort().join('|');
+      if (seen[pairKey]) continue;
+      seen[pairKey] = true;
+      clash(state, a, b);
+      count += 1;
+      if (count > 3) return count;
+      continue;
+    }
     if (a.scuffle && a.scuffle > 0) { a.scuffle -= 1; continue; }
     for (let j = i + 1; j < list.length; j++) {
       const b = list[j];
-      if (!b.alive || !b.troops) continue;
+      if (!b.alive || !b.troops || b.engagedWith) continue;
       if (b.scuffle && b.scuffle > 0) continue;
       if (Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1) continue;
       if (a.faction === b.faction) continue;
       if (a.faction === 'bandit' && b.faction === 'bandit') continue;
       if (!atWar(state, a.faction, b.faction)) continue;
+      const pairKey = [a.id, b.id].sort().join('|');
+      if (seen[pairKey]) continue;
+      seen[pairKey] = true;
       clash(state, a, b);
       count += 1;
-      if (count > 6) return;
+      if (count > 3) return count;
     }
   }
   return count;

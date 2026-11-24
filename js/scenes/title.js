@@ -86,12 +86,6 @@ const TitleScene = {
       },
     });
 
-    app.ui.button(ctx, 80, by + gapY * 4, bw, bh - 12, '天机简商店', {
-      id: 'shop', size: 24, fill: '#2a1c16', onTap: function () {
-        app.push('shop');
-      },
-    });
-
     text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 天机改命', w / 2, h - 40, {
       size: 15, align: 'center', color: '#6a6050',
     });
