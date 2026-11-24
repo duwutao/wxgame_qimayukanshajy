@@ -577,10 +577,12 @@ function renderMarket(app, site, tab) {
     const eq = EQUIPMENT[slot];
     const cur = economy.equipmentTier(st, slot);
     const next = economy.nextEquipment(st, slot);
+    const level = st.player.equip[slot] || 0;
     panel(ctx, PAD, y, w - PAD * 2, 104, { fill: '#241c14' });
     text(ctx, eq.name, PAD + 18, y + 12, { size: 20, color: '#a2947a' });
     text(ctx, cur.name, PAD + 96, y + 10, { size: 26, color: '#efe3c6' });
-    text(ctx, next ? '下一档：' + next.name + ' · ' + next.price + ' 金' : '已是顶配', PAD + 18, y + 58, {
+    text(ctx, '第 ' + (level + 1) + ' / ' + eq.tiers.length + ' 档 · ' +
+      (next ? '下一档：' + next.name + ' · ' + next.price + ' 金' : '已是顶配'), PAD + 18, y + 58, {
       size: 17, color: next ? '#f0c060' : '#8a8070',
     });
     if (next) {

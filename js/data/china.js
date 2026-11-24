@@ -10,8 +10,9 @@
  */
 const BASE_W = 40;
 const BASE_H = 48;
-const MAP_W = 64;
-const MAP_H = 77;
+// 天下再放大一倍：城与城之间至少拉开两倍路程，领主再多也有地方跑
+const MAP_W = 128;
+const MAP_H = 154;
 
 /** 地形：cost 影响寻路，hours 为越过一格的游戏小时 */
 const TERRAIN = {
@@ -402,6 +403,37 @@ const LORDS = [
   { id: 'dongcheng', name: '董承', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 10 }, morale: 72, sight: 5, title: '车骑将军' },
   { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'hulao', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
   { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
+
+  // ---- 放大天下以后补的领主：魏蜀吴袁刘各添一队人 ----
+  // 魏：宗亲、五子、宿卫
+  { id: 'caohong', name: '曹洪', faction: 'wei', home: 'chenliu', soldiers: { militia: 45, spear: 35, cav: 18 }, morale: 82, sight: 7, title: '都护将军' },
+  { id: 'yuejin', name: '乐进', faction: 'wei', home: 'puyang', soldiers: { spear: 40, militia: 30, crossbow: 15 }, morale: 85, sight: 7, title: '折冲将军' },
+  { id: 'yujin', name: '于禁', faction: 'wei', home: 'runan', soldiers: { spear: 45, crossbow: 20, guard: 8 }, morale: 84, sight: 7, title: '虎威将军' },
+  { id: 'dianwei', name: '典韦', faction: 'wei', home: 'xuchang', soldiers: { spear: 35, guard: 28, militia: 20 }, morale: 93, sight: 6, title: '都尉' },
+  { id: 'lidian', name: '李典', faction: 'wei', home: 'qiao', soldiers: { militia: 35, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '破虏将军' },
+  // 蜀：荆州旧部与汉中守将
+  { id: 'madai', name: '马岱', faction: 'shu', home: 'hanzhong', soldiers: { cav: 32, spear: 30, militia: 18 }, morale: 88, sight: 8, title: '平北将军' },
+  { id: 'guanping', name: '关平', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 28, cav: 15 }, morale: 90, sight: 7, title: '军前都督' },
+  { id: 'liaohua', name: '廖化', faction: 'shu', home: 'xinye', soldiers: { militia: 35, spear: 25, archer: 12 }, morale: 82, sight: 6, title: '主簿' },
+  { id: 'yanyan', name: '严颜', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 38, militia: 25, archer: 16 }, morale: 86, sight: 7, title: '巴郡太守' },
+  { id: 'zhoucang', name: '周仓', faction: 'shu', home: 'xinye', soldiers: { militia: 30, spear: 30, baier: 10 }, morale: 88, sight: 6, title: '部曲督' },
+  // 吴：江东十二虎臣
+  { id: 'zhoutai', name: '周泰', faction: 'wu', home: 'jianye', soldiers: { militia: 32, spear: 30, danyang: 16 }, morale: 90, sight: 7, title: '奋威将军' },
+  { id: 'lingtong', name: '凌统', faction: 'wu', home: 'wujun', soldiers: { militia: 30, archer: 28, cav: 18 }, morale: 88, sight: 7, title: '荡寇中郎将' },
+  { id: 'xusheng', name: '徐盛', faction: 'wu', home: 'kuaiji', soldiers: { archer: 35, spear: 25, boat: 12 }, morale: 84, sight: 7, title: '建武将军' },
+  { id: 'dingfeng', name: '丁奉', faction: 'wu', home: 'chaisang', soldiers: { militia: 30, archer: 25, danyang: 14 }, morale: 85, sight: 7, title: '偏将军' },
+  { id: 'zhugejin', name: '诸葛瑾', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 76, sight: 6, title: '长史' },
+  // 袁：河北旧部
+  { id: 'gaolan', name: '高览', faction: 'yuan', home: 'ye', soldiers: { spear: 35, cav: 28, militia: 20 }, morale: 82, sight: 7, title: '中郎将' },
+  { id: 'shenpei', name: '审配', faction: 'yuan', home: 'ye', soldiers: { militia: 40, spear: 30, crossbow: 18 }, morale: 78, sight: 6, title: '治中' },
+  { id: 'yuantan', name: '袁谭', faction: 'yuan', home: 'pingyuan', soldiers: { militia: 45, spear: 30, cav: 15 }, morale: 76, sight: 6, title: '青州刺史' },
+  { id: 'yuanshang', name: '袁尚', faction: 'yuan', home: 'ye', soldiers: { cav: 35, spear: 28, guard: 10 }, morale: 80, sight: 7, title: '冀州牧' },
+  { id: 'hanmeng', name: '韩猛', faction: 'yuan', home: 'zhuo', soldiers: { spear: 30, cav: 25, militia: 22 }, morale: 74, sight: 6, title: '骑都尉' },
+  // 刘表：荆襄守江的人
+  { id: 'liupan', name: '刘磐', faction: 'biao', home: 'xiangyang', soldiers: { militia: 35, spear: 28, archer: 18 }, morale: 78, sight: 6, title: '江夏从事' },
+  { id: 'sufei', name: '苏飞', faction: 'biao', home: 'xiakou', soldiers: { militia: 28, archer: 24, boat: 18 }, morale: 74, sight: 6, title: '江夏都督' },
+  { id: 'kuaiyue', name: '蒯越', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 25, crossbow: 15 }, morale: 76, sight: 6, title: '章陵太守' },
+  { id: 'huangshe', name: '黄射', faction: 'biao', home: 'xiakou', soldiers: { archer: 30, boat: 20, militia: 20 }, morale: 72, sight: 6, title: '水军校尉' },
 ];
 
 /** 声望等级 */
@@ -414,30 +446,51 @@ const RENOWN_TIERS = [
   { at: 550, name: '天下名将' },
 ];
 
-/** 装备：沿用三档，改三国名目 */
+/** 装备：十档，越往后价钱翻着涨，别想一进城就把一身换满 */
 const EQUIPMENT = {
   blade: {
     slot: 'blade', name: '兵刃',
     tiers: [
       { id: 'blade0', name: '环首刀', price: 0, atkPct: 0, desc: '洛阳溃兵身上仅剩的制式刀。' },
-      { id: 'blade1', name: '百炼钢刀', price: 260, atkPct: 0.09, desc: '战团攻击 +9%。' },
-      { id: 'blade2', name: '青龙长刀', price: 640, atkPct: 0.18, desc: '战团攻击 +18%。' },
+      { id: 'blade1', name: '百炼钢刀', price: 260, atkPct: 0.06, desc: '战团攻击 +6%。' },
+      { id: 'blade2', name: '宿铁刀', price: 620, atkPct: 0.12, desc: '战团攻击 +12%。' },
+      { id: 'blade3', name: '古锭刀', price: 1400, atkPct: 0.18, desc: '战团攻击 +18%。' },
+      { id: 'blade4', name: '青釭剑', price: 3100, atkPct: 0.24, desc: '战团攻击 +24%。' },
+      { id: 'blade5', name: '倚天剑', price: 6800, atkPct: 0.30, desc: '战团攻击 +30%。' },
+      { id: 'blade6', name: '龙胆亮银枪', price: 15000, atkPct: 0.36, desc: '战团攻击 +36%。' },
+      { id: 'blade7', name: '丈八蛇矛', price: 33000, atkPct: 0.42, desc: '战团攻击 +42%。' },
+      { id: 'blade8', name: '青龙偃月刀', price: 72000, atkPct: 0.48, desc: '战团攻击 +48%。' },
+      { id: 'blade9', name: '方天画戟', price: 160000, atkPct: 0.56, desc: '战团攻击 +56%，阵前一站，三军侧目。' },
     ],
   },
   armor: {
     slot: 'armor', name: '甲胄',
     tiers: [
       { id: 'armor0', name: '皮甲', price: 0, defPct: 0, desc: '挡不住弩，但比布衣强。' },
-      { id: 'armor1', name: '玄铁札甲', price: 320, defPct: 0.11, desc: '战团防御 +11%。' },
-      { id: 'armor2', name: '明光铠', price: 780, defPct: 0.2, desc: '战团防御 +20%，行军略慢。' },
+      { id: 'armor1', name: '玄铁札甲', price: 300, defPct: 0.07, desc: '战团防御 +7%。' },
+      { id: 'armor2', name: '鱼鳞甲', price: 720, defPct: 0.13, desc: '战团防御 +13%。' },
+      { id: 'armor3', name: '两当铠', price: 1600, defPct: 0.19, desc: '战团防御 +19%。' },
+      { id: 'armor4', name: '锁子甲', price: 3500, defPct: 0.25, desc: '战团防御 +25%。' },
+      { id: 'armor5', name: '明光铠', price: 7700, defPct: 0.31, desc: '战团防御 +31%，日光下晃眼。' },
+      { id: 'armor6', name: '山文甲', price: 17000, defPct: 0.37, desc: '战团防御 +37%。' },
+      { id: 'armor7', name: '玄甲', price: 37000, defPct: 0.43, desc: '战团防御 +43%，玄甲铁骑的底子。' },
+      { id: 'armor8', name: '黄金甲', price: 81000, defPct: 0.49, desc: '战团防御 +49%。' },
+      { id: 'armor9', name: '兽面吞头连环铠', price: 180000, defPct: 0.56, desc: '战团防御 +56%，刀箭难入。' },
     ],
   },
   horse: {
     slot: 'horse', name: '坐骑',
     tiers: [
       { id: 'horse0', name: '驮马', price: 0, speedPct: 0, desc: '能驮粮，不能冲阵。' },
-      { id: 'horse1', name: '西凉马', price: 380, speedPct: 0.15, desc: '行军速度 +15%。' },
-      { id: 'horse2', name: '赤兔', price: 900, speedPct: 0.3, desc: '行军速度 +30%，包抄更致命。' },
+      { id: 'horse1', name: '并州马', price: 340, speedPct: 0.10, desc: '行军速度 +10%。' },
+      { id: 'horse2', name: '西凉马', price: 800, speedPct: 0.19, desc: '行军速度 +19%。' },
+      { id: 'horse3', name: '辽东马', price: 1800, speedPct: 0.27, desc: '行军速度 +27%。' },
+      { id: 'horse4', name: '大宛马', price: 3900, speedPct: 0.34, desc: '行军速度 +34%。' },
+      { id: 'horse5', name: '绝影', price: 8500, speedPct: 0.40, desc: '行军速度 +40%，箭追不上。' },
+      { id: 'horse6', name: '的卢', price: 18500, speedPct: 0.46, desc: '行军速度 +46%。' },
+      { id: 'horse7', name: '爪黄飞电', price: 40000, speedPct: 0.51, desc: '行军速度 +51%。' },
+      { id: 'horse8', name: '照夜玉狮子', price: 86000, speedPct: 0.56, desc: '行军速度 +56%。' },
+      { id: 'horse9', name: '赤兔', price: 190000, speedPct: 0.62, desc: '行军速度 +62%，人中吕布，马中赤兔。' },
     ],
   },
 };

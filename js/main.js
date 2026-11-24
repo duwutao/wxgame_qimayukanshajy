@@ -33,6 +33,7 @@ class App {
       prison: require('./scenes/prison.js'),
       tourney: require('./scenes/tourney.js'),
       journal: require('./scenes/journal.js'),
+      camp: require('./scenes/camp.js'),
       help: require('./scenes/help.js'),
       nested: null,
       chapter: require('./scenes/chapter.js'),

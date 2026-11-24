@@ -177,6 +177,8 @@ function capture(state, loser, captorFaction, captorName) {
   const siteId = homeSite ? homeSite.id : loser.home;
   loser.alive = false;
   loser.chasing = false;
+  loser.order = null;
+  loser.defending = null;
   loser.prisoner = {
     by: captorFaction,
     byName: captorName || '',
@@ -210,6 +212,8 @@ function freeLord(state, lord, why) {
   const home = state.world.sites.filter(function (s) { return s.id === lord.home; })[0];
   lord.alive = true;
   lord.prisoner = null;
+  lord.order = null;
+  lord.defending = null;
   lord.x = home ? home.x : lord.x;
   lord.y = home ? home.y : lord.y;
   const keep = Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.45));
@@ -265,8 +269,8 @@ function clash(state, a, b) {
   }
 
   const rng = state.rng;
-  // 溃逃的概率高一些：乱世里保住人比保住脸重要
-  const flee = rng.next() < 0.6 || winner.faction === 'bandit';
+  // 乱世里保住人比保住脸重要：领主之间只是打散，极少真被捆走
+  const flee = rng.next() < 0.85 || winner.faction === 'bandit';
   if (flee) {
     loser.alive = true;
     loser.chasing = false;
@@ -384,6 +388,8 @@ function onPlayerBeatLord(state, lord) {
   }
   lord.alive = false;
   lord.chasing = false;
+  lord.order = null;
+  lord.defending = null;
   lord.troops = {};
   lord.prisoner = null;
   lord.respawnDay = state.clock.day + (special ? 12 : 5);
@@ -399,6 +405,8 @@ function killLord(state, lord) {
   const fac = lord.faction;
   lord.alive = false;
   lord.chasing = false;
+  lord.order = null;
+  lord.defending = null;
   lord.dead = true;
   lord.retired = false;
   lord.troops = {};
@@ -423,6 +431,64 @@ function killLord(state, lord) {
   return { killed: true, name: lord.name, faction: fac };
 }
 
+/** 玩家眼下靠什么立身：有主 / 自立 / 连旗都没有 */
+function playerStanding(state) {
+  const p = state.player;
+  const owned = state.world.sites.filter(function (s) { return s.playerOwned; }).length;
+  if (p.faction && p.faction !== 'player' && FACTIONS[p.faction]) {
+    return { mode: 'vassal', faction: p.faction, owned: owned };
+  }
+  if (owned > 0) return { mode: 'self', faction: 'player', owned: owned };
+  return { mode: 'none', faction: null, owned: 0 };
+}
+
+/**
+ * 招降一位领主的成功率。UI 和真正掷骰都走这一处，避免两套算法。
+ * 无旗：直接 0；自立：城越多越像样；有主：看名声与旧主关系。
+ */
+function recruitChance(state, lord) {
+  if (!lord) return { chance: 0, mode: 'none', reason: '查无此人' };
+  const from = lord.faction;
+  const isRuler = !!(FACTIONS[from] && FACTIONS[from].lord === lord.name);
+  if (isRuler) {
+    return { chance: 0, mode: 'ruler', reason: lord.name + '是一方之主，不会替别人扛旗。' };
+  }
+  const standing = playerStanding(state);
+  if (standing.mode === 'none') {
+    return {
+      chance: 0, mode: 'none', owned: 0,
+      reason: '你连一面旗都没有，他凭什么把身家押在你身上？',
+    };
+  }
+  const p = state.player;
+  const rel = (state.relations[from] || 0) / 100;
+  let chance;
+  if (standing.mode === 'self') {
+    // 自立：刚占一座城，人家基本不认；连下几城，才有郡国之主的模样
+    chance = 0.08 + Math.min(0.55, standing.owned * 0.075) + Math.min(0.12, (p.renown || 0) / 5000);
+    chance += rel * 0.10;
+    if (state.noPeace && state.noPeace[from]) chance -= 0.15;
+    chance = Math.max(0.04, Math.min(0.76, chance));
+  } else {
+    // 有主：替主上收人，名声 + 两家关系
+    chance = 0.2 + Math.min(0.35, (p.renown || 0) / 1600);
+    chance += rel * 0.25;
+    if (state.noPeace && state.noPeace[from]) chance -= 0.25;
+    chance = Math.max(0.08, Math.min(0.8, chance));
+  }
+  return {
+    chance: chance,
+    mode: standing.mode,
+    owned: standing.owned,
+    target: standing.faction,
+    reason: '',
+  };
+}
+
+function percent(chance) {
+  return Math.round(chance * 100) + '%';
+}
+
 /** 招降：有主就替主上收人，自立就收成自己的领主 */
 function recruitLord(state, lordId) {
   const lord = state.lords.filter(function (l) { return l.id === lordId; })[0];
@@ -435,20 +501,26 @@ function recruitLord(state, lordId) {
     return { ok: false, msg: '他已经在你的旗下了' };
   }
   const from = lord.faction;
-  const isRuler = !!(FACTIONS[from] && FACTIONS[from].lord === lord.name);
-  if (isRuler) return { ok: false, msg: lord.name + '是一方之主，不会替别人扛旗。' };
-  // 关系越差越难开口：旧主的仇、你的名声、他手上还剩多少人
-  const base = 0.2 + Math.min(0.35, (p.renown || 0) / 1600);
-  const rel = (state.relations[from] || 0) / 100;
-  let chance = base + rel * 0.25;
-  if (state.noPeace && state.noPeace[from]) chance -= 0.25;
-  chance = Math.max(0.08, Math.min(0.8, chance));
-  if (state.rng.next() > chance) {
-    return { ok: false, msg: lord.name + '把脸转开：“我吃的是' + (FACTIONS[from] ? FACTIONS[from].full : '旧主') + '的粮。”' };
+  const offer = recruitChance(state, lord);
+  if (offer.mode === 'ruler') return { ok: false, msg: offer.reason };
+  if (offer.mode === 'none') return { ok: false, msg: offer.reason };
+  if (state.rng.next() > offer.chance) {
+    if (offer.mode === 'self') {
+      return {
+        ok: false,
+        msg: lord.name + '扫了一眼你的营盘：“' + offer.owned + '座城就想让我改换门庭？等你的旗能遮住半个州再说。”',
+        chance: offer.chance,
+      };
+    }
+    return {
+      ok: false,
+      msg: lord.name + '把脸转开：“我吃的是' + (FACTIONS[from] ? FACTIONS[from].full : '旧主') + '的粮。”',
+      chance: offer.chance,
+    };
   }
 
   // 有主：替自己的君主收人；自立：收成自己的领主
-  const target = p.faction && FACTIONS[p.faction] ? p.faction : 'player';
+  const target = offer.target || (p.faction && FACTIONS[p.faction] ? p.faction : 'player');
   if (state.prisoners) {
     state.prisoners = state.prisoners.filter(function (x) { return x.lordId !== lordId; });
   }
@@ -458,6 +530,7 @@ function recruitLord(state, lordId) {
   lord.faction = target;
   lord.chasing = false;
   lord.resting = false;
+  lord.order = null;
   lord.ransom = 0;
   const home = state.world.sites.filter(function (s) {
     return target === 'player' ? s.playerOwned : (s.ownerFaction === target && s.type !== 'camp' && s.type !== 'village');
@@ -472,7 +545,7 @@ function recruitLord(state, lordId) {
   if (target === 'player') {
     declare(state, 'player', from, true);
   }
-  logFn(state, lord.name + '拜了下去：“' + (target === 'player' ? '愿跟着你' : '愿为' + FACTIONS[target].full + '效命') + '。”', 'war');
+  logFn(state, lord.name + '拜了下去：“' + (target === 'player' ? '愿跟着你' : '愿为' + FACTIONS[target].full + '效命') + '。”', 'recruit');
   return {
     ok: true,
     msg: lord.name + '归降了（声望 +25）',
@@ -513,6 +586,379 @@ function release(state, lordId) {
   return { ok: true, msg: '放了' + lord.name + '，声望 +12，' + (FACTIONS[lord.faction] ? FACTIONS[lord.faction].name : '') + '对你和气了些' };
 }
 
+/* ------------------------------------------------------------ 领主国战 AI */
+
+const RALLY_DAYS_MIN = 4;
+const RALLY_DAYS_MAX = 12;
+const SIEGE_MIN_DAYS = 3;
+const SIEGE_EXTRA_DAYS = 4;
+const SIEGE_COOLDOWN = 30;   // 攻下一城后，这一对国家一个月内不能再动兵
+const HOLD_DAYS = 7;         // 攻下后留下守城
+const FAIL_COOLDOWN = 30;   // 没打下来，这一对也得一个月后重整旗鼓
+
+// 主线要用的城、玩家起家的城，不参与 AI 换旗：诸侯可以打，别把剧情打穿
+const PROTECTED_SITES = {
+  chenliu: true, xuchang: true, ye: true, jianye: true, chengdu: true,
+  xiangyang: true, xiapi: true, luoyang: true, changan: true, guandu: true,
+  hanzhong: true, jiangling: true, xiakou: true, chaisang: true, wujun: true,
+  kuaiji: true, pingyuan: true, puyang: true, shouchun: true, chibi: true, yiling: true,
+};
+
+function siteById(state, id) {
+  return state.world.sites.filter(function (s) { return s.id === id; })[0] || null;
+}
+
+function initAI(state) {
+  if (!state.warCampaigns || typeof state.warCampaigns !== 'object') state.warCampaigns = {};
+  if (!state.siegeCooldown || typeof state.siegeCooldown !== 'object') state.siegeCooldown = {};
+}
+
+function ownedSites(state, faction, townsOnly) {
+  return state.world.sites.filter(function (s) {
+    return s.ownerFaction === faction && !s.playerOwned && s.type !== 'camp' &&
+      (!townsOnly || s.type === 'town' || s.type === 'castle');
+  });
+}
+
+function factionLords(state, faction) {
+  return state.lords.filter(function (l) {
+    return l.alive && !l.dead && !l.prisoner && !l.hidden && l.faction === faction;
+  });
+}
+
+function siteDistance(a, b) {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function nearestSiteOf(state, list, site) {
+  let best = null;
+  let bestD = Infinity;
+  list.forEach(function (s) {
+    const d = siteDistance(s, site);
+    if (d < bestD) { bestD = d; best = s; }
+  });
+  return { site: best, distance: bestD };
+}
+
+function clearOrder(lord) {
+  if (!lord) return;
+  lord.order = null;
+  lord.defending = null;
+}
+
+function giveOrder(lord, type, siteId, hold) {
+  lord.order = { type: type, siteId: siteId, hold: !!hold, since: (lord.order && lord.order.since) || 0 };
+  lord.chasing = false;
+  lord.foeChasing = null;
+  lord.banditChasing = null;
+}
+
+function pairBlocked(state, a, b, day) {
+  return (state.siegeCooldown[key(a, b)] || 0) > day;
+}
+
+/** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
+function planCampaign(state, faction, day) {
+  const foes = warPartners(state, faction).filter(function (id) {
+    return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
+  });
+  if (!foes.length) return null;
+  const own = ownedSites(state, faction, true);
+  if (own.length < 2) return null;
+
+  const lords = factionLords(state, faction).filter(function (l) {
+    return army.troopCount(l.troops || {}) >= 12 && !l.defending;
+  });
+  if (lords.length < 2) return null;
+
+  let target = null;
+  foes.forEach(function (enemy) {
+    if (pairBlocked(state, faction, enemy, day)) return;
+    ownedSites(state, enemy, true).forEach(function (s) {
+      if (s.playerOwned || PROTECTED_SITES[s.id]) return;
+      const near = nearestSiteOf(state, own, s);
+      const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
+      if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
+    });
+  });
+  if (!target) return null;
+  if (target.distance > 46) return null; // 隔着半个天下的远征先不打
+
+  const nearestOwn = nearestSiteOf(state, own, target.site).site;
+  // 集结地：既靠前线，也别把所有人从后方抽空
+  let rally = nearestOwn;
+  own.forEach(function (s) {
+    if (s === nearestOwn) return;
+    const toTarget = siteDistance(s, target.site);
+    if (toTarget < siteDistance(rally, target.site) - 3 && s.garrison >= 55) rally = s;
+  });
+
+  const chosen = lords.slice().sort(function (a, b) {
+    return siteDistance(a, rally) - siteDistance(b, rally);
+  }).slice(0, Math.min(5, lords.length));
+  if (chosen.length < 2) return null;
+
+  const avgDist = chosen.reduce(function (sum, l) {
+    return sum + siteDistance(l, rally);
+  }, 0) / chosen.length;
+  const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(RALLY_DAYS_MAX,
+    RALLY_DAYS_MIN + state.rng.int(0, 3) + Math.round(avgDist / 7)));
+
+  const cp = {
+    faction: faction,
+    enemy: target.site.ownerFaction,
+    targetId: target.site.id,
+    rallyId: rally.id,
+    stage: 'rally',
+    startDay: day,
+    rallyUntil: day + rallyDays,
+    marchStart: 0,
+    siegeStart: 0,
+    siegeUntil: 0,
+    holdUntil: 0,
+    attackerIds: chosen.map(function (l) { return l.id; }),
+    defenderIds: [],
+    arrivedIds: [],
+    done: false,
+  };
+  chosen.forEach(function (l) {
+    giveOrder(l, 'rally', rally.id, true);
+    l.order.since = day;
+    l.order.campaign = faction;
+  });
+  state.warCampaigns[faction] = cp;
+  logFn(state,
+    '【' + FACTIONS[faction].name + '】在' + rally.name + '集结 ' + chosen.length +
+    ' 路人马，粮车向北，鼓声一路传到' + target.site.name + '。', 'muster');
+  return cp;
+}
+
+function attackersOf(state, cp) {
+  return cp.attackerIds.map(function (id) {
+    return state.lords.filter(function (l) { return l.id === id; })[0];
+  }).filter(function (l) { return l && l.alive && !l.prisoner; });
+}
+
+function startSiege(state, cp, site, day) {
+  if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  cp.stage = 'siege';
+  cp.siegeStart = day;
+  cp.siegeUntil = day + Math.max(SIEGE_MIN_DAYS, SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
+    (site.garrison > 110 ? 1 : 0));
+  const attackers = attackersOf(state, cp);
+  attackers.forEach(function (l) { giveOrder(l, 'siege', site.id, true); });
+
+  // 围城一起，守方的领主就收到烽火：能来的都往这座城赶
+  const defenders = factionLords(state, site.ownerFaction)
+    .filter(function (l) { return army.troopCount(l.troops || {}) >= 8; })
+    .sort(function (a, b) { return siteDistance(a, site) - siteDistance(b, site); })
+    .slice(0, 4);
+  cp.defenderIds = defenders.map(function (l) { return l.id; });
+  cp.arrivedIds = [];
+  defenders.forEach(function (l) {
+    giveOrder(l, 'defend', site.id, true);
+    l.defending = site.id;
+    l.order.campaign = cp.faction;
+  });
+  logFn(state,
+    '【' + FACTIONS[cp.faction].name + '】的 ' + attackers.length + ' 路领主围住' + site.name +
+    '，营寨一圈圈扎到城下。守军闭门，烽火向' + FACTIONS[site.ownerFaction].name + '各地求援。',
+    'siege');
+  return true;
+}
+
+function resolveSiege(state, cp, day) {
+  const site = siteById(state, cp.targetId);
+  if (!site) { cp.done = true; return; }
+  if (site.ownerFaction !== cp.enemy) {
+    // 城在围城期间被别人拿了：这趟作罢
+    cp.done = true;
+    attackersOf(state, cp).forEach(clearOrder);
+    return;
+  }
+  const attackers = attackersOf(state, cp).filter(function (l) {
+    return siteDistance(l, site) <= 2;
+  });
+  let attackPower = 0;
+  attackers.forEach(function (l) { attackPower += weight(l.troops); });
+  let defendPower = site.garrison * 6.2;
+  cp.defenderIds.forEach(function (id) {
+    const l = state.lords.filter(function (x) { return x.id === id; })[0];
+    if (!l || !l.alive || l.prisoner) return;
+    if (siteDistance(l, site) <= 2) {
+      defendPower += weight(l.troops);
+      if (cp.arrivedIds.indexOf(id) < 0) cp.arrivedIds.push(id);
+    }
+  });
+  attackPower *= 0.9 + state.rng.next() * 0.25;
+  defendPower *= 0.9 + state.rng.next() * 0.25;
+
+  if (attackPower > defendPower * 1.06) {
+    const oldOwner = site.ownerFaction;
+    const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
+    site.ownerFaction = cp.faction;
+    site.faction = cp.faction;
+    site.playerOwned = false;
+    site.garrison = Math.max(28, Math.round(site.garrisonBase * 0.45));
+    site.garrisonBase = site.garrison;
+    site.color = FACTIONS[cp.faction] ? FACTIONS[cp.faction].color : site.color;
+    site.banner = FACTIONS[cp.faction] ? FACTIONS[cp.faction].banner : site.banner;
+    onSiteTaken(state, site, oldOwner);
+    state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
+    cp.stage = 'hold';
+    cp.holdUntil = day + HOLD_DAYS;
+    cp.capturedSiteId = site.id;
+    cp.holdSiteId = site.id;
+    attackers.forEach(function (l) {
+      giveOrder(l, 'hold', site.id, true);
+      l.order.since = day;
+    });
+    // 丢了城的领主先收兵，回各自剩下的城
+    cp.defenderIds.forEach(function (id) {
+      const l = state.lords.filter(function (x) { return x.id === id; })[0];
+      if (!l) return;
+      clearOrder(l);
+      const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
+      if (home) { l.home = home.id; }
+    });
+    logFn(state,
+      site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
+      '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
+    return;
+  }
+
+  // 没攻下来：攻方折一阵，退回集结地；守方也只算惨胜
+  attackers.forEach(function (l) {
+    army.distributeLosses(l.troops, Math.max(1, Math.round(army.troopCount(l.troops) * 0.24)));
+    clearOrder(l);
+  });
+  site.garrison = Math.max(18, site.garrison - Math.round(site.garrison * 0.22));
+  cp.defenderIds.forEach(function (id) {
+    const l = state.lords.filter(function (x) { return x.id === id; })[0];
+    if (!l) return;
+    clearOrder(l);
+    if (l.troops) army.distributeLosses(l.troops, Math.max(1, Math.round(army.troopCount(l.troops) * 0.12)));
+  });
+  state.siegeCooldown[key(cp.faction, cp.enemy)] = day + FAIL_COOLDOWN;
+  cp.done = true;
+  logFn(state,
+    '围城到第 ' + Math.max(SIEGE_MIN_DAYS, day - cp.siegeStart) + ' 天，' + site.name +
+    '城下还是没破。' + FACTIONS[cp.faction].name + '收兵回营，城头守军也折了一半。', 'siege');
+}
+
+/** 每天一次：给各国诸侯做战略决策 */
+function strategyTick(state) {
+  initAI(state);
+  const day = state.clock.day;
+  Object.keys(FACTIONS).forEach(function (faction) {
+    if (faction === 'player' || faction === 'bandit') return;
+    if ((state.factionState[faction] || {}).dead) {
+      const cp = state.warCampaigns[faction];
+      if (cp) {
+        attackersOf(state, cp).forEach(clearOrder);
+        delete state.warCampaigns[faction];
+      }
+      return;
+    }
+    const cp = state.warCampaigns[faction];
+    if (!cp) {
+      // 天下同时最多三场大战，其余势力仍在路上巡逻、互相寻仇
+      const active = Object.keys(state.warCampaigns).filter(function (f) {
+        return state.warCampaigns[f] && !state.warCampaigns[f].done;
+      }).length;
+      if (active < 3) planCampaign(state, faction, day);
+      return;
+    }
+    if (cp.done) {
+      attackersOf(state, cp).forEach(clearOrder);
+      cp.defenderIds.forEach(function (id) {
+        const l = state.lords.filter(function (x) { return x.id === id; })[0];
+        if (l) clearOrder(l);
+      });
+      delete state.warCampaigns[faction];
+      return;
+    }
+    const target = siteById(state, cp.targetId);
+    if (!target) { cp.done = true; return; }
+    const attackers = attackersOf(state, cp);
+    if (attackers.length < 2 && cp.stage !== 'siege') { cp.done = true; return; }
+
+    if (cp.stage === 'rally') {
+      const ready = attackers.filter(function (l) {
+        return siteDistance(l, siteById(state, cp.rallyId) || target) <= 2;
+      }).length;
+      if (day >= cp.rallyUntil) {
+        if (ready < 2 && day < cp.rallyUntil + 4) return;
+        if (ready < 2) {
+          cp.done = true;
+          logFn(state, '【' + FACTIONS[faction].name + '】的集结没凑齐人，队伍在半路散了。', 'siege');
+          return;
+        }
+        cp.stage = 'march';
+        cp.marchStart = day;
+        attackers.forEach(function (l) { giveOrder(l, 'march', cp.targetId, false); });
+        logFn(state, '【' + FACTIONS[faction].name + '】的 ' + attackers.length + ' 路人马从' +
+          (siteById(state, cp.rallyId) || target).name + '开拔，兵锋指向' + target.name + '。', 'muster');
+      }
+      return;
+    }
+
+    if (cp.stage === 'march') {
+      if (day - cp.marchStart > 26) {
+        cp.done = true;
+        logFn(state, '【' + FACTIONS[faction].name + '】去' + target.name + '的路太长，粮尽退兵。', 'siege');
+        return;
+      }
+      const near = attackers.some(function (l) { return siteDistance(l, target) <= 1; });
+      if (near) startSiege(state, cp, target, day);
+      return;
+    }
+
+    if (cp.stage === 'siege') {
+      // 围城每天都要死人：箭、疫病、夜袭，谁也跑不掉
+      attackers.forEach(function (l) {
+        if (l.troops) army.distributeLosses(l.troops, Math.max(1, Math.round(army.troopCount(l.troops) * 0.035)));
+      });
+      target.garrison = Math.max(8, target.garrison - Math.round(target.garrison * 0.055));
+      cp.defenderIds.forEach(function (id) {
+        const l = state.lords.filter(function (x) { return x.id === id; })[0];
+        if (!l || !l.alive || l.prisoner) return;
+        if (siteDistance(l, target) <= 2 && cp.arrivedIds.indexOf(id) < 0) {
+          cp.arrivedIds.push(id);
+          logFn(state, '【' + FACTIONS[l.faction].name + '】的' + l.name + '赶到' + target.name +
+            '城下，守军士气振了一下。', 'siege');
+        }
+      });
+      if (day >= cp.siegeUntil) resolveSiege(state, cp, day);
+      return;
+    }
+
+    if (cp.stage === 'hold') {
+      if (day >= cp.holdUntil) {
+        cp.done = true;
+        attackersOf(state, cp).forEach(clearOrder);
+        logFn(state, FACTIONS[faction].name + '在' + (siteById(state, cp.holdSiteId) || target).name +
+          '留了一支守军，主力回营。', 'siege');
+      }
+    }
+  });
+}
+
+/** 每个 NPC 步补一次：走到城下的队伍不必等第二天才围城 */
+function siegeTick(state) {
+  initAI(state);
+  Object.keys(state.warCampaigns).forEach(function (faction) {
+    const cp = state.warCampaigns[faction];
+    if (!cp || cp.stage !== 'march') return;
+    const target = siteById(state, cp.targetId);
+    if (!target || target.ownerFaction !== cp.enemy) return;
+    const near = attackersOf(state, cp).some(function (l) {
+      return siteDistance(l, target) <= 1;
+    });
+    if (near) startSiege(state, cp, target, state.clock.day);
+  });
+}
+
 /** 视野里最近的死敌领主（宣战势力） */
 function nearestFoe(state, lord, range) {
   const r = range || 5;
@@ -543,8 +989,10 @@ function summaryLines(state) {
 module.exports = {
   init, atWar, declare, makePeace, diplomacyTick,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, onPlayerBeatLord,
-  killLord, recruitLord,
+  killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   nearestFoe,
+  strategyTick, siegeTick,
   ESCAPE_BASE, ESCAPE_STEP,
 };
+

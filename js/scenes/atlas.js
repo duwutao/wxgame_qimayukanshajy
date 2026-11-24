@@ -303,7 +303,24 @@ const AtlasScene = {
       text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, { size: 13, color: '#c9bda2' });
     });
 
-    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 56, {
+    // 国战动态：围城比州界更值得看
+    const cps = st.warCampaigns || {};
+    const sieges = Object.keys(cps).filter(function (k) {
+      return cps[k] && cps[k].stage === 'siege';
+    }).map(function (k) {
+      const cp = cps[k];
+      const site = world.sites.filter(function (s) { return s.id === cp.targetId; })[0];
+      return (FACTIONS[k] ? FACTIONS[k].name : k) + '围' + (site ? site.name : '敌城');
+    });
+    const marches = Object.keys(cps).filter(function (k) {
+      return cps[k] && cps[k].stage === 'march';
+    }).length;
+    const warLine = sieges.length
+      ? '围城中：' + sieges.slice(0, 2).join(' · ') + (sieges.length > 2 ? ' 等 ' + sieges.length + ' 处' : '')
+      : (marches ? marches + ' 路诸侯正在开拔 · 双击放大看城名' : '四境暂无围城 · 双击放大看城名');
+    text(ctx, warLine, MAP_LEFT, legendY + 56, { size: 14, color: sieges.length ? '#e0a050' : '#8a8070' });
+
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 80, {
       size: 13, color: '#8a8070',
     });
   },

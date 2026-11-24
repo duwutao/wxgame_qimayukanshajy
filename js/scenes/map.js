@@ -63,7 +63,8 @@ function fitZoom(app) {
 
 /** 最小缩放：刚好把整张天下装进屏幕（留一点边），再小就没意义了 */
 function minZoom(app) {
-  return Math.max(0.1, fitZoom(app) * 0.98);
+  // 天下放大到 128x154 以后，整图缩放已经低于 0.1，不能再卡老下限
+  return Math.max(0.03, fitZoom(app) * 0.98);
 }
 
 function zoomName(z) {
@@ -600,6 +601,10 @@ function drawSites(ctx, app, cam, box, w) {
     const sx = site.x * TS - cam.x;
     const sy = box.top + site.y * TS - cam.y;
     if (sx < -TS * 2 || sx > w + TS || sy < box.top - TS || sy > box.top + box.h + TS) return;
+    const siege = st.warCampaigns && Object.keys(st.warCampaigns).some(function (k) {
+      const cp = st.warCampaigns[k];
+      return cp && cp.stage === 'siege' && cp.targetId === site.id;
+    });
 
     // 拉远看整张天下时，城池收成势力色小点，不铺名字，免得糊成一锅粥
     if ((app.mapZoom || 1) < 0.45) {
@@ -609,8 +614,8 @@ function drawSites(ctx, app, cam, box, w) {
       ctx.arc(sx + TS / 2, sy + TS / 2, r, 0, Math.PI * 2);
       ctx.fillStyle = col;
       ctx.fill();
-      ctx.lineWidth = site.playerOwned ? 2 : 1;
-      ctx.strokeStyle = site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
+      ctx.lineWidth = siege ? 2 : 1;
+      ctx.strokeStyle = siege ? '#e06a42' : site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
       ctx.stroke();
       return;
     }
@@ -631,6 +636,13 @@ function drawSites(ctx, app, cam, box, w) {
     } else {
       ctx.fillStyle = '#6a655c';
       ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
+    }
+
+    // 围城标记：城下营寨连成圈，远远就看得见
+    if (siege) {
+      ctx.fillStyle = 'rgba(120,32,18,0.92)';
+      ctx.fillRect(sx + 4, sy + 4, 30, 20);
+      text(ctx, '围城', sx + 19, sy + 6, { size: 13, align: 'center', color: '#ffe0a8' });
     }
 
     // 名牌
@@ -1042,20 +1054,15 @@ function drawBottom(ctx, app, w, box) {
 
   const btns = [
     { id: 'army', label: '队伍', tap: function () { app.push('army'); } },
-    { id: 'atlas', label: '天下', tap: function () { app.push('atlas'); } },
     { id: 'journal', label: '史册', tap: function () { app.push('journal'); } },
-    { id: 'help', label: '玩法', tap: function () { app.push('help'); } },
-    { id: 'camp', label: '扎营', tap: function () {
-      const r = stateLib.camp(app.state);
-      app.showToast(r.msg);
-    } },
+    { id: 'camp', label: '扎营', tap: function () { app.push('camp'); } },
     { id: 'menu', label: '菜单', tap: function () { app.push('menu'); } },
   ];
   const gap = 10;
-  const bw = (w - 20 - gap * 5) / 6;
+  const bw = (w - 20 - gap * 3) / 4;
   btns.forEach(function (b, i) {
     app.ui.button(ctx, 10 + i * (bw + gap), y0 + 14, bw, 76, b.label, {
-      id: b.id, size: 22, onTap: b.tap,
+      id: b.id, size: 24, onTap: b.tap,
     });
   });
 

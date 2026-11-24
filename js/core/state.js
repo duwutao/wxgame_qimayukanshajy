@@ -33,7 +33,7 @@ const { LORD_BIOS } = require('../data/bios.js');
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
 const LORD_RESPAWN_DAYS = 12;
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5; // 天下放大到 128x154，旧档地图对不上，直接换新
 
 /** 全图常驻匪团目标数量（玩家附近看得见，远处也算） */
 const BANDIT_TARGET = 12;
@@ -51,9 +51,34 @@ function renownTitle(renown) {
   return title;
 }
 
-function pushLog(state, text) {
-  state.log.push({ day: state.clock.day, hour: Math.floor(state.clock.hour), text });
-  if (state.log.length > 120) state.log.shift();
+/* ---------------------------------------------------------------- 史册 */
+
+const IMPORTANT_KINDS = {
+  war: true, battle: true, siege: true, campaign: true, faction: true,
+  recruit: true, death: true, throne: true,
+};
+
+const IMPORTANT_WORDS = /城破|亡了|斩了|被俘|俘虏|围城|攻城|攻下|夺城|夺下|归降|称王|立国|建国|宣战|议和|大战|决一死战|战役|改旗|易主|即位|称帝|断粮|粮尽|兵变|哗变/;
+
+/** 史册：全部写进去；太久远的只留重要事，鸡毛蒜皮不占地方 */
+function pushLog(state, text, kind) {
+  const k = kind || 'life';
+  const important = !!IMPORTANT_KINDS[k] || IMPORTANT_WORDS.test(String(text || ''));
+  state.log.push({
+    day: state.clock.day,
+    hour: Math.floor(state.clock.hour),
+    text,
+    kind: k,
+    important: important,
+  });
+  // 上限 700 条；要挤位置时先丢最旧的琐事，重要的事一律留着
+  while (state.log.length > 700) {
+    let cut = -1;
+    for (let i = 0; i < state.log.length; i += 1) {
+      if (!state.log[i].important) { cut = i; break; }
+    }
+    state.log.splice(cut >= 0 ? cut : 0, 1);
+  }
 }
 
 /* ---------------------------------------------------------------- 初始化 */
@@ -422,8 +447,26 @@ function camp(state) {
   if (state.player.route.length) stopMoving(state);
   advanceTime(state, 24);
   state.player.morale = Math.min(100, state.player.morale + 14);
-  pushLog(state, '就地扎营一天，火头军煮了粥。');
+  pushLog(state, '就地扎营一天，火头军煮了粥。', 'camp');
   return { ok: true, msg: '休整完毕' };
+}
+
+/** 扎营里"在这里待一会儿"：原地不动，让天下自己走几个时辰 */
+function campWait(state, hours) {
+  const h = Math.max(1, Math.min(72, Math.round(hours || 6)));
+  const waited = h === 12 ? '半日' : h === 24 ? '一天' : h === 72 ? '三日' : h + '个时辰';
+  if (state.player.route.length) stopMoving(state);
+  state.player.atSiteId = null;
+  advanceTime(state, h);
+  // 扎营页自己不跑主循环：把刚欠下的时辰立刻交给 NPC 步进，
+  // 否则日历翻了三天，诸侯还站在原地没动。剧情事件留在队列里，回地图再弹。
+  update(state, 0, { ignoreEvents: true });
+  state.player.morale = Math.min(100, state.player.morale + Math.max(1, Math.round(h * 0.55)));
+  if (h >= 12) {
+    pushLog(state, '你在野地里按兵不动，等了' + waited +
+      '。火没灭，斥候也没回来。', 'camp');
+  }
+  return { ok: true, msg: '等了' + waited + '，士气 +' + Math.max(1, Math.round(h * 0.55)) };
 }
 
 /** 在城里歇下：人不出门，天下照常走 */
@@ -507,6 +550,8 @@ function dailyTick(state) {
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
   war.prisonerTick(state);
+  // 国战 AI：各家的集结、开拔、围城与守城，一天只做一次决策
+  if (war.strategyTick) war.strategyTick(state);
   // 领主重生（关在牢里的不算，等着被赎、被救或自己跑）
   state.lords.forEach(function (lord) {
     if (lord.alive || lord.prisoner) return;
@@ -553,8 +598,9 @@ function dailyTick(state) {
 
 /* ---------------------------------------------------------------- 主循环 */
 
-function update(state, dtSeconds) {
+function update(state, dtSeconds, opts) {
   if (state.gameOver) return;
+  const ignoreEvents = !!(opts && opts.ignoreEvents);
   const dt = dtSeconds * (state.timeScale || 1);
   const p = state.player;
   settleUnitSteps(state);
@@ -620,9 +666,10 @@ function update(state, dtSeconds) {
     moveParties(state);
     moveLords(state);
     war.fieldTick(state);
+    if (war.siegeTick) war.siegeTick(state);
     checkPursuit(state);
     advanceCampaign(state);
-    if (state.events.length) return;
+    if (state.events.length && !ignoreEvents) return;
   }
 }
 
@@ -899,6 +946,24 @@ function moveLords(state) {
     // 收了钱 / 被人缠住：原地待着，不动也不追
     if (lord.pauseUntil && nowH < lord.pauseUntil) return;
     const paidOff = !!(lord.payoffUntil && nowH < lord.payoffUntil);
+    // 国战军令：集结 / 开拔 / 围城 / 回防。接了令就按军令走，不再自己乱追人
+    if (lord.order && lord.order.siteId) {
+      const orderSite = siteById(state.world, lord.order.siteId);
+      if (orderSite) {
+        const od = gridDistance(lord, orderSite);
+        lord.chasing = false;
+        lord.foeChasing = null;
+        lord.banditChasing = null;
+        lord.resting = false;
+        if (lord.order.hold && od <= 1) return;
+        lord.moveTick = (lord.moveTick || 0) + 1;
+        if (lord.moveTick % 2 !== 0) return;
+        const orderStep = greedyStep(state, lord, { x: orderSite.x, y: orderSite.y });
+        if (orderStep) stepUnitTo(state, lord, orderStep, NPC_STEP_HOURS * 2);
+        return;
+      }
+      lord.order = null;
+    }
     let target;
     const home = siteById(state.world, lord.home);
     const dist = gridDistance(lord, p);
@@ -1593,6 +1658,7 @@ function prisonersOf(state) {
   const list = war.listPrisoners(state).map(function (p) {
     const lord = state.lords.filter(function (l) { return l.id === p.lordId; })[0];
     const site = siteById(state.world, p.siteId);
+    const recruit = lord && war.recruitChance ? war.recruitChance(state, lord) : null;
     return {
       lordId: p.lordId,
       name: lord ? lord.name : p.lordId,
@@ -1604,6 +1670,7 @@ function prisonersOf(state) {
       days: p.days || 0,
       ransom: p.ransom || (60 + Math.round(war.weight(lord ? lord.defTroops : {}) / 5)),
       chance: Math.min(1, war.ESCAPE_BASE + war.ESCAPE_STEP * (p.days || 0)),
+      recruit: recruit,
     };
   });
   return list;
@@ -2329,6 +2396,8 @@ function serialize(state) {
     knownHidden: state.knownHidden || {},
     noPeace: state.noPeace || {},
     heroSites: state.heroSites || null,
+    warCampaigns: state.warCampaigns || {},
+    siegeCooldown: state.siegeCooldown || {},
   };
   copy.player.route = [];
   copy.player.stepFrom = null;
@@ -2346,6 +2415,7 @@ function deserialize(json) {
   }
   if (!data || !data.world || !data.player) return null;
   if (!data.relations) return null; // 旧档不兼容
+  if ((data.version || 0) < SAVE_VERSION) return null; // 旧地图/旧领主表不兼容
 
   const state = {
     version: data.version || SAVE_VERSION,
@@ -2378,6 +2448,8 @@ function deserialize(json) {
     knownHidden: data.knownHidden || {},
     noPeace: data.noPeace || {},
     heroSites: data.heroSites || null,
+    warCampaigns: data.warCampaigns || {},
+    siegeCooldown: data.siegeCooldown || {},
     battle: null,
   };
   state.player.route = [];
@@ -2424,6 +2496,7 @@ module.exports = {
   currentPos,
   stopMoving,
   camp,
+  campWait,
   startRest,
   stopRest,
   isResting,

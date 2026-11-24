@@ -460,7 +460,8 @@ smoke('大地图：自由视野 + 跳回原处', function () {
   app.state.events.length = 0;
   app.replace('map');
   app.mapFree = true;
-  app.mapCam = { x: 4000, y: 4000 };
+  app.mapZoom = 1;
+  app.mapCam = { x: 7000, y: 8000 };
   app.ui.begin();
   app.top().scene.render(app);
   const ids = app.ui.items.map(function (b) { return b.id; });
@@ -536,7 +537,7 @@ smoke('双指缩放：大地图与天下图', function () {
   const afterY = (cy - 132 + app.mapCam.y) / (64 * app.mapZoom);
   ok('放大时指下不动', Math.abs(afterX - beforeX) < 0.05 && Math.abs(afterY - beforeY) < 0.05,
     beforeX.toFixed(2) + '→' + afterX.toFixed(2));
-  mapScene.onPinch(app, 0.1, cx, cy);
+  mapScene.onPinch(app, 0.05, cx, cy);
   ok('大地图缩到整张天下', app.mapZoom < 0.25, app.mapZoom);
   const worldWpx = st.world.w * 64 * app.mapZoom;
   const worldHpx = st.world.h * 64 * app.mapZoom;

@@ -34,7 +34,7 @@ function group(title) {
 
 group('世界生成');
 const world = worldLib.createWorld(20260101);
-ok('地图尺寸 64x77', world.w === 64 && world.h === 77, world.w + 'x' + world.h);
+ok('地图尺寸 128x154', world.w === 128 && world.h === 154, world.w + 'x' + world.h);
 ok('据点 55 个', world.sites.length === 55, String(world.sites.length));
 ok('据点数组与定义一致', world.sites.length === SITE_ROWS.length);
 
@@ -64,7 +64,7 @@ const st = stateLib.createGame({ seed: 20260101 });
 ok('开局只有 9 个民兵', armyLib.troopCount(st.player.troops) === 9, JSON.stringify(st.player.troops));
 ok('金 460 / 粮 150（够招满 30 人）', st.player.gold === 460 && st.player.food === 150, st.player.gold + '/' + st.player.food);
 ok('史简 1 支', st.player.shi === 1, String(st.player.shi));
-ok('领主 70 位', st.lords.length === 70, String(st.lords.length));
+ok('领主 94 位', st.lords.length === 94, String(st.lords.length));
 const byFaction = {};
 st.lords.forEach(function (l) { byFaction[l.faction] = (byFaction[l.faction] || 0) + 1; });
 ok('每国至少 6 位领主', Object.keys(byFaction).every(function (k) { return byFaction[k] >= 6; }), JSON.stringify(byFaction));
@@ -384,7 +384,7 @@ ok('读档保留声望', loaded && loaded.player.renown === 120);
 ok('读档保留史简', loaded && loaded.player.shi === 3);
 ok('读档保留战役进度', loaded && loaded.campaign.stage === 2);
 ok('读档保留关系', loaded && loaded.relations.wei === -40);
-ok('读档保留地主并按定义补齐', loaded && loaded.lords.length === 70, loaded ? String(loaded.lords.length) : 'null');
+ok('读档保留地主并按定义补齐', loaded && loaded.lords.length === 94, loaded ? String(loaded.lords.length) : 'null');
 ok('旧档被拒绝', stateLib.deserialize(JSON.stringify({ world: st6.world, player: st6.player })) === null);
 let walkOk = false;
 if (loaded) {
@@ -636,6 +636,20 @@ const pv = st16.lords.filter(function (l) { return l.id === 'wenpin'; })[0];
 warLib.capture(st16, pv, 'player', '你');
 st16.relations.biao = 80;
 st16.player.renown = 900;
+// 无旗必拒
+ok('无旗无城时招降必被拒', warLib.recruitChance(st16, pv).mode === 'none' &&
+  warLib.recruitLord(st16, 'wenpin').ok === false);
+// 自立后按城池数提高概率
+const ownSite = st16.world.sites.filter(function (s) { return !s.playerOwned; })[0];
+ownSite.playerOwned = true;
+const chanceOne = warLib.recruitChance(st16, pv).chance;
+ownSite.playerOwned = false;
+const own2 = st16.world.sites.filter(function (s) { return !s.playerOwned; }).slice(0, 5);
+own2.forEach(function (s) { s.playerOwned = true; });
+const chanceFive = warLib.recruitChance(st16, pv).chance;
+own2.forEach(function (s) { s.playerOwned = false; });
+ownSite.playerOwned = true;
+ok('自立城池越多，招降概率越高', chanceFive > chanceOne, chanceOne.toFixed(3) + ' → ' + chanceFive.toFixed(3));
 let recruited = null;
 for (let i = 0; i < 40 && !recruited; i += 1) {
   const r = warLib.recruitLord(st16, 'wenpin');
@@ -806,11 +820,27 @@ if (walker) {
   ok('走完落在目标格', Math.abs(end.x - walker.x) < 1e-6 && Math.abs(end.y - walker.y) < 1e-6);
 }
 
+/* ---------------------------------------------------------------- 扎营等待 */
+
+group('扎营等待');
+
+const st23 = stateLib.createGame({ seed: 2323 });
+st23.events.length = 0;
+const waitDay = st23.clock.day;
+const waitPos = { x: st23.player.x, y: st23.player.y };
+const waitRes = stateLib.campWait(st23, 72);
+ok('扎营三日推进三天', st23.clock.day === waitDay + 3 && waitRes.ok, String(st23.clock.day));
+ok('等待时人留在原地', st23.player.x === waitPos.x && st23.player.y === waitPos.y);
+ok('等待把欠下的天下步进跑完', st23.hoursPending === 0 && st23.npcClock < 3,
+  'pending=' + st23.hoursPending + ' npc=' + st23.npcClock);
+ok('等待记账用“三日”', st23.log.some(function (l) { return l.text.indexOf('等了三日') >= 0; }));
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
 console.log('通过 ' + pass + ' 项，失败 ' + fail + ' 项');
 console.log('='.repeat(44));
 process.exit(fail ? 1 : 0);
+
 
 

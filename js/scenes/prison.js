@@ -108,7 +108,13 @@ const PrisonScene = {
       text(ctx, (p.faction ? '(' + p.faction + ') ' : '') + '关在' + p.place + ' · 第 ' + p.days + ' 天', 92, ry + 38, {
         size: 16, color: '#a2947a',
       });
-      text(ctx, mineRow ? '自己逃的概率 ' + Math.round(p.chance * 100) + '%/日 · 赎金 ' + p.ransom + ' 金'
+      const recruit = p.recruit || null;
+      const recruitTxt = recruit
+        ? (recruit.mode === 'none' ? '招降必被拒（你还没有旗）'
+          : recruit.mode === 'ruler' ? '君主不可招'
+            : '招降 ' + Math.round(recruit.chance * 100) + '%')
+        : '';
+      text(ctx, mineRow ? '自己逃的概率 ' + Math.round(p.chance * 100) + '%/日 · ' + recruitTxt
         : '他家的人会来赎；城破了就放', 92, ry + 62, {
         size: 14, color: mineRow ? '#c9bda2' : '#6a6050',
       });
