@@ -843,7 +843,13 @@ smoke('围城去留：点别处 → 继续围城 / 拔营离开', function () {
   ok('弹窗有继续与离开', app.ui.items.some(function (it) { return it.id === 'siege_prompt_keep'; }) &&
     app.ui.items.some(function (it) { return it.id === 'siege_prompt_leave'; }));
   const keep = app.ui.items.filter(function (it) { return it.id === 'siege_prompt_keep'; })[0];
-  if (keep) keep.onTap();
+  // 真机按住按钮会跨帧：渲染下一帧时不能把 ui.pressed 清空，否则松手没反应
+  if (keep) app.ui.press(keep.x + keep.w / 2, keep.y + keep.h / 2);
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('围城弹窗跨帧保留按下项', !!app.ui.pressed && app.ui.pressed.id === 'siege_prompt_keep',
+    app.ui.pressed && app.ui.pressed.id);
+  if (keep) app.ui.release(keep.x + keep.w / 2, keep.y + keep.h / 2);
   ok('继续围城保留围营', !app.siegePrompt && !!st.playerSiege);
   app.lastHit = null;
   mapScene.onTouchStart(app, 180, 300);

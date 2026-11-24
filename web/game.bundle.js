@@ -10864,9 +10864,10 @@ function drawSiegePrompt(ctx, app, box, w) {
 
   ctx.fillStyle = 'rgba(6,4,3,0.72)';
   ctx.fillRect(0, 0, w, app.runtime.height);
-  // 弹窗开着时，只让弹窗的两个按钮接点击；后面的地图按钮全部作废
+  // 弹窗开着时，只让弹窗的两个按钮接点击；后面的地图按钮全部作废。
+  // 注意不能每帧清 app.ui.pressed：真机手指按住按钮会跨好几帧，清掉后
+  // touchend 找不到按下项，两个按钮就会像“卡死”一样没反应。
   app.ui.items.length = 0;
-  app.ui.pressed = null;
   const pw = Math.min(620, w - 36);
   const ph = 320;
   const x = (w - pw) / 2;
