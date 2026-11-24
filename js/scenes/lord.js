@@ -8,7 +8,7 @@ const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { FACTIONS } = require('../data/china.js');
-const { LORD_LOOK } = require('../data/extra.js');
+const { lookFor } = require('../data/extra.js');
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
 
@@ -77,7 +77,7 @@ const LordScene = {
     ctx.globalAlpha = 1;
 
     // 立绘：按原始比例放大，每人一套兵器/头饰/马色
-    const look = LORD_LOOK[lord.id] || {};
+    const look = lookFor(lord.id);
     const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, look) : null) || app.assets.lord;
     const sw0 = sprite.width || 20;
     const sh0 = sprite.height || 20;

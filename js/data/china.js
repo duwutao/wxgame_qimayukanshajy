@@ -338,6 +338,65 @@ const LORDS = [
   { id: 'mateng', name: '马腾', faction: 'ma', home: 'wuwei', soldiers: { militia: 30, spear: 50, qishe: 30, tiefu: 15 }, morale: 82, sight: 8, title: '征西将军' },
   { id: 'machao', name: '马超', faction: 'ma', home: 'tianshui', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
   { id: 'huangfusong', name: '皇甫嵩', faction: 'han', home: 'changan', soldiers: { militia: 40, spear: 40, crossbow: 25, jinjun: 6 }, morale: 74, sight: 6, title: '车骑将军' },
+  // ---- 魏：宗亲与五子 ----
+  { id: 'caoren', name: '曹仁', faction: 'wei', home: 'puyang', soldiers: { spear: 45, crossbow: 25, cav: 20, guard: 8 }, morale: 86, sight: 7, title: '征南将军' },
+  { id: 'xiahouyuan', name: '夏侯渊', faction: 'wei', home: 'tongguan', soldiers: { cav: 35, spear: 30, crossbow: 20 }, morale: 88, sight: 8, title: '征西将军' },
+  { id: 'xuhuang', name: '徐晃', faction: 'wei', home: 'shangdang', soldiers: { spear: 50, crossbow: 25, militia: 20 }, morale: 87, sight: 7, title: '平寇将军' },
+  { id: 'zhanghe', name: '张郃', faction: 'wei', home: 'jinyang', soldiers: { cav: 30, spear: 40, crossbow: 20 }, morale: 84, sight: 8, title: '荡寇将军' },
+  { id: 'xuchu', name: '许褚', faction: 'wei', home: 'chenliu', soldiers: { militia: 30, spear: 30, guard: 20 }, morale: 90, sight: 6, title: '虎卫' },
+  { id: 'litong', name: '李通', faction: 'wei', home: 'runan', soldiers: { militia: 35, spear: 25, cav: 15 }, morale: 78, sight: 6, title: '裨将军' },
+  // ---- 蜀：荆益之间 ----
+  { id: 'zhaoyun', name: '赵云', faction: 'shu', home: 'hanzhong', soldiers: { cav: 30, spear: 35, baier: 12 }, morale: 92, sight: 8, title: '牙门将军' },
+  { id: 'huangzhong', name: '黄忠', faction: 'shu', home: 'jiangling', soldiers: { archer: 40, spear: 30, militia: 20 }, morale: 90, sight: 7, title: '中郎将' },
+  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'hanzhong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
+  { id: 'chendao', name: '陈到', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 35, baier: 15, militia: 20 }, morale: 88, sight: 6, title: '白毦统领' },
+  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'baxi', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
+  { id: 'mizhu', name: '糜竺', faction: 'shu', home: 'chengdu', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 72, sight: 5, title: '别从事' },
+  // ---- 吴：四都督与老将 ----
+  { id: 'ganning', name: '甘宁', faction: 'wu', home: 'xiakou', soldiers: { militia: 25, archer: 30, boat: 25, danyang: 12 }, morale: 90, sight: 8, title: '折冲将军' },
+  { id: 'lvmeng', name: '吕蒙', faction: 'wu', home: 'chaisang', soldiers: { militia: 30, archer: 35, boat: 25 }, morale: 88, sight: 7, title: '横野中郎将' },
+  { id: 'luxun', name: '陆逊', faction: 'wu', home: 'wujun', soldiers: { militia: 35, spear: 30, archer: 20 }, morale: 85, sight: 7, title: '镇西将军' },
+  { id: 'chengpu', name: '程普', faction: 'wu', home: 'kuaiji', soldiers: { militia: 30, archer: 25, boat: 25 }, morale: 84, sight: 6, title: '荡寇中郎将' },
+  { id: 'handang', name: '韩当', faction: 'wu', home: 'jianye', soldiers: { archer: 30, cav: 20, boat: 20 }, morale: 83, sight: 7, title: '偏将军' },
+  // ---- 袁：河北诸将 ----
+  { id: 'wenchou', name: '文丑', faction: 'yuan', home: 'pingyuan', soldiers: { cav: 35, spear: 35, militia: 20 }, morale: 82, sight: 7, title: '骑将' },
+  { id: 'chunyuqiong', name: '淳于琼', faction: 'yuan', home: 'zhuo', soldiers: { militia: 40, spear: 25, archer: 15 }, morale: 70, sight: 5, title: '督军' },
+  { id: 'jiangyiqu', name: '蒋义渠', faction: 'yuan', home: 'beiping', soldiers: { militia: 35, spear: 30, cav: 10 }, morale: 72, sight: 6, title: '校尉' },
+  { id: 'guotu', name: '郭图', faction: 'yuan', home: 'ye', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 68, sight: 5, title: '谋士' },
+  { id: 'lvkuang', name: '吕旷', faction: 'yuan', home: 'ji', soldiers: { spear: 30, cav: 15, militia: 20 }, morale: 70, sight: 6, title: '校尉' },
+  { id: 'lvxiang', name: '吕翔', faction: 'yuan', home: 'nanpi', soldiers: { spear: 25, cav: 15, militia: 20 }, morale: 70, sight: 6, title: '校尉' },
+  // ---- 吕：徐州旧部 ----
+  { id: 'chengong', name: '陈宫', faction: 'lv', home: 'xiapi', soldiers: { militia: 35, spear: 25, crossbow: 15 }, morale: 74, sight: 6, title: '军师' },
+  { id: 'houcheng', name: '侯成', faction: 'lv', home: 'xiaopei', soldiers: { militia: 25, cav: 20, spear: 15 }, morale: 70, sight: 6, title: '骑都尉' },
+  { id: 'songxian', name: '宋宪', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 12 }, morale: 68, sight: 6, title: '校尉' },
+  { id: 'weixu', name: '魏续', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 10 }, morale: 68, sight: 6, title: '校尉' },
+  // ---- 荆：守江的人 ----
+  { id: 'huangzu', name: '黄祖', faction: 'biao', home: 'xiakou', soldiers: { militia: 35, archer: 25, boat: 20 }, morale: 70, sight: 6, title: '江夏太守' },
+  { id: 'wenpin', name: '文聘', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '大将' },
+  { id: 'zhangyun', name: '张允', faction: 'biao', home: 'jiangling', soldiers: { militia: 25, archer: 20, boat: 25 }, morale: 68, sight: 5, title: '水军副将' },
+  { id: 'wangwei', name: '王威', faction: 'biao', home: 'wan', soldiers: { militia: 25, spear: 25, archer: 10 }, morale: 72, sight: 6, title: '牙门将' },
+  // ---- 益：蜀中诸将 ----
+  { id: 'wuyi', name: '吴懿', faction: 'zhang', home: 'baxi', soldiers: { spear: 30, militia: 30, archer: 10 }, morale: 76, sight: 6, title: '中郎将' },
+  { id: 'leitong', name: '雷铜', faction: 'zhang', home: 'jiangzhou', soldiers: { militia: 30, spear: 25, archer: 10 }, morale: 74, sight: 6, title: '裨将' },
+  { id: 'lengbao', name: '冷苞', faction: 'zhang', home: 'jiange', soldiers: { spear: 25, militia: 25, crossbow: 10 }, morale: 72, sight: 6, title: '裨将' },
+  { id: 'liugui', name: '刘璝', faction: 'zhang', home: 'chengdu', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '中郎将' },
+  // ---- 鲜卑：塞外诸部 ----
+  { id: 'suli', name: '素利', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 40, qishe: 20, xianbei: 10 }, morale: 80, sight: 8, title: '东部大人' },
+  { id: 'mijia', name: '弥加', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 35, qishe: 20 }, morale: 78, sight: 8, title: '部帅' },
+  { id: 'queji', name: '阙机', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 30, qishe: 25 }, morale: 76, sight: 7, title: '部帅' },
+  { id: 'huaitou', name: '槐头', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 30, qishe: 15, xianbei: 8 }, morale: 78, sight: 7, title: '小帅' },
+  { id: 'pufulu', name: '普富卢', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 35, qishe: 20, xianbei: 6 }, morale: 76, sight: 7, title: '代郡大人' },
+  // ---- 西凉：马家的兵 ----
+  { id: 'pangde', name: '庞德', faction: 'ma', home: 'jincheng', soldiers: { cav: 30, tiefu: 18, spear: 25 }, morale: 90, sight: 8, title: '校尉' },
+  { id: 'maxiu', name: '马休', faction: 'ma', home: 'wuwei', soldiers: { cav: 25, spear: 25, militia: 20 }, morale: 78, sight: 7, title: '奉车都尉' },
+  { id: 'matie', name: '马铁', faction: 'ma', home: 'longxi', soldiers: { cav: 25, spear: 20, militia: 20 }, morale: 78, sight: 7, title: '骑都尉' },
+  { id: 'chengyin', name: '程银', faction: 'ma', home: 'jincheng', soldiers: { cav: 25, spear: 20, qishe: 10 }, morale: 74, sight: 7, title: '校尉' },
+  // ---- 汉：关中残军 ----
+  { id: 'zhujun', name: '朱儁', faction: 'han', home: 'luoyang', soldiers: { militia: 35, spear: 30, crossbow: 15, jinjun: 5 }, morale: 78, sight: 6, title: '右中郎将' },
+  { id: 'luzhi', name: '卢植', faction: 'han', home: 'zhuo', soldiers: { militia: 30, spear: 30, crossbow: 20 }, morale: 80, sight: 6, title: '北中郎将' },
+  { id: 'dongcheng', name: '董承', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 10 }, morale: 72, sight: 5, title: '车骑将军' },
+  { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'hulao', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
+  { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
 ];
 
 /** 声望等级 */

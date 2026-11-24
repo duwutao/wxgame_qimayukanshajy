@@ -25,36 +25,36 @@ const GOODS = [
  */
 const BANDIT_TIERS = {
   qing: {
-    id: 'qing', name: '青巾', color: '#4f8f6a', rank: 1, share: 0.60,
+    id: 'qing', name: '劫匪', color: '#4f8f6a', rank: 1, share: 0.60,
     minSize: 6, maxSize: 12, extra: {},
     loot: [18, 40], morale: [50, 66], sight: 5,
-    desc: '黄巾余烬，拿着锄头就上路。打赢了他们，够吃三天。',
+    desc: '拦路要过路钱的散匪。人少，刀旧，打赢了够吃三天。',
   },
   lan: {
-    id: 'lan', name: '蓝幡', color: '#4a7fb0', rank: 2, share: 0.30,
+    id: 'lan', name: '黄巾军', color: '#4a7fb0', rank: 2, share: 0.30,
     minSize: 12, maxSize: 22, extra: { raider: [2, 4] },
     loot: [45, 90], morale: [58, 72], sight: 6,
-    desc: '有刀有弓的小股流寇，敢打落单的商队。',
+    desc: '头裹黄巾的流民军。有刀有弓，也有一点信。',
   },
   cheng: {
-    id: 'cheng', name: '橙旗', color: '#c07a3c', rank: 3, share: 0.08,
+    id: 'cheng', name: '乱军', color: '#c07a3c', rank: 3, share: 0.08,
     minSize: 24, maxSize: 38, extra: { raider: [4, 8], raider_cav: [2, 4] },
     loot: [110, 190], morale: [66, 80], sight: 7,
-    desc: '成建制的山贼，有骑有弓。剿他们才叫剿。',
+    desc: '溃下来的官军，旗号撕了，甲还在。有骑有弓，成建制地抢。',
   },
   hong: {
-    id: 'hong', name: '赤号', color: '#a8403a', rank: 4, share: 0.02,
+    id: 'hong', name: '叛军', color: '#a8403a', rank: 4, share: 0.02,
     minSize: 45, maxSize: 70, extra: { raider: [8, 14], raider_cav: [5, 10] },
     loot: [240, 420], morale: [78, 92], sight: 8,
-    desc: '只比领主差一线。碰上他们，要么跑，要么准备好史简。',
+    desc: '已经打出名号的叛部。只比领主差一线，碰上要么跑，要么备好史简。',
   },
 };
 
 const BANDIT_NAMES = {
-  qing: ['黑山残部', '白波散卒', '汝南流民', '太行饥民'],
-  lan: ['泰山刀客', '江夏水贼', '淮南劫队', '颍川游侠'],
-  cheng: ['青州铁山贼', '南阳黄巾', '汉中米贼', '辽东马贼'],
-  hong: ['黑山飞燕', '白波大帅', '泰山群盗', '西凉叛骑'],
+  qing: ['剪径劫匪', '断道劫匪', '饿虎岗劫匪', '黑店劫匪'],
+  lan: ['白波黄巾', '黑山黄巾', '汝南黄巾', '太行黄巾'],
+  cheng: ['凉州溃兵', '徐州乱军', '淮南乱军', '颍川乱军'],
+  hong: ['西凉叛骑', '黑山飞燕', '泰山群盗', '汉中米贼'],
 };
 
 /** 主线推进到第几章开始出高阶匪徒 */
@@ -82,7 +82,48 @@ const HEROES = [
   { id: 'yujin', name: '于禁', site: 'puyang', cost: 220, atk: 6, def: 8, hp: 30, bio: '治军最严的一个。樊城被水淹了，他降了，后半生没抬起头。' },
   { id: 'caohong', name: '曹洪', site: 'luoyang', cost: 230, atk: 6, def: 6, hp: 27, bio: '荥阳那一战，他把自己的马让给了曹操，说天下可以没有曹洪。' },
   { id: 'zangba', name: '臧霸', site: 'xiapi', cost: 210, atk: 7, def: 5, hp: 25, bio: '泰山群盗出身，后来做了青徐的守将，海上的事他管得最清。' },
+  // ---- 第二批：各地还能拉上船的 ----
+  { id: 'haozhao', name: '郝昭', site: 'jiange', cost: 300, atk: 6, def: 8, hp: 30, bio: '守陈仓的那个。诸葛亮几万人攻了二十多天，城还在。' },
+  { id: 'zhuran', name: '朱然', site: 'chaisang', cost: 270, atk: 7, def: 6, hp: 28, bio: '江东的守将。江陵被围，他在城里撑了半年。' },
+  { id: 'huojun', name: '霍峻', site: 'jiangzhou', cost: 250, atk: 6, def: 8, hp: 29, bio: '几百人守葭萌关，一年多没丢。刘备入蜀，他在后头看着门。' },
+  { id: 'zhangni', name: '张嶷', site: 'chengdu', cost: 240, atk: 7, def: 6, hp: 27, bio: '蜀中的戍将。南中那些年，路是他一寸一寸拓出来的。' },
+  { id: 'lvdai', name: '吕岱', site: 'jiaozhi', cost: 230, atk: 6, def: 6, hp: 27, bio: '九十岁还在南方带兵。交州是他替东吴拿下来的。' },
+  { id: 'sunhuan', name: '孙桓', site: 'wujun', cost: 220, atk: 6, def: 6, hp: 26, bio: '孙家的年轻人。夷陵那一仗，他守住了要道。' },
+  { id: 'niujin', name: '牛金', site: 'hulao', cost: 210, atk: 7, def: 5, hp: 26, bio: '曹军的先锋。江陵城下，几百人冲过吴军的阵。' },
+  { id: 'tianyu', name: '田豫', site: 'beiping', cost: 240, atk: 6, def: 7, hp: 28, bio: '守北边的人。乌桓、鲜卑都从他这一段绕过去。' },
+  { id: 'qianzhao', name: '牵招', site: 'ji', cost: 230, atk: 6, def: 7, hp: 28, bio: '看着塞外那条线。风一起，他就知道谁要南下。' },
+  { id: 'zhangyan', name: '张燕', site: 'heishan', cost: 250, atk: 8, def: 5, hp: 27, bio: '黑山里的头一号。几万人钻山沟，官军拿他没办法。' },
 ];
+
+/** 每位英雄给队伍带来一样长处，随等级放大 */
+const HERO_BONUS = {
+  liaohua: { atk: 0.015, label: '老练：战团攻击微增' },
+  zhoucang: { speed: 0.05, label: '跑得快：行军提速' },
+  madai: { atk: 0.02, label: '西凉刀法：攻击 +2%' },
+  guanping: { def: 0.025, label: '守阵：防御 +2.5%' },
+  lingtong: { atk: 0.025, label: '锐气：攻击 +2.5%' },
+  xusheng: { def: 0.03, label: '疑城：防御 +3%' },
+  dingfeng: { speed: 0.04, label: '雪中先登：行军提速' },
+  huanggai: { loot: 0.06, label: '火攻：缴获更多' },
+  yanyan: { def: 0.03, label: '断头将军：防御 +3%' },
+  wangping: { def: 0.025, label: '守隘：防御 +2.5%' },
+  zhangyi: { food: 0.06, label: '会算粮：日耗减少' },
+  lidian: { def: 0.02, label: '稳营：防御 +2%' },
+  yuejin: { atk: 0.03, label: '先登：攻击 +3%' },
+  yujin: { def: 0.035, label: '治军：防御 +3.5%' },
+  caohong: { loot: 0.08, label: '救驾之功：缴获更多' },
+  zangba: { speed: 0.04, loot: 0.05, label: '海路熟：行军快、缴获多' },
+  haozhao: { def: 0.04, label: '守城：防御 +4%' },
+  zhuran: { def: 0.03, label: '坚壁：防御 +3%' },
+  huojun: { def: 0.035, label: '孤城：防御 +3.5%' },
+  zhangni: { speed: 0.05, label: '开山道：行军提速' },
+  lvdai: { morale: 2, label: '老将坐镇：每日士气 +2' },
+  sunhuan: { atk: 0.02, label: '锐卒：攻击 +2%' },
+  niujin: { atk: 0.03, label: '先冲：攻击 +3%' },
+  tianyu: { morale: 2, label: '边塞老将：每日士气 +2' },
+  qianzhao: { def: 0.025, label: '守边：防御 +2.5%' },
+  zhangyan: { speed: 0.06, label: '钻山沟：行军提速' },
+};
 
 const HERO_MAX_LEVEL = 10;
 
@@ -339,14 +380,151 @@ const LORD_LOOK = {
   huangfusong: { weapon: 'jian', helm: 'crown', cape: '#5a4a3a', horse: '#4a4440' },
 };
 
+/** 后补领主的史实一句（台词主体仍走 LORD_TALK，缺省时用势力通用池） */
+const LORD_EXTRA_BIO = {
+  caoren: '曹仁，曹操从弟。守樊城，关羽水淹七军，他还站在城墙上。',
+  xiahouyuan: '夏侯渊，夏侯惇族弟。军中说他三日五百、六日一千，关中的路是他跑出来的。',
+  xuhuang: '徐晃，河东杨人。治军像周亚夫，樊城一战长驱直入，曹操说他有古之名将风。',
+  zhanghe: '张郃，河间鄚人。官渡投曹，后来在街亭断了马谡的水。',
+  xuchu: '许褚，谯国谯人。年轻时拉着牛尾巴走了百步，曹操的虎卫头一号。',
+  litong: '李通，江夏平春人。平叛路上病倒，曹操亲自为他吊丧。',
+  zhaoyun: '赵云，常山真定人。长坂坡抱着孩子冲出来，一辈子没丢过阵。',
+  huangzhong: '黄忠，南阳人。定军山一刀，夏侯渊的头就挂在了旗下。',
+  weiyan: '魏延，义阳人。守汉中十年，敢走子午谷那条险路。',
+  chendao: '陈到，汝南人。白毦兵的头，刘备最信的那一支。',
+  liufeng: '刘封，长沙刘氏之后。上庸的兵是他带的，后来没去救关羽。',
+  mizhu: '糜竺，东海朐人。徐州起家时的钱粮，一半是他出的。',
+  ganning: '甘宁，巴郡临江人。锦帆贼出身，百骑劫营，回来一个没少。',
+  lvmeng: '吕蒙，汝南富陂人。从吴下阿蒙到白衣渡江，只用了几年。',
+  luxun: '陆逊，吴郡吴人。夷陵一把火，烧了刘备七百里连营。',
+  chengpu: '程普，右北平土垠人。江东三代老将，周瑜也曾在他手下。',
+  handang: '韩当，辽西令支人。从孙坚起就在，弓马一辈子。',
+  wenchou: '文丑，河北名将。延津一战，死在乱军里。',
+  chunyuqiong: '淳于琼，颍川人。乌巢守将，酒还没醒，火就起来了。',
+  jiangyiqu: '蒋义渠，河北校尉。袁军的粮道，一半在他手上。',
+  guotu: '郭图，颍川人。劝袁谭攻袁尚，兄弟就这样散了。',
+  lvkuang: '吕旷，袁家校尉。后来与吕翔一同降了曹。',
+  lvxiang: '吕翔，与吕旷同来的那一个。',
+  chengong: '陈宫，东郡武阳人。放曹操一马，后来又要杀他。',
+  houcheng: '侯成，吕布部将。下邳城破前，是他先开的门。',
+  songxian: '宋宪，吕布部将。绑了陈宫出城的人之一。',
+  weixu: '魏续，与宋宪同去的那一个。',
+  huangzu: '黄祖，江夏太守。守了十几年，射死过孙坚。',
+  wenpin: '文聘，南阳宛人。刘表死后守江夏，曹丕说他是真将。',
+  zhangyun: '张允，荆州水军副将。船比人多。',
+  wangwei: '王威，荆州牙门将。劝刘琮不要降，没人听。',
+  wuyi: '吴懿，兖州陈留人。益州老将，妹妹嫁给了刘备。',
+  leitong: '雷铜，巴西副将。与张飞同守一条线。',
+  lengbao: '冷苞，守剑阁的裨将。粮草总是最紧。',
+  liugui: '刘璝，成都城里的中郎将。名是宗室的。',
+  suli: '素利，东部鲜卑大人。跟轲比能不一条心。',
+  mijia: '弥加，漠南部帅。马比人多。',
+  queji: '阙机，与素利争草场的小帅。',
+  huaitou: '槐头，弹汗山下的小部。只有几百骑。',
+  pufulu: '普富卢，代郡的鲜卑大人。汉人叫他"大人"，他叫自己"牧马的"。',
+  zhongji: '种辑，越骑校尉。衣带诏上，签了名的还有他。',
+  pangde: '庞德，南安狟道人。抬着棺材去樊城，射过关羽一箭。',
+  maxiu: '马休，马腾之子。跟着父亲进了许都。',
+  matie: '马铁，与马休一同的骑都尉。',
+  chengyin: '程银，西凉九部之一。跟着马超反过。',
+  zhujun: '朱儁，会稽上虞人。讨黄巾的三路之一，围宛城围了几个月。',
+  luzhi: '卢植，涿郡涿人。刘备、公孙瓒都叫他老师，围广宗时被宦官换了。',
+  dongcheng: '董承，汉献帝的国舅。衣带诏那件事，他是领头的人。',
+  yangfeng: '杨奉，白波出身。护着天子往东走。',
+};
+
+/** 缺台词时的势力通用池 */
+const FACTION_TALK = {
+  wei: {
+    greet: ['魏军大营，闲人退后。', '何事？军务在身。'],
+    idle: ['在点粮。少一斗都要查。', '在看舆图，北边那条线要重画。', '在磨刀。刀不快，人就白死。'],
+  },
+  shu: {
+    greet: ['来者何人？', '汉室的事，你也要管？'],
+    idle: ['在看南边的山。路太窄。', '在清点伤员。今天又多了七个。', '在写信回成都，写完烧了。'],
+  },
+  wu: {
+    greet: ['江上有雾，别乱走。', '有事说，船要开了。'],
+    idle: ['在看水势。这个月风向不对。', '在补船板。木板比人金贵。', '在算粮。水路运粮，省一半。'],
+  },
+  yuan: {
+    greet: ['河北的兵，不是给你看的。', '要见我，先报门第。'],
+    idle: ['在等冀州的粮车。', '在看名册。人比册子少。', '在议立谁为主。这事没完。'],
+  },
+  lv: {
+    greet: ['徐州城下，站住。', '我奉温侯之命守这儿。'],
+    idle: ['在喂马。赤兔只认一个人。', '在修城门。前天刚撞坏。', '在等并州的旧部。他们还没来。'],
+  },
+  biao: {
+    greet: ['荆州的规矩，先递名帖。', '江水深，话要短。'],
+    idle: ['在听琴。城里没什么事。', '在查船。商船比战船多。', '在写表。写给许都，也写给江东。'],
+  },
+  zhang: {
+    greet: ['益州的地界，你从哪儿来？', '天府之国，不缺你这一口饭。'],
+    idle: ['在看粮仓。成都的米够吃三年。', '在修栈道。剑阁那条路总塌。', '在听外面的事。关中的消息总慢一步。'],
+  },
+  xianbei: {
+    greet: ['草原上没主，谁的马快谁说了算。', '带了多少盐？'],
+    idle: ['在放马。草场往北退了。', '在数牲口。今年雪大。', '在等南边来的铁器。'],
+  },
+  ma: {
+    greet: ['西凉的风沙，吹得眼睛疼。', '羌骑在后头，别挡道。'],
+    idle: ['在刷马。马比人耐得住。', '在看关中的方向。', '在分羊肉。今天只够一半人。'],
+  },
+  han: {
+    greet: ['朝廷的旗还在，你要怎样？', '车骑将军帐下，不得喧哗。'],
+    idle: ['在等诏书。诏书总在路上。', '在点残兵。名册越翻越薄。', '在看长安的城墙。补了三年还没补完。'],
+  },
+};
+
+const LOOK_WEAPONS = ['ji', 'dao', 'qiang', 'gong', 'jian'];
+const LOOK_HELMS = ['plume', 'horn', 'crown', 'band'];
+const LOOK_CAPES = ['#7a2118', '#4a2a20', '#3a4a58', '#2f6a3a', '#4a3a68', '#8a6a2a', '#5a6a4a', '#3a5a6a', '#6a5a2a', '#4a5a6a'];
+const LOOK_HORSES = ['#2a2320', '#6a3a24', '#4a4440', '#8a5a36', '#c9c2ae', '#e2dcd0', '#5a4030', '#3a3430'];
+const LOOK_CACHE = {};
+const LOOK_TAKEN = {};
+
+/** 先查手写造型，没有就按 id 稳定生成一个不撞脸的 */
+function lookFor(id) {
+  if (LORD_LOOK[id]) return LORD_LOOK[id];
+  if (LOOK_CACHE[id]) return LOOK_CACHE[id];
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 131 + id.charCodeAt(i)) >>> 0;
+  for (let t = 0; t < 128; t += 1) {
+    const k = (h + t * 7919) >>> 0;
+    const look = {
+      weapon: LOOK_WEAPONS[k % LOOK_WEAPONS.length],
+      helm: LOOK_HELMS[Math.floor(k / 5) % LOOK_HELMS.length],
+      cape: LOOK_CAPES[Math.floor(k / 20) % LOOK_CAPES.length],
+      horse: LOOK_HORSES[Math.floor(k / 200) % LOOK_HORSES.length],
+      beard: Math.floor(k / 1600) % 3 === 0,
+      tall: Math.floor(k / 4800) % 5 === 0,
+      big: Math.floor(k / 24000) % 6 === 0,
+    };
+    const key = [look.weapon, look.helm, look.cape, look.horse, look.beard, look.tall, look.big].join('|');
+    if (!LOOK_TAKEN[key]) {
+      LOOK_TAKEN[key] = id;
+      LOOK_CACHE[id] = look;
+      return look;
+    }
+  }
+  const fallback = { weapon: 'qiang', helm: 'band', cape: LOOK_CAPES[0], horse: LOOK_HORSES[0] };
+  LOOK_CACHE[id] = fallback;
+  return fallback;
+}
+
 module.exports = {
   GOODS,
   BANDIT_TIERS,
   BANDIT_NAMES,
   BANDIT_UNLOCK_STAGE,
   HEROES,
+  HERO_BONUS,
   HERO_MAX_LEVEL,
   LORD_TALK,
+  LORD_EXTRA_BIO,
+  FACTION_TALK,
   LORD_LOOK,
+  lookFor,
   VILLAGE_FOOD,
 };

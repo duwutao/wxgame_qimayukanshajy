@@ -25,7 +25,7 @@ const {
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
-  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, VILLAGE_FOOD,
+  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
@@ -163,31 +163,33 @@ function findFreeSpotNear(state, cx, cy, radius) {
   return null;
 }
 
+function lordFromDef(state, def) {
+  const home = siteById(state.world, def.home);
+  const spot = home
+    ? findFreeSpotNear(state, home.x, home.y, 2) || { x: home.x, y: home.y }
+    : { x: 20, y: 22 };
+  return {
+    id: def.id,
+    name: def.name,
+    title: def.title,
+    faction: def.faction,
+    home: def.home,
+    x: spot.x,
+    y: spot.y,
+    troops: deepCopy(def.soldiers),
+    morale: def.morale,
+    sight: def.sight,
+    chasing: false,
+    alive: true,
+    respawnDay: 0,
+    defTroops: deepCopy(def.soldiers),
+    wander: null,
+  };
+}
+
 function spawnLords(state) {
   const { LORDS } = require('../data/china.js');
-  state.lords = LORDS.map(function (def) {
-    const home = siteById(state.world, def.home);
-    const spot = home
-      ? findFreeSpotNear(state, home.x, home.y, 2) || { x: home.x, y: home.y }
-      : { x: 20, y: 22 };
-    return {
-      id: def.id,
-      name: def.name,
-      title: def.title,
-      faction: def.faction,
-      home: def.home,
-      x: spot.x,
-      y: spot.y,
-      troops: deepCopy(def.soldiers),
-      morale: def.morale,
-      sight: def.sight,
-      chasing: false,
-      alive: true,
-      respawnDay: 0,
-      defTroops: deepCopy(def.soldiers),
-      wander: null,
-    };
-  });
+  state.lords = LORDS.map(function (def) { return lordFromDef(state, def); });
 }
 
 /** 序章追兵：西凉铁骑，慢一步，逼你往东跑 */
@@ -362,9 +364,10 @@ function siteStatus(state, site) {
 
 function playerSpeed(state) {
   const bonus = economy.equipmentBonus(state);
+  const hb = heroes.heroBonus(state);
   const count = army.troopCount(state.player.troops);
   const sizePenalty = Math.min(0.45, count / 240);
-  return Math.max(0.55, 1 + bonus.speedPct - sizePenalty);
+  return Math.max(0.55, 1 + bonus.speedPct + hb.speedPct - sizePenalty);
 }
 
 function capacity(state) {
@@ -423,7 +426,9 @@ function advanceTime(state, hours) {
 function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
-  const need = army.foodPerDay(p.troops);
+  const hb = heroes.heroBonus(state);
+  // 会算粮的英雄能让日耗少一点
+  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * (1 - hb.foodPct)));
 
   if (p.food >= need) {
     p.food -= need;
@@ -447,7 +452,7 @@ function dailyTick(state) {
     }
   }
 
-  if (p.morale < 65) p.morale = Math.min(65, p.morale + 3);
+  if (p.morale < 65) p.morale = Math.min(65 + hb.morale, p.morale + 3 + hb.morale);
   const income = economy.dailyIncome(state);
   if (income > 0) {
     p.gold += income;
@@ -988,6 +993,10 @@ function resolveBattle(state, battle) {
   state.player.troops = deepCopy(battle.a.troops);
   const p = state.player;
 
+  // 缴获：会搜战场的英雄能多刮一点
+  const hbLoot = heroes.heroBonus(state).lootPct;
+  if (hbLoot > 0 && summary.loot > 0) summary.loot = Math.round(summary.loot * (1 + hbLoot));
+
   // 史简「名册」：阵亡者部分回归
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
     const back = Math.max(0, Math.round(summary.initialA * 0.35));
@@ -1279,16 +1288,18 @@ function lordRank(lord) {
 }
 
 function lordLines(lord) {
-  const t = LORD_TALK[lord.id];
-  if (!t) {
-    return {
-      greet: '有什么事？',
-      bio: lord.name + '，' + (FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世') + '。',
-      idle: ['在看着远处。'],
-      warLine: '在看着远处。',
-    };
-  }
-  return t;
+  const base = LORD_TALK[lord.id] || {};
+  const pool = FACTION_TALK[lord.faction] || { greet: [], idle: [] };
+  const factionName = FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世';
+  const bio = base.bio || LORD_EXTRA_BIO[lord.id] || (lord.name + '，' + factionName + '。');
+  const greet = base.greet || (pool.greet && pool.greet[0]) || '有什么事？';
+  const idle = (base.idle || []).concat(pool.idle || []);
+  return {
+    greet: greet,
+    bio: bio,
+    idle: idle.length ? idle : ['在看着远处。'],
+    warLine: base.warLine || '',
+  };
 }
 
 /** 每次对话随机一句闲聊，结合当前战事 */
@@ -1610,6 +1621,22 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 老存档里没有后来补的领主：按 LORDS 定义补齐，已死过的保持死过
+  const { LORDS } = require('../data/china.js');
+  const known = {};
+  state.lords.forEach(function (l) { known[l.id] = true; });
+  LORDS.forEach(function (def) {
+    if (known[def.id]) return;
+    const lord = lordFromDef(state, def);
+    const dead = (data.deadLords || {})[def.id];
+    if (dead) {
+      lord.alive = false;
+      lord.troops = {};
+      lord.respawnDay = dead;
+    }
+    state.lords.push(lord);
+  });
   return state;
 }
 

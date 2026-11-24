@@ -649,6 +649,65 @@ const LORDS = [
   { id: 'mateng', name: '马腾', faction: 'ma', home: 'wuwei', soldiers: { militia: 30, spear: 50, qishe: 30, tiefu: 15 }, morale: 82, sight: 8, title: '征西将军' },
   { id: 'machao', name: '马超', faction: 'ma', home: 'tianshui', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
   { id: 'huangfusong', name: '皇甫嵩', faction: 'han', home: 'changan', soldiers: { militia: 40, spear: 40, crossbow: 25, jinjun: 6 }, morale: 74, sight: 6, title: '车骑将军' },
+  // ---- 魏：宗亲与五子 ----
+  { id: 'caoren', name: '曹仁', faction: 'wei', home: 'puyang', soldiers: { spear: 45, crossbow: 25, cav: 20, guard: 8 }, morale: 86, sight: 7, title: '征南将军' },
+  { id: 'xiahouyuan', name: '夏侯渊', faction: 'wei', home: 'tongguan', soldiers: { cav: 35, spear: 30, crossbow: 20 }, morale: 88, sight: 8, title: '征西将军' },
+  { id: 'xuhuang', name: '徐晃', faction: 'wei', home: 'shangdang', soldiers: { spear: 50, crossbow: 25, militia: 20 }, morale: 87, sight: 7, title: '平寇将军' },
+  { id: 'zhanghe', name: '张郃', faction: 'wei', home: 'jinyang', soldiers: { cav: 30, spear: 40, crossbow: 20 }, morale: 84, sight: 8, title: '荡寇将军' },
+  { id: 'xuchu', name: '许褚', faction: 'wei', home: 'chenliu', soldiers: { militia: 30, spear: 30, guard: 20 }, morale: 90, sight: 6, title: '虎卫' },
+  { id: 'litong', name: '李通', faction: 'wei', home: 'runan', soldiers: { militia: 35, spear: 25, cav: 15 }, morale: 78, sight: 6, title: '裨将军' },
+  // ---- 蜀：荆益之间 ----
+  { id: 'zhaoyun', name: '赵云', faction: 'shu', home: 'hanzhong', soldiers: { cav: 30, spear: 35, baier: 12 }, morale: 92, sight: 8, title: '牙门将军' },
+  { id: 'huangzhong', name: '黄忠', faction: 'shu', home: 'jiangling', soldiers: { archer: 40, spear: 30, militia: 20 }, morale: 90, sight: 7, title: '中郎将' },
+  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'hanzhong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
+  { id: 'chendao', name: '陈到', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 35, baier: 15, militia: 20 }, morale: 88, sight: 6, title: '白毦统领' },
+  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'baxi', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
+  { id: 'mizhu', name: '糜竺', faction: 'shu', home: 'chengdu', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 72, sight: 5, title: '别从事' },
+  // ---- 吴：四都督与老将 ----
+  { id: 'ganning', name: '甘宁', faction: 'wu', home: 'xiakou', soldiers: { militia: 25, archer: 30, boat: 25, danyang: 12 }, morale: 90, sight: 8, title: '折冲将军' },
+  { id: 'lvmeng', name: '吕蒙', faction: 'wu', home: 'chaisang', soldiers: { militia: 30, archer: 35, boat: 25 }, morale: 88, sight: 7, title: '横野中郎将' },
+  { id: 'luxun', name: '陆逊', faction: 'wu', home: 'wujun', soldiers: { militia: 35, spear: 30, archer: 20 }, morale: 85, sight: 7, title: '镇西将军' },
+  { id: 'chengpu', name: '程普', faction: 'wu', home: 'kuaiji', soldiers: { militia: 30, archer: 25, boat: 25 }, morale: 84, sight: 6, title: '荡寇中郎将' },
+  { id: 'handang', name: '韩当', faction: 'wu', home: 'jianye', soldiers: { archer: 30, cav: 20, boat: 20 }, morale: 83, sight: 7, title: '偏将军' },
+  // ---- 袁：河北诸将 ----
+  { id: 'wenchou', name: '文丑', faction: 'yuan', home: 'pingyuan', soldiers: { cav: 35, spear: 35, militia: 20 }, morale: 82, sight: 7, title: '骑将' },
+  { id: 'chunyuqiong', name: '淳于琼', faction: 'yuan', home: 'zhuo', soldiers: { militia: 40, spear: 25, archer: 15 }, morale: 70, sight: 5, title: '督军' },
+  { id: 'jiangyiqu', name: '蒋义渠', faction: 'yuan', home: 'beiping', soldiers: { militia: 35, spear: 30, cav: 10 }, morale: 72, sight: 6, title: '校尉' },
+  { id: 'guotu', name: '郭图', faction: 'yuan', home: 'ye', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 68, sight: 5, title: '谋士' },
+  { id: 'lvkuang', name: '吕旷', faction: 'yuan', home: 'ji', soldiers: { spear: 30, cav: 15, militia: 20 }, morale: 70, sight: 6, title: '校尉' },
+  { id: 'lvxiang', name: '吕翔', faction: 'yuan', home: 'nanpi', soldiers: { spear: 25, cav: 15, militia: 20 }, morale: 70, sight: 6, title: '校尉' },
+  // ---- 吕：徐州旧部 ----
+  { id: 'chengong', name: '陈宫', faction: 'lv', home: 'xiapi', soldiers: { militia: 35, spear: 25, crossbow: 15 }, morale: 74, sight: 6, title: '军师' },
+  { id: 'houcheng', name: '侯成', faction: 'lv', home: 'xiaopei', soldiers: { militia: 25, cav: 20, spear: 15 }, morale: 70, sight: 6, title: '骑都尉' },
+  { id: 'songxian', name: '宋宪', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 12 }, morale: 68, sight: 6, title: '校尉' },
+  { id: 'weixu', name: '魏续', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 10 }, morale: 68, sight: 6, title: '校尉' },
+  // ---- 荆：守江的人 ----
+  { id: 'huangzu', name: '黄祖', faction: 'biao', home: 'xiakou', soldiers: { militia: 35, archer: 25, boat: 20 }, morale: 70, sight: 6, title: '江夏太守' },
+  { id: 'wenpin', name: '文聘', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '大将' },
+  { id: 'zhangyun', name: '张允', faction: 'biao', home: 'jiangling', soldiers: { militia: 25, archer: 20, boat: 25 }, morale: 68, sight: 5, title: '水军副将' },
+  { id: 'wangwei', name: '王威', faction: 'biao', home: 'wan', soldiers: { militia: 25, spear: 25, archer: 10 }, morale: 72, sight: 6, title: '牙门将' },
+  // ---- 益：蜀中诸将 ----
+  { id: 'wuyi', name: '吴懿', faction: 'zhang', home: 'baxi', soldiers: { spear: 30, militia: 30, archer: 10 }, morale: 76, sight: 6, title: '中郎将' },
+  { id: 'leitong', name: '雷铜', faction: 'zhang', home: 'jiangzhou', soldiers: { militia: 30, spear: 25, archer: 10 }, morale: 74, sight: 6, title: '裨将' },
+  { id: 'lengbao', name: '冷苞', faction: 'zhang', home: 'jiange', soldiers: { spear: 25, militia: 25, crossbow: 10 }, morale: 72, sight: 6, title: '裨将' },
+  { id: 'liugui', name: '刘璝', faction: 'zhang', home: 'chengdu', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '中郎将' },
+  // ---- 鲜卑：塞外诸部 ----
+  { id: 'suli', name: '素利', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 40, qishe: 20, xianbei: 10 }, morale: 80, sight: 8, title: '东部大人' },
+  { id: 'mijia', name: '弥加', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 35, qishe: 20 }, morale: 78, sight: 8, title: '部帅' },
+  { id: 'queji', name: '阙机', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 30, qishe: 25 }, morale: 76, sight: 7, title: '部帅' },
+  { id: 'huaitou', name: '槐头', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 30, qishe: 15, xianbei: 8 }, morale: 78, sight: 7, title: '小帅' },
+  { id: 'pufulu', name: '普富卢', faction: 'xianbei', home: 'tanhanshan', soldiers: { cav: 35, qishe: 20, xianbei: 6 }, morale: 76, sight: 7, title: '代郡大人' },
+  // ---- 西凉：马家的兵 ----
+  { id: 'pangde', name: '庞德', faction: 'ma', home: 'jincheng', soldiers: { cav: 30, tiefu: 18, spear: 25 }, morale: 90, sight: 8, title: '校尉' },
+  { id: 'maxiu', name: '马休', faction: 'ma', home: 'wuwei', soldiers: { cav: 25, spear: 25, militia: 20 }, morale: 78, sight: 7, title: '奉车都尉' },
+  { id: 'matie', name: '马铁', faction: 'ma', home: 'longxi', soldiers: { cav: 25, spear: 20, militia: 20 }, morale: 78, sight: 7, title: '骑都尉' },
+  { id: 'chengyin', name: '程银', faction: 'ma', home: 'jincheng', soldiers: { cav: 25, spear: 20, qishe: 10 }, morale: 74, sight: 7, title: '校尉' },
+  // ---- 汉：关中残军 ----
+  { id: 'zhujun', name: '朱儁', faction: 'han', home: 'luoyang', soldiers: { militia: 35, spear: 30, crossbow: 15, jinjun: 5 }, morale: 78, sight: 6, title: '右中郎将' },
+  { id: 'luzhi', name: '卢植', faction: 'han', home: 'zhuo', soldiers: { militia: 30, spear: 30, crossbow: 20 }, morale: 80, sight: 6, title: '北中郎将' },
+  { id: 'dongcheng', name: '董承', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 10 }, morale: 72, sight: 5, title: '车骑将军' },
+  { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'hulao', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
+  { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
 ];
 
 /** 声望等级 */
@@ -2581,36 +2640,36 @@ const GOODS = [
  */
 const BANDIT_TIERS = {
   qing: {
-    id: 'qing', name: '青巾', color: '#4f8f6a', rank: 1, share: 0.60,
+    id: 'qing', name: '劫匪', color: '#4f8f6a', rank: 1, share: 0.60,
     minSize: 6, maxSize: 12, extra: {},
     loot: [18, 40], morale: [50, 66], sight: 5,
-    desc: '黄巾余烬，拿着锄头就上路。打赢了他们，够吃三天。',
+    desc: '拦路要过路钱的散匪。人少，刀旧，打赢了够吃三天。',
   },
   lan: {
-    id: 'lan', name: '蓝幡', color: '#4a7fb0', rank: 2, share: 0.30,
+    id: 'lan', name: '黄巾军', color: '#4a7fb0', rank: 2, share: 0.30,
     minSize: 12, maxSize: 22, extra: { raider: [2, 4] },
     loot: [45, 90], morale: [58, 72], sight: 6,
-    desc: '有刀有弓的小股流寇，敢打落单的商队。',
+    desc: '头裹黄巾的流民军。有刀有弓，也有一点信。',
   },
   cheng: {
-    id: 'cheng', name: '橙旗', color: '#c07a3c', rank: 3, share: 0.08,
+    id: 'cheng', name: '乱军', color: '#c07a3c', rank: 3, share: 0.08,
     minSize: 24, maxSize: 38, extra: { raider: [4, 8], raider_cav: [2, 4] },
     loot: [110, 190], morale: [66, 80], sight: 7,
-    desc: '成建制的山贼，有骑有弓。剿他们才叫剿。',
+    desc: '溃下来的官军，旗号撕了，甲还在。有骑有弓，成建制地抢。',
   },
   hong: {
-    id: 'hong', name: '赤号', color: '#a8403a', rank: 4, share: 0.02,
+    id: 'hong', name: '叛军', color: '#a8403a', rank: 4, share: 0.02,
     minSize: 45, maxSize: 70, extra: { raider: [8, 14], raider_cav: [5, 10] },
     loot: [240, 420], morale: [78, 92], sight: 8,
-    desc: '只比领主差一线。碰上他们，要么跑，要么准备好史简。',
+    desc: '已经打出名号的叛部。只比领主差一线，碰上要么跑，要么备好史简。',
   },
 };
 
 const BANDIT_NAMES = {
-  qing: ['黑山残部', '白波散卒', '汝南流民', '太行饥民'],
-  lan: ['泰山刀客', '江夏水贼', '淮南劫队', '颍川游侠'],
-  cheng: ['青州铁山贼', '南阳黄巾', '汉中米贼', '辽东马贼'],
-  hong: ['黑山飞燕', '白波大帅', '泰山群盗', '西凉叛骑'],
+  qing: ['剪径劫匪', '断道劫匪', '饿虎岗劫匪', '黑店劫匪'],
+  lan: ['白波黄巾', '黑山黄巾', '汝南黄巾', '太行黄巾'],
+  cheng: ['凉州溃兵', '徐州乱军', '淮南乱军', '颍川乱军'],
+  hong: ['西凉叛骑', '黑山飞燕', '泰山群盗', '汉中米贼'],
 };
 
 /** 主线推进到第几章开始出高阶匪徒 */
@@ -2638,7 +2697,48 @@ const HEROES = [
   { id: 'yujin', name: '于禁', site: 'puyang', cost: 220, atk: 6, def: 8, hp: 30, bio: '治军最严的一个。樊城被水淹了，他降了，后半生没抬起头。' },
   { id: 'caohong', name: '曹洪', site: 'luoyang', cost: 230, atk: 6, def: 6, hp: 27, bio: '荥阳那一战，他把自己的马让给了曹操，说天下可以没有曹洪。' },
   { id: 'zangba', name: '臧霸', site: 'xiapi', cost: 210, atk: 7, def: 5, hp: 25, bio: '泰山群盗出身，后来做了青徐的守将，海上的事他管得最清。' },
+  // ---- 第二批：各地还能拉上船的 ----
+  { id: 'haozhao', name: '郝昭', site: 'jiange', cost: 300, atk: 6, def: 8, hp: 30, bio: '守陈仓的那个。诸葛亮几万人攻了二十多天，城还在。' },
+  { id: 'zhuran', name: '朱然', site: 'chaisang', cost: 270, atk: 7, def: 6, hp: 28, bio: '江东的守将。江陵被围，他在城里撑了半年。' },
+  { id: 'huojun', name: '霍峻', site: 'jiangzhou', cost: 250, atk: 6, def: 8, hp: 29, bio: '几百人守葭萌关，一年多没丢。刘备入蜀，他在后头看着门。' },
+  { id: 'zhangni', name: '张嶷', site: 'chengdu', cost: 240, atk: 7, def: 6, hp: 27, bio: '蜀中的戍将。南中那些年，路是他一寸一寸拓出来的。' },
+  { id: 'lvdai', name: '吕岱', site: 'jiaozhi', cost: 230, atk: 6, def: 6, hp: 27, bio: '九十岁还在南方带兵。交州是他替东吴拿下来的。' },
+  { id: 'sunhuan', name: '孙桓', site: 'wujun', cost: 220, atk: 6, def: 6, hp: 26, bio: '孙家的年轻人。夷陵那一仗，他守住了要道。' },
+  { id: 'niujin', name: '牛金', site: 'hulao', cost: 210, atk: 7, def: 5, hp: 26, bio: '曹军的先锋。江陵城下，几百人冲过吴军的阵。' },
+  { id: 'tianyu', name: '田豫', site: 'beiping', cost: 240, atk: 6, def: 7, hp: 28, bio: '守北边的人。乌桓、鲜卑都从他这一段绕过去。' },
+  { id: 'qianzhao', name: '牵招', site: 'ji', cost: 230, atk: 6, def: 7, hp: 28, bio: '看着塞外那条线。风一起，他就知道谁要南下。' },
+  { id: 'zhangyan', name: '张燕', site: 'heishan', cost: 250, atk: 8, def: 5, hp: 27, bio: '黑山里的头一号。几万人钻山沟，官军拿他没办法。' },
 ];
+
+/** 每位英雄给队伍带来一样长处，随等级放大 */
+const HERO_BONUS = {
+  liaohua: { atk: 0.015, label: '老练：战团攻击微增' },
+  zhoucang: { speed: 0.05, label: '跑得快：行军提速' },
+  madai: { atk: 0.02, label: '西凉刀法：攻击 +2%' },
+  guanping: { def: 0.025, label: '守阵：防御 +2.5%' },
+  lingtong: { atk: 0.025, label: '锐气：攻击 +2.5%' },
+  xusheng: { def: 0.03, label: '疑城：防御 +3%' },
+  dingfeng: { speed: 0.04, label: '雪中先登：行军提速' },
+  huanggai: { loot: 0.06, label: '火攻：缴获更多' },
+  yanyan: { def: 0.03, label: '断头将军：防御 +3%' },
+  wangping: { def: 0.025, label: '守隘：防御 +2.5%' },
+  zhangyi: { food: 0.06, label: '会算粮：日耗减少' },
+  lidian: { def: 0.02, label: '稳营：防御 +2%' },
+  yuejin: { atk: 0.03, label: '先登：攻击 +3%' },
+  yujin: { def: 0.035, label: '治军：防御 +3.5%' },
+  caohong: { loot: 0.08, label: '救驾之功：缴获更多' },
+  zangba: { speed: 0.04, loot: 0.05, label: '海路熟：行军快、缴获多' },
+  haozhao: { def: 0.04, label: '守城：防御 +4%' },
+  zhuran: { def: 0.03, label: '坚壁：防御 +3%' },
+  huojun: { def: 0.035, label: '孤城：防御 +3.5%' },
+  zhangni: { speed: 0.05, label: '开山道：行军提速' },
+  lvdai: { morale: 2, label: '老将坐镇：每日士气 +2' },
+  sunhuan: { atk: 0.02, label: '锐卒：攻击 +2%' },
+  niujin: { atk: 0.03, label: '先冲：攻击 +3%' },
+  tianyu: { morale: 2, label: '边塞老将：每日士气 +2' },
+  qianzhao: { def: 0.025, label: '守边：防御 +2.5%' },
+  zhangyan: { speed: 0.06, label: '钻山沟：行军提速' },
+};
 
 const HERO_MAX_LEVEL = 10;
 
@@ -2895,15 +2995,152 @@ const LORD_LOOK = {
   huangfusong: { weapon: 'jian', helm: 'crown', cape: '#5a4a3a', horse: '#4a4440' },
 };
 
+/** 后补领主的史实一句（台词主体仍走 LORD_TALK，缺省时用势力通用池） */
+const LORD_EXTRA_BIO = {
+  caoren: '曹仁，曹操从弟。守樊城，关羽水淹七军，他还站在城墙上。',
+  xiahouyuan: '夏侯渊，夏侯惇族弟。军中说他三日五百、六日一千，关中的路是他跑出来的。',
+  xuhuang: '徐晃，河东杨人。治军像周亚夫，樊城一战长驱直入，曹操说他有古之名将风。',
+  zhanghe: '张郃，河间鄚人。官渡投曹，后来在街亭断了马谡的水。',
+  xuchu: '许褚，谯国谯人。年轻时拉着牛尾巴走了百步，曹操的虎卫头一号。',
+  litong: '李通，江夏平春人。平叛路上病倒，曹操亲自为他吊丧。',
+  zhaoyun: '赵云，常山真定人。长坂坡抱着孩子冲出来，一辈子没丢过阵。',
+  huangzhong: '黄忠，南阳人。定军山一刀，夏侯渊的头就挂在了旗下。',
+  weiyan: '魏延，义阳人。守汉中十年，敢走子午谷那条险路。',
+  chendao: '陈到，汝南人。白毦兵的头，刘备最信的那一支。',
+  liufeng: '刘封，长沙刘氏之后。上庸的兵是他带的，后来没去救关羽。',
+  mizhu: '糜竺，东海朐人。徐州起家时的钱粮，一半是他出的。',
+  ganning: '甘宁，巴郡临江人。锦帆贼出身，百骑劫营，回来一个没少。',
+  lvmeng: '吕蒙，汝南富陂人。从吴下阿蒙到白衣渡江，只用了几年。',
+  luxun: '陆逊，吴郡吴人。夷陵一把火，烧了刘备七百里连营。',
+  chengpu: '程普，右北平土垠人。江东三代老将，周瑜也曾在他手下。',
+  handang: '韩当，辽西令支人。从孙坚起就在，弓马一辈子。',
+  wenchou: '文丑，河北名将。延津一战，死在乱军里。',
+  chunyuqiong: '淳于琼，颍川人。乌巢守将，酒还没醒，火就起来了。',
+  jiangyiqu: '蒋义渠，河北校尉。袁军的粮道，一半在他手上。',
+  guotu: '郭图，颍川人。劝袁谭攻袁尚，兄弟就这样散了。',
+  lvkuang: '吕旷，袁家校尉。后来与吕翔一同降了曹。',
+  lvxiang: '吕翔，与吕旷同来的那一个。',
+  chengong: '陈宫，东郡武阳人。放曹操一马，后来又要杀他。',
+  houcheng: '侯成，吕布部将。下邳城破前，是他先开的门。',
+  songxian: '宋宪，吕布部将。绑了陈宫出城的人之一。',
+  weixu: '魏续，与宋宪同去的那一个。',
+  huangzu: '黄祖，江夏太守。守了十几年，射死过孙坚。',
+  wenpin: '文聘，南阳宛人。刘表死后守江夏，曹丕说他是真将。',
+  zhangyun: '张允，荆州水军副将。船比人多。',
+  wangwei: '王威，荆州牙门将。劝刘琮不要降，没人听。',
+  wuyi: '吴懿，兖州陈留人。益州老将，妹妹嫁给了刘备。',
+  leitong: '雷铜，巴西副将。与张飞同守一条线。',
+  lengbao: '冷苞，守剑阁的裨将。粮草总是最紧。',
+  liugui: '刘璝，成都城里的中郎将。名是宗室的。',
+  suli: '素利，东部鲜卑大人。跟轲比能不一条心。',
+  mijia: '弥加，漠南部帅。马比人多。',
+  queji: '阙机，与素利争草场的小帅。',
+  huaitou: '槐头，弹汗山下的小部。只有几百骑。',
+  pufulu: '普富卢，代郡的鲜卑大人。汉人叫他"大人"，他叫自己"牧马的"。',
+  zhongji: '种辑，越骑校尉。衣带诏上，签了名的还有他。',
+  pangde: '庞德，南安狟道人。抬着棺材去樊城，射过关羽一箭。',
+  maxiu: '马休，马腾之子。跟着父亲进了许都。',
+  matie: '马铁，与马休一同的骑都尉。',
+  chengyin: '程银，西凉九部之一。跟着马超反过。',
+  zhujun: '朱儁，会稽上虞人。讨黄巾的三路之一，围宛城围了几个月。',
+  luzhi: '卢植，涿郡涿人。刘备、公孙瓒都叫他老师，围广宗时被宦官换了。',
+  dongcheng: '董承，汉献帝的国舅。衣带诏那件事，他是领头的人。',
+  yangfeng: '杨奉，白波出身。护着天子往东走。',
+};
+
+/** 缺台词时的势力通用池 */
+const FACTION_TALK = {
+  wei: {
+    greet: ['魏军大营，闲人退后。', '何事？军务在身。'],
+    idle: ['在点粮。少一斗都要查。', '在看舆图，北边那条线要重画。', '在磨刀。刀不快，人就白死。'],
+  },
+  shu: {
+    greet: ['来者何人？', '汉室的事，你也要管？'],
+    idle: ['在看南边的山。路太窄。', '在清点伤员。今天又多了七个。', '在写信回成都，写完烧了。'],
+  },
+  wu: {
+    greet: ['江上有雾，别乱走。', '有事说，船要开了。'],
+    idle: ['在看水势。这个月风向不对。', '在补船板。木板比人金贵。', '在算粮。水路运粮，省一半。'],
+  },
+  yuan: {
+    greet: ['河北的兵，不是给你看的。', '要见我，先报门第。'],
+    idle: ['在等冀州的粮车。', '在看名册。人比册子少。', '在议立谁为主。这事没完。'],
+  },
+  lv: {
+    greet: ['徐州城下，站住。', '我奉温侯之命守这儿。'],
+    idle: ['在喂马。赤兔只认一个人。', '在修城门。前天刚撞坏。', '在等并州的旧部。他们还没来。'],
+  },
+  biao: {
+    greet: ['荆州的规矩，先递名帖。', '江水深，话要短。'],
+    idle: ['在听琴。城里没什么事。', '在查船。商船比战船多。', '在写表。写给许都，也写给江东。'],
+  },
+  zhang: {
+    greet: ['益州的地界，你从哪儿来？', '天府之国，不缺你这一口饭。'],
+    idle: ['在看粮仓。成都的米够吃三年。', '在修栈道。剑阁那条路总塌。', '在听外面的事。关中的消息总慢一步。'],
+  },
+  xianbei: {
+    greet: ['草原上没主，谁的马快谁说了算。', '带了多少盐？'],
+    idle: ['在放马。草场往北退了。', '在数牲口。今年雪大。', '在等南边来的铁器。'],
+  },
+  ma: {
+    greet: ['西凉的风沙，吹得眼睛疼。', '羌骑在后头，别挡道。'],
+    idle: ['在刷马。马比人耐得住。', '在看关中的方向。', '在分羊肉。今天只够一半人。'],
+  },
+  han: {
+    greet: ['朝廷的旗还在，你要怎样？', '车骑将军帐下，不得喧哗。'],
+    idle: ['在等诏书。诏书总在路上。', '在点残兵。名册越翻越薄。', '在看长安的城墙。补了三年还没补完。'],
+  },
+};
+
+const LOOK_WEAPONS = ['ji', 'dao', 'qiang', 'gong', 'jian'];
+const LOOK_HELMS = ['plume', 'horn', 'crown', 'band'];
+const LOOK_CAPES = ['#7a2118', '#4a2a20', '#3a4a58', '#2f6a3a', '#4a3a68', '#8a6a2a', '#5a6a4a', '#3a5a6a', '#6a5a2a', '#4a5a6a'];
+const LOOK_HORSES = ['#2a2320', '#6a3a24', '#4a4440', '#8a5a36', '#c9c2ae', '#e2dcd0', '#5a4030', '#3a3430'];
+const LOOK_CACHE = {};
+const LOOK_TAKEN = {};
+
+/** 先查手写造型，没有就按 id 稳定生成一个不撞脸的 */
+function lookFor(id) {
+  if (LORD_LOOK[id]) return LORD_LOOK[id];
+  if (LOOK_CACHE[id]) return LOOK_CACHE[id];
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 131 + id.charCodeAt(i)) >>> 0;
+  for (let t = 0; t < 128; t += 1) {
+    const k = (h + t * 7919) >>> 0;
+    const look = {
+      weapon: LOOK_WEAPONS[k % LOOK_WEAPONS.length],
+      helm: LOOK_HELMS[Math.floor(k / 5) % LOOK_HELMS.length],
+      cape: LOOK_CAPES[Math.floor(k / 20) % LOOK_CAPES.length],
+      horse: LOOK_HORSES[Math.floor(k / 200) % LOOK_HORSES.length],
+      beard: Math.floor(k / 1600) % 3 === 0,
+      tall: Math.floor(k / 4800) % 5 === 0,
+      big: Math.floor(k / 24000) % 6 === 0,
+    };
+    const key = [look.weapon, look.helm, look.cape, look.horse, look.beard, look.tall, look.big].join('|');
+    if (!LOOK_TAKEN[key]) {
+      LOOK_TAKEN[key] = id;
+      LOOK_CACHE[id] = look;
+      return look;
+    }
+  }
+  const fallback = { weapon: 'qiang', helm: 'band', cape: LOOK_CAPES[0], horse: LOOK_HORSES[0] };
+  LOOK_CACHE[id] = fallback;
+  return fallback;
+}
+
 module.exports = {
   GOODS,
   BANDIT_TIERS,
   BANDIT_NAMES,
   BANDIT_UNLOCK_STAGE,
   HEROES,
+  HERO_BONUS,
   HERO_MAX_LEVEL,
   LORD_TALK,
+  LORD_EXTRA_BIO,
+  FACTION_TALK,
   LORD_LOOK,
+  lookFor,
   VILLAGE_FOOD,
 };
 
@@ -3046,10 +3283,17 @@ module.exports = {
  * 英雄层：不起眼的将领可招募，随队不死，靠打仗升级（1-10）
  */
 
-const { HEROES, HERO_MAX_LEVEL } = __require(13);
+const { HEROES, HERO_MAX_LEVEL, HERO_BONUS } = __require(13);
 const { siteById, gridDistance } = __require(8);
 
 const EXP_PER_LEVEL = 16;
+const HERO_CAP_MAX = 15;
+
+/** 随行名额：声望越高带得越多，最多 15 位 */
+function heroCap(state) {
+  const renown = (state.player && state.player.renown) || 0;
+  return Math.min(HERO_CAP_MAX, 3 + Math.floor(renown / 30));
+}
 
 /** 英雄驻地校正：数据里写的城若不存在，就就近挂到一座大城 */
 function resolveHeroSites(state) {
@@ -3097,7 +3341,9 @@ function hireHero(state, site, heroId) {
   if (!def) return { ok: false, msg: '没有这个人' };
   if (state.heroSites[heroId] !== site.id) return { ok: false, msg: '他不在这个城' };
   state.player.heroes = state.player.heroes || [];
-  if (state.player.heroes.length >= 4) return { ok: false, msg: '随行的英雄已经有四位，队伍塞不下了' };
+  if (state.player.heroes.length >= heroCap(state)) {
+    return { ok: false, msg: '随行名额满了（' + heroCap(state) + ' 位），声望再高点才能多带人' };
+  }
   if (state.player.heroes.some(function (x) { return x.id === heroId; })) {
     return { ok: false, msg: '他已经在你队里了' };
   }
@@ -3107,17 +3353,58 @@ function hireHero(state, site, heroId) {
   return { ok: true, msg: def.name + ' 加入了你的队伍' };
 }
 
-/** 队伍战力加成：每人每级 +1.1% 攻击、+0.8% 防御 */
+/**
+ * 队伍加成：每人一样长处，随等级放大（1 级 ×0.68，10 级 ×1.4）
+ * 返回的百分比直接喂给战斗、行军、口粮、缴获
+ */
 function heroBonus(state) {
-  const list = (state.player.heroes) || [];
-  let atk = 0;
-  let def = 0;
+  const list = state.player.heroes || [];
+  const out = {
+    atkPct: 0, defPct: 0, speedPct: 0, foodPct: 0, lootPct: 0, morale: 0, count: list.length,
+  };
   list.forEach(function (h) {
-    const lv = h.level || 1;
-    atk += 0.011 * lv;
-    def += 0.008 * lv;
+    const b = HERO_BONUS[h.id];
+    if (!b) return;
+    const k = 0.6 + (h.level || 1) * 0.08;
+    if (b.atk) out.atkPct += b.atk * k;
+    if (b.def) out.defPct += b.def * k;
+    if (b.speed) out.speedPct += b.speed * k;
+    if (b.food) out.foodPct += b.food * k;
+    if (b.loot) out.lootPct += b.loot * k;
+    if (b.morale) out.morale += b.morale * (0.5 + (h.level || 1) * 0.05);
   });
-  return { atkPct: Math.min(0.45, atk), defPct: Math.min(0.4, def), count: list.length };
+  out.atkPct = Math.min(0.45, out.atkPct);
+  out.defPct = Math.min(0.4, out.defPct);
+  out.speedPct = Math.min(0.3, out.speedPct);
+  out.foodPct = Math.min(0.35, out.foodPct);
+  out.lootPct = Math.min(0.5, out.lootPct);
+  out.morale = Math.min(8, Math.round(out.morale));
+  return out;
+}
+
+/** 这位英雄现在给的是什么加成（给队伍页和对话页演示） */
+function bonusOf(heroId, level) {
+  const b = HERO_BONUS[heroId];
+  if (!b) return { text: '没什么特别的', label: '' };
+  const k = 0.6 + (level || 1) * 0.08;
+  const parts = [];
+  if (b.atk) parts.push('攻击 +' + (b.atk * k * 100).toFixed(1) + '%');
+  if (b.def) parts.push('防御 +' + (b.def * k * 100).toFixed(1) + '%');
+  if (b.speed) parts.push('行军 +' + (b.speed * k * 100).toFixed(0) + '%');
+  if (b.food) parts.push('日耗 -' + (b.food * k * 100).toFixed(0) + '%');
+  if (b.loot) parts.push('缴获 +' + (b.loot * k * 100).toFixed(0) + '%');
+  if (b.morale) parts.push('士气 +' + Math.round(b.morale * (0.5 + (level || 1) * 0.05)) + '/日');
+  return { text: parts.join(' · '), label: b.label || '' };
+}
+
+/** 请他走：回原来的城，日后还能在酒馆碰见 */
+function dismissHero(state, heroId) {
+  const list = state.player.heroes || [];
+  const idx = list.map(function (x) { return x.id; }).indexOf(heroId);
+  if (idx < 0) return { ok: false, msg: '他不在队里' };
+  const def = heroById(heroId) || {};
+  list.splice(idx, 1);
+  return { ok: true, msg: def.name + ' 抱了抱拳，往' + (def.site ? '旧地' : '北边') + '去了。' };
 }
 
 function gainHeroExp(state, exp) {
@@ -3147,11 +3434,15 @@ function heroPower(state) {
 
 module.exports = {
   EXP_PER_LEVEL,
+  HERO_CAP_MAX,
   resolveHeroSites,
   offersAt,
   heroById,
+  heroCap,
   hireHero,
   heroBonus,
+  bonusOf,
+  dismissHero,
   gainHeroExp,
   heroPower,
 };
@@ -3502,7 +3793,7 @@ const {
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
-  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, VILLAGE_FOOD,
+  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(13);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
@@ -3640,31 +3931,33 @@ function findFreeSpotNear(state, cx, cy, radius) {
   return null;
 }
 
+function lordFromDef(state, def) {
+  const home = siteById(state.world, def.home);
+  const spot = home
+    ? findFreeSpotNear(state, home.x, home.y, 2) || { x: home.x, y: home.y }
+    : { x: 20, y: 22 };
+  return {
+    id: def.id,
+    name: def.name,
+    title: def.title,
+    faction: def.faction,
+    home: def.home,
+    x: spot.x,
+    y: spot.y,
+    troops: deepCopy(def.soldiers),
+    morale: def.morale,
+    sight: def.sight,
+    chasing: false,
+    alive: true,
+    respawnDay: 0,
+    defTroops: deepCopy(def.soldiers),
+    wander: null,
+  };
+}
+
 function spawnLords(state) {
   const { LORDS } = __require(5);
-  state.lords = LORDS.map(function (def) {
-    const home = siteById(state.world, def.home);
-    const spot = home
-      ? findFreeSpotNear(state, home.x, home.y, 2) || { x: home.x, y: home.y }
-      : { x: 20, y: 22 };
-    return {
-      id: def.id,
-      name: def.name,
-      title: def.title,
-      faction: def.faction,
-      home: def.home,
-      x: spot.x,
-      y: spot.y,
-      troops: deepCopy(def.soldiers),
-      morale: def.morale,
-      sight: def.sight,
-      chasing: false,
-      alive: true,
-      respawnDay: 0,
-      defTroops: deepCopy(def.soldiers),
-      wander: null,
-    };
-  });
+  state.lords = LORDS.map(function (def) { return lordFromDef(state, def); });
 }
 
 /** 序章追兵：西凉铁骑，慢一步，逼你往东跑 */
@@ -3839,9 +4132,10 @@ function siteStatus(state, site) {
 
 function playerSpeed(state) {
   const bonus = economy.equipmentBonus(state);
+  const hb = heroes.heroBonus(state);
   const count = army.troopCount(state.player.troops);
   const sizePenalty = Math.min(0.45, count / 240);
-  return Math.max(0.55, 1 + bonus.speedPct - sizePenalty);
+  return Math.max(0.55, 1 + bonus.speedPct + hb.speedPct - sizePenalty);
 }
 
 function capacity(state) {
@@ -3900,7 +4194,9 @@ function advanceTime(state, hours) {
 function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
-  const need = army.foodPerDay(p.troops);
+  const hb = heroes.heroBonus(state);
+  // 会算粮的英雄能让日耗少一点
+  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * (1 - hb.foodPct)));
 
   if (p.food >= need) {
     p.food -= need;
@@ -3924,7 +4220,7 @@ function dailyTick(state) {
     }
   }
 
-  if (p.morale < 65) p.morale = Math.min(65, p.morale + 3);
+  if (p.morale < 65) p.morale = Math.min(65 + hb.morale, p.morale + 3 + hb.morale);
   const income = economy.dailyIncome(state);
   if (income > 0) {
     p.gold += income;
@@ -4465,6 +4761,10 @@ function resolveBattle(state, battle) {
   state.player.troops = deepCopy(battle.a.troops);
   const p = state.player;
 
+  // 缴获：会搜战场的英雄能多刮一点
+  const hbLoot = heroes.heroBonus(state).lootPct;
+  if (hbLoot > 0 && summary.loot > 0) summary.loot = Math.round(summary.loot * (1 + hbLoot));
+
   // 史简「名册」：阵亡者部分回归
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
     const back = Math.max(0, Math.round(summary.initialA * 0.35));
@@ -4756,16 +5056,18 @@ function lordRank(lord) {
 }
 
 function lordLines(lord) {
-  const t = LORD_TALK[lord.id];
-  if (!t) {
-    return {
-      greet: '有什么事？',
-      bio: lord.name + '，' + (FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世') + '。',
-      idle: ['在看着远处。'],
-      warLine: '在看着远处。',
-    };
-  }
-  return t;
+  const base = LORD_TALK[lord.id] || {};
+  const pool = FACTION_TALK[lord.faction] || { greet: [], idle: [] };
+  const factionName = FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世';
+  const bio = base.bio || LORD_EXTRA_BIO[lord.id] || (lord.name + '，' + factionName + '。');
+  const greet = base.greet || (pool.greet && pool.greet[0]) || '有什么事？';
+  const idle = (base.idle || []).concat(pool.idle || []);
+  return {
+    greet: greet,
+    bio: bio,
+    idle: idle.length ? idle : ['在看着远处。'],
+    warLine: base.warLine || '',
+  };
 }
 
 /** 每次对话随机一句闲聊，结合当前战事 */
@@ -5087,6 +5389,22 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 老存档里没有后来补的领主：按 LORDS 定义补齐，已死过的保持死过
+  const { LORDS } = __require(5);
+  const known = {};
+  state.lords.forEach(function (l) { known[l.id] = true; });
+  LORDS.forEach(function (def) {
+    if (known[def.id]) return;
+    const lord = lordFromDef(state, def);
+    const dead = (data.deadLords || {})[def.id];
+    if (dead) {
+      lord.alive = false;
+      lord.troops = {};
+      lord.respawnDay = dead;
+    }
+    state.lords.push(lord);
+  });
   return state;
 }
 
@@ -5562,7 +5880,7 @@ const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, terrainAt } = __require(8);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = __require(5);
-const { LORD_LOOK } = __require(13);
+const { lookFor } = __require(13);
 const flows = __require(19);
 
 const TILE = 64;
@@ -6095,7 +6413,7 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.fill();
     }
     // 领主棋子：按势力上色，每人一套兵器/头饰/马色
-    const look = LORD_LOOK[lord.id] || {};
+    const look = lookFor(lord.id);
     const icon = assets.lordIconFor(col, look);
     const isz = lord.id === 'lvbu' ? 50 : look.big ? 44 : 40;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.62, isz, isz);
@@ -7191,14 +7509,20 @@ function renderTavern(app, site) {
   const offers = heroes.offersAt(st, site);
   if (offers.length) {
     text(ctx, '角落里坐着的人', PAD, y + 6, { size: 20, color: '#a2947a' });
+    const cap = heroes.heroCap(st);
+    text(ctx, '随行 ' + st.player.heroes.length + ' / ' + cap, w - PAD, y + 8, {
+      size: 15, align: 'right', color: st.player.heroes.length >= cap ? '#d06a4a' : '#8a8070',
+    });
     y += 40;
     offers.slice(0, 2).forEach(function (h) {
       panel(ctx, PAD, y, w - PAD * 2, 150, { fill: '#201a14' });
       text(ctx, h.name, PAD + 18, y + 12, { size: 26, color: '#efe3c6' });
       text(ctx, '1-10 级 · 随队不死 · 打仗涨级', PAD + 150, y + 20, { size: 15, color: '#8a8070' });
       wrap(ctx, h.bio, w - PAD * 2 - 200, 15).slice(0, 2).forEach(function (ln, i) {
-        text(ctx, ln, PAD + 18, y + 56 + i * 22, { size: 15, color: '#a2947a' });
+        text(ctx, ln, PAD + 18, y + 52 + i * 22, { size: 15, color: '#a2947a' });
       });
+      const b = heroes.bonusOf(h.id, 1);
+      text(ctx, '带的加成：' + (b.label || '无'), PAD + 18, y + 102, { size: 13, color: '#8fb0d8' });
       text(ctx, h.cost + ' 金', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
       app.ui.button(ctx, w - PAD - 120, y + 88, 104, 52, '招募', {
         id: 'hero_' + h.id, size: 20, disabled: st.player.gold < h.cost, onTap: function () {
@@ -7922,10 +8246,11 @@ module.exports = ContactScene;
   /* js/scenes/army.js */
   __defs[24] = function (module, exports, __require) {
 /**
- * 队伍页：兵力构成、士气、装备、史简
+ * 队伍页：兵力构成、遣返士兵、随行英雄（点进去能说话）
+ * 内容是长列表，可上下拖
  */
 
-const { text, panel, bar, wrap } = __require(6);
+const { text, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const armyLib = __require(9);
@@ -7934,9 +8259,18 @@ const { HERO_MAX_LEVEL } = __require(13);
 const { TROOPS } = __require(10);
 const { EQUIPMENT } = __require(5);
 
+const TOP = 248;
+const BOT = 104;
+
 const ArmyScene = {
   enter(app) {
     app.armyScroll = 0;
+    this.scroll = 0;
+    this.maxScroll = 0;
+    this.contentH = 0;
+    this.rows = [];
+    this.drag = null;
+    this.savedScroll = 0;
   },
   update() {},
 
@@ -7952,126 +8286,425 @@ const ArmyScene = {
     const p = st.player;
     const count = armyLib.troopCount(p.troops);
     const cap = stateLib.capacity(st);
+    const hb = heroesLib.heroBonus(st);
+    const heroLimit = heroesLib.heroCap(st);
 
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
 
+    // 顶部固定
     text(ctx, '队伍', 20, 24, { size: 36, color: '#f0c060' });
-    text(ctx, stateLib.renownTitle(p.renown), w - 20, 36, { size: 18, align: 'right', color: '#a2947a' });
+    text(ctx, stateLib.renownTitle(p.renown), w - 20, 34, { size: 18, align: 'right', color: '#a2947a' });
 
-    // 总兵力
     ctx.fillStyle = '#241c14';
-    ctx.fillRect(16, 84, w - 32, 116);
-    text(ctx, count + ' / ' + cap, 36, 100, { size: 40, color: '#efe3c6' });
-    text(ctx, '人', 200, 118, { size: 18, color: '#8a8070' });
-    text(ctx, '日耗粮 ' + armyLib.foodPerDay(p.troops) + ' · 存粮 ' + p.food, 36, 156, {
+    ctx.fillRect(16, 74, w - 32, 148);
+    text(ctx, count + ' / ' + cap, 36, 86, { size: 40, color: '#efe3c6' });
+    text(ctx, '人', 200, 106, { size: 18, color: '#8a8070' });
+    text(ctx, '日耗粮 ' + Math.max(1, Math.round(armyLib.foodPerDay(p.troops) * (1 - hb.foodPct))) + ' · 存粮 ' + p.food, 36, 136, {
       size: 17, color: p.food < armyLib.foodPerDay(p.troops) * 3 ? '#d06a4a' : '#a2947a',
     });
-    bar(ctx, 16, 196, w - 32, 10, p.morale / 100, p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);
-    text(ctx, '士气 ' + p.morale, 20, 212, { size: 16, color: '#8a8070' });
+    bar(ctx, 16, 162, w - 32, 10, p.morale / 100, p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);
+    text(ctx, '士气 ' + p.morale + (hb.morale ? '（英雄 +' + hb.morale + '/日）' : ''), 20, 208, { size: 16, color: '#8a8070' });
+    text(ctx, '英雄 ' + (p.heroes || []).length + ' / ' + heroLimit + '（声望 ' + p.renown + '）', w - 20, 208, {
+      size: 16, align: 'right', color: (p.heroes || []).length >= heroLimit ? '#d06a4a' : '#8a8070',
+    });
 
-    // 兵种
-    let y = 252;
-    text(ctx, '编制', 20, y - 28, { size: 20, color: '#a2947a' });
+    // ---- 滚动区 ----
+    this.rows = [];
+    const viewH = h - TOP - BOT;
+    let y = 0; // 相对坐标
+    const rowRects = [];
+
+    y += 6;
+    rowRects.push({ kind: 'head', y: y, text: '编制（可遣返）' });
+    y += 28;
+
     const ids = Object.keys(p.troops).filter(function (id) { return p.troops[id] > 0; });
     if (!ids.length) {
-      text(ctx, '（空）', 20, y, { size: 18, color: '#8a8070' });
+      rowRects.push({ kind: 'empty', y: y, text: '（队伍空了，去城里再招些人）' });
+      y += 34;
     }
     ids.sort(function (a, b) {
       return (TROOPS[b] ? TROOPS[b].tier : 0) - (TROOPS[a] ? TROOPS[a].tier : 0);
     }).forEach(function (id) {
       const t = TROOPS[id] || { name: id, tier: 1 };
-      ctx.fillStyle = 'rgba(36,28,20,0.6)';
-      ctx.fillRect(16, y, w - 32, 62);
-      text(ctx, t.name, 32, y + 10, { size: 22, color: '#efe3c6' });
-      text(ctx, '× ' + p.troops[id], w - 32, y + 12, { size: 22, align: 'right', color: '#f0c060' });
-      text(ctx, '攻 ' + (t.atk || 0) + ' 防 ' + (t.def || 0) + ' 粮 ' + (t.food || 1) + ' 级 ' + (t.tier || 1), 32, y + 40, {
-        size: 15, color: '#8a8070',
-      });
-      y += 70;
+      rowRects.push({ kind: 'troop', y: y, id: id, name: t.name, n: p.troops[id], troop: t });
+      y += 62;
     });
 
-    // 随行英雄
-    if ((p.heroes || []).length) {
-      y += 6;
-      text(ctx, '随行英雄', 20, y, { size: 20, color: '#a2947a' });
-      text(ctx, '满级 ' + HERO_MAX_LEVEL, w - 20, y + 4, { size: 15, align: 'right', color: '#8a8070' });
-      y += 30;
-      p.heroes.forEach(function (h) {
-        const def = heroesLib.heroById(h.id) || { name: h.id };
-        ctx.fillStyle = 'rgba(36,28,20,0.55)';
-        ctx.fillRect(16, y, w - 32, 54);
-        text(ctx, def.name, 32, y + 8, { size: 21, color: '#efe3c6' });
-        text(ctx, 'Lv ' + h.level, w - 130, y + 10, { size: 19, align: 'right', color: '#f0c060' });
-        bar(ctx, w - 120, y + 16, 92, 8, h.level >= HERO_MAX_LEVEL ? 1 : h.exp / (h.level * heroesLib.EXP_PER_LEVEL), '#7fae6a');
-        text(ctx, '+攻 ' + Math.round((h.level || 1) * 1.1) + '% · +防 ' + Math.round((h.level || 1) * 0.8) + '%', 32, y + 32, {
-          size: 14, color: '#8a8070',
-        });
-        y += 62;
-      });
+    y += 10;
+    rowRects.push({ kind: 'head', y: y, text: '随行英雄（点名字说话）' });
+    y += 28;
+    const list = p.heroes || [];
+    if (!list.length) {
+      rowRects.push({ kind: 'empty', y: y, text: '（还没有人跟你走）' });
+      y += 34;
     }
+    list.forEach(function (hh, i) {
+      const def = heroesLib.heroById(hh.id) || { name: hh.id };
+      const b = heroesLib.bonusOf(hh.id, hh.level);
+      rowRects.push({ kind: 'hero', y: y, index: i, name: def.name, level: hh.level, exp: hh.exp, bonus: b });
+      y += 66;
+    });
 
-    // 装备
-    y += 8;
-    text(ctx, '装备', 20, y, { size: 20, color: '#a2947a' });
+    y += 10;
+    rowRects.push({ kind: 'head', y: y, text: '队伍加成' });
+    y += 28;
+    rowRects.push({
+      kind: 'bonus', y: y,
+      lines: [
+        '攻击 +' + (hb.atkPct * 100).toFixed(0) + '%　防御 +' + (hb.defPct * 100).toFixed(0) + '%',
+        '行军 +' + (hb.speedPct * 100).toFixed(0) + '%　日耗 -' + (hb.foodPct * 100).toFixed(0) + '%',
+        '缴获 +' + (hb.lootPct * 100).toFixed(0) + '%　士气 +' + hb.morale + '/日',
+      ],
+    });
+    y += 76;
+
+    y += 6;
+    rowRects.push({ kind: 'head', y: y, text: '装备' });
     y += 28;
     ['blade', 'armor', 'horse'].forEach(function (slot) {
       const eq = EQUIPMENT[slot];
       const tier = eq.tiers[Math.min(p.equip[slot] || 0, eq.tiers.length - 1)];
-      text(ctx, eq.name, 20, y, { size: 17, color: '#8a8070' });
-      text(ctx, tier.name, 110, y - 2, { size: 19, color: '#efe3c6' });
+      rowRects.push({ kind: 'equip', y: y, label: eq.name, value: tier.name });
       y += 34;
     });
 
-    // 史简
-    text(ctx, '史简 × ' + p.shi + '（已用 ' + p.shiUsed + '）', 20, y + 8, { size: 19, color: '#c9a0e0' });
-    y += 56;
+    y += 6;
+    rowRects.push({ kind: 'shijian', y: y, shi: p.shi, used: p.shiUsed });
+    y += 44;
 
-    // 战绩：把下半屏填满，也让人看清这一路走得怎样
-    if (y + 120 < h - 110) {
-      text(ctx, '战绩', 20, y, { size: 20, color: '#a2947a' });
-      y += 30;
-      const stt = st.stats || {};
-      const cells = [
-        ['胜', stt.battlesWon || 0],
-        ['负', stt.battlesLost || 0],
-        ['折兵', stt.troopsLost || 0],
-        ['得金', stt.goldEarned || 0],
-        ['行军', (stt.distance || 0) + ' 格'],
-        ['攻城', stt.sitesTaken || 0],
-      ];
-      const cw = (w - 32) / 3;
-      cells.forEach(function (c, i) {
-        const cx = 16 + (i % 3) * cw;
-        const cy = y + Math.floor(i / 3) * 60;
-        ctx.fillStyle = 'rgba(36,28,20,0.55)';
-        ctx.fillRect(cx + 2, cy, cw - 6, 52);
-        text(ctx, c[0], cx + 14, cy + 8, { size: 15, color: '#8a8070' });
-        text(ctx, String(c[1]), cx + 14, cy + 26, { size: 24, color: '#efe3c6' });
-      });
-      y += 126;
+    this.contentH = y + 12;
+    this.maxScroll = Math.max(0, this.contentH - viewH);
+    if (this.scroll > this.maxScroll) this.scroll = this.maxScroll;
+    if (this.scroll < 0) this.scroll = 0;
+    app.armyScroll = this.scroll;
+
+    // 侧栏滚动条
+    if (this.maxScroll > 0) {
+      const trackX = w - 8;
+      ctx.fillStyle = 'rgba(60,50,38,0.5)';
+      ctx.fillRect(trackX, TOP, 4, viewH);
+      const bh = Math.max(40, viewH * (viewH / this.contentH));
+      const by = TOP + (viewH - bh) * (this.scroll / this.maxScroll);
+      ctx.fillStyle = '#6a5a3a';
+      ctx.fillRect(trackX, by, 4, bh);
     }
 
-    // 记事
-    if (y < h - 180) {
-      text(ctx, '记事', 20, y, { size: 20, color: '#a2947a' });
-      y += 26;
-      const logs = (st.log || []).slice(-3).reverse();
-      if (!logs.length) text(ctx, '还没有可记的事。', 20, y, { size: 16, color: '#8a8070' });
-      logs.forEach(function (l) {
-        if (y > h - 150) return;
-        const wrapped = wrap(ctx, '第' + l.day + '天 · ' + l.text, w - 48, 15, 'normal');
-        wrapped.slice(0, 2).forEach(function (line) {
-          text(ctx, line, 20, y, { size: 15, color: '#a2947a' });
-          y += 20;
+    const scroll = this.scroll;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, TOP, w, viewH);
+    ctx.clip();
+    ctx.translate(0, TOP - scroll);
+
+    rowRects.forEach(function (r) {
+      const ry = r.y;
+      if (ry > scroll + viewH + 40 || ry + 80 < scroll - 20) return;
+      if (r.kind === 'head') {
+        text(ctx, r.text, 20, ry, { size: 20, color: '#a2947a' });
+      } else if (r.kind === 'empty') {
+        text(ctx, r.text, 20, ry, { size: 18, color: '#8a8070' });
+      } else if (r.kind === 'troop') {
+        ctx.fillStyle = 'rgba(36,28,20,0.6)';
+        ctx.fillRect(16, ry, w - 32, 54);
+        text(ctx, r.name, 32, ry + 8, { size: 22, color: '#efe3c6' });
+        text(ctx, '× ' + r.n, w - 160, ry + 10, { size: 22, align: 'right', color: '#f0c060' });
+        text(ctx, '攻 ' + (r.troop.atk || 0) + ' 防 ' + (r.troop.def || 0) + ' 粮 ' + (r.troop.food || 1) + ' · T' + (r.troop.tier || 1), 32, ry + 36, {
+          size: 15, color: '#8a8070',
         });
-        y += 4;
-      });
-    }
+        // 遣返按钮
+        drawBtn(ctx, w - 126, ry + 12, 48, 32, '遣1', '#5a4a2a');
+        drawBtn(ctx, w - 72, ry + 12, 48, 32, '遣5', '#4a3a24');
+      } else if (r.kind === 'hero') {
+        ctx.fillStyle = 'rgba(36,28,20,0.55)';
+        ctx.fillRect(16, ry, w - 32, 58);
+        text(ctx, r.name, 32, ry + 9, { size: 21, color: '#efe3c6' });
+        text(ctx, 'Lv ' + r.level, w - 24, ry + 10, { size: 19, align: 'right', color: '#f0c060' });
+        text(ctx, r.bonus.text || '无加成', 32, ry + 34, { size: 14, color: '#8a8070' });
+        const expNeed = r.level >= HERO_MAX_LEVEL ? '满级' : '经验 ' + (r.exp || 0) + '/' + (r.level * heroesLib.EXP_PER_LEVEL);
+        text(ctx, expNeed, w - 24, ry + 35, { size: 13, align: 'right', color: '#6a6355' });
+      } else if (r.kind === 'bonus') {
+        ctx.fillStyle = 'rgba(36,28,20,0.5)';
+        ctx.fillRect(16, ry, w - 32, 64);
+        r.lines.forEach(function (line, i) {
+          text(ctx, line, 32, ry + 10 + i * 20, { size: 16, color: '#c9c0a8' });
+        });
+      } else if (r.kind === 'equip') {
+        text(ctx, r.label, 20, ry, { size: 17, color: '#8a8070' });
+        text(ctx, r.value, 110, ry - 2, { size: 19, color: '#efe3c6' });
+      } else if (r.kind === 'shijian') {
+        text(ctx, '史简 × ' + r.shi + '（已用 ' + r.used + '）', 20, ry + 6, { size: 19, color: '#c9a0e0' });
+      }
+    });
+
+    ctx.restore();
+
+    // 顶部/底部渐隐
+    const grad1 = ctx.createLinearGradient(0, TOP, 0, TOP + 24);
+    grad1.addColorStop(0, 'rgba(20,16,12,0.95)');
+    grad1.addColorStop(1, 'rgba(20,16,12,0)');
+    ctx.fillStyle = grad1;
+    ctx.fillRect(0, TOP, w, 24);
+    const grad2 = ctx.createLinearGradient(0, h - BOT - 24, 0, h - BOT);
+    grad2.addColorStop(0, 'rgba(20,16,12,0)');
+    grad2.addColorStop(1, 'rgba(20,16,12,0.95)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(0, h - BOT - 24, w, 24);
 
     app.ui.button(ctx, 20, h - 92, w - 40, 72, '返回', {
       id: 'a_back', size: 26, onTap: function () { app.pop(); },
     });
+
+    // 记录命中区（屏幕坐标）
+    this.hitRows = rowRects;
+  },
+
+  onTouchStart(app, x, y) {
+    this.drag = { y: y, scroll: this.scroll, moved: 0, x: x };
+  },
+
+  onTouchMove(app, x, y) {
+    if (!this.drag) return;
+    const dy = y - this.drag.y;
+    if (Math.abs(dy) > 6) this.drag.moved = Math.abs(dy);
+    this.scroll = Math.max(0, Math.min(this.maxScroll, this.drag.scroll - dy));
+  },
+
+  onTouchEnd(app, x, y) {
+    const d = this.drag || { moved: 0 };
+    this.drag = null;
+    if (d.moved > 8) return; // 拖动过就不算点击
+
+    const w = app.runtime.width;
+    const list = this.hitRows || [];
+    for (let i = 0; i < list.length; i += 1) {
+      const r = list[i];
+      const sy = TOP - this.scroll + r.y;
+      if (r.kind === 'troop') {
+        if (y < sy + 6 || y > sy + 50) continue;
+        if (x >= w - 126 && x <= w - 78) {
+          this.dismissTroops(app, r.id, 1);
+          return;
+        }
+        if (x >= w - 72 && x <= w - 24) {
+          this.dismissTroops(app, r.id, 5);
+          return;
+        }
+      } else if (r.kind === 'hero') {
+        if (y >= sy && y <= sy + 58 && x >= 16 && x <= w - 16) {
+          app.push('hero', { index: r.index });
+          return;
+        }
+      }
+    }
+  },
+
+  dismissTroops(app, troopId, n) {
+    const p = app.state.player;
+    const have = p.troops[troopId] || 0;
+    if (have <= 0) return;
+    const cut = Math.min(n, have);
+    p.troops[troopId] = have - cut;
+    if (p.troops[troopId] <= 0) delete p.troops[troopId];
+    stateLib.pushLog(app.state, '在营地遣散了 ' + cut + ' 名' + ((TROOPS[troopId] || {}).name || troopId) + '，发了路费。');
+  },
+};
+
+function drawBtn(ctx, x, y, w, h, label, color) {
+  ctx.fillStyle = color || '#4a3a24';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#8a7448';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  text(ctx, label, x + w / 2, y + 7, { size: 17, align: 'center', color: '#e8dcc0' });
+}
+
+module.exports = ArmyScene;
+
+  };
+
+  /* js/scenes/hero.js */
+  __defs[25] = function (module, exports, __require) {
+/**
+ * 英雄对话页：从队伍页点名字进来，能聊两句，也能请他离开。
+ */
+
+const { text, panel, bar, wrap } = __require(6);
+const stateLib = __require(7);
+const heroesLib = __require(14);
+const { siteById } = __require(8);
+const { HERO_MAX_LEVEL, HERO_BONUS } = __require(13);
+
+const COMMON = [
+  '……营里的火还没灭，坐会儿？',
+  '今天走了三十里，马都出汗了。',
+  '你信这天下还能太平吗？我不太信。',
+  '我这样的人，在城里只配替人看仓门。',
+  '跟着你，至少每日有口热饭。',
+  '别总自己冲在前头，队里没第二个你。',
+  '听说北边又打起来了。这仗没个头。',
+  '我不识字。名字是别人替我写上去的。',
+  '夜里巡营，看见远处有火。不知道是谁的。',
+  '打了这些年，能记住的脸越来越少了。',
+];
+
+const BY_KIND = {
+  atk: ['刀要常磨。磨刀的时候心也静。', '冲阵的事交给我。你在后头看着就行。', '上一仗我砍倒了三个，忘了数第四个。'],
+  def: ['营垒的土得夯三层，少一层半夜就塌。', '守着不动，比冲出去难。', '我这条命，是从城墙上捡回来的。'],
+  speed: ['我走惯了山路，你跟着别掉队。', '这条道我走过七回。前面有条河。', '慢一步，吃的就被人抢了。'],
+  food: ['粮袋我数过，够七天。第八天得想办法。', '路上看见桑椹，也能顶一顿。', '别把干粮都给马，人先吃饱。'],
+  loot: ['打完仗别急着走，死人身上有东西。', '甲可以补，刀可以磨，别扔。', '上一回我捡到一枚印，换了三十金。'],
+  morale: ['兄弟们累了，让他们歇半日。', '骂几句不顶事。饭热了，人就稳了。', '有人夜里想家。我陪他坐到天亮。'],
+};
+
+const HeroScene = {
+  enter(app, params) {
+    this.index = (params || {}).index || 0;
+    this.confirm = false;
+    this.line = '';
+    this.talks = 0;
+    this.history = [];
+    this.say(app);
+  },
+
+  heroOf(app) {
+    const p = app.state && app.state.player;
+    const list = (p && p.heroes) || [];
+    return list[this.index] || null;
+  },
+
+  say(app) {
+    const hh = this.heroOf(app);
+    if (!hh) return;
+    const b = HERO_BONUS[hh.id] || {};
+    const kind = Object.keys(BY_KIND).filter(function (k) { return b[k]; })[0];
+    const pool = (kind ? BY_KIND[kind] : []).concat(COMMON);
+    const pick = pool[Math.floor(app.state.rng.random() * pool.length)];
+    this.line = this.talks === 0 ? (kind ? BY_KIND[kind][0] : COMMON[0]) : pick;
+    this.talks += 1;
+    this.history.push(this.line);
+    if (this.history.length > 8) this.history.shift();
+  },
+
+  render(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const hh = this.heroOf(app);
+    if (!st || !hh) {
+      app.pop();
+      return;
+    }
+    const def = heroesLib.heroById(hh.id) || { name: hh.id, bio: '', site: '' };
+    const b = heroesLib.bonusOf(hh.id, hh.level);
+    const lv = hh.level || 1;
+
+    ctx.fillStyle = '#12100c';
+    ctx.fillRect(0, 0, w, h);
+
+    // 头部
+    ctx.fillStyle = '#1b1611';
+    ctx.fillRect(0, 0, w, 268);
+    text(ctx, def.name, w - 24, 24, { size: 40, align: 'right', color: '#f0c060' });
+    text(ctx, b.label || '随行英雄', w - 24, 76, { size: 16, align: 'right', color: '#a2947a' });
+
+    // 头像：一个粗画的人影（左侧）
+    const ax = 92;
+    const ay = 128;
+    ctx.fillStyle = '#2a231b';
+    ctx.beginPath();
+    ctx.arc(ax, ay, 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#d8c8a8';
+    ctx.beginPath();
+    ctx.arc(ax, ay - 12, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#5a4a34';
+    ctx.beginPath();
+    ctx.moveTo(ax - 32, ay + 48);
+    ctx.lineTo(ax - 24, ay + 14);
+    ctx.lineTo(ax + 24, ay + 14);
+    ctx.lineTo(ax + 32, ay + 48);
+    ctx.closePath();
+    ctx.fill();
+
+    text(ctx, 'Lv ' + lv + ' / ' + HERO_MAX_LEVEL, 176, 106, { size: 22, color: '#efe3c6' });
+    bar(ctx, 176, 136, w - 200, 10, lv >= HERO_MAX_LEVEL ? 1 : (hh.exp || 0) / (lv * heroesLib.EXP_PER_LEVEL), '#7fae6a');
+    text(ctx, lv >= HERO_MAX_LEVEL ? '这一身本事，练到头了。' : '经验 ' + (hh.exp || 0) + ' / ' + (lv * heroesLib.EXP_PER_LEVEL), 176, 152, {
+      size: 14, color: '#6a6355',
+    });
+    text(ctx, '队伍加成：' + (b.text || '无'), 176, 176, { size: 17, color: '#8fb0d8' });
+    text(ctx, '旧地：' + ((siteById(st.world, def.site) || {}).name || def.site || '不明') + '（离开后能在那儿再遇见）', 176, 204, { size: 14, color: '#8a8070' });
+
+    // 生平
+    let y = 288;
+    panel(ctx, 16, y, w - 32, 186, { fill: '#1b1611' });
+    text(ctx, '生平', 32, y + 12, { size: 15, color: '#8a8070' });
+    const bio = wrap(ctx, def.bio || '来历不明。', w - 64, 16);
+    bio.slice(0, 6).forEach(function (ln, i) {
+      text(ctx, ln, 32, y + 40 + i * 24, { size: 16, color: '#c9c0a8' });
+    });
+    y += 202;
+
+    // 对话气泡
+    const boxH = Math.max(240, h - y - 130);
+    panel(ctx, 16, y, w - 32, boxH, { fill: this.confirm ? '#2a1815' : '#1d2420' });
+    text(ctx, this.confirm ? '最后一句' : '他说', 32, y + 12, { size: 15, color: '#8a8070' });
+    const lineColor = this.confirm ? '#e0a090' : '#efe3c6';
+    if (this.confirm) {
+      const line = wrap(ctx, '……你这么说，我也没什么好留的。刀我带走，甲留给你。', w - 64, 18);
+      line.slice(0, 5).forEach(function (ln, i) {
+        text(ctx, ln, 32, y + 44 + i * 28, { size: 19, color: lineColor });
+      });
+      text(ctx, '走了以后，他会在旧地待着，改天还能请你喝酒。', 32, y + boxH - 40, { size: 14, color: '#8a8070' });
+    } else {
+      let ty = y + 44;
+      const shown = this.history.slice(-4);
+      shown.forEach(function (t, idx) {
+        const lines = wrap(ctx, t, w - 64, 18);
+        lines.slice(0, 2).forEach(function (ln) {
+          if (ty > y + boxH - 34) return;
+          text(ctx, ln, 32, ty, { size: 19, color: idx === shown.length - 1 ? lineColor : '#9a9080' });
+          ty += 28;
+        });
+        ty += 6;
+      });
+    }
+
+    // 按钮
+    const by = h - 96;
+    if (this.confirm) {
+      const bw = (w - 52) / 2;
+      app.ui.button(ctx, 20, by, bw, 76, '后会有期', {
+        id: 'hero_confirm_leave', size: 24, fill: '#5a2418', onTap: function () {
+          const r = heroesLib.dismissHero(st, hh.id);
+          if (r.ok) {
+            stateLib.pushLog(st, def.name + '走了。' + (def.site ? '他说回旧地还能有口饭吃。' : ''));
+            app.pop();
+            app.showToast(r.msg, 2);
+          }
+        },
+      });
+      app.ui.button(ctx, 20 + bw + 12, by, bw, 76, '再留一阵', {
+        id: 'hero_stay', size: 24, fill: '#241c14', onTap: function () {
+          this.confirm = false;
+          this.history.push('……那就再跟一段。');
+        }.bind(this),
+      });
+    } else {
+    const third = (w - 64) / 3;
+    app.ui.button(ctx, 20, by, third, 76, '拉家常', {
+      id: 'hero_talk', size: 22, onTap: function () { this.say(app); }.bind(this),
+    });
+    app.ui.button(ctx, 20 + third + 12, by, third, 76, '让他走', {
+      id: 'hero_leave', size: 22, fill: '#3a2418', onTap: function () { this.confirm = true; }.bind(this),
+    });
+    app.ui.button(ctx, 20 + (third + 12) * 2, by, third, 76, '返回', {
+      id: 'hero_back', size: 22, fill: '#241c14', onTap: function () { app.pop(); },
+    });
+    }
   },
 
   onTouchStart() {},
@@ -8079,12 +8712,12 @@ const ArmyScene = {
   onTouchEnd() {},
 };
 
-module.exports = ArmyScene;
+module.exports = HeroScene;
 
   };
 
   /* js/scenes/journal.js */
-  __defs[25] = function (module, exports, __require) {
+  __defs[26] = function (module, exports, __require) {
 /**
  * 史册：主线进度 + 日志 + 统计
  */
@@ -8185,7 +8818,7 @@ module.exports = JournalScene;
   };
 
   /* js/scenes/help.js */
-  __defs[26] = function (module, exports, __require) {
+  __defs[27] = function (module, exports, __require) {
 /**
  * 玩法：分类页（基础 / 战役 / 势力 / 兵种 / 结局）
  * 内容超出屏幕时可上下拖动。
@@ -8269,12 +8902,14 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '青六成、蓝三成、橙 8%、赤 2%。主线没过半之前不会出橙和赤——前期地图上是安全的。' });
     ops.push({ t: 'p', s: '匪团也会和领主的部曲撞上，双方都掉人。你只在自己附近看得见这种混战。' });
     ops.push({ t: 'h1', s: '兵怎么买' });
-    ops.push({ t: 'p', s: '低阶兵便宜得像消耗品，高阶兵一件就是一笔钱。民兵 10 金上下，禁军要四百多。' });
+    ops.push({ t: 'p', s: '低阶兵便宜得像消耗品，高阶兵一件就是一笔钱。民兵几个金，枪盾二十上下，亲卫一百多，禁军两百多。' });
     ops.push({ t: 'p', s: '村庄的壮丁最便宜，但只有民兵；城里的兵种多，价钱也高。前期靠民兵堆量，中期再换枪盾和弓。' });
     ops.push({ t: 'h1', s: '英雄' });
     ops.push({ t: 'p', s: '酒馆角落里坐着一些不起眼的人：廖化、周仓、马岱、凌统、丁奉、李典、乐进、于禁……' });
-    ops.push({ t: 'p', s: '花一笔钱能请进队伍，随队不死，打仗攒经验，1 到 10 级。每级给全队 +1.1% 攻击、+0.8% 防御。' });
-    ops.push({ t: 'p', s: '队伍最多带四位英雄，等级靠打胜仗涨，不打就一直是一级。' });
+    ops.push({ t: 'p', s: '花一笔钱能请进队伍，随队不死，打仗攒经验，1 到 10 级。' });
+    ops.push({ t: 'p', s: '每人的长处不一样：有人添攻击，有人添防御，有人让队伍跑得快、吃得少、缴获多，还有老将每天给队伍提士气。' });
+    ops.push({ t: 'p', s: '随行名额看声望：开局 3 位，声望每 30 点加一位，最多 15 位。队伍页里点英雄的名字能和他说话，也能让他走（后会有期，回旧地还能再遇见）。' });
+    ops.push({ t: 'p', s: '队伍页里每个兵种行右边有"遣1 / 遣5"，把兵遣散省口粮；遣散不退钱。' });
     ops.push({ t: 'h1', s: '打不过怎么办' });
     ops.push({ t: 'p', s: '战前"撤出"、战中"撤退"都行。撤出后再走一格，对方短时间追不上。' });
     ops.push({ t: 'p', s: '真被打光了，天会往回退一天——醒来时人在最近的城里，队伍会重新拉起来。' });
@@ -8519,7 +9154,7 @@ module.exports = HelpScene;
   };
 
   /* js/scenes/chapter.js */
-  __defs[27] = function (module, exports, __require) {
+  __defs[28] = function (module, exports, __require) {
 /**
  * 章节提示：浮在地图中央的一张卡片，让玩家看见"现在该干什么"
  * 3.6 秒后自动收起，也可以点一下直接收
@@ -8639,7 +9274,7 @@ module.exports = ChapterScene;
   };
 
   /* js/scenes/ending.js */
-  __defs[28] = function (module, exports, __require) {
+  __defs[29] = function (module, exports, __require) {
 /**
  * 结局页
  */
@@ -8721,7 +9356,7 @@ module.exports = EndingScene;
   };
 
   /* js/scenes/lord.js */
-  __defs[29] = function (module, exports, __require) {
+  __defs[30] = function (module, exports, __require) {
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
  * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
@@ -8732,7 +9367,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const { LORD_LOOK } = __require(13);
+const { lookFor } = __require(13);
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
 
@@ -8801,7 +9436,7 @@ const LordScene = {
     ctx.globalAlpha = 1;
 
     // 立绘：按原始比例放大，每人一套兵器/头饰/马色
-    const look = LORD_LOOK[lord.id] || {};
+    const look = lookFor(lord.id);
     const sprite = (app.assets.lordIconFor ? app.assets.lordIconFor(col, look) : null) || app.assets.lord;
     const sw0 = sprite.width || 20;
     const sh0 = sprite.height || 20;
@@ -8940,7 +9575,7 @@ module.exports = LordScene;
   };
 
   /* js/scenes/revive.js */
-  __defs[30] = function (module, exports, __require) {
+  __defs[31] = function (module, exports, __require) {
 /**
  * 复活提示：全灭之后回到一天前，用一段文字说明这是第几次
  * （次数只在这个界面上出现，别处不提示）
@@ -9033,7 +9668,7 @@ module.exports = ReviveScene;
   };
 
   /* js/scenes/menu.js */
-  __defs[31] = function (module, exports, __require) {
+  __defs[32] = function (module, exports, __require) {
 /**
  * 系统菜单：存档、读档、退回战前、回标题（退出）
  */
@@ -9225,14 +9860,15 @@ class App {
       battle: __require(22),
       contact: __require(23),
       army: __require(24),
-      journal: __require(25),
-      help: __require(26),
+      hero: __require(25),
+      journal: __require(26),
+      help: __require(27),
       nested: null,
-      chapter: __require(27),
-      ending: __require(28),
-      lord: __require(29),
-      revive: __require(30),
-      menu: __require(31),
+      chapter: __require(28),
+      ending: __require(29),
+      lord: __require(30),
+      revive: __require(31),
+      menu: __require(32),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;

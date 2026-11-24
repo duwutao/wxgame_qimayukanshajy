@@ -64,7 +64,10 @@ const st = stateLib.createGame({ seed: 20260101 });
 ok('玩家 30 民兵', armyLib.troopCount(st.player.troops) === 30, JSON.stringify(st.player.troops));
 ok('金 80 / 粮 45', st.player.gold === 80 && st.player.food === 45, st.player.gold + '/' + st.player.food);
 ok('史简 1 支', st.player.shi === 1, String(st.player.shi));
-ok('领主 21 位', st.lords.length === 21, String(st.lords.length));
+ok('领主 70 位', st.lords.length === 70, String(st.lords.length));
+const byFaction = {};
+st.lords.forEach(function (l) { byFaction[l.faction] = (byFaction[l.faction] || 0) + 1; });
+ok('每国至少 6 位领主', Object.keys(byFaction).every(function (k) { return byFaction[k] >= 6; }), JSON.stringify(byFaction));
 ok('无旗', st.player.banner === false);
 ok('开局不在城内', st.player.atSiteId === null);
 
@@ -79,12 +82,16 @@ ok('追兵是 60 骑', chase && armyLib.strength(chase.troops).cavRatio === 1);
 group('行军与序章');
 // 开局的章节弹窗事件在真实游戏里由 flows.process 消费掉，这里先清空再测行军
 st.events.length = 0;
+// 这一段只测序章行军：领主另测、路上的匪团也先清掉，免得半路被拦停
+st.lords.length = 0;
+st.parties.length = 0;
 const goTarget = worldLib.siteById(st.world, 'chenliu');
 const go = stateLib.goTo(st, goTarget.x, goTarget.y);
 ok('可下达行军命令', go.ok, go.msg);
 let frames = 0;
-while (st.player.route.length && frames < 2000 && !st.events.length) {
+while (st.player.route.length && frames < 2000) {
   stateLib.update(st, 0.05);
+  if (st.events.length) st.events.length = 0; // 路上撞见匪团就当玩家一路撤开
   frames++;
 }
 ok('走到陈留', st.player.atSiteId === 'chenliu', String(st.player.atSiteId));
@@ -282,6 +289,82 @@ ok('投蜀 → 续史', endingOf('shu') === 'xu', endingOf('shu'));
 ok('投吴 → 焚史', endingOf('wu') === 'fen', endingOf('wu'));
 ok('不投 → 自立', endingOf(null) === 'self', endingOf(null));
 
+/* ---------------------------------------------------------------- 英雄与队伍 */
+
+group('英雄与队伍');
+const heroesLib = require(R + '/core/heroes.js');
+const extra = require(R + '/data/extra.js');
+
+ok('声望 0 只能带 3 人', heroesLib.heroCap({ player: { renown: 0 } }) === 3, String(heroesLib.heroCap({ player: { renown: 0 } })));
+ok('声望 60 能带 5 人', heroesLib.heroCap({ player: { renown: 60 } }) === 5, String(heroesLib.heroCap({ player: { renown: 60 } })));
+ok('声望 360 带满 15 人', heroesLib.heroCap({ player: { renown: 360 } }) === 15, String(heroesLib.heroCap({ player: { renown: 360 } })));
+ok('声望再高也不超过 15', heroesLib.heroCap({ player: { renown: 9999 } }) === 15, String(heroesLib.heroCap({ player: { renown: 9999 } })));
+
+ok('每位英雄都有队伍加成', extra.HEROES.every(function (h) { return !!extra.HERO_BONUS[h.id]; }),
+   extra.HEROES.filter(function (h) { return !extra.HERO_BONUS[h.id]; }).map(function (h) { return h.id; }).join(','));
+
+const capSt = stateLib.createGame({ seed: 20260101 });
+capSt.player.heroes = extra.HEROES.slice(0, 4).map(function (h) { return { id: h.id, level: 5, exp: 0 }; });
+capSt.player.renown = 0;
+heroesLib.resolveHeroSites(capSt);
+let capSite = null;
+let capOffer = null;
+['xinye', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'wuwei', 'changan', 'jincheng'].forEach(function (sid) {
+  if (capSite) return;
+  const offs = heroesLib.offersAt(capSt, { id: sid });
+  if (offs.length) { capSite = sid; capOffer = offs[0]; }
+});
+const capTry = capOffer ? heroesLib.hireHero(capSt, { id: capSite }, capOffer.id) : null;
+ok('名额满时不予招募', capOffer ? (capTry.ok === false && /名额/.test(capTry.msg)) : true,
+   capOffer ? capTry.msg : '（这局酒馆里没人）');
+capSt.player.renown = 120;
+capSt.player.gold = 9999;
+ok('声望上来后名额变 7', heroesLib.heroCap(capSt) === 7, String(heroesLib.heroCap(capSt)));
+const capTry2 = capOffer ? heroesLib.hireHero(capSt, { id: capSite }, capOffer.id) : null;
+ok('名额够了就能招进来', capOffer ? (capTry2.ok === true && capSt.player.heroes.length === 5) : true,
+   capOffer ? capTry2.msg : '（这局酒馆里没人）');
+
+const hbSt = stateLib.createGame({ seed: 20260101 });
+hbSt.player.heroes = [{ id: 'yujin', level: 10, exp: 0 }, { id: 'zhangyan', level: 10, exp: 0 }];
+const hb = heroesLib.heroBonus(hbSt);
+ok('加成聚合并封顶', hb.defPct > 0 && hb.defPct <= 0.4 && hb.speedPct > 0 && hb.speedPct <= 0.3,
+   JSON.stringify(hb));
+ok('无英雄时加成归零', (function () {
+  const s = stateLib.createGame({ seed: 20260101 });
+  const z = heroesLib.heroBonus(s);
+  return z.atkPct === 0 && z.defPct === 0 && z.lootPct === 0;
+})());
+ok('加成随等级变大', (function () {
+  const a = heroesLib.bonusOf('yujin', 1).text;
+  const b = heroesLib.bonusOf('yujin', 10).text;
+  return a !== b;
+})(), heroesLib.bonusOf('yujin', 1).text + ' → ' + heroesLib.bonusOf('yujin', 10).text);
+
+const disSt = stateLib.createGame({ seed: 20260101 });
+disSt.player.heroes = [{ id: 'liaohua', level: 3, exp: 0 }, { id: 'zhoucang', level: 2, exp: 0 }];
+const dis = heroesLib.dismissHero(disSt, 'liaohua');
+ok('请他走会离队', dis.ok && disSt.player.heroes.length === 1, dis.msg);
+ok('走了就再也遣不了', heroesLib.dismissHero(disSt, 'liaohua').ok === false);
+
+const bt = extra.BANDIT_TIERS;
+ok('四档各有名号', bt.qing.name === '劫匪' && bt.lan.name === '黄巾军' && bt.cheng.name === '乱军' && bt.hong.name === '叛军',
+   [bt.qing.name, bt.lan.name, bt.cheng.name, bt.hong.name].join('/'));
+ok('四档名字池互不重样', (function () {
+  const all = [];
+  Object.keys(extra.BANDIT_NAMES).forEach(function (k) { all.push.apply(all, extra.BANDIT_NAMES[k]); });
+  return new Set(all).size === all.length;
+})(), Object.keys(extra.BANDIT_NAMES).map(function (k) { return extra.BANDIT_NAMES[k].length; }).join('+'));
+ok('领主造型 70 人不重样', (function () {
+  const c = require(R + '/data/china.js');
+  const seen = {};
+  for (let i = 0; i < c.LORDS.length; i++) {
+    const k = JSON.stringify(extra.lookFor(c.LORDS[i].id));
+    if (seen[k]) return false;
+    seen[k] = true;
+  }
+  return true;
+})());
+
 /* ---------------------------------------------------------------- 存档 */
 
 group('存档');
@@ -298,7 +381,7 @@ ok('读档保留声望', loaded && loaded.player.renown === 120);
 ok('读档保留史简', loaded && loaded.player.shi === 3);
 ok('读档保留战役进度', loaded && loaded.campaign.stage === 2);
 ok('读档保留关系', loaded && loaded.relations.wei === -40);
-ok('读档保留地主', loaded && loaded.lords.length === 21);
+ok('读档保留地主并按定义补齐', loaded && loaded.lords.length === 70, loaded ? String(loaded.lords.length) : 'null');
 ok('旧档被拒绝', stateLib.deserialize(JSON.stringify({ world: st6.world, player: st6.player })) === null);
 let walkOk = false;
 if (loaded) {

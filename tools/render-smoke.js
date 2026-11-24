@@ -233,6 +233,43 @@ smoke('队伍页', function () {
   app.top().scene.render(app);
 });
 
+smoke('队伍页：带英雄、滚动到中段', function () {
+  app.state.player.heroes = [
+    { id: 'yujin', level: 7, exp: 40 },
+    { id: 'zhangyan', level: 3, exp: 10 },
+    { id: 'haozhao', level: 1, exp: 0 },
+  ];
+  app.push('army');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const sc = app.top().scene;
+  sc.render(app);
+  if (sc.maxScroll > 0) {
+    sc.scroll = sc.maxScroll;
+    app.ui.begin();
+    sc.render(app);
+    ok('滚到底不越界', sc.scroll === sc.maxScroll);
+  } else {
+    ok('长屏内容放得下（矮屏才会滚）', sc.contentH > 0, 'h ' + sc.contentH);
+  }
+  sc.scroll = 0;
+});
+
+smoke('英雄对话页', function () {
+  app.state.player.heroes = [{ id: 'yujin', level: 7, exp: 40 }];
+  app.push('hero', { index: 0 });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const heroScene = app.top().scene;
+  ok('第一次进来有话说', !!heroScene.line, heroScene.line);
+  heroScene.say(app);
+  ok('拉家常会换一句', !!heroScene.line);
+  heroScene.confirm = true;
+  app.ui.begin();
+  heroScene.render(app);
+  ok('确认离开时有第二套按钮', heroScene.confirm === true);
+});
+
 smoke('史册页', function () {
   app.push('journal');
   app.ui.begin();

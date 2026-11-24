@@ -516,14 +516,20 @@ function renderTavern(app, site) {
   const offers = heroes.offersAt(st, site);
   if (offers.length) {
     text(ctx, '角落里坐着的人', PAD, y + 6, { size: 20, color: '#a2947a' });
+    const cap = heroes.heroCap(st);
+    text(ctx, '随行 ' + st.player.heroes.length + ' / ' + cap, w - PAD, y + 8, {
+      size: 15, align: 'right', color: st.player.heroes.length >= cap ? '#d06a4a' : '#8a8070',
+    });
     y += 40;
     offers.slice(0, 2).forEach(function (h) {
       panel(ctx, PAD, y, w - PAD * 2, 150, { fill: '#201a14' });
       text(ctx, h.name, PAD + 18, y + 12, { size: 26, color: '#efe3c6' });
       text(ctx, '1-10 级 · 随队不死 · 打仗涨级', PAD + 150, y + 20, { size: 15, color: '#8a8070' });
       wrap(ctx, h.bio, w - PAD * 2 - 200, 15).slice(0, 2).forEach(function (ln, i) {
-        text(ctx, ln, PAD + 18, y + 56 + i * 22, { size: 15, color: '#a2947a' });
+        text(ctx, ln, PAD + 18, y + 52 + i * 22, { size: 15, color: '#a2947a' });
       });
+      const b = heroes.bonusOf(h.id, 1);
+      text(ctx, '带的加成：' + (b.label || '无'), PAD + 18, y + 102, { size: 13, color: '#8fb0d8' });
       text(ctx, h.cost + ' 金', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
       app.ui.button(ctx, w - PAD - 120, y + 88, 104, 52, '招募', {
         id: 'hero_' + h.id, size: 20, disabled: st.player.gold < h.cost, onTap: function () {

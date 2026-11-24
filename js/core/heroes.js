@@ -2,10 +2,17 @@
  * 英雄层：不起眼的将领可招募，随队不死，靠打仗升级（1-10）
  */
 
-const { HEROES, HERO_MAX_LEVEL } = require('../data/extra.js');
+const { HEROES, HERO_MAX_LEVEL, HERO_BONUS } = require('../data/extra.js');
 const { siteById, gridDistance } = require('./world.js');
 
 const EXP_PER_LEVEL = 16;
+const HERO_CAP_MAX = 15;
+
+/** 随行名额：声望越高带得越多，最多 15 位 */
+function heroCap(state) {
+  const renown = (state.player && state.player.renown) || 0;
+  return Math.min(HERO_CAP_MAX, 3 + Math.floor(renown / 30));
+}
 
 /** 英雄驻地校正：数据里写的城若不存在，就就近挂到一座大城 */
 function resolveHeroSites(state) {
@@ -53,7 +60,9 @@ function hireHero(state, site, heroId) {
   if (!def) return { ok: false, msg: '没有这个人' };
   if (state.heroSites[heroId] !== site.id) return { ok: false, msg: '他不在这个城' };
   state.player.heroes = state.player.heroes || [];
-  if (state.player.heroes.length >= 4) return { ok: false, msg: '随行的英雄已经有四位，队伍塞不下了' };
+  if (state.player.heroes.length >= heroCap(state)) {
+    return { ok: false, msg: '随行名额满了（' + heroCap(state) + ' 位），声望再高点才能多带人' };
+  }
   if (state.player.heroes.some(function (x) { return x.id === heroId; })) {
     return { ok: false, msg: '他已经在你队里了' };
   }
@@ -63,17 +72,58 @@ function hireHero(state, site, heroId) {
   return { ok: true, msg: def.name + ' 加入了你的队伍' };
 }
 
-/** 队伍战力加成：每人每级 +1.1% 攻击、+0.8% 防御 */
+/**
+ * 队伍加成：每人一样长处，随等级放大（1 级 ×0.68，10 级 ×1.4）
+ * 返回的百分比直接喂给战斗、行军、口粮、缴获
+ */
 function heroBonus(state) {
-  const list = (state.player.heroes) || [];
-  let atk = 0;
-  let def = 0;
+  const list = state.player.heroes || [];
+  const out = {
+    atkPct: 0, defPct: 0, speedPct: 0, foodPct: 0, lootPct: 0, morale: 0, count: list.length,
+  };
   list.forEach(function (h) {
-    const lv = h.level || 1;
-    atk += 0.011 * lv;
-    def += 0.008 * lv;
+    const b = HERO_BONUS[h.id];
+    if (!b) return;
+    const k = 0.6 + (h.level || 1) * 0.08;
+    if (b.atk) out.atkPct += b.atk * k;
+    if (b.def) out.defPct += b.def * k;
+    if (b.speed) out.speedPct += b.speed * k;
+    if (b.food) out.foodPct += b.food * k;
+    if (b.loot) out.lootPct += b.loot * k;
+    if (b.morale) out.morale += b.morale * (0.5 + (h.level || 1) * 0.05);
   });
-  return { atkPct: Math.min(0.45, atk), defPct: Math.min(0.4, def), count: list.length };
+  out.atkPct = Math.min(0.45, out.atkPct);
+  out.defPct = Math.min(0.4, out.defPct);
+  out.speedPct = Math.min(0.3, out.speedPct);
+  out.foodPct = Math.min(0.35, out.foodPct);
+  out.lootPct = Math.min(0.5, out.lootPct);
+  out.morale = Math.min(8, Math.round(out.morale));
+  return out;
+}
+
+/** 这位英雄现在给的是什么加成（给队伍页和对话页演示） */
+function bonusOf(heroId, level) {
+  const b = HERO_BONUS[heroId];
+  if (!b) return { text: '没什么特别的', label: '' };
+  const k = 0.6 + (level || 1) * 0.08;
+  const parts = [];
+  if (b.atk) parts.push('攻击 +' + (b.atk * k * 100).toFixed(1) + '%');
+  if (b.def) parts.push('防御 +' + (b.def * k * 100).toFixed(1) + '%');
+  if (b.speed) parts.push('行军 +' + (b.speed * k * 100).toFixed(0) + '%');
+  if (b.food) parts.push('日耗 -' + (b.food * k * 100).toFixed(0) + '%');
+  if (b.loot) parts.push('缴获 +' + (b.loot * k * 100).toFixed(0) + '%');
+  if (b.morale) parts.push('士气 +' + Math.round(b.morale * (0.5 + (level || 1) * 0.05)) + '/日');
+  return { text: parts.join(' · '), label: b.label || '' };
+}
+
+/** 请他走：回原来的城，日后还能在酒馆碰见 */
+function dismissHero(state, heroId) {
+  const list = state.player.heroes || [];
+  const idx = list.map(function (x) { return x.id; }).indexOf(heroId);
+  if (idx < 0) return { ok: false, msg: '他不在队里' };
+  const def = heroById(heroId) || {};
+  list.splice(idx, 1);
+  return { ok: true, msg: def.name + ' 抱了抱拳，往' + (def.site ? '旧地' : '北边') + '去了。' };
 }
 
 function gainHeroExp(state, exp) {
@@ -103,11 +153,15 @@ function heroPower(state) {
 
 module.exports = {
   EXP_PER_LEVEL,
+  HERO_CAP_MAX,
   resolveHeroSites,
   offersAt,
   heroById,
+  heroCap,
   hireHero,
   heroBonus,
+  bonusOf,
+  dismissHero,
   gainHeroExp,
   heroPower,
 };

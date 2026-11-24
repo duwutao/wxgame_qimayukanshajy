@@ -9,7 +9,7 @@ const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { regionAt, regionDef, siteById, terrainAt } = require('../core/world.js');
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = require('../data/china.js');
-const { LORD_LOOK } = require('../data/extra.js');
+const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
 
 const TILE = 64;
@@ -542,7 +542,7 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.fill();
     }
     // 领主棋子：按势力上色，每人一套兵器/头饰/马色
-    const look = LORD_LOOK[lord.id] || {};
+    const look = lookFor(lord.id);
     const icon = assets.lordIconFor(col, look);
     const isz = lord.id === 'lvbu' ? 50 : look.big ? 44 : 40;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.62, isz, isz);

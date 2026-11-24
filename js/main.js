@@ -29,6 +29,7 @@ class App {
       battle: require('./scenes/battle.js'),
       contact: require('./scenes/contact.js'),
       army: require('./scenes/army.js'),
+      hero: require('./scenes/hero.js'),
       journal: require('./scenes/journal.js'),
       help: require('./scenes/help.js'),
       nested: null,
