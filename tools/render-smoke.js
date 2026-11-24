@@ -418,6 +418,57 @@ smoke('牢房：招降 / 斩了 / 问话三件套', function () {
   app.pop();
 });
 
+/* ---------------------------------------------------------------- 被追上 / 城池滚动 / 大地图自由视野 */
+
+smoke('被追上页（领主三选项）', function () {
+  app.state = stateLib.createGame({ seed: 4321 });
+  app.state.events.length = 0;
+  const lord = app.state.lords.filter(function (l) { return l.faction === 'wei'; })[0];
+  stateLib.changeRelation(app.state, 'wei', -55);
+  lord.x = app.state.player.x;
+  lord.y = app.state.player.y;
+  app.replace('map');
+  app.push('chase', { kind: 'lord', id: lord.id });
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('三个选项都在', ids.indexOf('chase_pay') >= 0 && ids.indexOf('chase_fight') >= 0 &&
+    ids.indexOf('chase_tail') >= 0, ids.join(','));
+  ok('被追上页记下了对象', !!app.chase && app.chase.id === lord.id);
+  app.pop();
+  ok('退出后清空对象', !app.chase);
+});
+
+smoke('城池菜单：选项挤不下时出现滚动 + 固定离城', function () {
+  const st = app.state = stateLib.createGame({ seed: 4322 });
+  st.events.length = 0;
+  st.player.atSiteId = 'chenliu';
+  app.townView = { view: 'menu', scroll: 0, maxScroll: 0 };
+  const realH = app.runtime.height;
+  app.runtime.height = 1000;
+  app.replace('town', { siteId: 'chenliu' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  app.runtime.height = realH;
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('菜单项可滚动', app.townView.maxScroll > 0, 'maxScroll=' + app.townView.maxScroll);
+  ok('离城按钮一直有', ids.indexOf('leave') >= 0, ids.join(','));
+});
+
+smoke('大地图：自由视野 + 跳回原处', function () {
+  app.state = stateLib.createGame({ seed: 4323 });
+  app.state.events.length = 0;
+  app.replace('map');
+  app.mapFree = true;
+  app.mapCam = { x: 4000, y: 4000 };
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('偏离玩家时出现跳回原处', ids.indexOf('map_recenter') >= 0, ids.join(','));
+  app.ui.items.filter(function (b) { return b.id === 'map_recenter'; })[0].onTap();
+  ok('点了就回自己身边', app.mapFree === false);
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {

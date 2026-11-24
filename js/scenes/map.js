@@ -7,7 +7,7 @@ const pixel = require('../render/pixel.js');
 const { UI_COLORS } = pixel;
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
-const { regionAt, regionDef, siteById, terrainAt } = require('../core/world.js');
+const { regionAt, regionDef, siteById, siteAt, terrainAt } = require('../core/world.js');
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
@@ -193,6 +193,7 @@ const MapScene = {
     app.mapPhase = 0;
     app.mapDrag = null;
     app.follow = null;
+    app.mapFree = false;
     ensureCam(app);
     flows.process(app);
     if (app.state && app.state.player.atSiteId) {
@@ -207,12 +208,12 @@ const MapScene = {
     stateLib.update(st, dt);
     ensureCam(app);
 
-    // 相机跟随（跟插值后的位置，不再跟着格子跳）
+    // 相机跟随（跟插值后的位置，不再跟着格子跳）；手动拖过地图就不再强行拉回
     const box = mapBox(app);
     const pos = playerPixel(app);
     const targetX = pos.gx * TS + TS / 2 - app.runtime.width / 2;
     const targetY = pos.gy * TS + TS / 2 - box.h / 2;
-    if (!app.mapDrag) {
+    if (!app.mapDrag && !app.mapFree) {
       app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 9);
       app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 9);
     }
@@ -249,6 +250,7 @@ const MapScene = {
     drawTop(ctx, app, w);
     drawBottom(ctx, app, w, box);
     drawZoomButtons(ctx, app, box, w);
+    drawFreeHint(ctx, app, box, w);
   },
 
   onTouchStart(app, x, y) {
@@ -262,8 +264,9 @@ const MapScene = {
     const dy = y - d.startY;
     if (!d.dragging && Math.abs(dx) + Math.abs(dy) > 22) {
       d.dragging = true;
-      // 手一拖就是看地图，不追人了
+      // 手一拖就是看地图，不追人了，也不再自动拉回自己身上
       app.follow = null;
+      app.mapFree = true;
     }
     if (d.dragging) {
       app.mapCam.x = d.camX - dx;
@@ -282,7 +285,40 @@ const MapScene = {
 
     const st = app.state;
 
-    // 先看是不是点在人身上：点领主去说话，点匪团先看遭遇页
+    // 在城里歇着的时候出来看地图：点一下地图就回城
+    if (app.restView) {
+      const siteId = app.restView;
+      app.restView = null;
+      app.push('town', { siteId: siteId });
+      return;
+    }
+
+    const tx = Math.floor((x + app.mapCam.x) / TS);
+    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
+    if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
+
+    // 先看脚下是不是城：自己和城在同一格时，优先点城（不然总说"已经在这里"）
+    const site = siteAt(st.world, tx, ty);
+    if (site) {
+      const onSite = st.player.x === site.x && st.player.y === site.y;
+      if (onSite) {
+        stateLib.stopMoving(st);
+        if (stateLib.isHostileSite(st, site)) {
+          if (stateLib.canFight(st, site.id)) {
+            stateLib.startSiege(st, site);
+            app.push('battle', { mode: 'siege' });
+          } else {
+            app.showToast('这座城现在打不下来。');
+          }
+        } else {
+          st.player.atSiteId = site.id;
+          app.push('town', { siteId: site.id });
+        }
+        return;
+      }
+    }
+
+    // 再点人就只是追过去
     const unit = unitAt(app, x, y, app.mapCam, box);
     if (unit) {
       const p = st.player;
@@ -303,10 +339,6 @@ const MapScene = {
       app.showToast(unit.kind === 'lord' ? '向他那边靠过去。' : '朝那伙人追过去。', 1.6);
       return;
     }
-
-    const tx = Math.floor((x + app.mapCam.x) / TS);
-    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
-    if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
 
     const t = terrainAt(st.world, tx, ty);
     if (!t || !t.passable) {
@@ -703,6 +735,47 @@ function drawRoute(ctx, app, cam, box) {
   ctx.arc(ex, ey, 10 * (app.mapZoom || 1), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+}
+
+/** 自由视野提示：人跑出画面时给个"跳回原处"；城里歇息时给条回城提示 */
+function drawFreeHint(ctx, app, box, w) {
+  const st = app.state;
+  const p = st.player;
+  const pos = playerPixel(app);
+  const sx = pos.gx * TS + TS / 2 - app.mapCam.x;
+  const sy = box.top + pos.gy * TS + TS / 2 - app.mapCam.y;
+  const onScreen = sx > 36 && sx < w - 36 && sy > box.top + 36 && sy < box.top + box.h - 36;
+
+  if (p.resting) {
+    const site = siteById(st.world, p.resting);
+    ctx.fillStyle = 'rgba(16,20,14,0.78)';
+    ctx.fillRect(0, box.top, w, 30);
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 外面照常走 · 点一下地图就回城',
+      w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
+  }
+
+  if (!app.mapFree || onScreen) return;
+  const bw = 132;
+  const bh = 48;
+  const bx = w - bw - 12;
+  const by = p.resting ? box.top + 40 : box.top + box.h - 60;
+  ctx.fillStyle = 'rgba(40,32,22,0.9)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = '#8a7448';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+  text(ctx, '跳回原处', bx + bw / 2, by + 12, { size: 19, align: 'center', color: '#f0c060' });
+  app.ui.rect('map_recenter', bx, by, bw, bh, function () {
+    app.mapFree = false;
+    app.follow = null;
+    const pos2 = playerPixel(app);
+    app.mapCam = {
+      x: pos2.gx * TS + TS / 2 - app.runtime.width / 2,
+      y: pos2.gy * TS + TS / 2 - box.h / 2,
+    };
+    ensureCam(app);
+    app.showToast('回到自己所在的位置。', 1.4);
+  });
 }
 
 function playerPixel(app) {

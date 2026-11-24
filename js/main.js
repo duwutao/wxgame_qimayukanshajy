@@ -37,6 +37,7 @@ class App {
       nested: null,
       chapter: require('./scenes/chapter.js'),
       news: require('./scenes/news.js'),
+      chase: require('./scenes/chase.js'),
       ending: require('./scenes/ending.js'),
       lord: require('./scenes/lord.js'),
       revive: require('./scenes/revive.js'),

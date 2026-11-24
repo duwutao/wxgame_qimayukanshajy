@@ -102,9 +102,118 @@ function menuButton(app, y, label, sub, onTap, opts) {
 
 /* ---------------------------------------------------------------- 菜单 */
 
+/** 菜单项：列成一张表，整页可以上下拖，选项再多也放得下 */
+function menuItems(app, site) {
+  const p = app.state.player;
+  const resting = !!p.resting;
+  const isVillage = site.type === 'village';
+  const list = [];
+  const toggleRest = function () {
+    if (resting) {
+      stateLib.stopRest(app.state);
+      app.showToast('收拾行装，准备上路。', 2);
+    } else {
+      const r = stateLib.startRest(app.state, site);
+      app.showToast(r.msg, 2.4);
+    }
+  };
+
+  if (isVillage) {
+    list.push({
+      id: 'm_recruit', label: '招兵', sub: '村里的壮丁 · 只有最低一档，比城里便宜', right: '→',
+      onTap: function () { app.townView.view = 'recruit'; },
+    });
+    list.push({
+      id: 'm_village', label: '村市 · 找村长', sub: '牛、羊、鸡、谷，村里卖得比城里便宜',
+      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金',
+      onTap: function () { app.townView.view = 'village'; },
+    });
+    list.push({
+      id: 'm_raid', label: '屠村', sub: '抢钱抢粮，村子会记很久（关系 -5）', fill: '#3a2018', right: '→',
+      onTap: function () {
+        const r = stateLib.raidVillage(app.state, site);
+        app.showToast(r.msg, 2.6);
+        if (r.ok) app.townView.view = 'menu';
+      },
+    });
+    list.push({
+      id: 'm_rest', label: resting ? '结束休整 · 上路' : '在村里歇下',
+      sub: '外面的日子照常过，你的粮吃得慢一半，也没人来追', fill: '#26372a',
+      right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
+    });
+    const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
+      return stateLib.hiddenLordVisible(app.state, l);
+    })[0];
+    if (hermit) {
+      list.push({
+        id: 'm_hermit', label: '村中隐者 · ' + hermit.name, sub: '前朝的旗倒了，人还活着。也许能请得动',
+        fill: '#2c2a40', right: '见一面', onTap: function () { app.townView.view = 'hermit'; },
+      });
+    }
+  } else {
+    list.push({
+      id: 'm_recruit', label: '招兵', sub: '花钱买人，价钱随城而变', right: '→',
+      onTap: function () { app.townView.view = 'recruit'; },
+    });
+    list.push({
+      id: 'm_market', label: '市场', sub: '粮草 · 货物 · 军械',
+      right: '粮 ' + economy.foodPrice(site) + ' 金/单位',
+      onTap: function () { app.townView.view = 'market'; app.townView.tab = 'goods'; },
+    });
+    list.push({
+      id: 'm_tavern', label: '酒馆', sub: '接活 · 打听消息 · 招募英雄', right: '→',
+      onTap: function () { app.townView.view = 'tavern'; },
+    });
+    list.push({
+      id: 'm_hall', label: '领主府', sub: '效忠 · 宣战 · 情报',
+      right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主',
+      onTap: function () { app.townView.view = 'hall'; },
+    });
+    list.push({
+      id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
+      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金',
+      onTap: function () { app.push('tourney', { siteId: site.id }); },
+    });
+    const obj = stateLib.campaignObjective(app.state, site);
+    if (obj) {
+      const count = army.troopCount(p.troops);
+      const ready = !obj.needTroops || count >= obj.needTroops;
+      list.push({
+        id: 'm_campaign', label: '发起进攻 · ' + obj.name,
+        sub: ready ? '点下去就开打，输了可以退回来再来' : '至少要有 ' + obj.needTroops + ' 人才打得动（现 ' + count + '）',
+        fill: '#4a241c', right: ready ? '→' : '兵不足', disabled: !ready,
+        onTap: function () {
+          const b = stateLib.startCampaignBattle(app.state, obj.id);
+          if (!b) { app.showToast('现在还打不了。'); return; }
+          app.state.flags.campaignCool = stateLib.gameHours(app.state) + 24;
+          app.push('battle', { mode: 'campaign', campaignId: b.context.campaignId });
+        },
+      });
+    }
+    list.push({
+      id: 'm_rest', label: resting ? '结束休整 · 上路' : '进城休整',
+      sub: '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', fill: '#26372a',
+      right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
+    });
+  }
+
+  // 歇着的时候也想看看外头的天下
+  if (resting && !isVillage) {
+    list.push({
+      id: 'm_lookmap', label: '出门看看 · 大地图', sub: '人还在城里歇着，时间照走 · 点一下地图就回来',
+      fill: '#223042', right: '→', onTap: function () {
+        app.restView = site.id;
+        app.pop();
+      },
+    });
+  }
+  return list;
+}
+
 function renderMenu(app, site) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
+  const H = app.runtime.height;
   const p = app.state.player;
   let y = 280;
 
@@ -119,95 +228,71 @@ function renderMenu(app, site) {
     return;
   }
 
-  const isVillage = site.type === 'village';
-  const resting = !!p.resting;
+  const items = menuItems(app, site);
+  const rowH = 104;
+  const gap = 14;
+  const contentH = items.length * (rowH + gap);
+  // 下面留出"离城"的固定按钮 + 回城提示，菜单只在这条线以上滚
+  const footTop = H - 170;
+  const viewH = Math.max(120, footTop - y - 8);
+  const maxScroll = Math.max(0, contentH - viewH);
+  if (app.townView.scroll === undefined) app.townView.scroll = 0;
+  app.townView.scroll = Math.max(0, Math.min(maxScroll, app.townView.scroll));
+  app.townView.maxScroll = maxScroll;
+  app.townView.viewH = viewH;
 
-  if (isVillage) {
-    y = menuButton(app, y, '招兵', '村里的壮丁 · 只有最低一档，比城里便宜', function () {
-      app.townView.view = 'recruit';
-    }, { id: 'm_recruit', right: '→' });
-
-    y = menuButton(app, y, '村市 · 找村长', '牛、羊、鸡、谷，村里卖得比城里便宜', function () {
-      app.townView.view = 'village';
-    }, { id: 'm_village', right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金' });
-
-    y = menuButton(app, y, '屠村', '抢钱抢粮，村子会记很久（关系 -5）', function () {
-      const r = stateLib.raidVillage(app.state, site);
-      app.showToast(r.msg, 2.6);
-      if (r.ok) app.townView.view = 'menu';
-    }, { id: 'm_raid', fill: '#3a2018', right: '→' });
-
-    y = menuButton(app, y, resting ? '结束休整 · 上路' : '在村里歇下', '外面的日子照常过，你的粮吃得慢一半，也没人来追', function () {
-      if (resting) {
-        stateLib.stopRest(app.state);
-        app.showToast('收拾行装，准备上路。', 2);
-      } else {
-        const r = stateLib.startRest(app.state, site);
-        app.showToast(r.msg, 2.4);
-      }
-    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
-
-    // 打听过的旧主若藏在这个村、关系也够，才给你看见这条
-    const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
-      return stateLib.hiddenLordVisible(app.state, l);
-    })[0];
-    if (hermit) {
-      y = menuButton(app, y, '村中隐者 · ' + hermit.name, '前朝的旗倒了，人还活着。也许能请得动', function () {
-        app.townView.view = 'hermit';
-      }, { id: 'm_hermit', fill: '#2c2a40', right: '见一面' });
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y - 4, w, viewH + 8);
+  ctx.clip();
+  items.forEach(function (it, i) {
+    const ry = y + i * (rowH + gap) - app.townView.scroll;
+    // 只画完整的一行：半截露在"离城"上方很难看
+    if (ry < y || ry + rowH > y + viewH) return;
+    app.ui.button(ctx, PAD, ry, w - PAD * 2, rowH, '', {
+      id: it.id || it.label, disabled: !!it.disabled,
+      fill: it.fill || '#33271b',
+      onTap: it.onTap,
+    });
+    text(ctx, it.label, PAD + 26, ry + 24, { size: 30, color: it.disabled ? '#6a6355' : '#efe3c6' });
+    if (it.sub) {
+      // 一行放不下就截断，别让说明文字压到底下的"离城"
+      const subMax = w - PAD * 2 - 60;
+      const subLines = wrap(ctx, it.sub, subMax, 18);
+      let sub = subLines[0] || '';
+      if (subLines.length > 1) sub = sub.replace(/[，、。·]$/, '') + '…';
+      text(ctx, sub, PAD + 26, ry + 64, { size: 18, color: it.disabled ? '#5c5648' : '#a2947a' });
     }
-  } else {
-    y = menuButton(app, y, '招兵', '花钱买人，价钱随城而变', function () {
-      app.townView.view = 'recruit';
-    }, { id: 'm_recruit', right: '→' });
+    if (it.right) text(ctx, it.right, w - PAD - 24, ry + 36, {
+      size: 24, align: 'right', color: it.disabled ? '#5c5648' : '#f0c060',
+    });
+  });
+  ctx.restore();
 
-    y = menuButton(app, y, '市场', '粮草 · 货物 · 军械', function () {
-      app.townView.view = 'market';
-      app.townView.tab = 'goods';
-    }, { id: 'm_market', right: '粮 ' + economy.foodPrice(site) + ' 金/单位' });
-
-    y = menuButton(app, y, '酒馆', '接活 · 打听消息 · 招募英雄', function () {
-      app.townView.view = 'tavern';
-    }, { id: 'm_tavern', right: '→' });
-
-    y = menuButton(app, y, '领主府', '效忠 · 宣战 · 情报', function () {
-      app.townView.view = 'hall';
-    }, { id: 'm_hall', right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主' });
-
-    y = menuButton(app, y, '比武大会', '四招赌手 · 三滴血，赢钱赢名声，不杀人', function () {
-      app.push('tourney', { siteId: site.id });
-    }, { id: 'm_tourney', fill: '#3a2c1e', right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金' });
-
-    // 这一章的关键一仗就在这座城：给个主动进攻的入口
-    const obj = stateLib.campaignObjective(app.state, site);
-    if (obj) {
-      const count = army.troopCount(p.troops);
-      const ready = !obj.needTroops || count >= obj.needTroops;
-      y = menuButton(app, y, '发起进攻 · ' + obj.name, ready ? '点下去就开打，输了可以退回来再来' : '至少要有 ' + obj.needTroops + ' 人才打得动（现 ' + count + '）', function () {
-        const b = stateLib.startCampaignBattle(app.state, obj.id);
-        if (!b) { app.showToast('现在还打不了。'); return; }
-        app.state.flags.campaignCool = stateLib.gameHours(app.state) + 24;
-        app.push('battle', { mode: 'campaign', campaignId: b.context.campaignId });
-      }, { id: 'm_campaign', fill: '#4a241c', right: ready ? '→' : '兵不足', disabled: !ready });
-    }
-
-    y = menuButton(app, y, resting ? '结束休整 · 上路' : '进城休整', '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', function () {
-      if (resting) {
-        stateLib.stopRest(app.state);
-        app.showToast('收拾行装，准备上路。', 2);
-      } else {
-        const r = stateLib.startRest(app.state, site);
-        app.showToast(r.msg, 2.4);
-      }
-    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
+  // 滚动条：看得出还有几项在下面
+  if (maxScroll > 0) {
+    const trackY = y;
+    const trackH = viewH;
+    ctx.fillStyle = 'rgba(80,66,46,0.35)';
+    ctx.fillRect(w - 8, trackY, 4, trackH);
+    const thumbH = Math.max(36, trackH * (viewH / contentH));
+    const thumbY = trackY + (trackH - thumbH) * (app.townView.scroll / maxScroll);
+    ctx.fillStyle = '#8a7448';
+    ctx.fillRect(w - 8, thumbY, 4, thumbH);
   }
 
-  app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {
+  // 离城：固定在最下面，随时能出门
+  app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离城', {
     id: 'leave', size: 28, fill: '#241c14', onTap: function () {
       if (app.state.player.resting) stateLib.stopRest(app.state);
       app.state.player.atSiteId = null;
       app.pop();
     },
+  });
+  text(ctx, maxScroll > 0
+    ? '上下拖动看更多 · 还有 ' + (maxScroll > 0 ? Math.max(1, Math.ceil((maxScroll - app.townView.scroll) / (rowH + gap))) : 0) + ' 项在下头'
+    : (p.atSiteId ? '离城后回到大地图，再点这座城还能进来' : ''), w / 2, H - 138, {
+    size: 14, align: 'center', color: maxScroll > 0 ? '#c0a46a' : '#6a6050',
   });
 }
 
@@ -783,12 +868,15 @@ function siteInfo(app, site) {
 
 const TownScene = {
   enter(app, params) {
+    app.restView = null;
     app.townView = {
       siteId: params.siteId,
       view: params.view || 'menu',
       tab: 'goods',
       goodId: null,
       estimate: null,
+      scroll: 0,
+      maxScroll: 0,
     };
   },
 
@@ -819,13 +907,29 @@ const TownScene = {
     else if (v === 'hermit') renderHermit(app, site);
     else {
       renderMenu(app, site);
-      siteInfo(app, site);
     }
   },
 
-  onTouchStart() {},
-  onTouchMove() {},
-  onTouchEnd() {},
+  onTouchStart(app, x, y) {
+    app.townView.drag = { y: y, scroll: app.townView.scroll || 0, moved: 0 };
+  },
+
+  onTouchMove(app, x, y) {
+    const d = app.townView.drag;
+    if (!d) return;
+    if (app.townView.view !== 'menu') return;
+    const dy = y - d.y;
+    if (Math.abs(dy) > 6) d.moved = Math.abs(dy);
+    if (d.moved > 6) {
+      const max = app.townView.maxScroll || 0;
+      app.townView.scroll = Math.max(0, Math.min(max, d.scroll - dy));
+    }
+  },
+
+  onTouchEnd(app) {
+    if (app.townView) app.townView.drag = null;
+  },
 };
 
 module.exports = TownScene;
+

@@ -227,7 +227,10 @@ const dBefore = worldLib.gridDistance(lord, st2.player);
 stateLib.advanceTime(st2, 9);
 stateLib.update(st2, 0.05);
 ok('敌对领主会追近', worldLib.gridDistance(lord, st2.player) <= dBefore, dBefore + ' → ' + worldLib.gridDistance(lord, st2.player));
-ok('领主视野内标记追击', lord.chasing === true);
+ok('领主视野内标记追击', lord.chasing === true,
+  lord.id + ' chasing=' + lord.chasing + ' dist=' + worldLib.gridDistance(lord, st2.player) +
+  ' events=' + st2.events.map(function (e) { return e.type; }).join(',') +
+  ' count=' + armyLib.troopCount(lord.troops || {}));
 
 /* ---------------------------------------------------------------- 劫掠 */
 
@@ -659,6 +662,68 @@ ok('新领主有兵有驻地', newLord && armyLib.troopCount(newLord.troops) > 0
   newLord ? String(armyLib.troopCount(newLord.troops)) + ' 兵' : '无');
 ok('新领主挂在自己的旗（自立）', newLord && (newLord.faction === 'player' || newLord.faction === st17.player.faction),
   newLord ? newLord.faction : '无');
+
+/* ---------------------------------------------------------------- 被追上 */
+
+group('被追上：买路 / 断后 / 时辰');
+
+const st18 = stateLib.createGame({ seed: 1801 });
+st18.events.length = 0;
+const chaseLord = st18.lords.filter(function (l) { return l.faction === 'wei'; })[0];
+stateLib.changeRelation(st18, 'wei', -60);
+chaseLord.x = st18.player.x;
+chaseLord.y = st18.player.y;
+chaseLord.cooldownH = 0;
+stateLib.update(st18, 0.3);
+const chaseEv = st18.events.filter(function (e) { return e.type === 'chase'; })[0];
+ok('战争状态贴脸必生被追上事件', !!chaseEv && chaseEv.kind === 'lord' && chaseEv.id === chaseLord.id,
+  st18.events.map(function (e) { return e.type; }).join(','));
+
+st18.events.length = 0;
+st18.player.gold = 2000;
+const refused = stateLib.giveWay(st18, chaseLord.id, 'lord');
+ok('关系低于 -50 给钱被驳回', refused.ok === false && refused.refused === true, refused.msg);
+ok('驳回不扣钱', st18.player.gold === 2000);
+
+st18.relations.wei = -20;
+const paid = stateLib.giveWay(st18, chaseLord.id, 'lord');
+ok('关系 -20 收钱放人', paid.ok === true && st18.player.gold === 2000 - paid.cost, paid.msg);
+ok('买路后 24 小时不追', chaseLord.payoffUntil - stateLib.gameHours(st18) >= 23.9 &&
+  chaseLord.chasing === false);
+
+// 付过钱：就算玩家站他脸上，NPC 步进也不再扑过来
+chaseLord.x = st18.player.x;
+chaseLord.y = st18.player.y;
+for (let i = 0; i < 3; i++) stateLib.update(st18, 1.0);
+ok('收钱期间不追击玩家', chaseLord.chasing === false);
+
+// 断后
+const st19 = stateLib.createGame({ seed: 1901 });
+st19.events.length = 0;
+const tailLord = st19.lords.filter(function (l) { return l.faction === 'wei'; })[0];
+stateLib.changeRelation(st19, 'wei', -60);
+tailLord.x = st19.player.x;
+tailLord.y = st19.player.y;
+tailLord.cooldownH = 0;
+st19.player.troops = { militia: 40, spear: 10 };
+const n0 = armyLib.troopCount(st19.player.troops);
+const tail = stateLib.breakTail(st19, tailLord.id, 'lord');
+const n1 = armyLib.troopCount(st19.player.troops);
+ok('断后折人手', tail.ok && n1 < n0 && n1 > 0, n0 + ' → ' + n1);
+ok('断后换他原地停几个时辰', tailLord.pauseUntil - stateLib.gameHours(st19) >= 2.9,
+  String(tailLord.pauseUntil - stateLib.gameHours(st19)));
+const tx = tailLord.x;
+const ty = tailLord.y;
+stateLib.update(st19, 0.6);
+ok('停留期间不挪窝', tailLord.x === tx && tailLord.y === ty);
+
+// 站着不动，时辰照走
+const st20 = stateLib.createGame({ seed: 2001 });
+st20.events.length = 0;
+const h0 = st20.clock.day * 24 + st20.clock.hour;
+stateLib.update(st20, 1.3);
+const h1 = st20.clock.day * 24 + st20.clock.hour;
+ok('原地不动时辰也在走', h1 - h0 >= 4, h0 + ' → ' + h1);
 
 /* ---------------------------------------------------------------- 收尾 */
 

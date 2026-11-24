@@ -604,6 +604,10 @@ function update(state, dtSeconds) {
     }
 
     checkPursuit(state);
+  } else {
+    // 站着不动，时间也照走：在城里歇着、拉开地图看天下，都算过了时辰
+    advanceTime(state, dt / HOUR_SECONDS);
+    checkPursuit(state);
   }
 
   // 天下在动：只有游戏时间真正流逝了，NPC 才动
@@ -638,10 +642,10 @@ function onArrive(state, x, y) {
   const enemy = adjacentEnemy(state, x, y);
   if (enemy) {
     enemy.cooldownH = gameHours(state) + 8;
-    if (enemy.id && enemy.id.indexOf('l_') === 0) {
-      state.events.push({ type: 'lord', lordId: enemy.id });
+    if (enemy.defTroops) {
+      state.events.push({ type: 'chase', kind: 'lord', id: enemy.id });
     } else {
-      state.events.push({ type: 'encounter', partyId: enemy.id });
+      state.events.push({ type: 'chase', kind: 'party', id: enemy.id });
     }
   } else {
     advanceCampaign(state);
@@ -681,17 +685,82 @@ function checkPursuit(state) {
     // 碰过一次先冷却几小时，免得回到地图立刻又被同一个人拦住
     unit.cooldownH = nowH + 8;
     stopMoving(state);
-    if (unit.id && unit.id.indexOf('l_') === 0) {
-      state.events.push({ type: 'lord', lordId: unit.id });
+    // 打起来了就没有"自选撤离"：领主、贼寇都走同一个被追上页面
+    if (unit.defTroops) {
+      state.events.push({ type: 'chase', kind: 'lord', id: unit.id });
     } else {
-      state.events.push({ type: 'encounter', partyId: unit.id });
+      state.events.push({ type: 'chase', kind: 'party', id: unit.id });
     }
     return;
   }
 }
 
-/** 附近最近的活领主（匪团用来判断该不该跑） */
-function nearestLord(state, unit, range) {
+/* ---------------------------------------------------------------- 被追上 */
+
+/** 买路的价钱：人越多越贵，名将还要加价 */
+function giveWayCost(state, unit) {
+  const n = army.troopCount(unit.troops || {});
+  const isLord = !!unit.defTroops;
+  const fac = isLord && FACTIONS[unit.faction] ? FACTIONS[unit.faction] : null;
+  const isRuler = !!(fac && fac.lord === unit.name);
+  const rank = isLord ? (isRuler ? 1.5 : 1.1) : 0.8;
+  return Math.max(40, Math.round((30 + n * 3.2) * rank));
+}
+
+/** 给钱脱身：一天之内不追你；关系太差的人不收钱 */
+function giveWay(state, unitId, kind) {
+  const p = state.player;
+  const unit = kind === 'party'
+    ? state.parties.filter(function (x) { return x.id === unitId; })[0]
+    : state.lords.filter(function (x) { return x.id === unitId; })[0];
+  if (!unit) return { ok: false, msg: '人已经不在了' };
+  const isLord = kind !== 'party';
+  if (isLord) {
+    const rel = relationOf(state, unit.faction);
+    if (rel < -50) {
+      pushLog(state, '你把钱袋递过去，' + unit.name + '一脚踢开：“这时候了，还想拿钱买命？”', 'war');
+      return { ok: false, refused: true, msg: unit.name + '不收你的钱：关系 ' + rel + '，低于 -50 的人只认刀。' };
+    }
+  }
+  const cost = giveWayCost(state, unit);
+  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金，你身上只有 ' + p.gold + '。' };
+  p.gold -= cost;
+  const now = gameHours(state);
+  unit.cooldownH = now + 24;
+  unit.payoffUntil = now + 24;
+  unit.chasing = false;
+  if (isLord) changeRelation(state, unit.faction, -2);
+  p.renown = Math.max(0, p.renown - 2);
+  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
+  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金脱身，一天之内他不会追上来。' };
+}
+
+/** 留人断后：折一部分兵，换他原地停几个时辰 */
+function breakTail(state, unitId, kind) {
+  const p = state.player;
+  const unit = kind === 'party'
+    ? state.parties.filter(function (x) { return x.id === unitId; })[0]
+    : state.lords.filter(function (x) { return x.id === unitId; })[0];
+  if (!unit) return { ok: false, msg: '人已经不在了' };
+  const count = army.troopCount(p.troops);
+  if (count <= 1) {
+    stopMoving(state);
+    return { ok: false, msg: '手下只剩你一个，留不下人断后。' };
+  }
+  const lose = Math.max(1, Math.round(count * 0.22));
+  army.distributeLosses(p.troops, lose);
+  state.stats.troopsLost += lose;
+  p.morale = Math.max(0, p.morale - 6);
+  const now = gameHours(state);
+  const pause = 3 + state.rng.int(0, 3);
+  unit.pauseUntil = now + pause;
+  unit.cooldownH = now + pause + 1;
+  unit.chasing = false;
+  pushLog(state, '你留下 ' + lose + ' 人断后。' + unit.name + '在原地收拾这队人，你趁这半天跑出去。', 'war');
+  return { ok: true, lose: lose, pause: pause, msg: '折了 ' + lose + ' 人，他会在原地停 ' + pause + ' 小时，然后接着追。' };
+}
+
+/** 附近最近的活领主（匪团用来判断该不该跑） */function nearestLord(state, unit, range) {
   let best = null;
   let bestD = 1e9;
   state.lords.forEach(function (l) {
@@ -781,8 +850,12 @@ function refillLord(lord, n) {
 /** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
 function moveLords(state) {
   const p = state.player;
+  const nowH = gameHours(state);
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
+    // 收了钱 / 被人缠住：原地待着，不动也不追
+    if (lord.pauseUntil && nowH < lord.pauseUntil) return;
+    const paidOff = !!(lord.payoffUntil && nowH < lord.payoffUntil);
     let target;
     const home = siteById(state.world, lord.home);
     const dist = gridDistance(lord, p);
@@ -790,7 +863,7 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 打残了先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.4));
-    if (isHostileFaction(state, lord.faction) && !isResting(state) && dist <= lord.sight && !needRest) {
+    if (isHostileFaction(state, lord.faction) && !paidOff && !isResting(state) && dist <= lord.sight && !needRest) {
       target = { x: p.x, y: p.y };
       lord.chasing = true;
       lord.resting = false;
@@ -2335,6 +2408,9 @@ module.exports = {
   hiddenLordsAt,
   hiddenLordVisible,
   recruitHiddenLord,
+  giveWayCost,
+  giveWay,
+  breakTail,
   recruitPrisoner,
   executePrisoner,
   promoteHero,

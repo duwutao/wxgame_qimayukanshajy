@@ -50,6 +50,10 @@ function process(app) {
       app.push('news', { title: ev.title, lines: ev.lines, factionId: ev.factionId });
       return;
     }
+    if (ev.type === 'chase') {
+      app.push('chase', { kind: ev.kind, id: ev.id });
+      return;
+    }
   }
 }
 

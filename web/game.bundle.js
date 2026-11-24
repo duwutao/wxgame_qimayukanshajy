@@ -5578,6 +5578,10 @@ function update(state, dtSeconds) {
     }
 
     checkPursuit(state);
+  } else {
+    // 站着不动，时间也照走：在城里歇着、拉开地图看天下，都算过了时辰
+    advanceTime(state, dt / HOUR_SECONDS);
+    checkPursuit(state);
   }
 
   // 天下在动：只有游戏时间真正流逝了，NPC 才动
@@ -5612,10 +5616,10 @@ function onArrive(state, x, y) {
   const enemy = adjacentEnemy(state, x, y);
   if (enemy) {
     enemy.cooldownH = gameHours(state) + 8;
-    if (enemy.id && enemy.id.indexOf('l_') === 0) {
-      state.events.push({ type: 'lord', lordId: enemy.id });
+    if (enemy.defTroops) {
+      state.events.push({ type: 'chase', kind: 'lord', id: enemy.id });
     } else {
-      state.events.push({ type: 'encounter', partyId: enemy.id });
+      state.events.push({ type: 'chase', kind: 'party', id: enemy.id });
     }
   } else {
     advanceCampaign(state);
@@ -5655,17 +5659,82 @@ function checkPursuit(state) {
     // 碰过一次先冷却几小时，免得回到地图立刻又被同一个人拦住
     unit.cooldownH = nowH + 8;
     stopMoving(state);
-    if (unit.id && unit.id.indexOf('l_') === 0) {
-      state.events.push({ type: 'lord', lordId: unit.id });
+    // 打起来了就没有"自选撤离"：领主、贼寇都走同一个被追上页面
+    if (unit.defTroops) {
+      state.events.push({ type: 'chase', kind: 'lord', id: unit.id });
     } else {
-      state.events.push({ type: 'encounter', partyId: unit.id });
+      state.events.push({ type: 'chase', kind: 'party', id: unit.id });
     }
     return;
   }
 }
 
-/** 附近最近的活领主（匪团用来判断该不该跑） */
-function nearestLord(state, unit, range) {
+/* ---------------------------------------------------------------- 被追上 */
+
+/** 买路的价钱：人越多越贵，名将还要加价 */
+function giveWayCost(state, unit) {
+  const n = army.troopCount(unit.troops || {});
+  const isLord = !!unit.defTroops;
+  const fac = isLord && FACTIONS[unit.faction] ? FACTIONS[unit.faction] : null;
+  const isRuler = !!(fac && fac.lord === unit.name);
+  const rank = isLord ? (isRuler ? 1.5 : 1.1) : 0.8;
+  return Math.max(40, Math.round((30 + n * 3.2) * rank));
+}
+
+/** 给钱脱身：一天之内不追你；关系太差的人不收钱 */
+function giveWay(state, unitId, kind) {
+  const p = state.player;
+  const unit = kind === 'party'
+    ? state.parties.filter(function (x) { return x.id === unitId; })[0]
+    : state.lords.filter(function (x) { return x.id === unitId; })[0];
+  if (!unit) return { ok: false, msg: '人已经不在了' };
+  const isLord = kind !== 'party';
+  if (isLord) {
+    const rel = relationOf(state, unit.faction);
+    if (rel < -50) {
+      pushLog(state, '你把钱袋递过去，' + unit.name + '一脚踢开：“这时候了，还想拿钱买命？”', 'war');
+      return { ok: false, refused: true, msg: unit.name + '不收你的钱：关系 ' + rel + '，低于 -50 的人只认刀。' };
+    }
+  }
+  const cost = giveWayCost(state, unit);
+  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金，你身上只有 ' + p.gold + '。' };
+  p.gold -= cost;
+  const now = gameHours(state);
+  unit.cooldownH = now + 24;
+  unit.payoffUntil = now + 24;
+  unit.chasing = false;
+  if (isLord) changeRelation(state, unit.faction, -2);
+  p.renown = Math.max(0, p.renown - 2);
+  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
+  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金脱身，一天之内他不会追上来。' };
+}
+
+/** 留人断后：折一部分兵，换他原地停几个时辰 */
+function breakTail(state, unitId, kind) {
+  const p = state.player;
+  const unit = kind === 'party'
+    ? state.parties.filter(function (x) { return x.id === unitId; })[0]
+    : state.lords.filter(function (x) { return x.id === unitId; })[0];
+  if (!unit) return { ok: false, msg: '人已经不在了' };
+  const count = army.troopCount(p.troops);
+  if (count <= 1) {
+    stopMoving(state);
+    return { ok: false, msg: '手下只剩你一个，留不下人断后。' };
+  }
+  const lose = Math.max(1, Math.round(count * 0.22));
+  army.distributeLosses(p.troops, lose);
+  state.stats.troopsLost += lose;
+  p.morale = Math.max(0, p.morale - 6);
+  const now = gameHours(state);
+  const pause = 3 + state.rng.int(0, 3);
+  unit.pauseUntil = now + pause;
+  unit.cooldownH = now + pause + 1;
+  unit.chasing = false;
+  pushLog(state, '你留下 ' + lose + ' 人断后。' + unit.name + '在原地收拾这队人，你趁这半天跑出去。', 'war');
+  return { ok: true, lose: lose, pause: pause, msg: '折了 ' + lose + ' 人，他会在原地停 ' + pause + ' 小时，然后接着追。' };
+}
+
+/** 附近最近的活领主（匪团用来判断该不该跑） */function nearestLord(state, unit, range) {
   let best = null;
   let bestD = 1e9;
   state.lords.forEach(function (l) {
@@ -5755,8 +5824,12 @@ function refillLord(lord, n) {
 /** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
 function moveLords(state) {
   const p = state.player;
+  const nowH = gameHours(state);
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
+    // 收了钱 / 被人缠住：原地待着，不动也不追
+    if (lord.pauseUntil && nowH < lord.pauseUntil) return;
+    const paidOff = !!(lord.payoffUntil && nowH < lord.payoffUntil);
     let target;
     const home = siteById(state.world, lord.home);
     const dist = gridDistance(lord, p);
@@ -5764,7 +5837,7 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 打残了先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.4));
-    if (isHostileFaction(state, lord.faction) && !isResting(state) && dist <= lord.sight && !needRest) {
+    if (isHostileFaction(state, lord.faction) && !paidOff && !isResting(state) && dist <= lord.sight && !needRest) {
       target = { x: p.x, y: p.y };
       lord.chasing = true;
       lord.resting = false;
@@ -7309,6 +7382,9 @@ module.exports = {
   hiddenLordsAt,
   hiddenLordVisible,
   recruitHiddenLord,
+  giveWayCost,
+  giveWay,
+  breakTail,
   recruitPrisoner,
   executePrisoner,
   promoteHero,
@@ -7734,6 +7810,10 @@ function process(app) {
       app.push('news', { title: ev.title, lines: ev.lines, factionId: ev.factionId });
       return;
     }
+    if (ev.type === 'chase') {
+      app.push('chase', { kind: ev.kind, id: ev.id });
+      return;
+    }
   }
 }
 
@@ -7763,7 +7843,7 @@ const pixel = __require(3);
 const { UI_COLORS } = pixel;
 const stateLib = __require(7);
 const army = __require(9);
-const { regionAt, regionDef, siteById, terrainAt } = __require(8);
+const { regionAt, regionDef, siteById, siteAt, terrainAt } = __require(8);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = __require(5);
 const { lookFor } = __require(13);
 const flows = __require(21);
@@ -7949,6 +8029,7 @@ const MapScene = {
     app.mapPhase = 0;
     app.mapDrag = null;
     app.follow = null;
+    app.mapFree = false;
     ensureCam(app);
     flows.process(app);
     if (app.state && app.state.player.atSiteId) {
@@ -7963,12 +8044,12 @@ const MapScene = {
     stateLib.update(st, dt);
     ensureCam(app);
 
-    // 相机跟随（跟插值后的位置，不再跟着格子跳）
+    // 相机跟随（跟插值后的位置，不再跟着格子跳）；手动拖过地图就不再强行拉回
     const box = mapBox(app);
     const pos = playerPixel(app);
     const targetX = pos.gx * TS + TS / 2 - app.runtime.width / 2;
     const targetY = pos.gy * TS + TS / 2 - box.h / 2;
-    if (!app.mapDrag) {
+    if (!app.mapDrag && !app.mapFree) {
       app.mapCam.x += (targetX - app.mapCam.x) * Math.min(1, dt * 9);
       app.mapCam.y += (targetY - app.mapCam.y) * Math.min(1, dt * 9);
     }
@@ -8005,6 +8086,7 @@ const MapScene = {
     drawTop(ctx, app, w);
     drawBottom(ctx, app, w, box);
     drawZoomButtons(ctx, app, box, w);
+    drawFreeHint(ctx, app, box, w);
   },
 
   onTouchStart(app, x, y) {
@@ -8018,8 +8100,9 @@ const MapScene = {
     const dy = y - d.startY;
     if (!d.dragging && Math.abs(dx) + Math.abs(dy) > 22) {
       d.dragging = true;
-      // 手一拖就是看地图，不追人了
+      // 手一拖就是看地图，不追人了，也不再自动拉回自己身上
       app.follow = null;
+      app.mapFree = true;
     }
     if (d.dragging) {
       app.mapCam.x = d.camX - dx;
@@ -8038,7 +8121,40 @@ const MapScene = {
 
     const st = app.state;
 
-    // 先看是不是点在人身上：点领主去说话，点匪团先看遭遇页
+    // 在城里歇着的时候出来看地图：点一下地图就回城
+    if (app.restView) {
+      const siteId = app.restView;
+      app.restView = null;
+      app.push('town', { siteId: siteId });
+      return;
+    }
+
+    const tx = Math.floor((x + app.mapCam.x) / TS);
+    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
+    if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
+
+    // 先看脚下是不是城：自己和城在同一格时，优先点城（不然总说"已经在这里"）
+    const site = siteAt(st.world, tx, ty);
+    if (site) {
+      const onSite = st.player.x === site.x && st.player.y === site.y;
+      if (onSite) {
+        stateLib.stopMoving(st);
+        if (stateLib.isHostileSite(st, site)) {
+          if (stateLib.canFight(st, site.id)) {
+            stateLib.startSiege(st, site);
+            app.push('battle', { mode: 'siege' });
+          } else {
+            app.showToast('这座城现在打不下来。');
+          }
+        } else {
+          st.player.atSiteId = site.id;
+          app.push('town', { siteId: site.id });
+        }
+        return;
+      }
+    }
+
+    // 再点人就只是追过去
     const unit = unitAt(app, x, y, app.mapCam, box);
     if (unit) {
       const p = st.player;
@@ -8059,10 +8175,6 @@ const MapScene = {
       app.showToast(unit.kind === 'lord' ? '向他那边靠过去。' : '朝那伙人追过去。', 1.6);
       return;
     }
-
-    const tx = Math.floor((x + app.mapCam.x) / TS);
-    const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
-    if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
 
     const t = terrainAt(st.world, tx, ty);
     if (!t || !t.passable) {
@@ -8459,6 +8571,47 @@ function drawRoute(ctx, app, cam, box) {
   ctx.arc(ex, ey, 10 * (app.mapZoom || 1), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+}
+
+/** 自由视野提示：人跑出画面时给个"跳回原处"；城里歇息时给条回城提示 */
+function drawFreeHint(ctx, app, box, w) {
+  const st = app.state;
+  const p = st.player;
+  const pos = playerPixel(app);
+  const sx = pos.gx * TS + TS / 2 - app.mapCam.x;
+  const sy = box.top + pos.gy * TS + TS / 2 - app.mapCam.y;
+  const onScreen = sx > 36 && sx < w - 36 && sy > box.top + 36 && sy < box.top + box.h - 36;
+
+  if (p.resting) {
+    const site = siteById(st.world, p.resting);
+    ctx.fillStyle = 'rgba(16,20,14,0.78)';
+    ctx.fillRect(0, box.top, w, 30);
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 外面照常走 · 点一下地图就回城',
+      w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
+  }
+
+  if (!app.mapFree || onScreen) return;
+  const bw = 132;
+  const bh = 48;
+  const bx = w - bw - 12;
+  const by = p.resting ? box.top + 40 : box.top + box.h - 60;
+  ctx.fillStyle = 'rgba(40,32,22,0.9)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = '#8a7448';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+  text(ctx, '跳回原处', bx + bw / 2, by + 12, { size: 19, align: 'center', color: '#f0c060' });
+  app.ui.rect('map_recenter', bx, by, bw, bh, function () {
+    app.mapFree = false;
+    app.follow = null;
+    const pos2 = playerPixel(app);
+    app.mapCam = {
+      x: pos2.gx * TS + TS / 2 - app.runtime.width / 2,
+      y: pos2.gy * TS + TS / 2 - box.h / 2,
+    };
+    ensureCam(app);
+    app.showToast('回到自己所在的位置。', 1.4);
+  });
 }
 
 function playerPixel(app) {
@@ -9314,9 +9467,118 @@ function menuButton(app, y, label, sub, onTap, opts) {
 
 /* ---------------------------------------------------------------- 菜单 */
 
+/** 菜单项：列成一张表，整页可以上下拖，选项再多也放得下 */
+function menuItems(app, site) {
+  const p = app.state.player;
+  const resting = !!p.resting;
+  const isVillage = site.type === 'village';
+  const list = [];
+  const toggleRest = function () {
+    if (resting) {
+      stateLib.stopRest(app.state);
+      app.showToast('收拾行装，准备上路。', 2);
+    } else {
+      const r = stateLib.startRest(app.state, site);
+      app.showToast(r.msg, 2.4);
+    }
+  };
+
+  if (isVillage) {
+    list.push({
+      id: 'm_recruit', label: '招兵', sub: '村里的壮丁 · 只有最低一档，比城里便宜', right: '→',
+      onTap: function () { app.townView.view = 'recruit'; },
+    });
+    list.push({
+      id: 'm_village', label: '村市 · 找村长', sub: '牛、羊、鸡、谷，村里卖得比城里便宜',
+      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金',
+      onTap: function () { app.townView.view = 'village'; },
+    });
+    list.push({
+      id: 'm_raid', label: '屠村', sub: '抢钱抢粮，村子会记很久（关系 -5）', fill: '#3a2018', right: '→',
+      onTap: function () {
+        const r = stateLib.raidVillage(app.state, site);
+        app.showToast(r.msg, 2.6);
+        if (r.ok) app.townView.view = 'menu';
+      },
+    });
+    list.push({
+      id: 'm_rest', label: resting ? '结束休整 · 上路' : '在村里歇下',
+      sub: '外面的日子照常过，你的粮吃得慢一半，也没人来追', fill: '#26372a',
+      right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
+    });
+    const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
+      return stateLib.hiddenLordVisible(app.state, l);
+    })[0];
+    if (hermit) {
+      list.push({
+        id: 'm_hermit', label: '村中隐者 · ' + hermit.name, sub: '前朝的旗倒了，人还活着。也许能请得动',
+        fill: '#2c2a40', right: '见一面', onTap: function () { app.townView.view = 'hermit'; },
+      });
+    }
+  } else {
+    list.push({
+      id: 'm_recruit', label: '招兵', sub: '花钱买人，价钱随城而变', right: '→',
+      onTap: function () { app.townView.view = 'recruit'; },
+    });
+    list.push({
+      id: 'm_market', label: '市场', sub: '粮草 · 货物 · 军械',
+      right: '粮 ' + economy.foodPrice(site) + ' 金/单位',
+      onTap: function () { app.townView.view = 'market'; app.townView.tab = 'goods'; },
+    });
+    list.push({
+      id: 'm_tavern', label: '酒馆', sub: '接活 · 打听消息 · 招募英雄', right: '→',
+      onTap: function () { app.townView.view = 'tavern'; },
+    });
+    list.push({
+      id: 'm_hall', label: '领主府', sub: '效忠 · 宣战 · 情报',
+      right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主',
+      onTap: function () { app.townView.view = 'hall'; },
+    });
+    list.push({
+      id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
+      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金',
+      onTap: function () { app.push('tourney', { siteId: site.id }); },
+    });
+    const obj = stateLib.campaignObjective(app.state, site);
+    if (obj) {
+      const count = army.troopCount(p.troops);
+      const ready = !obj.needTroops || count >= obj.needTroops;
+      list.push({
+        id: 'm_campaign', label: '发起进攻 · ' + obj.name,
+        sub: ready ? '点下去就开打，输了可以退回来再来' : '至少要有 ' + obj.needTroops + ' 人才打得动（现 ' + count + '）',
+        fill: '#4a241c', right: ready ? '→' : '兵不足', disabled: !ready,
+        onTap: function () {
+          const b = stateLib.startCampaignBattle(app.state, obj.id);
+          if (!b) { app.showToast('现在还打不了。'); return; }
+          app.state.flags.campaignCool = stateLib.gameHours(app.state) + 24;
+          app.push('battle', { mode: 'campaign', campaignId: b.context.campaignId });
+        },
+      });
+    }
+    list.push({
+      id: 'm_rest', label: resting ? '结束休整 · 上路' : '进城休整',
+      sub: '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', fill: '#26372a',
+      right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
+    });
+  }
+
+  // 歇着的时候也想看看外头的天下
+  if (resting && !isVillage) {
+    list.push({
+      id: 'm_lookmap', label: '出门看看 · 大地图', sub: '人还在城里歇着，时间照走 · 点一下地图就回来',
+      fill: '#223042', right: '→', onTap: function () {
+        app.restView = site.id;
+        app.pop();
+      },
+    });
+  }
+  return list;
+}
+
 function renderMenu(app, site) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
+  const H = app.runtime.height;
   const p = app.state.player;
   let y = 280;
 
@@ -9331,95 +9593,71 @@ function renderMenu(app, site) {
     return;
   }
 
-  const isVillage = site.type === 'village';
-  const resting = !!p.resting;
+  const items = menuItems(app, site);
+  const rowH = 104;
+  const gap = 14;
+  const contentH = items.length * (rowH + gap);
+  // 下面留出"离城"的固定按钮 + 回城提示，菜单只在这条线以上滚
+  const footTop = H - 170;
+  const viewH = Math.max(120, footTop - y - 8);
+  const maxScroll = Math.max(0, contentH - viewH);
+  if (app.townView.scroll === undefined) app.townView.scroll = 0;
+  app.townView.scroll = Math.max(0, Math.min(maxScroll, app.townView.scroll));
+  app.townView.maxScroll = maxScroll;
+  app.townView.viewH = viewH;
 
-  if (isVillage) {
-    y = menuButton(app, y, '招兵', '村里的壮丁 · 只有最低一档，比城里便宜', function () {
-      app.townView.view = 'recruit';
-    }, { id: 'm_recruit', right: '→' });
-
-    y = menuButton(app, y, '村市 · 找村长', '牛、羊、鸡、谷，村里卖得比城里便宜', function () {
-      app.townView.view = 'village';
-    }, { id: 'm_village', right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金' });
-
-    y = menuButton(app, y, '屠村', '抢钱抢粮，村子会记很久（关系 -5）', function () {
-      const r = stateLib.raidVillage(app.state, site);
-      app.showToast(r.msg, 2.6);
-      if (r.ok) app.townView.view = 'menu';
-    }, { id: 'm_raid', fill: '#3a2018', right: '→' });
-
-    y = menuButton(app, y, resting ? '结束休整 · 上路' : '在村里歇下', '外面的日子照常过，你的粮吃得慢一半，也没人来追', function () {
-      if (resting) {
-        stateLib.stopRest(app.state);
-        app.showToast('收拾行装，准备上路。', 2);
-      } else {
-        const r = stateLib.startRest(app.state, site);
-        app.showToast(r.msg, 2.4);
-      }
-    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
-
-    // 打听过的旧主若藏在这个村、关系也够，才给你看见这条
-    const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
-      return stateLib.hiddenLordVisible(app.state, l);
-    })[0];
-    if (hermit) {
-      y = menuButton(app, y, '村中隐者 · ' + hermit.name, '前朝的旗倒了，人还活着。也许能请得动', function () {
-        app.townView.view = 'hermit';
-      }, { id: 'm_hermit', fill: '#2c2a40', right: '见一面' });
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y - 4, w, viewH + 8);
+  ctx.clip();
+  items.forEach(function (it, i) {
+    const ry = y + i * (rowH + gap) - app.townView.scroll;
+    // 只画完整的一行：半截露在"离城"上方很难看
+    if (ry < y || ry + rowH > y + viewH) return;
+    app.ui.button(ctx, PAD, ry, w - PAD * 2, rowH, '', {
+      id: it.id || it.label, disabled: !!it.disabled,
+      fill: it.fill || '#33271b',
+      onTap: it.onTap,
+    });
+    text(ctx, it.label, PAD + 26, ry + 24, { size: 30, color: it.disabled ? '#6a6355' : '#efe3c6' });
+    if (it.sub) {
+      // 一行放不下就截断，别让说明文字压到底下的"离城"
+      const subMax = w - PAD * 2 - 60;
+      const subLines = wrap(ctx, it.sub, subMax, 18);
+      let sub = subLines[0] || '';
+      if (subLines.length > 1) sub = sub.replace(/[，、。·]$/, '') + '…';
+      text(ctx, sub, PAD + 26, ry + 64, { size: 18, color: it.disabled ? '#5c5648' : '#a2947a' });
     }
-  } else {
-    y = menuButton(app, y, '招兵', '花钱买人，价钱随城而变', function () {
-      app.townView.view = 'recruit';
-    }, { id: 'm_recruit', right: '→' });
+    if (it.right) text(ctx, it.right, w - PAD - 24, ry + 36, {
+      size: 24, align: 'right', color: it.disabled ? '#5c5648' : '#f0c060',
+    });
+  });
+  ctx.restore();
 
-    y = menuButton(app, y, '市场', '粮草 · 货物 · 军械', function () {
-      app.townView.view = 'market';
-      app.townView.tab = 'goods';
-    }, { id: 'm_market', right: '粮 ' + economy.foodPrice(site) + ' 金/单位' });
-
-    y = menuButton(app, y, '酒馆', '接活 · 打听消息 · 招募英雄', function () {
-      app.townView.view = 'tavern';
-    }, { id: 'm_tavern', right: '→' });
-
-    y = menuButton(app, y, '领主府', '效忠 · 宣战 · 情报', function () {
-      app.townView.view = 'hall';
-    }, { id: 'm_hall', right: site.ownerFaction ? FACTIONS[site.ownerFaction].full : '无主' });
-
-    y = menuButton(app, y, '比武大会', '四招赌手 · 三滴血，赢钱赢名声，不杀人', function () {
-      app.push('tourney', { siteId: site.id });
-    }, { id: 'm_tourney', fill: '#3a2c1e', right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金' });
-
-    // 这一章的关键一仗就在这座城：给个主动进攻的入口
-    const obj = stateLib.campaignObjective(app.state, site);
-    if (obj) {
-      const count = army.troopCount(p.troops);
-      const ready = !obj.needTroops || count >= obj.needTroops;
-      y = menuButton(app, y, '发起进攻 · ' + obj.name, ready ? '点下去就开打，输了可以退回来再来' : '至少要有 ' + obj.needTroops + ' 人才打得动（现 ' + count + '）', function () {
-        const b = stateLib.startCampaignBattle(app.state, obj.id);
-        if (!b) { app.showToast('现在还打不了。'); return; }
-        app.state.flags.campaignCool = stateLib.gameHours(app.state) + 24;
-        app.push('battle', { mode: 'campaign', campaignId: b.context.campaignId });
-      }, { id: 'm_campaign', fill: '#4a241c', right: ready ? '→' : '兵不足', disabled: !ready });
-    }
-
-    y = menuButton(app, y, resting ? '结束休整 · 上路' : '进城休整', '待在城里不出门：天下照常走，你的粮吃得慢一半，也不会被追', function () {
-      if (resting) {
-        stateLib.stopRest(app.state);
-        app.showToast('收拾行装，准备上路。', 2);
-      } else {
-        const r = stateLib.startRest(app.state, site);
-        app.showToast(r.msg, 2.4);
-      }
-    }, { id: 'm_rest', fill: '#26372a', right: resting ? '休整中 · 粮耗减半' : '→' });
+  // 滚动条：看得出还有几项在下面
+  if (maxScroll > 0) {
+    const trackY = y;
+    const trackH = viewH;
+    ctx.fillStyle = 'rgba(80,66,46,0.35)';
+    ctx.fillRect(w - 8, trackY, 4, trackH);
+    const thumbH = Math.max(36, trackH * (viewH / contentH));
+    const thumbY = trackY + (trackH - thumbH) * (app.townView.scroll / maxScroll);
+    ctx.fillStyle = '#8a7448';
+    ctx.fillRect(w - 8, thumbY, 4, thumbH);
   }
 
-  app.ui.button(ctx, PAD, y + 10, w - PAD * 2, 84, '离开', {
+  // 离城：固定在最下面，随时能出门
+  app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离城', {
     id: 'leave', size: 28, fill: '#241c14', onTap: function () {
       if (app.state.player.resting) stateLib.stopRest(app.state);
       app.state.player.atSiteId = null;
       app.pop();
     },
+  });
+  text(ctx, maxScroll > 0
+    ? '上下拖动看更多 · 还有 ' + (maxScroll > 0 ? Math.max(1, Math.ceil((maxScroll - app.townView.scroll) / (rowH + gap))) : 0) + ' 项在下头'
+    : (p.atSiteId ? '离城后回到大地图，再点这座城还能进来' : ''), w / 2, H - 138, {
+    size: 14, align: 'center', color: maxScroll > 0 ? '#c0a46a' : '#6a6050',
   });
 }
 
@@ -9995,12 +10233,15 @@ function siteInfo(app, site) {
 
 const TownScene = {
   enter(app, params) {
+    app.restView = null;
     app.townView = {
       siteId: params.siteId,
       view: params.view || 'menu',
       tab: 'goods',
       goodId: null,
       estimate: null,
+      scroll: 0,
+      maxScroll: 0,
     };
   },
 
@@ -10031,16 +10272,32 @@ const TownScene = {
     else if (v === 'hermit') renderHermit(app, site);
     else {
       renderMenu(app, site);
-      siteInfo(app, site);
     }
   },
 
-  onTouchStart() {},
-  onTouchMove() {},
-  onTouchEnd() {},
+  onTouchStart(app, x, y) {
+    app.townView.drag = { y: y, scroll: app.townView.scroll || 0, moved: 0 };
+  },
+
+  onTouchMove(app, x, y) {
+    const d = app.townView.drag;
+    if (!d) return;
+    if (app.townView.view !== 'menu') return;
+    const dy = y - d.y;
+    if (Math.abs(dy) > 6) d.moved = Math.abs(dy);
+    if (d.moved > 6) {
+      const max = app.townView.maxScroll || 0;
+      app.townView.scroll = Math.max(0, Math.min(max, d.scroll - dy));
+    }
+  },
+
+  onTouchEnd(app) {
+    if (app.townView) app.townView.drag = null;
+  },
 };
 
 module.exports = TownScene;
+
 
   };
 
@@ -12116,8 +12373,217 @@ module.exports = NewsScene;
 
   };
 
-  /* js/scenes/ending.js */
+  /* js/scenes/chase.js */
   __defs[35] = function (module, exports, __require) {
+/**
+ * 被追上：处于战争状态的人贴到你身上，就没有"自选撤离"了。
+ * 三条路：给钱买路（一天内不追）/ 坦然开战 / 留人断后（折兵换他停几个时辰）。
+ */
+
+const { text, panel, bar, wrap } = __require(6);
+const { UI_COLORS } = __require(3);
+const stateLib = __require(7);
+const army = __require(9);
+const { FACTIONS } = __require(5);
+const { TROOPS } = __require(10);
+const { lookFor } = __require(13);
+
+function unitOf(app) {
+  const d = app.chase;
+  if (!d) return null;
+  if (d.kind === 'party') {
+    return app.state.parties.filter(function (p) { return p.id === d.id; })[0] || null;
+  }
+  return app.state.lords.filter(function (l) { return l.id === d.id; })[0] || null;
+}
+
+function compText(troops) {
+  return Object.keys(troops || {}).map(function (id) {
+    return (TROOPS[id] ? TROOPS[id].name : id) + ' ' + (troops[id] || 0);
+  }).join(' · ');
+}
+
+/** 最近几条战事，给被追上的页面垫一点前情 */
+function recentWarLines(st, n) {
+  const out = [];
+  for (let i = st.log.length - 1; i >= 0 && out.length < n; i--) {
+    out.push((st.log[i].text || '').slice(0, 26));
+  }
+  return out;
+}
+
+const ChaseScene = {
+  enter(app, params) {
+    const d = params || {};
+    app.chase = { kind: d.kind || 'lord', id: d.id, note: '' };
+    const st = app.state;
+    if (!st) return;
+    // 同一件事的事件只留一份
+    for (let i = st.events.length - 1; i >= 0; i--) {
+      const ev = st.events[i];
+      if (ev.type === 'chase' && ev.id === d.id) st.events.splice(i, 1);
+    }
+  },
+
+  leave(app) {
+    app.chase = null;
+  },
+
+  update(app) {
+    const unit = unitOf(app);
+    if (!unit || army.troopCount(unit.troops || {}) <= 0) app.pop();
+  },
+
+  render(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const unit = unitOf(app);
+    if (!unit) return;
+    const d = app.chase;
+    const isLord = d.kind !== 'party';
+    const fac = isLord && FACTIONS[unit.faction] ? FACTIONS[unit.faction] : null;
+    const col = fac ? fac.color : (unit.color || '#8b3a3a');
+    const n = army.troopCount(unit.troops || {});
+    const mine = army.troopCount(st.player.troops);
+    const pPower = army.strength(st.player.troops).power;
+    const ePower = army.strength(unit.troops || {}).power;
+    const rel = isLord ? stateLib.relationOf(st, unit.faction) : -100;
+    const cost = stateLib.giveWayCost(st, unit);
+    const portrait = isLord && app.assets.portraitFor
+      ? app.assets.portraitFor(col, lookFor(unit.id))
+      : null;
+    const small = h < 1060;
+
+    ctx.fillStyle = '#0d0a07';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.22;
+    ctx.fillRect(0, 0, w, 216);
+    ctx.globalAlpha = 1;
+
+    text(ctx, '被 追 上', w / 2, 14, { size: 17, align: 'center', color: '#d07060' });
+
+    const px = portrait ? 168 : 0;
+    if (portrait) {
+      panel(ctx, 22, 44, 132, 132, { fill: '#14100c' });
+      ctx.drawImage(portrait, 26, 48, 124, 124);
+    }
+    text(ctx, unit.name || '一队人马', portrait ? px : w / 2, 44, {
+      size: small ? 40 : 46, align: portrait ? 'left' : 'center', color: '#f5e9cf', shadow: true,
+    });
+    text(ctx, (fac ? fac.full + ' · ' : '') + n + ' 人' + (isLord ? '' : ' · 山贼'),
+      portrait ? px : w / 2, 100, { size: 19, align: portrait ? 'left' : 'center', color: col });
+    if (isLord) {
+      text(ctx, '关系 ' + rel + (rel < -50 ? ' · 已经不肯收钱了' : rel < -20 ? ' · 不好说话' : ' · 还能谈谈'),
+        portrait ? px : w / 2, 130, {
+          size: 18, align: portrait ? 'left' : 'center',
+          color: rel < -50 ? '#d07060' : rel < -20 ? '#d9a441' : '#9fc08a',
+        });
+    }
+
+    const line = isLord && rel < -50
+      ? '他认得你的旗，也知道你杀过他的人。钱袋递过去，只会被踢回来。'
+      : '他横在路中间，刀没出鞘，意思很清楚。';
+    wrap(ctx, line, w - 48, 17).slice(0, 2).forEach(function (ln, i) {
+      text(ctx, ln, 24, 184 + i * 22, { size: 17, color: '#8a8070' });
+    });
+
+    /* 实力对比 */
+    const y0 = 226;
+    panel(ctx, 20, y0, w - 40, 216, { fill: '#1b1611' });
+    text(ctx, '我方 ' + mine + ' 人', 36, y0 + 10, { size: 20, color: '#8fb0d8' });
+    text(ctx, compText(st.player.troops) || '孤身一人', 36, y0 + 38, { size: 14, color: '#8a8070' });
+    text(ctx, '对方 ' + n + ' 人', 36, y0 + 66, { size: 20, color: '#d07060' });
+    text(ctx, compText(unit.troops || {}), 36, y0 + 94, { size: 14, color: '#8a8070' });
+    const total = pPower + ePower || 1;
+    bar(ctx, 36, y0 + 122, w - 72, 18, pPower / total, UI_COLORS.blue);
+    const verdict = pPower / total;
+    text(ctx, verdict > 0.62 ? '硬打能赢，但会死人。' : verdict > 0.48 ? '势均力敌，一仗下来两边都疼。' : '对面比你硬，坦然开战是下策。',
+      36, y0 + 150, { size: 17, color: verdict > 0.62 ? '#8fbf7a' : '#d9a441' });
+    text(ctx, '买路钱随他手下的人数涨：' + cost + ' 金。', 36, y0 + 180, { size: 15, color: '#a2947a' });
+
+    /* 三条路 */
+    const payY = y0 + 216 + 24;
+    const bh = 92;
+    app.ui.button(ctx, 20, payY, w - 40, bh, '给钱脱身 · ' + cost + ' 金', {
+      id: 'chase_pay', size: 28, fill: '#3a3020', onTap: function () {
+        const r = stateLib.giveWay(st, unit.id, d.kind);
+        app.showToast(r.msg, 3);
+        if (r.ok) app.pop();
+      },
+    });
+    text(ctx, isLord && rel < -50 ? '（关系低于 -50，他多半不收，会驳回）' : '付了钱，一天之内他不会追上来。',
+      24, payY + bh + 6, { size: 14, color: isLord && rel < -50 ? '#d07060' : '#8a8070' });
+
+    const rowY = payY + bh + 34;
+    app.ui.button(ctx, 20, rowY, (w - 52) / 2, bh, '坦然开战', {
+      id: 'chase_fight', size: 28, fill: '#4a2a1a', onTap: function () {
+        app.pop();
+        if (d.kind === 'party') {
+          stateLib.startPartyBattle(st, unit);
+          app.push('battle', { mode: 'party' });
+        } else {
+          stateLib.startLordBattle(st, unit);
+          app.push('battle', { mode: 'lord' });
+        }
+      },
+    });
+    app.ui.button(ctx, 20 + (w - 52) / 2 + 12, rowY, (w - 52) / 2, bh, '留人断后', {
+      id: 'chase_tail', size: 28, fill: '#2a2a34', onTap: function () {
+        const r = stateLib.breakTail(st, unit.id, d.kind);
+        app.showToast(r.msg, 3);
+        if (r.ok) app.pop();
+      },
+    });
+    text(ctx, '断后要折人手，但能让他原地停几个时辰，够你跑出视野或进城。', 22, rowY + bh + 8, {
+      size: 14, color: '#8a8070',
+    });
+
+    /* 底下补一点"现在什么情形"：士气、粮草、最近战事 */
+    const by = rowY + bh + 42;
+    const avail = h - by - 20;
+    const panelH = Math.min(avail, 340);
+    if (panelH >= 150) {
+      const panelY = by + Math.max(0, (avail - panelH) / 2);
+      panel(ctx, 20, panelY, w - 40, panelH, { fill: '#16120d' });
+      const p = st.player;
+      const gap = Math.min(50, Math.max(30, (panelH - 90) / 6.2));
+      let y = panelY + 14;
+      text(ctx, '眼下的情形', 36, y, { size: 19, color: '#f0c060' });
+      y += gap;
+      text(ctx, '士气 ' + Math.round(p.morale) + ' · 粮草 ' + Math.round(p.food) + ' · 声望 ' + Math.round(p.renown),
+        36, y, { size: 17, color: '#c9bda2' });
+      y += gap;
+      text(ctx, '他' + (isLord ? '正咬着你不放' : '是这一带有名的匪伙') + '，身边还有 ' + n + ' 人。',
+        36, y, { size: 17, color: '#a2947a' });
+      y += gap;
+      text(ctx, isLord ? '想脱身：他停下的这几个时辰，够你进城或钻进山里。' : '想脱身：往城边或山道上跑，他们追不远。',
+        36, y, { size: 16, color: '#8fbf7a' });
+      y += gap + 6;
+      text(ctx, '最近的账', 36, y, { size: 18, color: '#f0c060' });
+      y += gap;
+      recentWarLines(st, 3).forEach(function (ln) {
+        wrap(ctx, ln, w - 72, 15).slice(0, 1).forEach(function (t1) {
+          text(ctx, t1, 36, y, { size: 15, color: '#8a8070' });
+        });
+        y += Math.min(gap, 40);
+      });
+    }
+  },
+
+  onTouchStart() {},
+  onTouchMove() {},
+  onTouchEnd() {},
+};
+
+module.exports = ChaseScene;
+
+  };
+
+  /* js/scenes/ending.js */
+  __defs[36] = function (module, exports, __require) {
 /**
  * 结局页
  */
@@ -12199,7 +12665,7 @@ module.exports = EndingScene;
   };
 
   /* js/scenes/lord.js */
-  __defs[36] = function (module, exports, __require) {
+  __defs[37] = function (module, exports, __require) {
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
  * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
@@ -12423,7 +12889,7 @@ module.exports = LordScene;
   };
 
   /* js/scenes/revive.js */
-  __defs[37] = function (module, exports, __require) {
+  __defs[38] = function (module, exports, __require) {
 /**
  * 复活提示：全灭之后回到一天前，用一段文字说明这是第几次
  * （次数只在这个界面上出现，别处不提示）
@@ -12516,7 +12982,7 @@ module.exports = ReviveScene;
   };
 
   /* js/scenes/saves.js */
-  __defs[39] = function (module, exports, __require) {
+  __defs[40] = function (module, exports, __require) {
 /**
  * 存档槽：九个位置
  * mode = 'load' 读档 / 'save' 存到某个槽
@@ -12697,7 +13163,7 @@ module.exports.slotKey = slotKey;
   };
 
   /* js/scenes/menu.js */
-  __defs[38] = function (module, exports, __require) {
+  __defs[39] = function (module, exports, __require) {
 /**
  * 系统菜单：九个存档槽 / 最近存档 / 退回战前 / 回标题
  */
@@ -12706,7 +13172,7 @@ const { text, panel } = __require(6);
 const stateLib = __require(7);
 const audio = __require(18);
 const { formatClock } = __require(8);
-const savesLib = __require(39);
+const savesLib = __require(40);
 
 const AUTO_KEY = 'bw_save_v4';
 const AUTO_1 = 'bw_save_v4_a1';
@@ -12901,11 +13367,12 @@ class App {
       nested: null,
       chapter: __require(33),
       news: __require(34),
-      ending: __require(35),
-      lord: __require(36),
-      revive: __require(37),
-      menu: __require(38),
-      saves: __require(39),
+      chase: __require(35),
+      ending: __require(36),
+      lord: __require(37),
+      revive: __require(38),
+      menu: __require(39),
+      saves: __require(40),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;
