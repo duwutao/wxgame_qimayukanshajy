@@ -155,20 +155,79 @@ function createRuntime() {
         if (fn) fn(toDesignX(x), toDesignY(y));
       };
 
+      // 双指缩放：两指落下后，单指的点击/拖动全部让位给缩放
+      let pinch = null;
+      let blocked = false;
+
+      const centerOf = function (ts) {
+        const a = ts[0];
+        const b = ts[1];
+        return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      };
+      const distOf = function (ts) {
+        const dx = ts[1].clientX - ts[0].clientX;
+        const dy = ts[1].clientY - ts[0].clientY;
+        return Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      };
+      const beginPinch = function (ts) {
+        pinch = { startDist: distOf(ts) };
+        blocked = true;
+        const c = centerOf(ts);
+        fire('pinchStart', c.x, c.y);
+      };
+      const movePinch = function (ts) {
+        if (!pinch) beginPinch(ts);
+        else {
+          const c = centerOf(ts);
+          fire('pinch', distOf(ts) / pinch.startDist, c.x, c.y);
+        }
+      };
+      const endPinch = function (remain) {
+        if (pinch) {
+          pinch = null;
+          fire('pinchEnd', -999, -999);
+        }
+        if (remain === 0) blocked = false;
+      };
+
       if (api) {
         api.onTouchStart(function (res) {
-          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          const ts = res.touches || [];
+          if (ts.length >= 2) {
+            if (!pinch) beginPinch(ts);
+            return;
+          }
+          if (blocked) return;
+          const t = ts[0] || (res.changedTouches && res.changedTouches[0]);
           if (t) fire('start', t.clientX, t.clientY);
         });
         api.onTouchMove(function (res) {
-          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          const ts = res.touches || [];
+          if (ts.length >= 2) {
+            movePinch(ts);
+            return;
+          }
+          if (blocked || pinch) return;
+          const t = ts[0] || (res.changedTouches && res.changedTouches[0]);
           if (t) fire('move', t.clientX, t.clientY);
         });
         api.onTouchEnd(function (res) {
+          const remain = (res.touches || []).length;
+          if (pinch || blocked) {
+            endPinch(remain);
+            return;
+          }
           const t = (res.changedTouches && res.changedTouches[0]) || (res.touches && res.touches[0]);
           if (t) fire('end', t.clientX, t.clientY);
           else fire('end', -999, -999);
         });
+        if (api.onTouchCancel) {
+          api.onTouchCancel(function () {
+            pinch = null;
+            blocked = false;
+            fire('pinchEnd', -999, -999);
+          });
+        }
         return;
       }
 
@@ -202,19 +261,45 @@ function createRuntime() {
       });
       canvas.addEventListener('touchstart', function (e) {
         e.preventDefault();
-        const p = rectPoint(e.touches[0]);
-        fire('start', p[0], p[1]);
+        const pts = Array.prototype.map.call(e.touches, function (t) {
+          const p = rectPoint(t);
+          return { clientX: p[0], clientY: p[1] };
+        });
+        if (pts.length >= 2) {
+          if (!pinch) beginPinch(pts);
+          return;
+        }
+        if (blocked || !pts.length) return;
+        fire('start', pts[0].clientX, pts[0].clientY);
       }, { passive: false });
       canvas.addEventListener('touchmove', function (e) {
         e.preventDefault();
-        const p = rectPoint(e.touches[0]);
-        fire('move', p[0], p[1]);
+        const pts = Array.prototype.map.call(e.touches, function (t) {
+          const p = rectPoint(t);
+          return { clientX: p[0], clientY: p[1] };
+        });
+        if (pts.length >= 2) {
+          movePinch(pts);
+          return;
+        }
+        if (blocked || pinch || !pts.length) return;
+        fire('move', pts[0].clientX, pts[0].clientY);
       }, { passive: false });
       canvas.addEventListener('touchend', function (e) {
         e.preventDefault();
+        const remain = e.touches.length;
+        if (pinch || blocked) {
+          endPinch(remain);
+          return;
+        }
         const t = e.changedTouches[0];
+        if (!t) return;
         const p = rectPoint(t);
         fire('end', p[0], p[1]);
+      }, { passive: false });
+      canvas.addEventListener('touchcancel', function (e) {
+        const remain = e.touches.length;
+        if (pinch || blocked) endPinch(remain);
       }, { passive: false });
     },
     storage: {
@@ -7958,23 +8043,29 @@ function ensureCam(app) {
   app.mapCam.y = clamp(app.mapCam.y, Math.min(0, maxY), Math.max(0, maxY));
 }
 
-/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人 */
+/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人；双指可以在这之间无级放大 */
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 1.8;
 const ZOOM_STEPS = [0.72, 1, 1.42];
 const ZOOM_NAMES = ['远望', '常规', '近看'];
 
+function zoomName(z) {
+  if (z < 0.86) return ZOOM_NAMES[0];
+  if (z < 1.22) return ZOOM_NAMES[1];
+  return ZOOM_NAMES[2];
+}
+
 function setZoom(app) {
   if (app.mapZoom === undefined || app.mapZoom === null) app.mapZoom = 1;
-  const i = ZOOM_STEPS.indexOf(app.mapZoom);
-  app.mapZoom = i >= 0 ? ZOOM_STEPS[i] : 1;
+  app.mapZoom = clamp(app.mapZoom, ZOOM_MIN, ZOOM_MAX);
   TS = TILE * app.mapZoom;
 }
 
 function applyZoom(app, dir) {
   const cur = app.mapZoom || 1;
-  const i = ZOOM_STEPS.indexOf(cur);
-  const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 1 : i) + dir));
-  app.mapZoom = ZOOM_STEPS[ni];
-  TS = TILE * app.mapZoom;
+  const next = clamp(cur * (dir > 0 ? 1.25 : 1 / 1.25), ZOOM_MIN, ZOOM_MAX);
+  app.mapZoom = next;
+  TS = TILE * next;
   // 换档后重新把玩家摆到正中，别让视野莫名跳到边角
   const box = mapBox(app);
   const p = app.state.player;
@@ -7982,8 +8073,9 @@ function applyZoom(app, dir) {
     x: p.x * TS + TS / 2 - app.runtime.width / 2,
     y: p.y * TS + TS / 2 - box.h / 2,
   };
+  app.mapFree = false;
   ensureCam(app);
-  app.showToast('地图：' + ZOOM_NAMES[ni], 1.2);
+  app.showToast('地图：' + zoomName(next), 1.2);
 }
 
 function drawZoomButtons(ctx, app, box, w) {
@@ -7999,7 +8091,7 @@ function drawZoomButtons(ctx, app, box, w) {
     id: 'zoom_out', size: 26, fill: 'rgba(30,24,18,0.82)',
     onTap: function () { applyZoom(app, -1); },
   });
-  text(ctx, ZOOM_NAMES[ZOOM_STEPS.indexOf(app.mapZoom) < 0 ? 1 : ZOOM_STEPS.indexOf(app.mapZoom)],
+  text(ctx, zoomName(app.mapZoom) + ' ×' + (app.mapZoom || 1).toFixed(1),
     x + bw / 2, y0 + bh * 2 + 18, { size: 13, align: 'center', color: '#a2947a' });
 }
 
@@ -8268,6 +8360,39 @@ const MapScene = {
       if (wasFollowing) stateLib.stopMoving(st);
       app.showToast(r.msg);
     }
+  },
+
+  onPinchStart(app, x, y) {
+    // 两指一落下，就把单指的拖动/追人全放掉，专心缩放
+    app.mapDrag = null;
+    app.follow = null;
+    app.mapFree = true;
+    app.mapPinch = { zoom: app.mapZoom || 1 };
+  },
+
+  onPinch(app, scale, cx, cy) {
+    if (!app.mapPinch || !app.mapCam) return;
+    const box = mapBox(app);
+    if (cy < box.top || cy > box.top + box.h) return;
+    const oldTS = TS;
+    const next = clamp(app.mapPinch.zoom * scale, ZOOM_MIN, ZOOM_MAX);
+    const nextTS = TILE * next;
+    if (!isFinite(nextTS) || nextTS <= 0) return;
+
+    // 按住的地方不跑：先算出指下是哪一格，再按新格宽摆回去
+    const gx = (cx + app.mapCam.x) / oldTS;
+    const gy = (cy - TOP_H + app.mapCam.y) / oldTS;
+    app.mapZoom = next;
+    TS = nextTS;
+    app.mapCam.x = gx * nextTS - cx;
+    app.mapCam.y = gy * nextTS - (cy - TOP_H);
+    ensureCam(app);
+  },
+
+  onPinchEnd(app) {
+    app.mapPinch = null;
+    app.mapDrag = null;
+    app.follow = null;
   },
 };
 
@@ -8874,7 +8999,7 @@ function drawBottom(ctx, app, w, box) {
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
   const hint = (p.route && p.route.length
     ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 拖动平移 · 右上可缩放'))
+    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))
     + warTxt;
   text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
 }
@@ -9190,7 +9315,7 @@ const AtlasScene = {
       text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, { size: 13, color: '#c9bda2' });
     });
 
-    text(ctx, '当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 56, {
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 56, {
       size: 13, color: '#8a8070',
     });
   },
@@ -9225,6 +9350,37 @@ const AtlasScene = {
         app.atlasLastTap = now;
       }
     }
+  },
+  onPinchStart(app, x, y) {
+    app.atlasDrag = null;
+    app.atlasLastTap = 0;
+    app.atlasPinch = { zoom: app.atlasZoom || 1 };
+  },
+
+  onPinch(app, scale, cx, cy) {
+    if (!app.atlasPinch) return;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const world = app.state.world;
+    const baseCell = Math.min((w - MAP_LEFT * 2) / world.w, (h - MAP_TOP - 150) / world.h);
+    const viewH = h - MAP_TOP - 150;
+    const oldCell = baseCell * (app.atlasZoom || 1);
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, app.atlasPinch.zoom * scale));
+    const newCell = baseCell * next;
+    if (!app.atlasCenter) app.atlasCenter = { x: world.w / 2, y: world.h / 2 };
+    const c = app.atlasCenter;
+
+    // 指下那一点不动：按新旧格宽把视野中心挪回去
+    const gx = c.x + (cx - w / 2) / oldCell;
+    const gy = c.y + (cy - (MAP_TOP + 6 + Math.min(viewH, oldCell * world.h) / 2)) / oldCell;
+    app.atlasZoom = next;
+    c.x = gx - (cx - w / 2) / newCell;
+    c.y = gy - (cy - (MAP_TOP + 6 + Math.min(viewH, newCell * world.h) / 2)) / newCell;
+  },
+
+  onPinchEnd(app) {
+    app.atlasPinch = null;
+    app.atlasDrag = null;
   },
 };
 
@@ -13493,6 +13649,15 @@ class App {
       end: function (x, y) {
         self.onEnd(x, y);
       },
+      pinchStart: function (x, y) {
+        self.onPinchStart(x, y);
+      },
+      pinch: function (scale, x, y) {
+        self.onPinch(scale, x, y);
+      },
+      pinchEnd: function () {
+        self.onPinchEnd();
+      },
     });
   }
 
@@ -13552,6 +13717,22 @@ class App {
       text: message,
       time: seconds || 2.2,
     };
+  }
+
+  onPinchStart(x, y) {
+    this.ui.pressed = null;
+    const top = this.top();
+    if (top && top.scene.onPinchStart) top.scene.onPinchStart(this, x, y);
+  }
+
+  onPinch(scale, x, y) {
+    const top = this.top();
+    if (top && top.scene.onPinch) top.scene.onPinch(this, scale, x, y);
+  }
+
+  onPinchEnd() {
+    const top = this.top();
+    if (top && top.scene.onPinchEnd) top.scene.onPinchEnd(this);
   }
 
   onStart(x, y) {

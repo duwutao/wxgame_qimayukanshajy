@@ -47,23 +47,29 @@ function ensureCam(app) {
   app.mapCam.y = clamp(app.mapCam.y, Math.min(0, maxY), Math.max(0, maxY));
 }
 
-/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人 */
+/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人；双指可以在这之间无级放大 */
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 1.8;
 const ZOOM_STEPS = [0.72, 1, 1.42];
 const ZOOM_NAMES = ['远望', '常规', '近看'];
 
+function zoomName(z) {
+  if (z < 0.86) return ZOOM_NAMES[0];
+  if (z < 1.22) return ZOOM_NAMES[1];
+  return ZOOM_NAMES[2];
+}
+
 function setZoom(app) {
   if (app.mapZoom === undefined || app.mapZoom === null) app.mapZoom = 1;
-  const i = ZOOM_STEPS.indexOf(app.mapZoom);
-  app.mapZoom = i >= 0 ? ZOOM_STEPS[i] : 1;
+  app.mapZoom = clamp(app.mapZoom, ZOOM_MIN, ZOOM_MAX);
   TS = TILE * app.mapZoom;
 }
 
 function applyZoom(app, dir) {
   const cur = app.mapZoom || 1;
-  const i = ZOOM_STEPS.indexOf(cur);
-  const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 1 : i) + dir));
-  app.mapZoom = ZOOM_STEPS[ni];
-  TS = TILE * app.mapZoom;
+  const next = clamp(cur * (dir > 0 ? 1.25 : 1 / 1.25), ZOOM_MIN, ZOOM_MAX);
+  app.mapZoom = next;
+  TS = TILE * next;
   // 换档后重新把玩家摆到正中，别让视野莫名跳到边角
   const box = mapBox(app);
   const p = app.state.player;
@@ -71,8 +77,9 @@ function applyZoom(app, dir) {
     x: p.x * TS + TS / 2 - app.runtime.width / 2,
     y: p.y * TS + TS / 2 - box.h / 2,
   };
+  app.mapFree = false;
   ensureCam(app);
-  app.showToast('地图：' + ZOOM_NAMES[ni], 1.2);
+  app.showToast('地图：' + zoomName(next), 1.2);
 }
 
 function drawZoomButtons(ctx, app, box, w) {
@@ -88,7 +95,7 @@ function drawZoomButtons(ctx, app, box, w) {
     id: 'zoom_out', size: 26, fill: 'rgba(30,24,18,0.82)',
     onTap: function () { applyZoom(app, -1); },
   });
-  text(ctx, ZOOM_NAMES[ZOOM_STEPS.indexOf(app.mapZoom) < 0 ? 1 : ZOOM_STEPS.indexOf(app.mapZoom)],
+  text(ctx, zoomName(app.mapZoom) + ' ×' + (app.mapZoom || 1).toFixed(1),
     x + bw / 2, y0 + bh * 2 + 18, { size: 13, align: 'center', color: '#a2947a' });
 }
 
@@ -357,6 +364,39 @@ const MapScene = {
       if (wasFollowing) stateLib.stopMoving(st);
       app.showToast(r.msg);
     }
+  },
+
+  onPinchStart(app, x, y) {
+    // 两指一落下，就把单指的拖动/追人全放掉，专心缩放
+    app.mapDrag = null;
+    app.follow = null;
+    app.mapFree = true;
+    app.mapPinch = { zoom: app.mapZoom || 1 };
+  },
+
+  onPinch(app, scale, cx, cy) {
+    if (!app.mapPinch || !app.mapCam) return;
+    const box = mapBox(app);
+    if (cy < box.top || cy > box.top + box.h) return;
+    const oldTS = TS;
+    const next = clamp(app.mapPinch.zoom * scale, ZOOM_MIN, ZOOM_MAX);
+    const nextTS = TILE * next;
+    if (!isFinite(nextTS) || nextTS <= 0) return;
+
+    // 按住的地方不跑：先算出指下是哪一格，再按新格宽摆回去
+    const gx = (cx + app.mapCam.x) / oldTS;
+    const gy = (cy - TOP_H + app.mapCam.y) / oldTS;
+    app.mapZoom = next;
+    TS = nextTS;
+    app.mapCam.x = gx * nextTS - cx;
+    app.mapCam.y = gy * nextTS - (cy - TOP_H);
+    ensureCam(app);
+  },
+
+  onPinchEnd(app) {
+    app.mapPinch = null;
+    app.mapDrag = null;
+    app.follow = null;
   },
 };
 
@@ -963,7 +1003,7 @@ function drawBottom(ctx, app, w, box) {
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
   const hint = (p.route && p.route.length
     ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 拖动平移 · 右上可缩放'))
+    : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))
     + warTxt;
   text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
 }

@@ -141,20 +141,79 @@ function createRuntime() {
         if (fn) fn(toDesignX(x), toDesignY(y));
       };
 
+      // 双指缩放：两指落下后，单指的点击/拖动全部让位给缩放
+      let pinch = null;
+      let blocked = false;
+
+      const centerOf = function (ts) {
+        const a = ts[0];
+        const b = ts[1];
+        return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      };
+      const distOf = function (ts) {
+        const dx = ts[1].clientX - ts[0].clientX;
+        const dy = ts[1].clientY - ts[0].clientY;
+        return Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      };
+      const beginPinch = function (ts) {
+        pinch = { startDist: distOf(ts) };
+        blocked = true;
+        const c = centerOf(ts);
+        fire('pinchStart', c.x, c.y);
+      };
+      const movePinch = function (ts) {
+        if (!pinch) beginPinch(ts);
+        else {
+          const c = centerOf(ts);
+          fire('pinch', distOf(ts) / pinch.startDist, c.x, c.y);
+        }
+      };
+      const endPinch = function (remain) {
+        if (pinch) {
+          pinch = null;
+          fire('pinchEnd', -999, -999);
+        }
+        if (remain === 0) blocked = false;
+      };
+
       if (api) {
         api.onTouchStart(function (res) {
-          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          const ts = res.touches || [];
+          if (ts.length >= 2) {
+            if (!pinch) beginPinch(ts);
+            return;
+          }
+          if (blocked) return;
+          const t = ts[0] || (res.changedTouches && res.changedTouches[0]);
           if (t) fire('start', t.clientX, t.clientY);
         });
         api.onTouchMove(function (res) {
-          const t = (res.touches && res.touches[0]) || (res.changedTouches && res.changedTouches[0]);
+          const ts = res.touches || [];
+          if (ts.length >= 2) {
+            movePinch(ts);
+            return;
+          }
+          if (blocked || pinch) return;
+          const t = ts[0] || (res.changedTouches && res.changedTouches[0]);
           if (t) fire('move', t.clientX, t.clientY);
         });
         api.onTouchEnd(function (res) {
+          const remain = (res.touches || []).length;
+          if (pinch || blocked) {
+            endPinch(remain);
+            return;
+          }
           const t = (res.changedTouches && res.changedTouches[0]) || (res.touches && res.touches[0]);
           if (t) fire('end', t.clientX, t.clientY);
           else fire('end', -999, -999);
         });
+        if (api.onTouchCancel) {
+          api.onTouchCancel(function () {
+            pinch = null;
+            blocked = false;
+            fire('pinchEnd', -999, -999);
+          });
+        }
         return;
       }
 
@@ -188,19 +247,45 @@ function createRuntime() {
       });
       canvas.addEventListener('touchstart', function (e) {
         e.preventDefault();
-        const p = rectPoint(e.touches[0]);
-        fire('start', p[0], p[1]);
+        const pts = Array.prototype.map.call(e.touches, function (t) {
+          const p = rectPoint(t);
+          return { clientX: p[0], clientY: p[1] };
+        });
+        if (pts.length >= 2) {
+          if (!pinch) beginPinch(pts);
+          return;
+        }
+        if (blocked || !pts.length) return;
+        fire('start', pts[0].clientX, pts[0].clientY);
       }, { passive: false });
       canvas.addEventListener('touchmove', function (e) {
         e.preventDefault();
-        const p = rectPoint(e.touches[0]);
-        fire('move', p[0], p[1]);
+        const pts = Array.prototype.map.call(e.touches, function (t) {
+          const p = rectPoint(t);
+          return { clientX: p[0], clientY: p[1] };
+        });
+        if (pts.length >= 2) {
+          movePinch(pts);
+          return;
+        }
+        if (blocked || pinch || !pts.length) return;
+        fire('move', pts[0].clientX, pts[0].clientY);
       }, { passive: false });
       canvas.addEventListener('touchend', function (e) {
         e.preventDefault();
+        const remain = e.touches.length;
+        if (pinch || blocked) {
+          endPinch(remain);
+          return;
+        }
         const t = e.changedTouches[0];
+        if (!t) return;
         const p = rectPoint(t);
         fire('end', p[0], p[1]);
+      }, { passive: false });
+      canvas.addEventListener('touchcancel', function (e) {
+        const remain = e.touches.length;
+        if (pinch || blocked) endPinch(remain);
       }, { passive: false });
     },
     storage: {

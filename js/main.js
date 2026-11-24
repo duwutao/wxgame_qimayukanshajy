@@ -73,6 +73,15 @@ class App {
       end: function (x, y) {
         self.onEnd(x, y);
       },
+      pinchStart: function (x, y) {
+        self.onPinchStart(x, y);
+      },
+      pinch: function (scale, x, y) {
+        self.onPinch(scale, x, y);
+      },
+      pinchEnd: function () {
+        self.onPinchEnd();
+      },
     });
   }
 
@@ -132,6 +141,22 @@ class App {
       text: message,
       time: seconds || 2.2,
     };
+  }
+
+  onPinchStart(x, y) {
+    this.ui.pressed = null;
+    const top = this.top();
+    if (top && top.scene.onPinchStart) top.scene.onPinchStart(this, x, y);
+  }
+
+  onPinch(scale, x, y) {
+    const top = this.top();
+    if (top && top.scene.onPinch) top.scene.onPinch(this, scale, x, y);
+  }
+
+  onPinchEnd() {
+    const top = this.top();
+    if (top && top.scene.onPinchEnd) top.scene.onPinchEnd(this);
   }
 
   onStart(x, y) {

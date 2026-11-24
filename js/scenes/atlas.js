@@ -303,7 +303,7 @@ const AtlasScene = {
       text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, { size: 13, color: '#c9bda2' });
     });
 
-    text(ctx, '当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 56, {
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 56, {
       size: 13, color: '#8a8070',
     });
   },
@@ -338,6 +338,37 @@ const AtlasScene = {
         app.atlasLastTap = now;
       }
     }
+  },
+  onPinchStart(app, x, y) {
+    app.atlasDrag = null;
+    app.atlasLastTap = 0;
+    app.atlasPinch = { zoom: app.atlasZoom || 1 };
+  },
+
+  onPinch(app, scale, cx, cy) {
+    if (!app.atlasPinch) return;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const world = app.state.world;
+    const baseCell = Math.min((w - MAP_LEFT * 2) / world.w, (h - MAP_TOP - 150) / world.h);
+    const viewH = h - MAP_TOP - 150;
+    const oldCell = baseCell * (app.atlasZoom || 1);
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, app.atlasPinch.zoom * scale));
+    const newCell = baseCell * next;
+    if (!app.atlasCenter) app.atlasCenter = { x: world.w / 2, y: world.h / 2 };
+    const c = app.atlasCenter;
+
+    // 指下那一点不动：按新旧格宽把视野中心挪回去
+    const gx = c.x + (cx - w / 2) / oldCell;
+    const gy = c.y + (cy - (MAP_TOP + 6 + Math.min(viewH, oldCell * world.h) / 2)) / oldCell;
+    app.atlasZoom = next;
+    c.x = gx - (cx - w / 2) / newCell;
+    c.y = gy - (cy - (MAP_TOP + 6 + Math.min(viewH, newCell * world.h) / 2)) / newCell;
+  },
+
+  onPinchEnd(app) {
+    app.atlasPinch = null;
+    app.atlasDrag = null;
   },
 };
 

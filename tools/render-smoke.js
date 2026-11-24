@@ -516,6 +516,42 @@ smoke('大地图：点领主跟着走，点别处就松开', function () {
   ok('走完也不回头追', !app.follow, app.follow && app.follow.id);
 });
 
+smoke('双指缩放：大地图与天下图', function () {
+  const st = app.state = stateLib.createGame({ seed: 4329 });
+  st.events.length = 0;
+  app.replace('map');
+  app.mapZoom = 1;
+  app.mapFree = false;
+  app.ui.begin();
+  app.top().scene.render(app);
+  const mapScene = app.top().scene;
+  const cam0 = { x: app.mapCam.x, y: app.mapCam.y };
+  const cx = 375, cy = 600;
+  const beforeX = (cx + cam0.x) / 64;
+  const beforeY = (cy - 132 + cam0.y) / 64;
+  mapScene.onPinchStart(app, cx, cy);
+  mapScene.onPinch(app, 1.6, cx, cy);
+  ok('大地图双指放大', app.mapZoom > 1.4, app.mapZoom);
+  const afterX = (cx + app.mapCam.x) / (64 * app.mapZoom);
+  const afterY = (cy - 132 + app.mapCam.y) / (64 * app.mapZoom);
+  ok('放大时指下不动', Math.abs(afterX - beforeX) < 0.05 && Math.abs(afterY - beforeY) < 0.05,
+    beforeX.toFixed(2) + '→' + afterX.toFixed(2));
+  mapScene.onPinch(app, 0.2, cx, cy);
+  ok('大地图双指缩小有底', app.mapZoom <= 0.61, app.mapZoom);
+  mapScene.onPinchEnd(app);
+
+  app.replace('atlas');
+  app.atlasZoom = 1;
+  app.atlasCenter = null;
+  const atlasScene = app.top().scene;
+  atlasScene.onPinchStart(app, 375, 500);
+  atlasScene.onPinch(app, 2.4, 375, 500);
+  ok('天下图双指放大', app.atlasZoom > 2.2, app.atlasZoom);
+  atlasScene.onPinch(app, 0.05, 375, 500);
+  ok('天下图缩回整图', app.atlasZoom === 1, app.atlasZoom);
+  atlasScene.onPinchEnd(app);
+});
+
 smoke('市场默认先看粮草，货物有转卖备注', function () {
   app.state = stateLib.createGame({ seed: 4324 });
   app.state.events.length = 0;
