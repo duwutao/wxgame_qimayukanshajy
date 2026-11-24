@@ -33,11 +33,20 @@ const { LORD_BIOS } = require('../data/bios.js');
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
 const LORD_RESPAWN_DAYS = 12;
+/** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
+const CAMP_RESPAWN_DAYS = 5;
 const SAVE_VERSION = 5; // 天下放大到 128x154，旧档地图对不上，直接换新
 
 /** 全图常驻匪团目标数量（玩家附近看得见，远处也算） */
 const BANDIT_TARGET = 12;
 const BANDIT_MAX = 16;
+
+/** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
+const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true };
+
+function joinRenownReq(factionId) {
+  return MAJOR_FACTIONS[factionId] ? 200 : 100;
+}
 
 function deepCopy(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -89,10 +98,29 @@ function createGame(opts) {
   const world = createWorld(seed);
 
   world.sites.forEach(function (site) {
+    let h = 0;
+    for (let i = 0; i < site.id.length; i++) h = (h * 31 + site.id.charCodeAt(i)) % 9973;
     site.recruits = {};
     (site.recruitList || []).forEach(function (id) {
       site.recruits[id] = rng.int(1, site.recruitCap || 4);
     });
+    // 村市口粮是“村里现有的那点东西”，不是无限货架：每样最多 1-5 份。
+    // 用稳定散列，不额外消耗世界随机数，保证同一种子的开局与旧版一致。
+    site.foodStock = {};
+    if (site.type === 'village') {
+      VILLAGE_FOOD.forEach(function (f, i) {
+        const cap = f.stockMax || 3;
+        site.foodStock[f.id] = 1 + ((h + i * 17) % cap);
+      });
+    }
+    // 领主招兵走另一口锅：和玩家的招募池分开，互不抢人
+    site.lordRecruits = {};
+    if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
+      const lcap = site.type === 'village' ? 2 : 4;
+      (site.recruitList || []).forEach(function (id, i) {
+        site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
+      });
+    }
   });
 
   // 开局：洛阳东门外，只剩九名溃兵
@@ -338,6 +366,22 @@ function spawnBanditParties(state, count) {
   }
 }
 
+/** 山寨刷新：被清空后过几天重新聚人；洗劫态期间只剩火烧过的空营 */
+function campRespawnTick(state) {
+  state.world.sites.forEach(function (site) {
+    if (!site || site.type !== 'camp' || !site.cleared) return;
+    if (!site.respawnDay) {
+      site.respawnDay = (site.lootedDay || state.clock.day) + CAMP_RESPAWN_DAYS;
+    }
+    if (state.clock.day < site.respawnDay) return;
+    site.cleared = false;
+    site.looted = false;
+    site.lootedDay = null;
+    site.respawnDay = null;
+    site.garrison = site.garrisonBase || site.garrison || 40;
+  });
+}
+
 /** 补充匪团到目标数量，避开玩家脚下 */
 function refillBandits(state) {
   const alive = state.parties.filter(function (x) { return x.faction === 'bandit'; }).length;
@@ -385,14 +429,15 @@ function changeRelation(state, factionId, delta) {
 
 function isHostileSite(state, site) {
   if (!site) return false;
-  if (site.type === 'camp' && !site.cleared) return true;
+  // 洗劫过的山寨不再是军事目标：只剩废墟，点进去看火烧过的空营
+  if (site.type === 'camp') return !site.cleared;
   if (site.playerOwned) return false;
   return isHostileFaction(state, site.ownerFaction);
 }
 
 function siteStatus(state, site) {
   if (site.playerOwned) return '你的领地';
-  if (site.type === 'camp' && !site.cleared) return '贼巢 · 可攻';
+  if (site.type === 'camp') return site.cleared ? '废墟 · 已洗劫' : '贼巢 · 可攻';
   if (!site.ownerFaction) return '无主';
   if (isHostileFaction(state, site.ownerFaction)) return '敌对';
   return '可进入';
@@ -476,6 +521,10 @@ function startRest(state, site) {
   stopMoving(state);
   state.player.atSiteId = site.id;
   state.player.resting = site.id;
+  if (site.type === 'village') {
+    pushLog(state, '你在' + site.name + '的柴房里歇下。粮吃得慢一半，可村里藏不住人，追兵会摸进来。');
+    return { ok: true, msg: '在' + site.name + '歇下：粮耗减半；村里藏不住人，追兵仍会摸进来' };
+  }
   pushLog(state, '你在' + site.name + '的客栈里歇下了。城外的旗照旧在动，你的粮吃得慢了一半。');
   return { ok: true, msg: '在' + site.name + '歇下：粮耗减半，暂时没人来追你' };
 }
@@ -487,6 +536,14 @@ function stopRest(state) {
 
 function isResting(state) {
   return !!(state && state.player && state.player.resting);
+}
+
+/** 城里/关隘歇下才算躲开追兵；村庄藏不住人，粮耗照样减半，但追兵能摸进来 */
+function isSafeResting(state) {
+  const p = state && state.player;
+  if (!p || !p.resting) return false;
+  const site = siteById(state.world, p.resting);
+  return !!site && site.type !== 'village';
 }
 
 /* ---------------------------------------------------------------- 时间 */
@@ -546,6 +603,7 @@ function dailyTick(state) {
   trade.dailyGoods(state, state.rng);
 
   // 匪团补充：维持全图常驻数量（太少没得打，太多寸步难行）
+  campRespawnTick(state);
   refillBandits(state);
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
@@ -568,18 +626,8 @@ function dailyTick(state) {
     }
   });
 
-  // 在自己城里养兵的领主每天补一点人：编制还在，位置也在
-  state.lords.forEach(function (lord) {
-    if (!lord.alive || lord.prisoner) return;
-    const home = siteById(state.world, lord.home);
-    if (!home) return;
-    if (lord.x !== home.x || lord.y !== home.y) return;
-    const full = army.troopCount(lord.defTroops || {});
-    if (full <= 0) return;
-    const now = army.troopCount(lord.troops || {});
-    if (now >= full) return;
-    refillLord(lord, Math.max(2, Math.round(full * 0.12)));
-  });
+  // 领主在自己的城镇/村庄招兵：用独立的领主兵源池，和玩家招募互不冲突
+  lordRecruitTick(state);
 
   // 自立的人手下有领主：跟仇家自动开打，否则这些领主只会站着
   if (state.lords.some(function (l) { return l.faction === 'player' && l.alive; })) {
@@ -702,7 +750,7 @@ function onArrive(state, x, y) {
 
 /** 只有真的踩到同一格才算撞上；贴着脸站不算 */
 function adjacentEnemy(state, x, y) {
-  if (isResting(state)) return null;
+  if (isSafeResting(state)) return null;
   let best = null;
   const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
@@ -720,8 +768,8 @@ function adjacentEnemy(state, x, y) {
 function checkPursuit(state) {
   const p = state.player;
   if (state.events.length) return;
-  // 人在城里歇着，外面的人找不到你
-  if (isResting(state)) return;
+  // 人在城里/关隘歇着，外面的人找不到你；在村庄躲着不算，追兵照样能摸进来
+  if (isSafeResting(state)) return;
   const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   for (let i = 0; i < all.length; i++) {
@@ -771,7 +819,7 @@ function giveWay(state, unitId, kind) {
     }
   }
   const cost = giveWayCost(state, unit);
-  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金，你身上只有 ' + p.gold + '。' };
+  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金钱，你身上只有 ' + p.gold + '。' };
   p.gold -= cost;
   const now = gameHours(state);
   unit.cooldownH = now + 24;
@@ -779,31 +827,47 @@ function giveWay(state, unitId, kind) {
   unit.chasing = false;
   if (isLord) changeRelation(state, unit.faction, -2);
   p.renown = Math.max(0, p.renown - 2);
-  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
-  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金脱身，一天之内他不会追上来。' };
+  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金钱买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
+  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金钱脱身，一天之内他不会追上来。' };
 }
 
-/** 留人断后：折一部分兵，换他原地停几个时辰 */
+/** 留人断后：折一部分兵，换他原地停几个时辰；西凉铁骑只吃这一套，停八小时 */
 function breakTail(state, unitId, kind) {
   const p = state.player;
   const unit = kind === 'party'
     ? state.parties.filter(function (x) { return x.id === unitId; })[0]
     : state.lords.filter(function (x) { return x.id === unitId; })[0];
   if (!unit) return { ok: false, msg: '人已经不在了' };
+  const scripted = !!unit.scripted;
   const count = army.troopCount(p.troops);
   if (count <= 1) {
     stopMoving(state);
+    if (scripted) {
+      endGame(state, 'killed',
+        '西凉铁骑追上来时，你身边已经没人可以留下断后。\n马踏过冻土，刀落下去。\n你的名字没有写进任何一本史书。',
+        '剧终');
+      return { ok: true, ended: true, msg: '无人断后。你被西凉铁骑追杀，死在路上。' };
+    }
     return { ok: false, msg: '手下只剩你一个，留不下人断后。' };
   }
-  const lose = Math.max(1, Math.round(count * 0.22));
+  const lose = scripted ? Math.max(1, Math.min(3, count - 1)) : Math.max(1, Math.round(count * 0.22));
   army.distributeLosses(p.troops, lose);
   state.stats.troopsLost += lose;
-  p.morale = Math.max(0, p.morale - 6);
+  p.morale = Math.max(0, p.morale - (scripted ? 8 : 6));
   const now = gameHours(state);
-  const pause = 3 + state.rng.int(0, 3);
+  const pause = scripted ? 8 : 3 + state.rng.int(0, 3);
   unit.pauseUntil = now + pause;
   unit.cooldownH = now + pause + 1;
   unit.chasing = false;
+  if (scripted) {
+    // 断后成功后铁骑不再主动追；只有玩家再贴到一格以内才会重新咬上来
+    unit.dormant = true;
+    pushLog(state, '你留下 ' + lose + ' 人断后。西凉铁骑停下来收拾这队人，会在这里停八个时辰。', 'war');
+    return {
+      ok: true, lose: lose, pause: pause,
+      msg: '折了 ' + lose + ' 人。西凉铁骑在原地停 8 小时；之后除非你再贴到它脸上，否则不会再追。',
+    };
+  }
   pushLog(state, '你留下 ' + lose + ' 人断后。' + unit.name + '在原地收拾这队人，你趁这半天跑出去。', 'war');
   return { ok: true, lose: lose, pause: pause, msg: '折了 ' + lose + ' 人，他会在原地停 ' + pause + ' 小时，然后接着追。' };
 }
@@ -883,10 +947,31 @@ function settleUnitSteps(state) {
 
 function moveParties(state) {
   const p = state.player;
+  const nowH = gameHours(state);
   state.parties.forEach(function (party) {
+    // 断后/买路约好的停战时辰，匪团也必须遵守，否则刚断完后脚又贴上来
+    if (party.pauseUntil && nowH < party.pauseUntil) {
+      party.chasing = false;
+      return;
+    }
     if (party.slow) {
       party.tick = (party.tick || 0) + 1;
       if (party.tick % party.slow !== 0) return;
+    }
+    // 西凉铁骑：只咬玩家，不跟领主互殴；断后之后除非玩家贴到脸上，否则原地不动
+    if (party.scripted) {
+      const dist = gridDistance(party, p);
+      if (party.dormant) {
+        if (dist > 1) {
+          party.chasing = false;
+          return;
+        }
+        party.dormant = false;
+      }
+      party.chasing = true;
+      const step = greedyStep(state, party, { x: p.x, y: p.y });
+      if (step) stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
+      return;
     }
     // 见着大兵就溜：匪团轻装，领主辎重多，追不上
     const lord = nearestLord(state, party, 3);
@@ -897,7 +982,7 @@ function moveParties(state) {
     }
     const dist = gridDistance(party, p);
     let target;
-    if (!isResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
+    if (!isSafeResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
       target = { x: p.x, y: p.y };
       party.chasing = true;
     } else {
@@ -937,6 +1022,47 @@ function refillLord(lord, n) {
   return lord.troops;
 }
 
+/** 领主在自己的城镇/村庄招兵：从领主专属兵源池里拿，不碰玩家的 site.recruits */
+function recruitLordFromSite(state, lord, site, quota) {
+  if (!lord || !site || !lord.defTroops) return 0;
+  const pool = site.lordRecruits || {};
+  const list = site.recruitList || [];
+  let left = Math.max(0, Math.round(quota));
+  let got = 0;
+  while (left > 0) {
+    let best = null;
+    list.forEach(function (id) {
+      if ((pool[id] || 0) <= 0) return;
+      const gap = (lord.defTroops[id] || 0) - (lord.troops[id] || 0);
+      if (gap <= 0) return;
+      if (!best || gap > best.gap) best = { id: id, gap: gap };
+    });
+    if (!best) break;
+    const put = Math.min(best.gap, left, pool[best.id]);
+    if (put <= 0) break;
+    lord.troops[best.id] = (lord.troops[best.id] || 0) + put;
+    pool[best.id] -= put;
+    left -= put;
+    got += put;
+  }
+  return got;
+}
+
+/** 每天让停在自家城镇/村庄的领主补一点兵；兵源与玩家分开 */
+function lordRecruitTick(state) {
+  state.lords.forEach(function (lord) {
+    if (!lord.alive || lord.prisoner) return;
+    const site = siteAt(state.world, lord.x, lord.y);
+    if (!site || (site.type !== 'town' && site.type !== 'castle' && site.type !== 'village')) return;
+    if (site.ownerFaction !== lord.faction) return;
+    const full = army.troopCount(lord.defTroops || {});
+    const now = army.troopCount(lord.troops || {});
+    if (full <= 0 || now >= full) return;
+    const quota = Math.max(1, Math.min(4, Math.round((full - now) * 0.12)));
+    recruitLordFromSite(state, lord, site, quota);
+  });
+}
+
 /** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
 function moveLords(state) {
   const p = state.player;
@@ -971,7 +1097,7 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 打残了先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.4));
-    if (isHostileFaction(state, lord.faction) && !paidOff && !isResting(state) && dist <= lord.sight && !needRest) {
+    if (isHostileFaction(state, lord.faction) && !paidOff && !isSafeResting(state) && dist <= lord.sight && !needRest) {
       target = { x: p.x, y: p.y };
       lord.chasing = true;
       lord.resting = false;
@@ -1135,7 +1261,14 @@ function greedyStep(state, unit, target) {
     const nx = unit.x + dirs[i][0];
     const ny = unit.y + dirs[i][1];
     if (!isPassable(state.world, nx, ny)) continue;
-    if (siteAt(state.world, nx, ny)) continue;
+    const site = siteAt(state.world, nx, ny);
+    if (site) {
+      // 村庄不是保险箱：追兵可以踩进村里把玩家揪出来
+      const p = state.player;
+      const inVillage = p && p.atSiteId === site.id && site.type === 'village' &&
+        target && target.x === p.x && target.y === p.y;
+      if (!inVillage) continue;
+    }
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
     if (d < bestD) {
       bestD = d;
@@ -1162,6 +1295,8 @@ function playerSide(state) {
 }
 
 function startPartyBattle(state, party) {
+  // 西凉铁骑是剧情追兵，不能拉出来正常对战；只能在被追上页留人断后
+  if (!party || party.scripted) return null;
   const battle = new Battle({
     rng: state.rng,
     attacker: playerSide(state),
@@ -1228,6 +1363,8 @@ function garrisonTroops(site) {
 }
 
 function startSiege(state, site) {
+  // 洗劫过的空营不能反复开战，否则 0 守军也能无限刷缴获
+  if (!site || (site.type === 'camp' && site.cleared)) return null;
   const battle = new Battle({
     rng: state.rng,
     attacker: playerSide(state),
@@ -1445,7 +1582,7 @@ function resolveBattle(state, battle) {
     const ctx = battle.context;
     if (ctx.kind === 'party' || ctx.kind === 'chase') {
       state.parties = state.parties.filter(function (x) { return x.id !== ctx.partyId; });
-      pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金，声望 +' + renownGain + '。');
+      pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金钱，声望 +' + renownGain + '。');
       if (ctx.kind === 'chase') {
         pushLog(state, '西凉铁骑退了。你回头看了一眼洛阳的方向，没再回头。');
         advanceCampaign(state);
@@ -1456,7 +1593,7 @@ function resolveBattle(state, battle) {
         const res = war.onPlayerBeatLord(state, lord);
         changeRelation(state, lord.faction, -35);
         if (res.captured) {
-          pushLog(state, '你生擒了' + lord.name + '，捆在营后。牢里等着家人拿 ' + res.ransom + ' 金来赎。');
+          pushLog(state, '你生擒了' + lord.name + '，捆在营后。牢里等着家人拿 ' + res.ransom + ' 金钱来赎。');
           summary.duelNote = '生擒 ' + lord.name + ' · 已押进牢里';
         } else if (res.killed) {
           pushLog(state, '阵前斩了' + lord.name + '。这消息传出去，' +
@@ -1492,7 +1629,7 @@ function resolveBattle(state, battle) {
     const lostFood = Math.round(p.food * 0.28);
     p.gold -= lostGold;
     p.food -= lostFood;
-    pushLog(state, '战败，被抢走 ' + lostGold + ' 金与 ' + lostFood + ' 粮。');
+    pushLog(state, '战败，被抢走 ' + lostGold + ' 金钱与 ' + lostFood + ' 粮。');
     heroes.gainHeroExp(state, 3);
     if (army.troopCount(p.troops) <= 0) {
       reviveAfterDefeat(state, 'battle');
@@ -1515,10 +1652,13 @@ function takeSite(state, site) {
   const p = state.player;
   if (site.type === 'camp') {
     site.cleared = true;
+    site.looted = true;
+    site.lootedDay = state.clock.day;
+    site.respawnDay = state.clock.day + CAMP_RESPAWN_DAYS;
     site.garrison = 0;
     p.renown += 45;
     p.gold += 120;
-    pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。');
+    pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。过 ' + CAMP_RESPAWN_DAYS + ' 天再来，看还有没有人聚起来。');
   } else {
     const oldFaction = site.ownerFaction;
     site.playerOwned = true;
@@ -1592,7 +1732,7 @@ function finishQuest(state, q) {
   state.player.renown += q.reward.renown;
   state.stats.goldEarned += q.reward.gold;
   if (q.faction) changeRelation(state, q.faction, 12);
-  pushLog(state, '交差：' + q.title + '，得 ' + q.reward.gold + ' 金、' + q.reward.renown + ' 声望。');
+  pushLog(state, '交差：' + q.title + '，得 ' + q.reward.gold + ' 金钱、' + q.reward.renown + ' 声望。');
 }
 
 function completeQuests(state, type, targetId) {
@@ -1638,8 +1778,11 @@ function joinFaction(state, site) {
   if (p.faction) return { ok: false, msg: '你已经效忠' + FACTIONS[p.faction].full };
   if (!site.ownerFaction || site.ownerFaction === 'bandit') return { ok: false, msg: '这里没有可效忠的旗' };
   if (site.playerOwned) return { ok: false, msg: '这是你自己的地盘' };
-  if (p.renown < 60) return { ok: false, msg: '声望不足 60，' + site.name + '的守将不见你' };
   const f = site.ownerFaction;
+  const req = joinRenownReq(f);
+  if (p.renown < req) {
+    return { ok: false, msg: '声望不足 ' + req + '，' + site.name + '的守将不见你' };
+  }
   p.faction = f;
   state.flags.sworn = true;
   changeRelation(state, f, 80);
@@ -1720,8 +1863,8 @@ function raidVillage(state, site) {
   // 屠村只掉 5 点关系，但村里会记很久
   if (site.ownerFaction) changeRelation(state, site.ownerFaction, -5);
   state.player.renown = Math.max(0, state.player.renown - 4);
-  pushLog(state, '你屠了' + site.name + '，得 ' + gold + ' 金、' + food + ' 粮。村口有人记住了你的旗。');
-  return { ok: true, msg: '抢到 ' + gold + ' 金、' + food + ' 粮' };
+  pushLog(state, '你屠了' + site.name + '，得 ' + gold + ' 金钱、' + food + ' 粮。村口有人记住了你的旗。');
+  return { ok: true, msg: '抢到 ' + gold + ' 金钱、' + food + ' 粮' };
 }
 
 /** 村庄：跟村长买口粮（牛、羊、鸡、谷） */
@@ -1730,11 +1873,14 @@ function buyVillageFood(state, site, itemId) {
   let item = null;
   VILLAGE_FOOD.forEach(function (f) { if (f.id === itemId) item = f; });
   if (!item) return { ok: false, msg: '没有这样东西' };
+  const stock = (site.foodStock || {})[item.id] || 0;
+  if (stock <= 0) return { ok: false, msg: '村里的' + item.name + '已经卖完了，过两天再来' };
   const price = Math.round(item.price * (site.priceIndex || 1) * 0.85);
-  if (state.player.gold < price) return { ok: false, msg: '钱不够，要 ' + price };
+  if (state.player.gold < price) return { ok: false, msg: '钱不够，要 ' + price + ' 金钱' };
   if (state.player.food + item.food > army.foodCap(state.player.troops)) return { ok: false, msg: '粮车装不下了' };
   state.player.gold -= price;
   state.player.food += item.food;
+  site.foodStock[item.id] = stock - 1;
   return { ok: true, msg: '买了' + item.name + '，得 ' + item.food + ' 口粮', cost: price };
 }
 
@@ -1791,14 +1937,14 @@ function lordGreet(state, lord) {
 /** 送礼：100 金 = 君主 5 点、领兵者 3 点、将领 2 点 */
 function giftLord(state, lord, gold) {
   const n = Math.max(20, Math.floor(gold));
-  if (state.player.gold < n) return { ok: false, msg: '金币不够，你只有 ' + state.player.gold };
+  if (state.player.gold < n) return { ok: false, msg: '金钱不够，你只有 ' + state.player.gold };
   const rate = RANK_RATE[lordRank(lord)];
   const gain = Math.max(1, Math.round((n / 100) * rate));
   state.player.gold -= n;
   changeRelation(state, lord.faction, gain);
   const rel = relationOf(state, lord.faction);
-  pushLog(state, '你给' + lord.name + '送了 ' + n + ' 金，关系 +' + gain + '（现在 ' + rel + '）。');
-  return { ok: true, msg: '送 ' + n + ' 金，关系 +' + gain + '（现在 ' + rel + '）', gain, rel };
+  pushLog(state, '你给' + lord.name + '送了 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）。');
+  return { ok: true, msg: '送 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）', gain, rel };
 }
 
 /** 开战：直接扣 25 关系 */
@@ -1892,9 +2038,8 @@ function checkCampaign(state, key) {
   const p = state.player;
   const count = army.troopCount(p.troops);
   if (key === 'reach_chenliu') {
-    if (p.atSiteId === 'chenliu') return true;
-    if (state.clock.day > 8) return true;
-    return false;
+    // 铁骑会一路追到陈留；进了陈留城，序章追兵就撤了
+    return p.atSiteId === 'chenliu';
   }
   if (key === 'troops_30') {
     if (count >= 30) return true;
@@ -2250,7 +2395,7 @@ function tavernRumor(state) {
     return l.hidden && l.hidden.siteId && !state.knownHidden[l.id];
   });
   if (!hidden.length) return { ok: false, msg: '酒馆里的人摇头：没听说谁还在世上。' };
-  if (state.player.gold < cost) return { ok: false, msg: '打听要 ' + cost + ' 金，你身上不够。' };
+  if (state.player.gold < cost) return { ok: false, msg: '打听要 ' + cost + ' 金钱，你身上不够。' };
   state.player.gold -= cost;
   const target = hidden[state.rng.int(0, hidden.length - 1)];
   state.knownHidden[target.id] = target.hidden.siteId;
@@ -2457,6 +2602,34 @@ function deserialize(json) {
   state.player.stepTo = null;
   state.player.stepProgress = 0;
 
+  // 同版本老档补上村市口粮与领主独立兵源池
+  state.world.sites.forEach(function (site) {
+    if (!site.foodStock) {
+      site.foodStock = {};
+      if (site.type === 'village') {
+        VILLAGE_FOOD.forEach(function (f) { site.foodStock[f.id] = Math.max(1, f.stockMax || 3); });
+      }
+    }
+    if (!site.lordRecruits && site.type !== 'camp') {
+      site.lordRecruits = {};
+      (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    }
+    // 旧档的村庄可能还是每次刷新 7 人 / 口粮没有上限，进档时统一压到新规则
+    if (site.type === 'village') {
+      site.recruitCap = 5;
+      site.recruits = site.recruits || {};
+      Object.keys(site.recruits).forEach(function (id) {
+        site.recruits[id] = Math.min(5, site.recruits[id] || 0);
+      });
+      site.foodStock = site.foodStock || {};
+      VILLAGE_FOOD.forEach(function (f) {
+        const cap = f.stockMax || 3;
+        const cur = site.foodStock[f.id];
+        site.foodStock[f.id] = cur === undefined ? cap : Math.min(cap, cur);
+      });
+    }
+  });
+
   // 老存档里没有后来补的领主：按 LORDS 定义补齐，已死过的保持死过
   const { LORDS } = require('../data/china.js');
   // 旧档里的领主可能缺后来加的字段
@@ -2500,8 +2673,14 @@ module.exports = {
   startRest,
   stopRest,
   isResting,
+  isSafeResting,
   advanceTime,
   dailyTick,
+  campRespawnTick,
+  CAMP_RESPAWN_DAYS,
+  lordRecruitTick,
+  recruitLordFromSite,
+  joinRenownReq,
   playerSpeed,
   capacity,
   relationOf,

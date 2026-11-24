@@ -29,7 +29,7 @@ function describe(data) {
   if (!data) return '';
   const p = data.player || {};
   const troops = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金';
+  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金钱';
 }
 
 function load(app, key, failMsg) {

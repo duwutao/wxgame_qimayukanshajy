@@ -8,7 +8,7 @@ const { UI_COLORS } = pixel;
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = require('../core/world.js');
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = require('../data/china.js');
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
 
@@ -143,8 +143,13 @@ function pushUnitPage(app, kind, id) {
   const top = app.top();
   const name = top ? top.name : '';
   if (name === 'lord' || name === 'contact' || name === 'battle' || name === 'town') return;
-  if (kind === 'lord') app.push('lord', { lordId: id });
-  else app.push('contact', { partyId: id });
+  if (kind === 'lord') { app.push('lord', { lordId: id }); return; }
+  const party = app.state.parties.filter(function (x) { return x.id === id; })[0];
+  if (party && party.scripted) {
+    app.showToast('西凉铁骑只在追上你时才会停下来，不能主动挑战。', 2.4);
+    return;
+  }
+  app.push('contact', { partyId: id });
 }
 
 /**
@@ -332,7 +337,12 @@ const MapScene = {
         stateLib.stopMoving(st);
         if (stateLib.isHostileSite(st, site)) {
           if (stateLib.canFight(st, site.id)) {
-            stateLib.startSiege(st, site);
+            const siege = stateLib.startSiege(st, site);
+            if (!siege) {
+              st.player.atSiteId = site.id;
+              app.push('town', { siteId: site.id });
+              return;
+            }
             app.push('battle', { mode: 'siege' });
           } else {
             app.showToast('这座城现在打不下来。');
@@ -591,6 +601,8 @@ function drawTerrainView(ctx, app, cam, box, w) {
 function drawSites(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
+  const lowZoom = (app.mapZoom || 1) < 0.45;
+  const capitalLabels = [];
 
   ctx.save();
   ctx.beginPath();
@@ -605,18 +617,22 @@ function drawSites(ctx, app, cam, box, w) {
       const cp = st.warCampaigns[k];
       return cp && cp.stage === 'siege' && cp.targetId === site.id;
     });
+    const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
 
-    // 拉远看整张天下时，城池收成势力色小点，不铺名字，免得糊成一锅粥
-    if ((app.mapZoom || 1) < 0.45) {
+    // 拉远看整张天下时，城池收成势力色小点；国都仍要留名字，不许缩成无名点
+    if (lowZoom) {
       const col = site.ownerFaction && FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#7a7266';
-      const r = site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
+      const r = isCapital ? 4.6 : site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
       ctx.beginPath();
       ctx.arc(sx + TS / 2, sy + TS / 2, r, 0, Math.PI * 2);
       ctx.fillStyle = col;
       ctx.fill();
-      ctx.lineWidth = siege ? 2 : 1;
-      ctx.strokeStyle = siege ? '#e06a42' : site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
+      ctx.lineWidth = isCapital ? 2.2 : siege ? 2 : 1;
+      ctx.strokeStyle = isCapital ? '#ffe0a8' : siege ? '#e06a42' : site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
       ctx.stroke();
+      if (isCapital) {
+        capitalLabels.push({ site: site, sx: sx + TS / 2, sy: sy + TS / 2, color: col });
+      }
       return;
     }
 
@@ -664,6 +680,37 @@ function drawSites(ctx, app, cam, box, w) {
       shadow: true,
     });
   });
+
+  // 极小缩放：国都名牌单独画在外圈，保证十座都城在任何缩放下都认得出
+  if (lowZoom && capitalLabels.length) {
+    const placed = [];
+    capitalLabels.forEach(function (l) {
+      const name = l.site.name;
+      ctx.font = 'bold 11px "PingFang SC","Microsoft YaHei",sans-serif';
+      const tw = ctx.measureText(name).width;
+      const candidates = [
+        { x: l.sx - tw / 2, y: l.sy + 7 },
+        { x: l.sx - tw / 2, y: l.sy - 19 },
+        { x: l.sx + 6, y: l.sy - 6 },
+        { x: l.sx - tw - 6, y: l.sy - 6 },
+        { x: l.sx - tw / 2, y: l.sy + 23 },
+      ];
+      let spot = null;
+      for (let i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (!placed.some(function (r) {
+          return c.x < r.x + r.w && c.x + tw + 6 > r.x && c.y < r.y + r.h && c.y + 15 > r.y;
+        })) { spot = c; break; }
+      }
+      if (!spot) spot = candidates[0];
+      placed.push({ x: spot.x, y: spot.y, w: tw + 6, h: 15 });
+      ctx.fillStyle = 'rgba(8,6,4,0.88)';
+      ctx.fillRect(spot.x, spot.y, tw + 6, 15);
+      ctx.fillStyle = l.color;
+      ctx.fillRect(spot.x, spot.y, 2, 15);
+      text(ctx, name, spot.x + 5, spot.y + 2, { size: 11, color: '#ffe9c4' });
+    });
+  }
   ctx.restore();
 }
 
@@ -1029,17 +1076,17 @@ function drawTop(ctx, app, w) {
 
   // 资源条
   const items = [
-    { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food, c: '#c8b478' },
-    { k: '兵', v: army.troopCount(p.troops) + '/' + stateLib.capacity(st), c: '#8fb0d8' },
-    { k: '望', v: p.renown, c: '#c98f6a' },
-    { k: '简', v: p.shi, c: '#b98fd8' },
+    { k: '金钱', v: p.gold, c: '#f0c060' },
+    { k: '粮草', v: p.food, c: '#c8b478' },
+    { k: '兵力', v: army.troopCount(p.troops) + '/' + stateLib.capacity(st), c: '#8fb0d8' },
+    { k: '声望', v: p.renown, c: '#c98f6a' },
+    { k: '史简', v: p.shi, c: '#b98fd8' },
   ];
   const cw = (w - 32) / items.length;
   items.forEach(function (it, i) {
     const x = 16 + i * cw;
-    text(ctx, it.k, x, 78, { size: 17, color: '#8a8070' });
-    text(ctx, String(it.v), x + 26, 74, { size: 22, color: it.c });
+    text(ctx, it.k, x, 72, { size: 13, color: '#8a8070' });
+    text(ctx, String(it.v), x, 92, { size: 17, color: it.c });
   });
 
   // 战役目标不放在顶栏了，改成地图上的任务卡（见 drawQuestCard）

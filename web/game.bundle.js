@@ -722,6 +722,11 @@ const ROADS = [
   ['taishan', 'pingyuan'],
 ];
 
+/** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
+const CAPITAL_IDS = [
+  'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
+];
+
 /** 势力 */
 const FACTIONS = {
   wei: {
@@ -1079,6 +1084,7 @@ module.exports = {
   RIVER_HUAI,
   MOUNTAINS,
   SITE_ROWS,
+  CAPITAL_IDS,
   RECRUIT_SETS,
   ROADS,
   FACTIONS,
@@ -2541,7 +2547,7 @@ function createWorld(seed) {
       garrisonBase: def.garrison,
       garrison: def.garrison,
       recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
-      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 7 : 0,
+      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
       recruits: {},
       priceIndex: 1,
       blurb: def.blurb,
@@ -3068,203 +3074,8 @@ module.exports = {
 
   };
 
-  /* js/core/economy.js */
-  __defs[11] = function (module, exports, __require) {
-/**
- * 经济层：市场粮价、招募、装备升级、每日据点刷新
- */
-
-const { TROOPS } = __require(10);
-const { EQUIPMENT } = __require(5);
-const { troopCount, troopCapacity, foodCap } = __require(9);
-
-const FOOD_BASE = 5; // 基准粮价（金币 / 单位）
-
-/**
- * 兵价按档次重排：民兵近乎白给，往上每一档都明显更贵。
- * 低阶兵是消耗品，高阶兵是资产。
- */
-/**
- * 兵价按档次重排：民兵是个位数，往上每一档明显更贵。
- * 开局 200 金能拉起一支满编民兵，打输了也不至于破产。
- */
-const TIER_PRICE_MUL = { 1: 0.34, 2: 0.7, 3: 0.9, 4: 1.0, 5: 1.15 };
-
-function foodPrice(site) {
-  if (!site || !site.market) return 0;
-  return Math.max(2, Math.round(FOOD_BASE * site.priceBase * (site.priceIndex || 1)));
-}
-
-function foodSellPrice(site) {
-  if (!site || !site.market) return 0;
-  return Math.max(1, Math.round(foodPrice(site) * 0.55));
-}
-
-function recruitPrice(site, troopId) {
-  const t = TROOPS[troopId];
-  if (!t || !site) return 0;
-  const typeMul = site.type === 'castle' ? 1.2 : site.type === 'village' ? 0.68 : 1.0;
-  const tierMul = TIER_PRICE_MUL[t.tier] || 1;
-  return Math.max(4, Math.round(t.recruit * tierMul * typeMul * (site.priceIndex || 1)));
-}
-
-function canRecruit(state, site, troopId) {
-  const t = TROOPS[troopId];
-  if (!t) return { ok: false, msg: '没有这种兵' };
-  if (site.faction === 'bandit') return { ok: false, msg: '匪巢不卖人' };
-  const pool = site.recruits[troopId] || 0;
-  if (pool <= 0) return { ok: false, msg: '这一批已经招完了，等几天再来' };
-  if (t.renownReq && state.player.renown < t.renownReq) {
-    return { ok: false, msg: '声望不足' + t.renownReq + '，招不到' + t.name };
-  }
-  return { ok: true };
-}
-
-function buyFood(state, site, amount) {
-  if (!site.market) return { ok: false, msg: '这里没有市场' };
-  const n = Math.max(1, Math.floor(amount));
-  const cost = foodPrice(site) * n;
-  const cap = foodCap(state.player.troops);
-  if (state.player.gold < cost) return { ok: false, msg: '金币不够，需要 ' + cost };
-  if (state.player.food + n > cap) {
-    return { ok: false, msg: '粮车装不下了（兵力 ' + troopCount(state.player.troops) + '，上限 ' + cap + '）' };
-  }
-  state.player.gold -= cost;
-  state.player.food += n;
-  return { ok: true, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金', cost };
-}
-
-function sellFood(state, site, amount) {
-  if (!site.market) return { ok: false, msg: '这里没有市场' };
-  const n = Math.min(state.player.food, Math.max(1, Math.floor(amount)));
-  if (n <= 0) return { ok: false, msg: '没有粮可卖' };
-  const gain = foodSellPrice(site) * n;
-  state.player.food -= n;
-  state.player.gold += gain;
-  return { ok: true, msg: '卖出 ' + n + ' 单位粮草，得到 ' + gain + ' 金' };
-}
-
-function recruit(state, site, troopId, count) {
-  const check = canRecruit(state, site, troopId);
-  if (!check.ok) return check;
-  const n = Math.max(1, Math.floor(count));
-  const price = recruitPrice(site, troopId);
-  const affordable = Math.min(n, site.recruits[troopId] || 0, Math.floor(state.player.gold / price));
-  if (affordable <= 0) return { ok: false, msg: '金币不足，单价 ' + price + ' 金' };
-
-  const cap = troopCapacity(state.player.renown);
-  const room = cap - troopCount(state.player.troops);
-  if (room <= 0) return { ok: false, msg: '队伍满编（上限 ' + cap + '），先提升声望' };
-  const finalN = Math.min(affordable, room);
-
-  state.player.gold -= price * finalN;
-  state.player.troops[troopId] = (state.player.troops[troopId] || 0) + finalN;
-  site.recruits[troopId] -= finalN;
-  return {
-    ok: true,
-    msg: '招募 ' + TROOPS[troopId].name + ' × ' + finalN + '，花费 ' + price * finalN + ' 金',
-    count: finalN,
-  };
-}
-
-function equipmentTier(state, slot) {
-  const equip = EQUIPMENT[slot];
-  if (!equip) return null;
-  const level = state.player.equip[slot] || 0;
-  return equip.tiers[Math.min(level, equip.tiers.length - 1)];
-}
-
-function nextEquipment(state, slot) {
-  const equip = EQUIPMENT[slot];
-  if (!equip) return null;
-  const level = (state.player.equip[slot] || 0) + 1;
-  return equip.tiers[level] || null;
-}
-
-function upgradeEquipment(state, slot) {
-  const equip = EQUIPMENT[slot];
-  if (!equip) return { ok: false, msg: '没有这个装备位' };
-  const next = nextEquipment(state, slot);
-  if (!next) return { ok: false, msg: '已经是顶配了' };
-  if (state.player.gold < next.price) {
-    return { ok: false, msg: '金币不够，需要 ' + next.price };
-  }
-  state.player.gold -= next.price;
-  state.player.equip[slot] = (state.player.equip[slot] || 0) + 1;
-  return { ok: true, msg: '换装：' + next.name };
-}
-
-function equipmentBonus(state) {
-  const blade = equipmentTier(state, 'blade');
-  const armor = equipmentTier(state, 'armor');
-  const horse = equipmentTier(state, 'horse');
-  return {
-    atkPct: blade ? blade.atkPct : 0,
-    defPct: armor ? armor.defPct : 0,
-    speedPct: horse ? horse.speedPct : 0,
-  };
-}
-
-/** 每日：价格波动 + 招募池刷新 + 守军恢复 */
-function dailyMarket(state, rng) {
-  state.world.sites.forEach(function (site) {
-    const drift = 0.9 + rng.random() * 0.28;
-    site.priceIndex = Math.max(0.85, Math.min(1.25, drift));
-    if (site.faction === 'bandit') return;
-
-    Object.keys(site.recruits).forEach(function (id) {
-      if (site.recruits[id] < (site.recruitCap || 0)) {
-        site.recruits[id] += rng.int(1, 3);
-      }
-    });
-    // 补满招募池上限：募兵木牌天天有人来
-    (site.recruitList || []).forEach(function (id) {
-      if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
-      const cap = site.recruitCap || 4;
-      if (site.recruits[id] > cap) site.recruits[id] = cap;
-    });
-
-    if (site.playerOwned) {
-      site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(0, 2));
-    } else if (site.ownerFaction !== 'bandit') {
-      site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(1, 3));
-    }
-  });
-}
-
-/** 据点每日税收（玩家拥有时） */
-function dailyIncome(state) {
-  let income = 0;
-  state.world.sites.forEach(function (site) {
-    if (!site.playerOwned) return;
-    if (site.type === 'town') income += 26;
-    else if (site.type === 'castle') income += 16;
-    else income += 9;
-  });
-  return income;
-}
-
-module.exports = {
-  FOOD_BASE,
-  foodPrice,
-  foodSellPrice,
-  recruitPrice,
-  canRecruit,
-  buyFood,
-  sellFood,
-  recruit,
-  equipmentTier,
-  nextEquipment,
-  upgradeEquipment,
-  equipmentBonus,
-  dailyMarket,
-  dailyIncome,
-};
-
-  };
-
   /* js/data/extra.js */
-  __defs[13] = function (module, exports, __require) {
+  __defs[12] = function (module, exports, __require) {
 /**
  * 扩展数据：商品、匪徒等级、英雄、领主台词、村庄货物
  * 与 china.js 分开，改平衡只动这个文件
@@ -3611,11 +3422,11 @@ const LORD_TALK = {
 
 /* ---------------------------------------------------------------- 村庄 */
 const VILLAGE_FOOD = [
-  { id: 'ox', name: '耕牛', price: 180, food: 60, desc: '一头牛换六十口粮。村里人舍不得，但给钱就卖。' },
-  { id: 'sheep', name: '羊', price: 70, food: 22, desc: '两只羊够一队人吃两天。' },
-  { id: 'chicken', name: '鸡鸭', price: 26, food: 8, desc: '零碎换的，胜在便宜。' },
-  { id: 'grain', name: '谷子', price: 40, food: 30, desc: '村里自己的存粮，价比城里低。' },
-  { id: 'veg', name: '菜蔬', price: 18, food: 6, desc: '地里刚拔的，撑不了几天。' },
+  { id: 'ox', name: '耕牛', price: 180, food: 60, stockMax: 1, desc: '一头牛换六十口粮。村里人舍不得，但给钱就卖。' },
+  { id: 'sheep', name: '羊', price: 70, food: 22, stockMax: 2, desc: '两只羊够一队人吃两天。' },
+  { id: 'chicken', name: '鸡鸭', price: 26, food: 8, stockMax: 4, desc: '零碎换的，胜在便宜。' },
+  { id: 'grain', name: '谷子', price: 40, food: 30, stockMax: 3, desc: '村里自己的存粮，价比城里低。' },
+  { id: 'veg', name: '菜蔬', price: 18, food: 6, stockMax: 5, desc: '地里刚拔的，撑不了几天。' },
 ];
 
 /**
@@ -3798,14 +3609,236 @@ module.exports = {
 
   };
 
+  /* js/core/economy.js */
+  __defs[11] = function (module, exports, __require) {
+/**
+ * 经济层：市场粮价、招募、装备升级、每日据点刷新
+ */
+
+const { TROOPS } = __require(10);
+const { VILLAGE_FOOD } = __require(12);
+const { EQUIPMENT } = __require(5);
+const { troopCount, troopCapacity, foodCap } = __require(9);
+
+const FOOD_BASE = 5; // 基准粮价（金币 / 单位）
+
+/**
+ * 兵价按档次重排：民兵近乎白给，往上每一档都明显更贵。
+ * 低阶兵是消耗品，高阶兵是资产。
+ */
+/**
+ * 兵价按档次重排：民兵是个位数，往上每一档明显更贵。
+ * 开局 200 金能拉起一支满编民兵，打输了也不至于破产。
+ */
+const TIER_PRICE_MUL = { 1: 0.34, 2: 0.7, 3: 0.9, 4: 1.0, 5: 1.15 };
+
+function foodPrice(site) {
+  if (!site || !site.market) return 0;
+  return Math.max(2, Math.round(FOOD_BASE * site.priceBase * (site.priceIndex || 1)));
+}
+
+function foodSellPrice(site) {
+  if (!site || !site.market) return 0;
+  return Math.max(1, Math.round(foodPrice(site) * 0.55));
+}
+
+function recruitPrice(site, troopId) {
+  const t = TROOPS[troopId];
+  if (!t || !site) return 0;
+  const typeMul = site.type === 'castle' ? 1.2 : site.type === 'village' ? 0.68 : 1.0;
+  const tierMul = TIER_PRICE_MUL[t.tier] || 1;
+  return Math.max(4, Math.round(t.recruit * tierMul * typeMul * (site.priceIndex || 1)));
+}
+
+function canRecruit(state, site, troopId) {
+  const t = TROOPS[troopId];
+  if (!t) return { ok: false, msg: '没有这种兵' };
+  if (site.faction === 'bandit') return { ok: false, msg: '匪巢不卖人' };
+  const pool = site.recruits[troopId] || 0;
+  if (pool <= 0) return { ok: false, msg: '这一批已经招完了，等几天再来' };
+  if (t.renownReq && state.player.renown < t.renownReq) {
+    return { ok: false, msg: '声望不足' + t.renownReq + '，招不到' + t.name };
+  }
+  return { ok: true };
+}
+
+function buyFood(state, site, amount) {
+  if (!site.market) return { ok: false, msg: '这里没有市场' };
+  const n = Math.max(1, Math.floor(amount));
+  const cost = foodPrice(site) * n;
+  const cap = foodCap(state.player.troops);
+  if (state.player.gold < cost) return { ok: false, msg: '金钱不够，需要 ' + cost };
+  if (state.player.food + n > cap) {
+    return { ok: false, msg: '粮车装不下了（兵力 ' + troopCount(state.player.troops) + '，上限 ' + cap + '）' };
+  }
+  state.player.gold -= cost;
+  state.player.food += n;
+  return { ok: true, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金钱', cost };
+}
+
+function sellFood(state, site, amount) {
+  if (!site.market) return { ok: false, msg: '这里没有市场' };
+  const n = Math.min(state.player.food, Math.max(1, Math.floor(amount)));
+  if (n <= 0) return { ok: false, msg: '没有粮可卖' };
+  const gain = foodSellPrice(site) * n;
+  state.player.food -= n;
+  state.player.gold += gain;
+  return { ok: true, msg: '卖出 ' + n + ' 单位粮草，得到 ' + gain + ' 金钱' };
+}
+
+function recruit(state, site, troopId, count) {
+  const check = canRecruit(state, site, troopId);
+  if (!check.ok) return check;
+  const n = Math.max(1, Math.floor(count));
+  const price = recruitPrice(site, troopId);
+  const affordable = Math.min(n, site.recruits[troopId] || 0, Math.floor(state.player.gold / price));
+  if (affordable <= 0) return { ok: false, msg: '金钱不足，单价 ' + price + ' 金钱' };
+
+  const cap = troopCapacity(state.player.renown);
+  const room = cap - troopCount(state.player.troops);
+  if (room <= 0) return { ok: false, msg: '队伍满编（上限 ' + cap + '），先提升声望' };
+  const finalN = Math.min(affordable, room);
+
+  state.player.gold -= price * finalN;
+  state.player.troops[troopId] = (state.player.troops[troopId] || 0) + finalN;
+  site.recruits[troopId] -= finalN;
+  return {
+    ok: true,
+    msg: '招募 ' + TROOPS[troopId].name + ' × ' + finalN + '，花费 ' + price * finalN + ' 金钱',
+    count: finalN,
+  };
+}
+
+function equipmentTier(state, slot) {
+  const equip = EQUIPMENT[slot];
+  if (!equip) return null;
+  const level = state.player.equip[slot] || 0;
+  return equip.tiers[Math.min(level, equip.tiers.length - 1)];
+}
+
+function nextEquipment(state, slot) {
+  const equip = EQUIPMENT[slot];
+  if (!equip) return null;
+  const level = (state.player.equip[slot] || 0) + 1;
+  return equip.tiers[level] || null;
+}
+
+function upgradeEquipment(state, slot) {
+  const equip = EQUIPMENT[slot];
+  if (!equip) return { ok: false, msg: '没有这个装备位' };
+  const next = nextEquipment(state, slot);
+  if (!next) return { ok: false, msg: '已经是顶配了' };
+  if (state.player.gold < next.price) {
+    return { ok: false, msg: '金钱不够，需要 ' + next.price };
+  }
+  state.player.gold -= next.price;
+  state.player.equip[slot] = (state.player.equip[slot] || 0) + 1;
+  return { ok: true, msg: '换装：' + next.name };
+}
+
+function equipmentBonus(state) {
+  const blade = equipmentTier(state, 'blade');
+  const armor = equipmentTier(state, 'armor');
+  const horse = equipmentTier(state, 'horse');
+  return {
+    atkPct: blade ? blade.atkPct : 0,
+    defPct: armor ? armor.defPct : 0,
+    speedPct: horse ? horse.speedPct : 0,
+  };
+}
+
+/** 每日：价格波动 + 招募池刷新 + 守军恢复 */
+function dailyMarket(state, rng) {
+  state.world.sites.forEach(function (site) {
+    const drift = 0.9 + rng.random() * 0.28;
+    site.priceIndex = Math.max(0.85, Math.min(1.25, drift));
+    if (site.faction === 'bandit') return;
+
+    // 村庄壮丁是有限的一池人：招空就没了，不按天自动回填；城镇/关隘才持续募兵
+    if (site.type !== 'village') {
+      Object.keys(site.recruits).forEach(function (id) {
+        if (site.recruits[id] < (site.recruitCap || 0)) {
+          site.recruits[id] += rng.int(1, 3);
+        }
+      });
+      // 补满招募池上限：募兵木牌天天有人来
+      (site.recruitList || []).forEach(function (id) {
+        if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
+        const cap = site.recruitCap || 4;
+        if (site.recruits[id] > cap) site.recruits[id] = cap;
+      });
+    }
+
+    // 村市口粮：两天补一次，每样不超过村里能拿出来的那几份
+    if (site.type === 'village' && state.clock.day % 2 === 0) {
+      site.foodStock = site.foodStock || {};
+      VILLAGE_FOOD.forEach(function (f) {
+        const cap = f.stockMax || 3;
+        if ((site.foodStock[f.id] || 0) < cap) {
+          site.foodStock[f.id] = Math.min(cap, (site.foodStock[f.id] || 0) + 1);
+        }
+      });
+    }
+
+    // 领主招兵池：按城/村错开日子补一点，跟玩家招募池分开，也不额外消耗事件随机数
+    if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
+      site.lordRecruits = site.lordRecruits || {};
+      const lcap = site.type === 'village' ? 2 : 4;
+      if (state.clock.day % 3 === (site.x + site.y) % 3) {
+        (site.recruitList || []).forEach(function (id) {
+          const have = site.lordRecruits[id] || 0;
+          if (have < lcap) site.lordRecruits[id] = have + 1;
+        });
+      }
+    }
+
+    if (site.playerOwned) {
+      site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(0, 2));
+    } else if (site.ownerFaction !== 'bandit') {
+      site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(1, 3));
+    }
+  });
+}
+
+/** 据点每日税收（玩家拥有时） */
+function dailyIncome(state) {
+  let income = 0;
+  state.world.sites.forEach(function (site) {
+    if (!site.playerOwned) return;
+    if (site.type === 'town') income += 26;
+    else if (site.type === 'castle') income += 16;
+    else income += 9;
+  });
+  return income;
+}
+
+module.exports = {
+  FOOD_BASE,
+  foodPrice,
+  foodSellPrice,
+  recruitPrice,
+  canRecruit,
+  buyFood,
+  sellFood,
+  recruit,
+  equipmentTier,
+  nextEquipment,
+  upgradeEquipment,
+  equipmentBonus,
+  dailyMarket,
+  dailyIncome,
+};
+
+  };
+
   /* js/core/trade.js */
-  __defs[12] = function (module, exports, __require) {
+  __defs[13] = function (module, exports, __require) {
 /**
  * 贸易层：跑商商品、各城物价、估价、买卖
  * 每座城对每种货有固定的偏好（便宜的产地、贵的销地），再叠每天的行情波动。
  */
 
-const { GOODS } = __require(13);
+const { GOODS } = __require(12);
 
 const GOODS_CAP = 80; // 货物总件数上限
 
@@ -3857,14 +3890,14 @@ function buyGoods(state, site, goodId, amount) {
   if (!good) return { ok: false, msg: '没有这种货' };
   const n = Math.max(1, Math.floor(amount));
   const cost = buyPrice(site, goodId) * n;
-  if (state.player.gold < cost) return { ok: false, msg: '金币不够，要 ' + cost };
+  if (state.player.gold < cost) return { ok: false, msg: '金钱不够，要 ' + cost };
   if (goodsCount(state.player) + n > GOODS_CAP) {
     return { ok: false, msg: '驮队装不下了（上限 ' + GOODS_CAP + ' 件）' };
   }
   state.player.gold -= cost;
   state.player.goods = state.player.goods || {};
   state.player.goods[goodId] = (state.player.goods[goodId] || 0) + n;
-  return { ok: true, msg: '买入 ' + good.name + ' ×' + n + '，花费 ' + cost + ' 金', cost };
+  return { ok: true, msg: '买入 ' + good.name + ' ×' + n + '，花费 ' + cost + ' 金钱', cost };
 }
 
 function sellGoods(state, site, goodId, amount) {
@@ -3876,7 +3909,7 @@ function sellGoods(state, site, goodId, amount) {
   state.player.goods[goodId] -= n;
   state.player.gold += gain;
   state.stats.goldEarned = (state.stats.goldEarned || 0) + gain;
-  return { ok: true, msg: '卖出 ' + goodById(goodId).name + ' ×' + n + '，得 ' + gain + ' 金', gain };
+  return { ok: true, msg: '卖出 ' + goodById(goodId).name + ' ×' + n + '，得 ' + gain + ' 金钱', gain };
 }
 
 /**
@@ -3935,7 +3968,7 @@ module.exports = {
  * 英雄层：不起眼的将领可招募，随队不死，靠打仗升级（1-10）
  */
 
-const { HEROES, HERO_MAX_LEVEL, HERO_BONUS } = __require(13);
+const { HEROES, HERO_MAX_LEVEL, HERO_BONUS } = __require(12);
 const { siteById, gridDistance } = __require(8);
 
 const EXP_PER_LEVEL = 16;
@@ -3999,7 +4032,7 @@ function hireHero(state, site, heroId) {
   if (state.player.heroes.some(function (x) { return x.id === heroId; })) {
     return { ok: false, msg: '他已经在你队里了' };
   }
-  if (state.player.gold < def.cost) return { ok: false, msg: '金币不够，他要 ' + def.cost };
+  if (state.player.gold < def.cost) return { ok: false, msg: '金钱不够，他要 ' + def.cost };
   state.player.gold -= def.cost;
   state.player.heroes.push({ id: heroId, level: 1, exp: 0, kills: 0 });
   return { ok: true, msg: def.name + ' 加入了你的队伍' };
@@ -4670,8 +4703,8 @@ function ransom(state, lordId, amount) {
   p.escaped = true;
   state.prisoners = state.prisoners.filter(function (x) { return x.lordId !== lordId; });
   freeLord(state, lord, null);
-  logFn(state, lord.name + '的家人凑了 ' + gold + ' 金把人赎走。你数钱的时候，他没有回头。', 'war');
-  return { ok: true, msg: '收到赎金 ' + gold + ' 金，放走了' + lord.name, gold: gold };
+  logFn(state, lord.name + '的家人凑了 ' + gold + ' 金钱把人赎走。你数钱的时候，他没有回头。', 'war');
+  return { ok: true, msg: '收到赎金 ' + gold + ' 金钱，放走了' + lord.name, gold: gold };
 }
 
 /** 白放人：换人情 */
@@ -5135,6 +5168,7 @@ const TACTICS = {
 };
 
 const TACTIC_LIST = ['assault', 'hold', 'flank', 'skirmish'];
+/** 每 12 轮为一“阵”。一阵打完不分胜负就继续下一阵，直到一方兵力归零。 */
 const MAX_ROUNDS = 12;
 
 function clamp(v, min, max) {
@@ -5212,6 +5246,9 @@ class Battle {
     this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
     this.context = opts.context || {};
     this.round = 0;
+    this.roundsInBatch = 0;
+    this.batch = 1;
+    this.batchDone = false;
     this.log = [];
     this.finished = false;
     this.result = null;
@@ -5252,8 +5289,10 @@ class Battle {
 
   /** 推进一个回合 */
   step() {
-    if (this.finished) return null;
+    if (this.finished || this.batchDone) return null;
     this.round += 1;
+    this.roundsInBatch += 1;
+    this.batch = Math.ceil(this.round / MAX_ROUNDS);
 
     const sa = strength(this.a.troops);
     const sb = strength(this.b.troops);
@@ -5294,9 +5333,10 @@ class Battle {
       alphaStrike = Math.round(sb.count * 0.06 + sa.ranged * 0.5);
     }
 
-    // 主将亲自带的人更经打：玩家侧伤亡再打六折，别让人一场就赔光
-    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 0);
-    if (this.a.isPlayer) lossA = Math.round(lossA * 0.45);
+    // 主将亲自带的人更经打：玩家侧伤亡打六折，但每轮至少折 1 人。
+    // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
+    if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
     const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
 
     const realA = distributeLosses(this.a.troops, lossA);
@@ -5320,23 +5360,26 @@ class Battle {
     };
     this.log.push(entry);
 
-    // 溃败判定：lock（白毦/禁军一类）不轻易溃
-    const ratioA = this.remainA() / (this.a.initialCount || 1);
-    const ratioB = this.remainB() / (this.b.initialCount || 1);
-    const lockA = strength(this.a.initialTroops).lockRatio > 0.25;
-    const lockB = strength(this.b.initialTroops).lockRatio > 0.25;
-    const breakA = ratioA < 0.28 && !lockA;
-    const breakB = ratioB < 0.28 && !lockB;
-
-    if (this.remainA() <= 0 || breakA || this.remainB() <= 0 || breakB) {
+    // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
+    // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。
+    if (this.remainA() <= 0 || this.remainB() <= 0) {
       if (this.remainA() <= 0 && this.remainB() <= 0) this.finish('draw');
-      else if (this.remainB() <= 0 || breakB) this.finish('win');
+      else if (this.remainB() <= 0) this.finish('win');
       else this.finish('lose');
-    } else if (this.round >= MAX_ROUNDS) {
-      this.finish(Math.abs(ratioA - ratioB) < 0.05 ? 'draw' : ratioA > ratioB ? 'win' : 'lose');
+    } else if (this.roundsInBatch >= MAX_ROUNDS) {
+      this.batchDone = true;
     }
 
     return entry;
+  }
+
+  /** 一阵打完还活着双方：开下一阵 12 轮 */
+  nextBatch() {
+    if (this.finished) return false;
+    if (!this.batchDone) return false;
+    this.batchDone = false;
+    this.roundsInBatch = 0;
+    return true;
   }
 
   finish(result) {
@@ -5360,6 +5403,7 @@ class Battle {
       }
     }
     this.finished = true;
+    this.batchDone = false;
     this.result = result;
   }
 
@@ -5378,7 +5422,8 @@ class Battle {
   }
 
   loot() {
-    if (this.result !== 'win') return 0;
+    // 没打到一方归零，就没有“缴获”这回事；中途一阵结束绝不结算金额。
+    if (!this.finished || this.result !== 'win') return 0;
     const ctx = this.context || {};
     // 打匪团来钱快（新手要靠这个滚雪球），攻城与战役另算
     const kindMul = ctx.kind === 'party' || ctx.kind === 'chase' ? 1.9
@@ -5399,8 +5444,10 @@ class Battle {
   summary() {
     return {
       result: this.result,
+      finished: this.finished,
       round: this.round,
       rounds: this.round,
+      batch: this.batch,
       remainA: this.remainA(),
       remainB: this.remainB(),
       initialA: this.a.initialCount,
@@ -5410,6 +5457,25 @@ class Battle {
       loot: this.loot(),
       shiMark: this.shiMark,
       shiName: this.shiName,
+    };
+  }
+
+  /** 一阵 12 轮结束、双方仍有兵：只报战况，不报缴获 */
+  interimSummary() {
+    return {
+      result: null,
+      finished: false,
+      interim: true,
+      round: this.round,
+      rounds: this.round,
+      batch: this.batch,
+      remainA: this.remainA(),
+      remainB: this.remainB(),
+      initialA: this.a.initialCount,
+      initialB: this.b.initialCount,
+      lossesA: this.lossesA,
+      lossesB: this.lossesB,
+      loot: 0,
     };
   }
 }
@@ -5603,7 +5669,7 @@ const {
 } = __require(8);
 const army = __require(9);
 const economy = __require(11);
-const trade = __require(12);
+const trade = __require(13);
 const heroes = __require(14);
 const war = __require(15);
 const { Battle } = __require(16);
@@ -5613,17 +5679,26 @@ const {
 const { TROOPS } = __require(10);
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
-} = __require(13);
+} = __require(12);
 const { LORD_BIOS } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
 const LORD_RESPAWN_DAYS = 12;
+/** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
+const CAMP_RESPAWN_DAYS = 5;
 const SAVE_VERSION = 5; // 天下放大到 128x154，旧档地图对不上，直接换新
 
 /** 全图常驻匪团目标数量（玩家附近看得见，远处也算） */
 const BANDIT_TARGET = 12;
 const BANDIT_MAX = 16;
+
+/** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
+const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true };
+
+function joinRenownReq(factionId) {
+  return MAJOR_FACTIONS[factionId] ? 200 : 100;
+}
 
 function deepCopy(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -5675,10 +5750,29 @@ function createGame(opts) {
   const world = createWorld(seed);
 
   world.sites.forEach(function (site) {
+    let h = 0;
+    for (let i = 0; i < site.id.length; i++) h = (h * 31 + site.id.charCodeAt(i)) % 9973;
     site.recruits = {};
     (site.recruitList || []).forEach(function (id) {
       site.recruits[id] = rng.int(1, site.recruitCap || 4);
     });
+    // 村市口粮是“村里现有的那点东西”，不是无限货架：每样最多 1-5 份。
+    // 用稳定散列，不额外消耗世界随机数，保证同一种子的开局与旧版一致。
+    site.foodStock = {};
+    if (site.type === 'village') {
+      VILLAGE_FOOD.forEach(function (f, i) {
+        const cap = f.stockMax || 3;
+        site.foodStock[f.id] = 1 + ((h + i * 17) % cap);
+      });
+    }
+    // 领主招兵走另一口锅：和玩家的招募池分开，互不抢人
+    site.lordRecruits = {};
+    if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
+      const lcap = site.type === 'village' ? 2 : 4;
+      (site.recruitList || []).forEach(function (id, i) {
+        site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
+      });
+    }
   });
 
   // 开局：洛阳东门外，只剩九名溃兵
@@ -5924,6 +6018,22 @@ function spawnBanditParties(state, count) {
   }
 }
 
+/** 山寨刷新：被清空后过几天重新聚人；洗劫态期间只剩火烧过的空营 */
+function campRespawnTick(state) {
+  state.world.sites.forEach(function (site) {
+    if (!site || site.type !== 'camp' || !site.cleared) return;
+    if (!site.respawnDay) {
+      site.respawnDay = (site.lootedDay || state.clock.day) + CAMP_RESPAWN_DAYS;
+    }
+    if (state.clock.day < site.respawnDay) return;
+    site.cleared = false;
+    site.looted = false;
+    site.lootedDay = null;
+    site.respawnDay = null;
+    site.garrison = site.garrisonBase || site.garrison || 40;
+  });
+}
+
 /** 补充匪团到目标数量，避开玩家脚下 */
 function refillBandits(state) {
   const alive = state.parties.filter(function (x) { return x.faction === 'bandit'; }).length;
@@ -5971,14 +6081,15 @@ function changeRelation(state, factionId, delta) {
 
 function isHostileSite(state, site) {
   if (!site) return false;
-  if (site.type === 'camp' && !site.cleared) return true;
+  // 洗劫过的山寨不再是军事目标：只剩废墟，点进去看火烧过的空营
+  if (site.type === 'camp') return !site.cleared;
   if (site.playerOwned) return false;
   return isHostileFaction(state, site.ownerFaction);
 }
 
 function siteStatus(state, site) {
   if (site.playerOwned) return '你的领地';
-  if (site.type === 'camp' && !site.cleared) return '贼巢 · 可攻';
+  if (site.type === 'camp') return site.cleared ? '废墟 · 已洗劫' : '贼巢 · 可攻';
   if (!site.ownerFaction) return '无主';
   if (isHostileFaction(state, site.ownerFaction)) return '敌对';
   return '可进入';
@@ -6062,6 +6173,10 @@ function startRest(state, site) {
   stopMoving(state);
   state.player.atSiteId = site.id;
   state.player.resting = site.id;
+  if (site.type === 'village') {
+    pushLog(state, '你在' + site.name + '的柴房里歇下。粮吃得慢一半，可村里藏不住人，追兵会摸进来。');
+    return { ok: true, msg: '在' + site.name + '歇下：粮耗减半；村里藏不住人，追兵仍会摸进来' };
+  }
   pushLog(state, '你在' + site.name + '的客栈里歇下了。城外的旗照旧在动，你的粮吃得慢了一半。');
   return { ok: true, msg: '在' + site.name + '歇下：粮耗减半，暂时没人来追你' };
 }
@@ -6073,6 +6188,14 @@ function stopRest(state) {
 
 function isResting(state) {
   return !!(state && state.player && state.player.resting);
+}
+
+/** 城里/关隘歇下才算躲开追兵；村庄藏不住人，粮耗照样减半，但追兵能摸进来 */
+function isSafeResting(state) {
+  const p = state && state.player;
+  if (!p || !p.resting) return false;
+  const site = siteById(state.world, p.resting);
+  return !!site && site.type !== 'village';
 }
 
 /* ---------------------------------------------------------------- 时间 */
@@ -6132,6 +6255,7 @@ function dailyTick(state) {
   trade.dailyGoods(state, state.rng);
 
   // 匪团补充：维持全图常驻数量（太少没得打，太多寸步难行）
+  campRespawnTick(state);
   refillBandits(state);
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
@@ -6154,18 +6278,8 @@ function dailyTick(state) {
     }
   });
 
-  // 在自己城里养兵的领主每天补一点人：编制还在，位置也在
-  state.lords.forEach(function (lord) {
-    if (!lord.alive || lord.prisoner) return;
-    const home = siteById(state.world, lord.home);
-    if (!home) return;
-    if (lord.x !== home.x || lord.y !== home.y) return;
-    const full = army.troopCount(lord.defTroops || {});
-    if (full <= 0) return;
-    const now = army.troopCount(lord.troops || {});
-    if (now >= full) return;
-    refillLord(lord, Math.max(2, Math.round(full * 0.12)));
-  });
+  // 领主在自己的城镇/村庄招兵：用独立的领主兵源池，和玩家招募互不冲突
+  lordRecruitTick(state);
 
   // 自立的人手下有领主：跟仇家自动开打，否则这些领主只会站着
   if (state.lords.some(function (l) { return l.faction === 'player' && l.alive; })) {
@@ -6288,7 +6402,7 @@ function onArrive(state, x, y) {
 
 /** 只有真的踩到同一格才算撞上；贴着脸站不算 */
 function adjacentEnemy(state, x, y) {
-  if (isResting(state)) return null;
+  if (isSafeResting(state)) return null;
   let best = null;
   const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
@@ -6306,8 +6420,8 @@ function adjacentEnemy(state, x, y) {
 function checkPursuit(state) {
   const p = state.player;
   if (state.events.length) return;
-  // 人在城里歇着，外面的人找不到你
-  if (isResting(state)) return;
+  // 人在城里/关隘歇着，外面的人找不到你；在村庄躲着不算，追兵照样能摸进来
+  if (isSafeResting(state)) return;
   const nowH = gameHours(state);
   const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   for (let i = 0; i < all.length; i++) {
@@ -6357,7 +6471,7 @@ function giveWay(state, unitId, kind) {
     }
   }
   const cost = giveWayCost(state, unit);
-  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金，你身上只有 ' + p.gold + '。' };
+  if (p.gold < cost) return { ok: false, msg: '他要 ' + cost + ' 金钱，你身上只有 ' + p.gold + '。' };
   p.gold -= cost;
   const now = gameHours(state);
   unit.cooldownH = now + 24;
@@ -6365,31 +6479,47 @@ function giveWay(state, unitId, kind) {
   unit.chasing = false;
   if (isLord) changeRelation(state, unit.faction, -2);
   p.renown = Math.max(0, p.renown - 2);
-  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
-  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金脱身，一天之内他不会追上来。' };
+  pushLog(state, '你给了' + unit.name + ' ' + cost + ' 金钱买路。他收了钱，把刀收回鞘里，一天之内不会再来找你。', 'war');
+  return { ok: true, cost: cost, msg: '付 ' + cost + ' 金钱脱身，一天之内他不会追上来。' };
 }
 
-/** 留人断后：折一部分兵，换他原地停几个时辰 */
+/** 留人断后：折一部分兵，换他原地停几个时辰；西凉铁骑只吃这一套，停八小时 */
 function breakTail(state, unitId, kind) {
   const p = state.player;
   const unit = kind === 'party'
     ? state.parties.filter(function (x) { return x.id === unitId; })[0]
     : state.lords.filter(function (x) { return x.id === unitId; })[0];
   if (!unit) return { ok: false, msg: '人已经不在了' };
+  const scripted = !!unit.scripted;
   const count = army.troopCount(p.troops);
   if (count <= 1) {
     stopMoving(state);
+    if (scripted) {
+      endGame(state, 'killed',
+        '西凉铁骑追上来时，你身边已经没人可以留下断后。\n马踏过冻土，刀落下去。\n你的名字没有写进任何一本史书。',
+        '剧终');
+      return { ok: true, ended: true, msg: '无人断后。你被西凉铁骑追杀，死在路上。' };
+    }
     return { ok: false, msg: '手下只剩你一个，留不下人断后。' };
   }
-  const lose = Math.max(1, Math.round(count * 0.22));
+  const lose = scripted ? Math.max(1, Math.min(3, count - 1)) : Math.max(1, Math.round(count * 0.22));
   army.distributeLosses(p.troops, lose);
   state.stats.troopsLost += lose;
-  p.morale = Math.max(0, p.morale - 6);
+  p.morale = Math.max(0, p.morale - (scripted ? 8 : 6));
   const now = gameHours(state);
-  const pause = 3 + state.rng.int(0, 3);
+  const pause = scripted ? 8 : 3 + state.rng.int(0, 3);
   unit.pauseUntil = now + pause;
   unit.cooldownH = now + pause + 1;
   unit.chasing = false;
+  if (scripted) {
+    // 断后成功后铁骑不再主动追；只有玩家再贴到一格以内才会重新咬上来
+    unit.dormant = true;
+    pushLog(state, '你留下 ' + lose + ' 人断后。西凉铁骑停下来收拾这队人，会在这里停八个时辰。', 'war');
+    return {
+      ok: true, lose: lose, pause: pause,
+      msg: '折了 ' + lose + ' 人。西凉铁骑在原地停 8 小时；之后除非你再贴到它脸上，否则不会再追。',
+    };
+  }
   pushLog(state, '你留下 ' + lose + ' 人断后。' + unit.name + '在原地收拾这队人，你趁这半天跑出去。', 'war');
   return { ok: true, lose: lose, pause: pause, msg: '折了 ' + lose + ' 人，他会在原地停 ' + pause + ' 小时，然后接着追。' };
 }
@@ -6469,10 +6599,31 @@ function settleUnitSteps(state) {
 
 function moveParties(state) {
   const p = state.player;
+  const nowH = gameHours(state);
   state.parties.forEach(function (party) {
+    // 断后/买路约好的停战时辰，匪团也必须遵守，否则刚断完后脚又贴上来
+    if (party.pauseUntil && nowH < party.pauseUntil) {
+      party.chasing = false;
+      return;
+    }
     if (party.slow) {
       party.tick = (party.tick || 0) + 1;
       if (party.tick % party.slow !== 0) return;
+    }
+    // 西凉铁骑：只咬玩家，不跟领主互殴；断后之后除非玩家贴到脸上，否则原地不动
+    if (party.scripted) {
+      const dist = gridDistance(party, p);
+      if (party.dormant) {
+        if (dist > 1) {
+          party.chasing = false;
+          return;
+        }
+        party.dormant = false;
+      }
+      party.chasing = true;
+      const step = greedyStep(state, party, { x: p.x, y: p.y });
+      if (step) stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
+      return;
     }
     // 见着大兵就溜：匪团轻装，领主辎重多，追不上
     const lord = nearestLord(state, party, 3);
@@ -6483,7 +6634,7 @@ function moveParties(state) {
     }
     const dist = gridDistance(party, p);
     let target;
-    if (!isResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
+    if (!isSafeResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
       target = { x: p.x, y: p.y };
       party.chasing = true;
     } else {
@@ -6523,6 +6674,47 @@ function refillLord(lord, n) {
   return lord.troops;
 }
 
+/** 领主在自己的城镇/村庄招兵：从领主专属兵源池里拿，不碰玩家的 site.recruits */
+function recruitLordFromSite(state, lord, site, quota) {
+  if (!lord || !site || !lord.defTroops) return 0;
+  const pool = site.lordRecruits || {};
+  const list = site.recruitList || [];
+  let left = Math.max(0, Math.round(quota));
+  let got = 0;
+  while (left > 0) {
+    let best = null;
+    list.forEach(function (id) {
+      if ((pool[id] || 0) <= 0) return;
+      const gap = (lord.defTroops[id] || 0) - (lord.troops[id] || 0);
+      if (gap <= 0) return;
+      if (!best || gap > best.gap) best = { id: id, gap: gap };
+    });
+    if (!best) break;
+    const put = Math.min(best.gap, left, pool[best.id]);
+    if (put <= 0) break;
+    lord.troops[best.id] = (lord.troops[best.id] || 0) + put;
+    pool[best.id] -= put;
+    left -= put;
+    got += put;
+  }
+  return got;
+}
+
+/** 每天让停在自家城镇/村庄的领主补一点兵；兵源与玩家分开 */
+function lordRecruitTick(state) {
+  state.lords.forEach(function (lord) {
+    if (!lord.alive || lord.prisoner) return;
+    const site = siteAt(state.world, lord.x, lord.y);
+    if (!site || (site.type !== 'town' && site.type !== 'castle' && site.type !== 'village')) return;
+    if (site.ownerFaction !== lord.faction) return;
+    const full = army.troopCount(lord.defTroops || {});
+    const now = army.troopCount(lord.troops || {});
+    if (full <= 0 || now >= full) return;
+    const quota = Math.max(1, Math.min(4, Math.round((full - now) * 0.12)));
+    recruitLordFromSite(state, lord, site, quota);
+  });
+}
+
 /** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
 function moveLords(state) {
   const p = state.player;
@@ -6557,7 +6749,7 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 打残了先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.4));
-    if (isHostileFaction(state, lord.faction) && !paidOff && !isResting(state) && dist <= lord.sight && !needRest) {
+    if (isHostileFaction(state, lord.faction) && !paidOff && !isSafeResting(state) && dist <= lord.sight && !needRest) {
       target = { x: p.x, y: p.y };
       lord.chasing = true;
       lord.resting = false;
@@ -6721,7 +6913,14 @@ function greedyStep(state, unit, target) {
     const nx = unit.x + dirs[i][0];
     const ny = unit.y + dirs[i][1];
     if (!isPassable(state.world, nx, ny)) continue;
-    if (siteAt(state.world, nx, ny)) continue;
+    const site = siteAt(state.world, nx, ny);
+    if (site) {
+      // 村庄不是保险箱：追兵可以踩进村里把玩家揪出来
+      const p = state.player;
+      const inVillage = p && p.atSiteId === site.id && site.type === 'village' &&
+        target && target.x === p.x && target.y === p.y;
+      if (!inVillage) continue;
+    }
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
     if (d < bestD) {
       bestD = d;
@@ -6748,6 +6947,8 @@ function playerSide(state) {
 }
 
 function startPartyBattle(state, party) {
+  // 西凉铁骑是剧情追兵，不能拉出来正常对战；只能在被追上页留人断后
+  if (!party || party.scripted) return null;
   const battle = new Battle({
     rng: state.rng,
     attacker: playerSide(state),
@@ -6814,6 +7015,8 @@ function garrisonTroops(site) {
 }
 
 function startSiege(state, site) {
+  // 洗劫过的空营不能反复开战，否则 0 守军也能无限刷缴获
+  if (!site || (site.type === 'camp' && site.cleared)) return null;
   const battle = new Battle({
     rng: state.rng,
     attacker: playerSide(state),
@@ -7031,7 +7234,7 @@ function resolveBattle(state, battle) {
     const ctx = battle.context;
     if (ctx.kind === 'party' || ctx.kind === 'chase') {
       state.parties = state.parties.filter(function (x) { return x.id !== ctx.partyId; });
-      pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金，声望 +' + renownGain + '。');
+      pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金钱，声望 +' + renownGain + '。');
       if (ctx.kind === 'chase') {
         pushLog(state, '西凉铁骑退了。你回头看了一眼洛阳的方向，没再回头。');
         advanceCampaign(state);
@@ -7042,7 +7245,7 @@ function resolveBattle(state, battle) {
         const res = war.onPlayerBeatLord(state, lord);
         changeRelation(state, lord.faction, -35);
         if (res.captured) {
-          pushLog(state, '你生擒了' + lord.name + '，捆在营后。牢里等着家人拿 ' + res.ransom + ' 金来赎。');
+          pushLog(state, '你生擒了' + lord.name + '，捆在营后。牢里等着家人拿 ' + res.ransom + ' 金钱来赎。');
           summary.duelNote = '生擒 ' + lord.name + ' · 已押进牢里';
         } else if (res.killed) {
           pushLog(state, '阵前斩了' + lord.name + '。这消息传出去，' +
@@ -7078,7 +7281,7 @@ function resolveBattle(state, battle) {
     const lostFood = Math.round(p.food * 0.28);
     p.gold -= lostGold;
     p.food -= lostFood;
-    pushLog(state, '战败，被抢走 ' + lostGold + ' 金与 ' + lostFood + ' 粮。');
+    pushLog(state, '战败，被抢走 ' + lostGold + ' 金钱与 ' + lostFood + ' 粮。');
     heroes.gainHeroExp(state, 3);
     if (army.troopCount(p.troops) <= 0) {
       reviveAfterDefeat(state, 'battle');
@@ -7101,10 +7304,13 @@ function takeSite(state, site) {
   const p = state.player;
   if (site.type === 'camp') {
     site.cleared = true;
+    site.looted = true;
+    site.lootedDay = state.clock.day;
+    site.respawnDay = state.clock.day + CAMP_RESPAWN_DAYS;
     site.garrison = 0;
     p.renown += 45;
     p.gold += 120;
-    pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。');
+    pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。过 ' + CAMP_RESPAWN_DAYS + ' 天再来，看还有没有人聚起来。');
   } else {
     const oldFaction = site.ownerFaction;
     site.playerOwned = true;
@@ -7178,7 +7384,7 @@ function finishQuest(state, q) {
   state.player.renown += q.reward.renown;
   state.stats.goldEarned += q.reward.gold;
   if (q.faction) changeRelation(state, q.faction, 12);
-  pushLog(state, '交差：' + q.title + '，得 ' + q.reward.gold + ' 金、' + q.reward.renown + ' 声望。');
+  pushLog(state, '交差：' + q.title + '，得 ' + q.reward.gold + ' 金钱、' + q.reward.renown + ' 声望。');
 }
 
 function completeQuests(state, type, targetId) {
@@ -7224,8 +7430,11 @@ function joinFaction(state, site) {
   if (p.faction) return { ok: false, msg: '你已经效忠' + FACTIONS[p.faction].full };
   if (!site.ownerFaction || site.ownerFaction === 'bandit') return { ok: false, msg: '这里没有可效忠的旗' };
   if (site.playerOwned) return { ok: false, msg: '这是你自己的地盘' };
-  if (p.renown < 60) return { ok: false, msg: '声望不足 60，' + site.name + '的守将不见你' };
   const f = site.ownerFaction;
+  const req = joinRenownReq(f);
+  if (p.renown < req) {
+    return { ok: false, msg: '声望不足 ' + req + '，' + site.name + '的守将不见你' };
+  }
   p.faction = f;
   state.flags.sworn = true;
   changeRelation(state, f, 80);
@@ -7306,8 +7515,8 @@ function raidVillage(state, site) {
   // 屠村只掉 5 点关系，但村里会记很久
   if (site.ownerFaction) changeRelation(state, site.ownerFaction, -5);
   state.player.renown = Math.max(0, state.player.renown - 4);
-  pushLog(state, '你屠了' + site.name + '，得 ' + gold + ' 金、' + food + ' 粮。村口有人记住了你的旗。');
-  return { ok: true, msg: '抢到 ' + gold + ' 金、' + food + ' 粮' };
+  pushLog(state, '你屠了' + site.name + '，得 ' + gold + ' 金钱、' + food + ' 粮。村口有人记住了你的旗。');
+  return { ok: true, msg: '抢到 ' + gold + ' 金钱、' + food + ' 粮' };
 }
 
 /** 村庄：跟村长买口粮（牛、羊、鸡、谷） */
@@ -7316,11 +7525,14 @@ function buyVillageFood(state, site, itemId) {
   let item = null;
   VILLAGE_FOOD.forEach(function (f) { if (f.id === itemId) item = f; });
   if (!item) return { ok: false, msg: '没有这样东西' };
+  const stock = (site.foodStock || {})[item.id] || 0;
+  if (stock <= 0) return { ok: false, msg: '村里的' + item.name + '已经卖完了，过两天再来' };
   const price = Math.round(item.price * (site.priceIndex || 1) * 0.85);
-  if (state.player.gold < price) return { ok: false, msg: '钱不够，要 ' + price };
+  if (state.player.gold < price) return { ok: false, msg: '钱不够，要 ' + price + ' 金钱' };
   if (state.player.food + item.food > army.foodCap(state.player.troops)) return { ok: false, msg: '粮车装不下了' };
   state.player.gold -= price;
   state.player.food += item.food;
+  site.foodStock[item.id] = stock - 1;
   return { ok: true, msg: '买了' + item.name + '，得 ' + item.food + ' 口粮', cost: price };
 }
 
@@ -7377,14 +7589,14 @@ function lordGreet(state, lord) {
 /** 送礼：100 金 = 君主 5 点、领兵者 3 点、将领 2 点 */
 function giftLord(state, lord, gold) {
   const n = Math.max(20, Math.floor(gold));
-  if (state.player.gold < n) return { ok: false, msg: '金币不够，你只有 ' + state.player.gold };
+  if (state.player.gold < n) return { ok: false, msg: '金钱不够，你只有 ' + state.player.gold };
   const rate = RANK_RATE[lordRank(lord)];
   const gain = Math.max(1, Math.round((n / 100) * rate));
   state.player.gold -= n;
   changeRelation(state, lord.faction, gain);
   const rel = relationOf(state, lord.faction);
-  pushLog(state, '你给' + lord.name + '送了 ' + n + ' 金，关系 +' + gain + '（现在 ' + rel + '）。');
-  return { ok: true, msg: '送 ' + n + ' 金，关系 +' + gain + '（现在 ' + rel + '）', gain, rel };
+  pushLog(state, '你给' + lord.name + '送了 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）。');
+  return { ok: true, msg: '送 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）', gain, rel };
 }
 
 /** 开战：直接扣 25 关系 */
@@ -7478,9 +7690,8 @@ function checkCampaign(state, key) {
   const p = state.player;
   const count = army.troopCount(p.troops);
   if (key === 'reach_chenliu') {
-    if (p.atSiteId === 'chenliu') return true;
-    if (state.clock.day > 8) return true;
-    return false;
+    // 铁骑会一路追到陈留；进了陈留城，序章追兵就撤了
+    return p.atSiteId === 'chenliu';
   }
   if (key === 'troops_30') {
     if (count >= 30) return true;
@@ -7836,7 +8047,7 @@ function tavernRumor(state) {
     return l.hidden && l.hidden.siteId && !state.knownHidden[l.id];
   });
   if (!hidden.length) return { ok: false, msg: '酒馆里的人摇头：没听说谁还在世上。' };
-  if (state.player.gold < cost) return { ok: false, msg: '打听要 ' + cost + ' 金，你身上不够。' };
+  if (state.player.gold < cost) return { ok: false, msg: '打听要 ' + cost + ' 金钱，你身上不够。' };
   state.player.gold -= cost;
   const target = hidden[state.rng.int(0, hidden.length - 1)];
   state.knownHidden[target.id] = target.hidden.siteId;
@@ -8043,6 +8254,34 @@ function deserialize(json) {
   state.player.stepTo = null;
   state.player.stepProgress = 0;
 
+  // 同版本老档补上村市口粮与领主独立兵源池
+  state.world.sites.forEach(function (site) {
+    if (!site.foodStock) {
+      site.foodStock = {};
+      if (site.type === 'village') {
+        VILLAGE_FOOD.forEach(function (f) { site.foodStock[f.id] = Math.max(1, f.stockMax || 3); });
+      }
+    }
+    if (!site.lordRecruits && site.type !== 'camp') {
+      site.lordRecruits = {};
+      (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    }
+    // 旧档的村庄可能还是每次刷新 7 人 / 口粮没有上限，进档时统一压到新规则
+    if (site.type === 'village') {
+      site.recruitCap = 5;
+      site.recruits = site.recruits || {};
+      Object.keys(site.recruits).forEach(function (id) {
+        site.recruits[id] = Math.min(5, site.recruits[id] || 0);
+      });
+      site.foodStock = site.foodStock || {};
+      VILLAGE_FOOD.forEach(function (f) {
+        const cap = f.stockMax || 3;
+        const cur = site.foodStock[f.id];
+        site.foodStock[f.id] = cur === undefined ? cap : Math.min(cap, cur);
+      });
+    }
+  });
+
   // 老存档里没有后来补的领主：按 LORDS 定义补齐，已死过的保持死过
   const { LORDS } = __require(5);
   // 旧档里的领主可能缺后来加的字段
@@ -8086,8 +8325,14 @@ module.exports = {
   startRest,
   stopRest,
   isResting,
+  isSafeResting,
   advanceTime,
   dailyTick,
+  campRespawnTick,
+  CAMP_RESPAWN_DAYS,
+  lordRecruitTick,
+  recruitLordFromSite,
+  joinRenownReq,
   playerSpeed,
   capacity,
   relationOf,
@@ -8584,8 +8829,8 @@ const { UI_COLORS } = pixel;
 const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = __require(8);
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W } = __require(5);
-const { lookFor } = __require(13);
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = __require(5);
+const { lookFor } = __require(12);
 const flows = __require(21);
 
 const TILE = 64;
@@ -8719,8 +8964,13 @@ function pushUnitPage(app, kind, id) {
   const top = app.top();
   const name = top ? top.name : '';
   if (name === 'lord' || name === 'contact' || name === 'battle' || name === 'town') return;
-  if (kind === 'lord') app.push('lord', { lordId: id });
-  else app.push('contact', { partyId: id });
+  if (kind === 'lord') { app.push('lord', { lordId: id }); return; }
+  const party = app.state.parties.filter(function (x) { return x.id === id; })[0];
+  if (party && party.scripted) {
+    app.showToast('西凉铁骑只在追上你时才会停下来，不能主动挑战。', 2.4);
+    return;
+  }
+  app.push('contact', { partyId: id });
 }
 
 /**
@@ -8908,7 +9158,12 @@ const MapScene = {
         stateLib.stopMoving(st);
         if (stateLib.isHostileSite(st, site)) {
           if (stateLib.canFight(st, site.id)) {
-            stateLib.startSiege(st, site);
+            const siege = stateLib.startSiege(st, site);
+            if (!siege) {
+              st.player.atSiteId = site.id;
+              app.push('town', { siteId: site.id });
+              return;
+            }
             app.push('battle', { mode: 'siege' });
           } else {
             app.showToast('这座城现在打不下来。');
@@ -9167,6 +9422,8 @@ function drawTerrainView(ctx, app, cam, box, w) {
 function drawSites(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
+  const lowZoom = (app.mapZoom || 1) < 0.45;
+  const capitalLabels = [];
 
   ctx.save();
   ctx.beginPath();
@@ -9181,18 +9438,22 @@ function drawSites(ctx, app, cam, box, w) {
       const cp = st.warCampaigns[k];
       return cp && cp.stage === 'siege' && cp.targetId === site.id;
     });
+    const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
 
-    // 拉远看整张天下时，城池收成势力色小点，不铺名字，免得糊成一锅粥
-    if ((app.mapZoom || 1) < 0.45) {
+    // 拉远看整张天下时，城池收成势力色小点；国都仍要留名字，不许缩成无名点
+    if (lowZoom) {
       const col = site.ownerFaction && FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#7a7266';
-      const r = site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
+      const r = isCapital ? 4.6 : site.type === 'town' ? 4.2 : site.type === 'castle' ? 3.2 : 2.2;
       ctx.beginPath();
       ctx.arc(sx + TS / 2, sy + TS / 2, r, 0, Math.PI * 2);
       ctx.fillStyle = col;
       ctx.fill();
-      ctx.lineWidth = siege ? 2 : 1;
-      ctx.strokeStyle = siege ? '#e06a42' : site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
+      ctx.lineWidth = isCapital ? 2.2 : siege ? 2 : 1;
+      ctx.strokeStyle = isCapital ? '#ffe0a8' : siege ? '#e06a42' : site.playerOwned ? '#f0c060' : 'rgba(10,8,6,0.65)';
       ctx.stroke();
+      if (isCapital) {
+        capitalLabels.push({ site: site, sx: sx + TS / 2, sy: sy + TS / 2, color: col });
+      }
       return;
     }
 
@@ -9240,6 +9501,37 @@ function drawSites(ctx, app, cam, box, w) {
       shadow: true,
     });
   });
+
+  // 极小缩放：国都名牌单独画在外圈，保证十座都城在任何缩放下都认得出
+  if (lowZoom && capitalLabels.length) {
+    const placed = [];
+    capitalLabels.forEach(function (l) {
+      const name = l.site.name;
+      ctx.font = 'bold 11px "PingFang SC","Microsoft YaHei",sans-serif';
+      const tw = ctx.measureText(name).width;
+      const candidates = [
+        { x: l.sx - tw / 2, y: l.sy + 7 },
+        { x: l.sx - tw / 2, y: l.sy - 19 },
+        { x: l.sx + 6, y: l.sy - 6 },
+        { x: l.sx - tw - 6, y: l.sy - 6 },
+        { x: l.sx - tw / 2, y: l.sy + 23 },
+      ];
+      let spot = null;
+      for (let i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (!placed.some(function (r) {
+          return c.x < r.x + r.w && c.x + tw + 6 > r.x && c.y < r.y + r.h && c.y + 15 > r.y;
+        })) { spot = c; break; }
+      }
+      if (!spot) spot = candidates[0];
+      placed.push({ x: spot.x, y: spot.y, w: tw + 6, h: 15 });
+      ctx.fillStyle = 'rgba(8,6,4,0.88)';
+      ctx.fillRect(spot.x, spot.y, tw + 6, 15);
+      ctx.fillStyle = l.color;
+      ctx.fillRect(spot.x, spot.y, 2, 15);
+      text(ctx, name, spot.x + 5, spot.y + 2, { size: 11, color: '#ffe9c4' });
+    });
+  }
   ctx.restore();
 }
 
@@ -9605,17 +9897,17 @@ function drawTop(ctx, app, w) {
 
   // 资源条
   const items = [
-    { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food, c: '#c8b478' },
-    { k: '兵', v: army.troopCount(p.troops) + '/' + stateLib.capacity(st), c: '#8fb0d8' },
-    { k: '望', v: p.renown, c: '#c98f6a' },
-    { k: '简', v: p.shi, c: '#b98fd8' },
+    { k: '金钱', v: p.gold, c: '#f0c060' },
+    { k: '粮草', v: p.food, c: '#c8b478' },
+    { k: '兵力', v: army.troopCount(p.troops) + '/' + stateLib.capacity(st), c: '#8fb0d8' },
+    { k: '声望', v: p.renown, c: '#c98f6a' },
+    { k: '史简', v: p.shi, c: '#b98fd8' },
   ];
   const cw = (w - 32) / items.length;
   items.forEach(function (it, i) {
     const x = 16 + i * cw;
-    text(ctx, it.k, x, 78, { size: 17, color: '#8a8070' });
-    text(ctx, String(it.v), x + 26, 74, { size: 22, color: it.c });
+    text(ctx, it.k, x, 72, { size: 13, color: '#8a8070' });
+    text(ctx, String(it.v), x, 92, { size: 17, color: it.c });
   });
 
   // 战役目标不放在顶栏了，改成地图上的任务卡（见 drawQuestCard）
@@ -9665,29 +9957,13 @@ module.exports = MapScene;
  * 放大（zoom>1）铺上各势力领土色、描州界，只留都城与重镇名。
  */
 
-const { REGIONS, FACTIONS } = __require(5);
+const { REGIONS, FACTIONS, CAPITAL_IDS } = __require(5);
 const { text } = __require(6);
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3.2;
-
-/** 各势力都城：放大时只标这些 */
-const CAPITALS = {
-  wei: 'xuchang',
-  shu: 'chengdu',
-  wu: 'jianye',
-  yuan: 'ye',
-  lv: 'xiapi',
-  biao: 'xiangyang',
-  zhang: 'chengdu',
-  xianbei: 'longcheng',
-  ma: 'wuwei',
-  han: 'changan',
-  bandit: '',
-};
-const CAPITAL_IDS = ['xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang'];
 
 function cellColor(t, region) {
   if (t === 'sea') return '#1e4166';
@@ -9808,7 +10084,8 @@ const AtlasScene = {
     const oy = MAP_TOP + 6 + Math.min(viewH, cell * world.h) / 2 - c.y * cell;
 
     const grid = buildFactionGrid(world);
-    const showTerritory = zoom > 1.35;
+    // 势力颜色是所有缩放级别的底图，不再等到放大才出现
+    const detailed = zoom > 1.35;
 
     ctx.save();
     ctx.beginPath();
@@ -9827,7 +10104,7 @@ const AtlasScene = {
         const t = world.tiles[i];
         const reg = world.regions[i] || 'zhongyuan';
         let col = cellColor(t, reg);
-        if (showTerritory && t !== 'sea' && t !== 'river') {
+        if (t !== 'sea' && t !== 'river') {
           const f = FACTIONS[grid[i]];
           if (f) col = mix(col, f.color, 0.55);
         }
@@ -9836,8 +10113,8 @@ const AtlasScene = {
       }
     }
 
-    // 州界：格子左侧/上侧与邻居归属不同就描一条线
-    if (showTerritory) {
+    // 州界：格子左侧/上侧与邻居归属不同就描一条线（缩小也描，势力范围一眼可见）
+    {
       ctx.strokeStyle = 'rgba(20,16,10,0.85)';
       ctx.lineWidth = Math.max(1.4, cell * 0.12);
       for (let y = y0; y <= y1; y++) {
@@ -9898,18 +10175,19 @@ const AtlasScene = {
         ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, 1);
       }
 
-      // 名字显示规则：放大时只留都城重镇，缩小时全部写上（有避让）
+      // 名字显示规则：放大只留都城，缩小写全部城名；都城无论缩放都不许消失
       const isCap = CAPITAL_IDS.indexOf(s.id) >= 0;
-      if (showTerritory && !isCap) return;
-      if (!showTerritory && !big && zoom > 1.2) return;
+      if (detailed && !isCap) return;
+      if (!detailed && !big && zoom > 1.2) return;
 
-      const fs = showTerritory ? 13 : 11;
+      const fs = detailed ? 13 : 11;
       ctx.font = 'bold ' + fs + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(s.name).width;
       const bx = sx - tw / 2 - 3;
       const by = sy + sz / 2 + 1;
-      if (!labelFits(placed, bx, by, tw + 6, fs + 5)) return;
-      placed.push({ x: bx, y: by, w: tw + 6, h: fs + 5 });
+      const fits = labelFits(placed, bx, by, tw + 6, fs + 5);
+      if (!fits && !isCap) return;
+      if (fits) placed.push({ x: bx, y: by, w: tw + 6, h: fs + 5 });
       ctx.fillStyle = 'rgba(8,6,4,0.78)';
       ctx.fillRect(bx, by, tw + 6, fs + 4);
       text(ctx, s.name, sx, by + 2, {
@@ -9981,7 +10259,7 @@ const AtlasScene = {
       : (marches ? marches + ' 路诸侯正在开拔 · 双击放大看城名' : '四境暂无围城 · 双击放大看城名');
     text(ctx, warLine, MAP_LEFT, legendY + 56, { size: 14, color: sieges.length ? '#e0a050' : '#8a8070' });
 
-    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 80, {
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色常显 · 放大看州界与都城', MAP_LEFT, legendY + 80, {
       size: 13, color: '#8a8070',
     });
   },
@@ -10113,7 +10391,7 @@ function pickFoe(state) {
 function enter(state, site) {
   const cost = FEE;
   if (state.player.gold < cost) {
-    return { ok: false, msg: '报名要 ' + cost + ' 金，你身上不够' };
+    return { ok: false, msg: '报名要 ' + cost + ' 金钱，你身上不够' };
   }
   state.player.gold -= cost;
   state.tourney = {
@@ -10131,7 +10409,7 @@ function enter(state, site) {
     pot: PRIZE,
     round: 0,
   };
-  return { ok: true, msg: '交了 ' + cost + ' 金报名费，签了生死状（其实不杀人）。' };
+  return { ok: true, msg: '交了 ' + cost + ' 金钱报名费，签了生死状（其实不杀人）。' };
 }
 
 /** 对手出招：多数时候乱来，偶尔读你上一手的习惯 */
@@ -10223,7 +10501,7 @@ function play(state, moveId) {
     result = 'draw';
     state.player.gold += t.fee;
     state.player.renown += 6;
-    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金报名费退了你，赏格对半分不成，只好作罢。');
+    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金钱报名费退了你，赏格对半分不成，只好作罢。');
   } else if (t.foeHp <= 0) {
     t.done = true;
     t.champion = true;
@@ -10232,7 +10510,7 @@ function play(state, moveId) {
     state.player.renown += 40;
     state.player.morale = Math.min(100, state.player.morale + 8);
     heroes.gainHeroExp(state, 10);
-    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金，声望 +40。');
+    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金钱，声望 +40。');
     if (t.foe.lordId) {
       const lid = t.foe.lordId;
       state.lords.forEach(function (l) {
@@ -10288,19 +10566,19 @@ const { UI_COLORS } = __require(3);
 const pixel = __require(3);
 const stateLib = __require(7);
 const economy = __require(11);
-const trade = __require(12);
+const trade = __require(13);
 const heroes = __require(14);
 const army = __require(9);
 const tourney = __require(24);
 const { siteById, regionDef } = __require(8);
 const { TROOPS } = __require(10);
 const { FACTIONS, EQUIPMENT } = __require(5);
-const { GOODS, VILLAGE_FOOD } = __require(13);
+const { GOODS, VILLAGE_FOOD } = __require(12);
 const flows = __require(21);
 
 const PAD = 16;
 
-function money(v) { return v + ' 金'; }
+function money(v) { return v + '金钱'; }
 
 function header(app, site) {
   const ctx = app.runtime.ctx;
@@ -10335,18 +10613,18 @@ function statusBar(app, y) {
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
-    { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
-    { k: '兵', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
-    { k: '望', v: p.renown, c: '#c98f6a' },
-    { k: '简', v: p.shi, c: '#b98fd8' },
-    { k: '气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
+    { k: '金钱', v: p.gold, c: '#f0c060' },
+    { k: '粮草', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
+    { k: '声望', v: p.renown, c: '#c98f6a' },
+    { k: '史简', v: p.shi, c: '#b98fd8' },
+    { k: '士气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
   ];
   const cw = (w - PAD * 2) / cells.length;
   cells.forEach(function (it, i) {
     const x = PAD + i * cw;
-    text(ctx, it.k, x, y + 12, { size: 16, color: '#8a8070' });
-    text(ctx, String(it.v), x, y + 38, { size: 20, color: it.c });
+    text(ctx, it.k, x, y + 10, { size: 13, color: '#8a8070' });
+    text(ctx, String(it.v), x, y + 38, { size: 17, color: it.c });
   });
 
   // 士气细条
@@ -10411,7 +10689,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_village', label: '村市 · 找村长', sub: '牛、羊、鸡、谷，村里卖得比城里便宜',
-      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金',
+      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + '金钱',
       onTap: function () { app.townView.view = 'village'; },
     });
     list.push({
@@ -10424,7 +10702,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_rest', label: resting ? '结束休整 · 上路' : '在村里歇下',
-      sub: '外面的日子照常过，你的粮吃得慢一半，也没人来追', fill: '#26372a',
+      sub: '粮耗减半；村里藏不住人，追兵会摸进来', fill: '#26372a',
       right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
     });
     const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
@@ -10443,7 +10721,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_market', label: '市场', sub: '粮草 · 货物 · 军械',
-      right: '粮 ' + economy.foodPrice(site) + ' 金/单位',
+      right: '粮 ' + economy.foodPrice(site) + '金钱/单位',
       onTap: function () { app.townView.view = 'market'; app.townView.tab = 'food'; },
     });
     list.push({
@@ -10457,7 +10735,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
-      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金',
+      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
     const obj = stateLib.campaignObjective(app.state, site);
@@ -10494,11 +10772,39 @@ function renderMenu(app, site) {
   let y = 280;
 
   if (site.type === 'camp') {
+    if (site.cleared) {
+      text(ctx, '到处是火。', PAD, y - 44, { size: 30, color: '#e08a50' });
+      text(ctx, '寨门烧塌了，营帐只剩黑桩，地上散着断刀和空粮袋。', PAD, y + 12, {
+        size: 19, color: '#c9bda2',
+      });
+      text(ctx, '财物已经被劫掠一空，连一把能用的弓都没留下。', PAD, y + 54, {
+        size: 21, color: '#f0c060',
+      });
+      text(ctx, '过几天再来看看。', PAD, y + 98, { size: 24, color: '#8fbf7a' });
+      if (site.respawnDay) {
+        text(ctx, '约第 ' + site.respawnDay + ' 天，也许会再聚起一伙人。', PAD, y + 140, {
+          size: 16, color: '#8a8070',
+        });
+      }
+      app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离开这里', {
+        id: 'camp_leave_looted', size: 26, fill: '#241c14', onTap: function () {
+          app.state.player.atSiteId = null;
+          app.pop();
+        },
+      });
+      return;
+    }
     text(ctx, '这里是一处贼巢。攻破它，你的名字会传出去。', PAD, y - 40, { size: 19, color: '#c9bda2' });
     app.ui.button(ctx, PAD, y, w - PAD * 2, 96, '进攻贼巢', {
       id: 'attack', size: 30, fill: '#4a241c', onTap: function () {
         stateLib.startSiege(app.state, site);
         app.push('battle', { mode: 'siege' });
+      },
+    });
+    app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离开这里', {
+      id: 'camp_leave', size: 26, fill: '#241c14', onTap: function () {
+        app.state.player.atSiteId = null;
+        app.pop();
       },
     });
     return;
@@ -10586,10 +10892,9 @@ function renderRecruit(app, site) {
   });
 
   let list = site.recruitList || [];
-  // 村庄只出最低一档的壮丁
+  // 村庄只出最低一档的壮丁；池子空了就是空了，村里的壮丁就这些
   if (site.type === 'village') {
     list = ['militia'];
-    if (!site.recruits.militia || site.recruits.militia <= 0) site.recruits.militia = 3;
   }
   let y = 340;
 
@@ -10610,7 +10915,7 @@ function renderRecruit(app, site) {
     text(ctx, locked ? '需声望 ' + t.renownReq : '余 ' + stock + ' 人', PAD + 18, y + 58, {
       size: 17, color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
     });
-    text(ctx, price + ' 金/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
+    text(ctx, price + '金钱/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
 
     if (!locked && stock > 0) {
       app.ui.button(ctx, w - PAD - 190, y + 22, 86, 58, '招 1', {
@@ -10694,13 +10999,13 @@ function renderGoodOne(app, site, goodId) {
   const have = (p.goods || {})[goodId] || 0;
 
   text(ctx, gd.name, PAD, 358, { size: 30, color: '#f0c060' });
-  text(ctx, '基准 ' + gd.base + ' 金 / ' + gd.unit, w - PAD, 364, { size: 16, align: 'right', color: '#8a8070' });
+  text(ctx, '基准 ' + gd.base + '金钱 / ' + gd.unit, w - PAD, 364, { size: 16, align: 'right', color: '#8a8070' });
   wrap(ctx, gd.desc, w - PAD * 2, 16).slice(0, 2).forEach(function (ln, i) {
     text(ctx, ln, PAD, 400 + i * 24, { size: 16, color: '#a2947a' });
   });
 
-  text(ctx, '本地买 ' + buy + ' 金', PAD, 460, { size: 22, color: '#f0c060' });
-  text(ctx, '本地卖 ' + sell + ' 金', PAD + 220, 460, { size: 22, color: '#8fb0d8' });
+  text(ctx, '本地买 ' + buy + '金钱', PAD, 460, { size: 22, color: '#f0c060' });
+  text(ctx, '本地卖 ' + sell + '金钱', PAD + 220, 460, { size: 22, color: '#8fb0d8' });
   text(ctx, '持有 ' + have + ' · 驮队 ' + trade.goodsCount(p) + '/' + trade.GOODS_CAP, PAD, 498, {
     size: 18, color: '#efe3c6',
   });
@@ -10734,12 +11039,12 @@ function renderGoodOne(app, site, goodId) {
     if (!est.rows || !est.rows.length) {
       text(ctx, est.msg, PAD, y, { size: 17, color: '#a2947a' });
     } else {
-      text(ctx, '本城 ' + est.here + ' 金 · 往这些城去：', PAD, y, { size: 17, color: '#a2947a' });
+      text(ctx, '本城 ' + est.here + '金钱 · 往这些城去：', PAD, y, { size: 17, color: '#a2947a' });
       y += 30;
       est.rows.forEach(function (row) {
         if (y > h - 150) return;
         text(ctx, row.site.name, PAD, y, { size: 19, color: '#efe3c6' });
-        text(ctx, row.price + ' 金', PAD + 150, y, { size: 19, color: '#f0c060' });
+        text(ctx, row.price + '金钱', PAD + 150, y, { size: 19, color: '#f0c060' });
         text(ctx, '每件多赚 ' + row.profit, PAD + 260, y, { size: 17, color: '#8fbf7a' });
         text(ctx, row.dist + ' 格', w - PAD, y, { size: 15, align: 'right', color: '#8a8070' });
         y += 34;
@@ -10772,14 +11077,18 @@ function renderVillage(app, site) {
   let y = 380;
   VILLAGE_FOOD.forEach(function (f) {
     const price = Math.round(f.price * (site.priceIndex || 1) * 0.85);
+    const stock = (site.foodStock || {})[f.id] || 0;
     panel(ctx, PAD, y, w - PAD * 2, 96, { fill: '#241c14' });
-    text(ctx, f.name, PAD + 18, y + 10, { size: 24, color: '#efe3c6' });
+    text(ctx, f.name, PAD + 18, y + 10, { size: 24, color: stock > 0 ? '#efe3c6' : '#7a7160' });
     text(ctx, '+' + f.food + ' 口粮', PAD + 150, y + 16, { size: 18, color: '#a2947a' });
-    const dl = wrap(ctx, f.desc, w - PAD * 2 - 200, 15)[0] || '';
+    const dl = wrap(ctx, f.desc, w - PAD * 2 - 460, 15)[0] || '';
     text(ctx, dl, PAD + 18, y + 50, { size: 15, color: '#8a8070' });
-    text(ctx, price + ' 金', w - PAD - 142, y + 44, { size: 22, align: 'right', color: '#f0c060' });
+    text(ctx, stock > 0 ? '村里还有 ' + stock + ' 份' : '卖完了', PAD + 320, y + 54, {
+      size: 16, color: stock > 0 ? '#8fbf7a' : '#d06a4a',
+    });
+    text(ctx, price + '金钱', w - PAD - 142, y + 44, { size: 22, align: 'right', color: '#f0c060' });
     app.ui.button(ctx, w - PAD - 130, y + 22, 112, 54, '买', {
-      id: 'vf_' + f.id, size: 22, disabled: p.gold < price, onTap: function () {
+      id: 'vf_' + f.id, size: 22, disabled: p.gold < price || stock <= 0, onTap: function () {
         const r = stateLib.buyVillageFood(st, site, f.id);
         app.showToast(r.msg, 2.2);
       },
@@ -10825,7 +11134,7 @@ function renderMarket(app, site, tab) {
   if (tab === 'food') {
     const price = economy.foodPrice(site);
     const sell = economy.foodSellPrice(site);
-    text(ctx, '粮价 ' + price + ' 金 · 卖出 ' + sell + ' 金', PAD, 372, { size: 24, color: '#efe3c6' });
+    text(ctx, '粮价 ' + price + '金钱 · 卖出 ' + sell + '金钱', PAD, 372, { size: 24, color: '#efe3c6' });
     text(ctx, '你的粮草：' + st.player.food + ' 单位', PAD, 410, { size: 20, color: st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
     text(ctx, '每两天吃掉 ' + Math.max(1, Math.round(army.foodPerDay(st.player.troops) * 2)) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
 
@@ -10861,7 +11170,7 @@ function renderMarket(app, site, tab) {
     text(ctx, eq.name, PAD + 18, y + 12, { size: 20, color: '#a2947a' });
     text(ctx, cur.name, PAD + 96, y + 10, { size: 26, color: '#efe3c6' });
     text(ctx, '第 ' + (level + 1) + ' / ' + eq.tiers.length + ' 档 · ' +
-      (next ? '下一档：' + next.name + ' · ' + next.price + ' 金' : '已是顶配'), PAD + 18, y + 58, {
+      (next ? '下一档：' + next.name + ' · ' + next.price + '金钱' : '已是顶配'), PAD + 18, y + 58, {
       size: 17, color: next ? '#f0c060' : '#8a8070',
     });
     if (next) {
@@ -10904,7 +11213,7 @@ function renderTavern(app, site) {
       text(ctx, q.title, PAD + 18, y + 12, { size: 24, color: '#efe3c6' });
       const lines = wrap(ctx, q.text, w - PAD * 2 - 36, 16, 'bold');
       text(ctx, lines[0] || '', PAD + 18, y + 48, { size: 16, color: '#a2947a' });
-      text(ctx, '赏 ' + q.reward.gold + ' 金 · ' + q.reward.renown + ' 望', PAD + 18, y + 84, {
+      text(ctx, '赏 ' + q.reward.gold + '金钱 · ' + q.reward.renown + ' 声望', PAD + 18, y + 84, {
         size: 17, color: '#f0c060',
       });
       if (q.type === 'grain') {
@@ -10944,7 +11253,7 @@ function renderTavern(app, site) {
       });
       const b = heroes.bonusOf(h.id, 1);
       text(ctx, '带的加成：' + (b.label || '无'), PAD + 18, y + 102, { size: 13, color: '#8fb0d8' });
-      text(ctx, h.cost + ' 金', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
+      text(ctx, h.cost + '金钱', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
       app.ui.button(ctx, w - PAD - 120, y + 88, 104, 52, '招募', {
         id: 'hero_' + h.id, size: 20, disabled: st.player.gold < h.cost, onTap: function () {
           const r = heroes.hireHero(st, site, h.id);
@@ -10959,12 +11268,12 @@ function renderTavern(app, site) {
   const reg = regionDef(site.region);
   text(ctx, '“' + (reg ? reg.flavor : '') + '”', PAD, y + 40, { size: 17, color: '#8a8070' });
 
-  // 打听前朝旧主的下落：一次 40 金，问出一个人藏在哪个村
+  // 打听前朝旧主的下落：一次 40金钱，问出一个人藏在哪个村
   const unknown = st.lords.filter(function (l) {
     return l.hidden && l.hidden.siteId && (!st.knownHidden || !st.knownHidden[l.id]);
   });
   if (unknown.length) {
-    app.ui.button(ctx, PAD, y + 76, w - PAD * 2, 76, '打听前朝旧主的下落 · 40 金', {
+    app.ui.button(ctx, PAD, y + 76, w - PAD * 2, 76, '打听前朝旧主的下落 · 40金钱', {
       id: 'rumor', size: 22, fill: '#241c14', disabled: st.player.gold < 40, onTap: function () {
         const r = stateLib.tavernRumor(st);
         app.showToast(r.msg, 3);
@@ -11048,13 +11357,19 @@ function renderHall(app, site) {
   let y = 490;
 
   if (!p.faction && !hostile) {
-    app.ui.button(ctx, PAD, y, w - PAD * 2, 88, p.renown < 60 ? '效忠（需声望 60）' : '效忠' + fac.full, {
-      id: 'join', size: 26, disabled: p.renown < 60, onTap: function () {
-        const r = stateLib.joinFaction(st, site);
-        app.showToast(r.msg, 2.4);
-      },
+    const req = stateLib.joinRenownReq(f);
+    const small = req === 100;
+    app.ui.button(ctx, PAD, y, w - PAD * 2, 88,
+      p.renown < req ? '效忠（需声望 ' + req + '）' : '效忠' + fac.full, {
+        id: 'join', size: 26, disabled: p.renown < req, onTap: function () {
+          const r = stateLib.joinFaction(st, site);
+          app.showToast(r.msg, 2.4);
+        },
+      });
+    text(ctx, small ? '小国求贤：声望 100 即可投靠。' : '大国门槛：声望 200 才见得到守将。', PAD, y + 94, {
+      size: 15, color: small ? '#8fbf7a' : '#c9a05a',
     });
-    y += 100;
+    y += 120;
   }
 
   if (p.faction && p.faction !== f) {
@@ -11117,7 +11432,7 @@ function siteInfo(app, site) {
   text(ctx, String(site.garrison || 0), PAD + 22, y + 54, { size: 30, color: '#d8c8a6' });
 
   text(ctx, '粮价', PAD + 180, y + 28, { size: 17, color: '#8a8070' });
-  text(ctx, economy.foodPrice(site) + ' 金', PAD + 180, y + 54, { size: 30, color: '#d8c8a6' });
+  text(ctx, economy.foodPrice(site) + '金钱', PAD + 180, y + 54, { size: 30, color: '#d8c8a6' });
 
   if (fac) {
     const rel = (st.relations && st.relations[site.ownerFaction]) || 0;
@@ -11303,11 +11618,14 @@ const BattleScene = {
       bv.timer += dt;
       if (bv.timer >= 0.6) {
         bv.timer = 0;
-        if (!b.finished) b.step();
+        if (!b.finished && !b.batchDone) b.step();
       }
       if (b.finished) {
         bv.summary = stateLib.resolveBattle(app.state, b);
         bv.phase = 'result';
+      } else if (b.batchDone) {
+        bv.summary = b.interimSummary();
+        bv.phase = 'interim';
       }
     }
   },
@@ -11484,9 +11802,11 @@ const BattleScene = {
         },
       });
       text(ctx, '撤离不损兵 · 撤退要留一成殿后', 16, byy + bh + 8, { size: 15, color: '#8fbf7a' });
-      text(ctx, b.shiMark ? '本战已落笔：' + b.shiName : '回合自动推进 · 每 0.6 秒一轮', 16, byy + bh + 32, {
+      text(ctx, b.shiMark ? '本战已落笔：' + b.shiName : '每 12 轮为一战 · 未分胜负可再战', 16, byy + bh + 32, {
         size: 15, color: b.shiMark ? '#c9a0e0' : '#8a8070',
       });
+    } else if (bv.phase === 'interim') {
+      renderInterim(app, bv.summary, w, h, b);
     } else {
       renderResult(app, bv.summary, w, h);
     }
@@ -11535,6 +11855,39 @@ function drawTroopRow(ctx, w, y, troops, initial, color, dir) {
   }
 }
 
+function renderInterim(app, sum, w, h, b) {
+  const ctx = app.runtime.ctx;
+  if (!sum || !b) return;
+  text(ctx, '未分胜负', 16, h - 238, { size: 40, color: '#e0b060' });
+  text(ctx, '第 ' + sum.round + ' 轮 · 第 ' + sum.batch + ' 阵结束', 16, h - 192, {
+    size: 18, color: '#a2947a',
+  });
+  text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA + '　敌方 ' + sum.remainB + ' / ' + sum.initialB,
+    16, h - 160, { size: 20, color: '#d8c8a6' });
+  text(ctx, '还有兵，这仗就没完。再打 12 轮，直到一方兵力归零才结算缴获。', 16, h - 126, {
+    size: 16, color: '#8fbf7a',
+  });
+
+  const gap = 12;
+  const leftW = Math.round((w - 32 - gap) * 0.62);
+  const rightW = w - 32 - gap - leftW;
+  app.ui.button(ctx, 16, h - 96, leftW, 76, '再战 12 轮', {
+    id: 'b_next', size: 26, fill: '#4a2a1a', onTap: function () {
+      if (!b.nextBatch()) return;
+      app.battleView.summary = null;
+      app.battleView.phase = 'fight';
+      app.battleView.timer = 0;
+    },
+  });
+  app.ui.button(ctx, 16 + leftW + gap, h - 96, rightW, 76, '撤退', {
+    id: 'b_retreat', size: 24, fill: '#241c14', onTap: function () {
+      b.retreat();
+      app.battleView.summary = stateLib.resolveBattle(app.state, b);
+      app.battleView.phase = 'result';
+    },
+  });
+}
+
 function renderResult(app, sum, w, h, y0Top) {
   const ctx = app.runtime.ctx;
   const y0 = y0Top || (h - 220);
@@ -11546,10 +11899,10 @@ function renderResult(app, sum, w, h, y0Top) {
   const label = win ? '胜' : retreat ? '撤退' : '败';
 
   text(ctx, label, 16, y0, { size: 46, color });
-  text(ctx, '第 ' + sum.round + ' 轮结束', 120, y0 + 12, { size: 18, color: '#a2947a' });
+  text(ctx, '共 ' + sum.round + ' 轮 · ' + sum.batch + ' 阵打完', 120, y0 + 12, { size: 18, color: '#a2947a' });
   text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA, 16, y0 + 58, { size: 20, color: '#9fb8d8' });
   text(ctx, '敌方 ' + sum.remainB + ' / ' + sum.initialB, 16, y0 + 88, { size: 20, color: '#d8a09f' });
-  if (win) text(ctx, '缴获 ' + sum.loot + ' 金', 16, y0 + 122, { size: 22, color: '#f0c060' });
+  if (win) text(ctx, '缴获 ' + sum.loot + ' 金钱', 16, y0 + 122, { size: 22, color: '#f0c060' });
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
@@ -11634,7 +11987,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { TROOPS } = __require(10);
-const { BANDIT_TIERS } = __require(13);
+const { BANDIT_TIERS } = __require(12);
 
 function partyOf(app) {
   const d = app.contact;
@@ -11758,7 +12111,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const armyLib = __require(9);
 const heroesLib = __require(14);
-const { HERO_MAX_LEVEL } = __require(13);
+const { HERO_MAX_LEVEL } = __require(12);
 const { TROOPS } = __require(10);
 const { EQUIPMENT } = __require(5);
 
@@ -12047,7 +12400,7 @@ const { text, panel, bar, wrap } = __require(6);
 const stateLib = __require(7);
 const heroesLib = __require(14);
 const { siteById } = __require(8);
-const { HERO_MAX_LEVEL, HERO_BONUS } = __require(13);
+const { HERO_MAX_LEVEL, HERO_BONUS } = __require(12);
 
 const COMMON = [
   '……营里的火还没灭，坐会儿？',
@@ -12067,7 +12420,7 @@ const BY_KIND = {
   def: ['营垒的土得夯三层，少一层半夜就塌。', '守着不动，比冲出去难。', '我这条命，是从城墙上捡回来的。'],
   speed: ['我走惯了山路，你跟着别掉队。', '这条道我走过七回。前面有条河。', '慢一步，吃的就被人抢了。'],
   food: ['粮袋我数过，够七天。第八天得想办法。', '路上看见桑椹，也能顶一顿。', '别把干粮都给马，人先吃饱。'],
-  loot: ['打完仗别急着走，死人身上有东西。', '甲可以补，刀可以磨，别扔。', '上一回我捡到一枚印，换了三十金。'],
+  loot: ['打完仗别急着走，死人身上有东西。', '甲可以补，刀可以磨，别扔。', '上一回我捡到一枚印，换了三十金钱。'],
   morale: ['兄弟们累了，让他们歇半日。', '骂几句不顶事。饭热了，人就稳了。', '有人夜里想家。我陪他坐到天亮。'],
 };
 
@@ -12246,7 +12599,7 @@ module.exports = HeroScene;
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
 const { FACTIONS } = __require(5);
-const { lookFor } = __require(13);
+const { lookFor } = __require(12);
 
 const TOP = 96;
 const BOT = 96;
@@ -12463,13 +12816,13 @@ module.exports = PrisonScene;
 /**
  * 比武大会：彩棚底下的"猜手"赌局。
  * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
- * 报名 40 金，赢的人拿 200。
+ * 报名 40 金钱，赢的人拿 200。
  */
 
 const { text, wrap, panel } = __require(6);
 const tourney = __require(24);
 const { siteById } = __require(8);
-const { lookFor } = __require(13);
+const { lookFor } = __require(12);
 const { FACTIONS } = __require(5);
 
 const FILL_BLOCK = '#26372e';
@@ -12510,7 +12863,7 @@ const TourneyScene = {
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
-    text(ctx, '报名 ' + tourney.FEE + ' 金 · 夺冠赏 ' + tourney.PRIZE + ' 金 · 三滴血定胜负', 20, 70, {
+    text(ctx, '报名 ' + tourney.FEE + ' 金钱 · 夺冠赏 ' + tourney.PRIZE + ' 金钱 · 三滴血定胜负', 20, 70, {
       size: 16, color: '#a2947a',
     });
 
@@ -12519,11 +12872,11 @@ const TourneyScene = {
       const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
         + '每合一招：要么护住一边，要么从那一边切进去。'
         + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
-        + '三滴血，先倒下的认输。报名 40 金，赢的人捧走 200。';
+        + '三滴血，先倒下的认输。报名 40 金钱，赢的人捧走 200。';
       wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
         text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
       });
-      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金 · 报名下场', {
+      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金钱 · 报名下场', {
         id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
           const r = tourney.enter(st, site);
           app.showToast(r.msg, 2.2);
@@ -12552,7 +12905,7 @@ const TourneyScene = {
       text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
       drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
       text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
-      text(ctx, '金 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
+      text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
       text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
 
       if (!t.done) {
@@ -12572,7 +12925,7 @@ const TourneyScene = {
             id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
               const r = tourney.play(st, m.id);
               if (!r.ok) { app.showToast(r.msg); return; }
-              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金', 2.4);
+              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金钱', 2.4);
               else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
               else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
             },
@@ -12581,7 +12934,7 @@ const TourneyScene = {
       } else {
         const champion = t.champion;
         const drawn = t.draw;
-        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
+        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金钱' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
         text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
         app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
           id: 't_leave', size: 26, fill: '#33271b', onTap: function () {
@@ -12886,15 +13239,15 @@ const CampScene = {
     const items = [
       ['第', st.clock.day + ' 天'],
       ['士气', p.morale],
-      ['金', p.gold],
-      ['粮', p.food],
-      ['兵', army.troopCount(p.troops)],
+      ['金钱', p.gold],
+      ['粮草', p.food],
+      ['兵力', army.troopCount(p.troops)],
     ];
     const cw = (w - PAD * 2 - 20) / items.length;
     items.forEach(function (it, i) {
       const x = PAD + 10 + i * cw;
       text(ctx, it[0], x, 94, { size: 13, color: '#8a8070' });
-      text(ctx, String(it[1]), x, 116, { size: 22, color: '#efe3c6' });
+      text(ctx, String(it[1]), x, 116, { size: 18, color: '#efe3c6' });
     });
 
     if (this.view === 'wait') this.renderWait(app, ctx, w, h);
@@ -13045,7 +13398,7 @@ function buildOps(app, tab) {
 
   if (tab === 'basic') {
     ops.push({ t: 'h1', s: '基本循环' });
-    ops.push({ t: 'p', s: '你从洛阳溃兵开始：30 个民兵、80 金、45 粮，还有一支史简。' });
+    ops.push({ t: 'p', s: '你从洛阳溃兵开始：30 个民兵、80 金钱、45 粮，还有一支史简。' });
     ops.push({ t: 'p', s: '点地图行军，一格一格走。地形决定耗时：道路 1.3 小时一格，农田 1.9，林地 2.9，沼泽 4.3，渡河 4.6，山地走不了。' });
     ops.push({ t: 'p', s: '每过一天，全队按人头吃粮。断粮会跑兵、掉士气。长途前先在村子里把粮备足。' });
     ops.push({ t: 'h1', s: '城池与村庄' });
@@ -13067,7 +13420,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '你抢他们的村、打他们的城、击败他们的领主，关系就会掉。低于 -25 即开战。' });
     ops.push({ t: 'p', s: '开战后，他们的领主在视野内会一路追着你打。跑得掉就跑，跑不掉就结阵、或者落一笔史简。' });
     ops.push({ t: 'p', s: '在路上碰上领主，会先说话：了解生平、查看兵力、送礼、开战、问他忙什么、或者走开。' });
-    ops.push({ t: 'p', s: '送礼：君主 100 金换 5 点关系，领兵者 3 点，普通将领 2 点。想结交真正说得上话的人，得舍得钱。' });
+    ops.push({ t: 'p', s: '送礼：君主 100 金钱换 5 点关系，领兵者 3 点，普通将领 2 点。想结交真正说得上话的人，得舍得钱。' });
     ops.push({ t: 'p', s: '当场开战一次扣 25 点关系。关系低于 -25，他见到你就会动刀。' });
     ops.push({ t: 'h1', s: '声望' });
     ops.push({ t: 'p', s: '声望到 60 可在城里效忠。声望越高队伍上限越大：20 + 声望×0.35。' });
@@ -13105,17 +13458,17 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '2. 到陈留进村/进城，找壮丁。民兵便宜得几乎白给，先堆人数。' });
     ops.push({ t: 'p', s: '3. 粮草按"两日口粮 × 3"备。地图比过去大了一倍，路程一长就容易断粮。' });
     ops.push({ t: 'h1', s: '怎么赚钱（新手最缺的）' });
-    ops.push({ t: 'p', s: '· 打青巾匪团：地图上到处是绿衣小队伍，人数 6-12，打散一队能拿 150-250 金。这是前期最稳的钱。' });
-    ops.push({ t: 'p', s: '· 做酒馆的活：清剿、送粮、侦察，一桩 130-250 金，还涨声望和关系。' });
+    ops.push({ t: 'p', s: '· 打青巾匪团：地图上到处是绿衣小队伍，人数 6-12，打散一队能拿 150-250 金钱。这是前期最稳的钱。' });
+    ops.push({ t: 'p', s: '· 做酒馆的活：清剿、送粮、侦察，一桩 130-250 金钱，还涨声望和关系。' });
     ops.push({ t: 'p', s: '· 跑商：市场"货物"页买低价的粟米/盐/铁，用"估价"看哪座城收得贵，走一趟赚差价。驮队上限 80 件。' });
-    ops.push({ t: 'p', s: '· 屠村：一次 90-200 金 + 40-85 粮，但关系 -5，声望也掉。缺钱时能用，别指望它长久。' });
-    ops.push({ t: 'p', s: '· 打下贼巢：+120 金、+45 声望。' });
+    ops.push({ t: 'p', s: '· 屠村：一次 90-200 金钱 + 40-85 粮，但关系 -5，声望也掉。缺钱时能用，别指望它长久。' });
+    ops.push({ t: 'p', s: '· 打下贼巢：+120 金钱、+45 声望。' });
     ops.push({ t: 'h1', s: '匪团有等级' });
     ops.push({ t: 'p', s: '地图上的匪团按衣服颜色分级：青（最多，好打）、蓝（有弓有骑）、橙（成建制的山贼）、赤（只比领主差一线）。' });
     ops.push({ t: 'p', s: '青六成、蓝三成、橙 8%、赤 2%。主线没过半之前不会出橙和赤——前期地图上是安全的。' });
     ops.push({ t: 'p', s: '匪团也会和领主的部曲撞上，双方都掉人。你只在自己附近看得见这种混战。' });
     ops.push({ t: 'h1', s: '兵怎么买' });
-    ops.push({ t: 'p', s: '低阶兵便宜得像消耗品，高阶兵一件就是一笔钱。民兵几个金，枪盾二十上下，亲卫一百多，禁军两百多。' });
+    ops.push({ t: 'p', s: '低阶兵便宜得像消耗品，高阶兵一件就是一笔钱。民兵几个金钱，枪盾二十上下，亲卫一百多，禁军两百多。' });
     ops.push({ t: 'p', s: '村庄的壮丁最便宜，但只有民兵；城里的兵种多，价钱也高。前期靠民兵堆量，中期再换枪盾和弓。' });
     ops.push({ t: 'h1', s: '英雄' });
     ops.push({ t: 'p', s: '酒馆角落里坐着一些不起眼的人：廖化、周仓、马岱、凌统、丁奉、李典、乐进、于禁……' });
@@ -13156,7 +13509,7 @@ function buildOps(app, tab) {
     });
     ops.push({ t: 'gap' });
     ops.push({ t: 'h1', s: '黄巾与山贼' });
-    ops.push({ t: 'p', s: '六处贼巢，全部敌对。攻破一处声望 +45、金 +120，且不再刷匪团。' });
+    ops.push({ t: 'p', s: '六处贼巢，全部敌对。攻破一处声望 +45、金钱 +120，且不再刷匪团。' });
     return ops;
   }
 
@@ -13262,7 +13615,7 @@ function renderOps(app, ops, scroll, w, h, ctx) {
       text(ctx, '攻 ' + t.atk + '  防 ' + t.def + '  耐久 ' + t.hp + '  粮 ' + t.food, 32, y + 36, {
         size: 15, color: '#a2947a',
       });
-      text(ctx, t.recruit ? t.recruit + ' 金' : '不卖', w - 30, y + 36, {
+      text(ctx, t.recruit ? t.recruit + ' 金钱' : '不卖', w - 30, y + 36, {
         size: 16, align: 'right', color: '#f0c060',
       });
       y += hh;
@@ -13454,7 +13807,7 @@ const ChapterScene = {
 
     if (ch.reward) {
       const parts = [];
-      if (ch.reward.gold) parts.push(ch.reward.gold + ' 金');
+      if (ch.reward.gold) parts.push(ch.reward.gold + ' 金钱');
       if (ch.reward.renown) parts.push(ch.reward.renown + ' 声望');
       if (ch.reward.shi) parts.push(ch.reward.shi + ' 支史简');
       if (ch.reward.banner) parts.push('一面自己的旗');
@@ -13600,7 +13953,7 @@ const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
 const { TROOPS } = __require(10);
-const { lookFor } = __require(13);
+const { lookFor } = __require(12);
 
 function unitOf(app) {
   const d = app.chase;
@@ -13624,6 +13977,46 @@ function recentWarLines(st, n) {
     out.push((st.log[i].text || '').slice(0, 26));
   }
   return out;
+}
+
+/** 西凉铁骑专用：不买路、不对战，只给“留人断后”一条路 */
+function renderIronChase(app, ctx, w, h, st, unit) {
+  const mine = army.troopCount(st.player.troops);
+  const foe = army.troopCount(unit.troops || {});
+  ctx.fillStyle = '#0d0a07';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#7a2118';
+  ctx.globalAlpha = 0.28;
+  ctx.fillRect(0, 0, w, 230);
+  ctx.globalAlpha = 1;
+
+  text(ctx, '西 凉 铁 骑', w / 2, 22, { size: 20, align: 'center', color: '#e08a70' });
+  text(ctx, '铁骑追上来了', w / 2, 60, { size: 44, align: 'center', color: '#f5e9cf', shadow: true });
+  text(ctx, '他们不列阵，也不收买路钱。', w / 2, 120, { size: 18, align: 'center', color: '#c9bda2' });
+  text(ctx, '铁骑只咬住你的后队，你只能留人断后。', w / 2, 150, { size: 18, align: 'center', color: '#c9bda2' });
+
+  panel(ctx, 20, 198, w - 40, 184, { fill: '#1b1611' });
+  text(ctx, '我方 ' + mine + ' 人', 36, 214, { size: 22, color: '#8fb0d8' });
+  text(ctx, '西凉铁骑 ' + foe + ' 人', 36, 254, { size: 22, color: '#d07060' });
+  text(ctx, '他们不会和你摆开阵势打。', 36, 296, { size: 16, color: '#8a8070' });
+  text(ctx, '每次被咬住，都要折几个人换八个时辰。', 36, 326, {
+    size: 17, color: mine > 1 ? '#d9a441' : '#d06a4a',
+  });
+  if (mine <= 1) text(ctx, '你身边已经没人可留了。', 36, 354, { size: 18, color: '#d06a4a' });
+
+  app.ui.button(ctx, 20, h - 178, w - 40, 96, '让士兵断后', {
+    id: 'iron_tail', size: 30, fill: '#4a241c', onTap: function () {
+      const r = stateLib.breakTail(st, unit.id, 'party');
+      app.showToast(r.msg, 3);
+      if (r.ended) {
+        app.replace('ending');
+        return;
+      }
+      if (r.ok) app.pop();
+    },
+  });
+  text(ctx, mine > 1 ? '折几个人，铁骑会在原地停 8 小时，之后不再主动追你。' : '没有人断后，铁骑会直接踏过去。',
+    w / 2, h - 64, { size: 15, align: 'center', color: '#8a8070' });
 }
 
 const ChaseScene = {
@@ -13656,6 +14049,10 @@ const ChaseScene = {
     const unit = unitOf(app);
     if (!unit) return;
     const d = app.chase;
+    if (unit.scripted) {
+      renderIronChase(app, ctx, w, h, st, unit);
+      return;
+    }
     const isLord = d.kind !== 'party';
     const fac = isLord && FACTIONS[unit.faction] ? FACTIONS[unit.faction] : null;
     const col = fac ? fac.color : (unit.color || '#8b3a3a');
@@ -13716,12 +14113,12 @@ const ChaseScene = {
     const verdict = pPower / total;
     text(ctx, verdict > 0.62 ? '硬打能赢，但会死人。' : verdict > 0.48 ? '势均力敌，一仗下来两边都疼。' : '对面比你硬，坦然开战是下策。',
       36, y0 + 150, { size: 17, color: verdict > 0.62 ? '#8fbf7a' : '#d9a441' });
-    text(ctx, '买路钱随他手下的人数涨：' + cost + ' 金。', 36, y0 + 180, { size: 15, color: '#a2947a' });
+    text(ctx, '买路钱随他手下的人数涨：' + cost + ' 金钱。', 36, y0 + 180, { size: 15, color: '#a2947a' });
 
     /* 三条路 */
     const payY = y0 + 216 + 24;
     const bh = 92;
-    app.ui.button(ctx, 20, payY, w - 40, bh, '给钱脱身 · ' + cost + ' 金', {
+    app.ui.button(ctx, 20, payY, w - 40, bh, '给钱脱身 · ' + cost + ' 金钱', {
       id: 'chase_pay', size: 28, fill: '#3a3020', onTap: function () {
         const r = stateLib.giveWay(st, unit.id, d.kind);
         app.showToast(r.msg, 3);
@@ -13890,7 +14287,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const { lookFor } = __require(13);
+const { lookFor } = __require(12);
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
 
@@ -14011,12 +14408,12 @@ const LordScene = {
         });
       });
     } else if (d.page === 'gift') {
-      text(ctx, '送礼：君主 100 金换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
+      text(ctx, '送礼：君主 100 金钱换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
         size: 18, color: '#a2947a',
       });
       [100, 300, 500].forEach(function (g, i) {
         const bw = (w - 60) / 3;
-        app.ui.button(ctx, 20 + i * (bw + 10), bottomY + 34, bw, 70, g + ' 金', {
+        app.ui.button(ctx, 20 + i * (bw + 10), bottomY + 34, bw, 70, g + ' 金钱', {
           id: 'gift_' + g, size: 24, fill: '#3a2a12', onTap: function () {
             const r = stateLib.giftLord(st, lord, g);
             app.showToast(r.msg, 2);
@@ -14228,7 +14625,7 @@ function describe(data) {
   if (!data) return '';
   const p = data.player || {};
   const troops = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金';
+  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金钱';
 }
 
 const SavesScene = {
@@ -14307,7 +14704,7 @@ const SavesScene = {
         text(ctx, '第 ' + (data.clock ? data.clock.day : '?') + ' 天', x + 12, y + 38, { size: 22, color: '#efe3c6' });
         const p = data.player || {};
         const troopN = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-        text(ctx, troopN + ' 兵 · ' + (p.gold || 0) + ' 金', x + 12, y + 68, { size: 15, color: '#a2947a' });
+        text(ctx, troopN + ' 兵 · ' + (p.gold || 0) + ' 金钱', x + 12, y + 68, { size: 15, color: '#a2947a' });
         text(ctx, (data.player && data.player.flagName) || '无旗', x + 12, y + 92, { size: 14, color: '#8a8070' });
         text(ctx, data.clock ? formatClock(data.clock) : '', x + 12, y + 116, { size: 13, color: '#6a6050' });
       } else {
@@ -14409,7 +14806,7 @@ function describe(data) {
   if (!data) return '';
   const p = data.player || {};
   const troops = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金';
+  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金钱';
 }
 
 function load(app, key, failMsg) {

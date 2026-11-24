@@ -48,15 +48,15 @@ const CampScene = {
     const items = [
       ['第', st.clock.day + ' 天'],
       ['士气', p.morale],
-      ['金', p.gold],
-      ['粮', p.food],
-      ['兵', army.troopCount(p.troops)],
+      ['金钱', p.gold],
+      ['粮草', p.food],
+      ['兵力', army.troopCount(p.troops)],
     ];
     const cw = (w - PAD * 2 - 20) / items.length;
     items.forEach(function (it, i) {
       const x = PAD + 10 + i * cw;
       text(ctx, it[0], x, 94, { size: 13, color: '#8a8070' });
-      text(ctx, String(it[1]), x, 116, { size: 22, color: '#efe3c6' });
+      text(ctx, String(it[1]), x, 116, { size: 18, color: '#efe3c6' });
     });
 
     if (this.view === 'wait') this.renderWait(app, ctx, w, h);

@@ -181,25 +181,64 @@ smoke('匪巢页', function () {
   app.top().scene.render(app);
 });
 
+smoke('匪巢洗劫态：火烧空营 + 离开按钮', function () {
+  const camp = app.state.world.sites.filter(function (s) { return s.id === 'heishan'; })[0];
+  const old = { cleared: camp.cleared, looted: camp.looted, lootedDay: camp.lootedDay, respawnDay: camp.respawnDay, garrison: camp.garrison };
+  camp.cleared = true;
+  camp.looted = true;
+  camp.lootedDay = app.state.clock.day;
+  camp.respawnDay = app.state.clock.day + stateLib.CAMP_RESPAWN_DAYS;
+  camp.garrison = 0;
+  app.push('town', { siteId: 'heishan' });
+  app.townView.view = 'menu';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('洗劫态有离开按钮', app.ui.items.some(function (it) { return it.id === 'camp_leave_looted'; }));
+  camp.cleared = old.cleared;
+  camp.looted = old.looted;
+  camp.lootedDay = old.lootedDay;
+  camp.respawnDay = old.respawnDay;
+  camp.garrison = old.garrison;
+  app.pop();
+});
+
 /* ---------------------------------------------------------------- 战斗 */
 
 smoke('战斗：战前 + 开打 + 结算', function () {
   const st = app.state;
   const party = st.parties.filter(function (p) { return p.faction === 'bandit'; })[0] || st.parties[0];
-  party.troops = { bandit: 12 };
+  party.troops = { bandit: 45 };
+  st.player.troops = { militia: 40 };
   stateLib.startPartyBattle(st, party);
   app.push('battle', { mode: 'party' });
   app.ui.begin();
   app.top().scene.render(app);
 
-  // 打到结束
+  // 打到结束：每 12 轮一阵，阵间必须先渲染“未分胜负”页，不能提前结算
   let i = 0;
-  while (!st.battle.finished && i++ < 40) st.battle.step();
+  let sawInterim = false;
+  while (!st.battle.finished && i++ < 500) {
+    if (st.battle.batchDone) {
+      campaignBattleInterim(st);
+      sawInterim = true;
+      st.battle.nextBatch();
+    } else {
+      st.battle.step();
+    }
+  }
+  ok('打满一阵会停在续战页', sawInterim === true, String(st.battle.round));
   app.battleView.phase = 'result';
   app.battleView.summary = st.battle.summary();
   app.ui.begin();
   app.top().scene.render(app);
 });
+
+function campaignBattleInterim(st) {
+  app.battleView.phase = 'interim';
+  app.battleView.summary = st.battle.interimSummary();
+  app.ui.begin();
+  app.top().scene.render(app);
+};
 
 smoke('战斗：史简面板', function () {
   const st = app.state;

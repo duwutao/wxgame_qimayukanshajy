@@ -3,6 +3,7 @@
  */
 
 const { TROOPS } = require('../data/troops.js');
+const { VILLAGE_FOOD } = require('../data/extra.js');
 const { EQUIPMENT } = require('../data/china.js');
 const { troopCount, troopCapacity, foodCap } = require('./army.js');
 
@@ -53,13 +54,13 @@ function buyFood(state, site, amount) {
   const n = Math.max(1, Math.floor(amount));
   const cost = foodPrice(site) * n;
   const cap = foodCap(state.player.troops);
-  if (state.player.gold < cost) return { ok: false, msg: '金币不够，需要 ' + cost };
+  if (state.player.gold < cost) return { ok: false, msg: '金钱不够，需要 ' + cost };
   if (state.player.food + n > cap) {
     return { ok: false, msg: '粮车装不下了（兵力 ' + troopCount(state.player.troops) + '，上限 ' + cap + '）' };
   }
   state.player.gold -= cost;
   state.player.food += n;
-  return { ok: true, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金', cost };
+  return { ok: true, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金钱', cost };
 }
 
 function sellFood(state, site, amount) {
@@ -69,7 +70,7 @@ function sellFood(state, site, amount) {
   const gain = foodSellPrice(site) * n;
   state.player.food -= n;
   state.player.gold += gain;
-  return { ok: true, msg: '卖出 ' + n + ' 单位粮草，得到 ' + gain + ' 金' };
+  return { ok: true, msg: '卖出 ' + n + ' 单位粮草，得到 ' + gain + ' 金钱' };
 }
 
 function recruit(state, site, troopId, count) {
@@ -78,7 +79,7 @@ function recruit(state, site, troopId, count) {
   const n = Math.max(1, Math.floor(count));
   const price = recruitPrice(site, troopId);
   const affordable = Math.min(n, site.recruits[troopId] || 0, Math.floor(state.player.gold / price));
-  if (affordable <= 0) return { ok: false, msg: '金币不足，单价 ' + price + ' 金' };
+  if (affordable <= 0) return { ok: false, msg: '金钱不足，单价 ' + price + ' 金钱' };
 
   const cap = troopCapacity(state.player.renown);
   const room = cap - troopCount(state.player.troops);
@@ -90,7 +91,7 @@ function recruit(state, site, troopId, count) {
   site.recruits[troopId] -= finalN;
   return {
     ok: true,
-    msg: '招募 ' + TROOPS[troopId].name + ' × ' + finalN + '，花费 ' + price * finalN + ' 金',
+    msg: '招募 ' + TROOPS[troopId].name + ' × ' + finalN + '，花费 ' + price * finalN + ' 金钱',
     count: finalN,
   };
 }
@@ -115,7 +116,7 @@ function upgradeEquipment(state, slot) {
   const next = nextEquipment(state, slot);
   if (!next) return { ok: false, msg: '已经是顶配了' };
   if (state.player.gold < next.price) {
-    return { ok: false, msg: '金币不够，需要 ' + next.price };
+    return { ok: false, msg: '金钱不够，需要 ' + next.price };
   }
   state.player.gold -= next.price;
   state.player.equip[slot] = (state.player.equip[slot] || 0) + 1;
@@ -140,17 +141,43 @@ function dailyMarket(state, rng) {
     site.priceIndex = Math.max(0.85, Math.min(1.25, drift));
     if (site.faction === 'bandit') return;
 
-    Object.keys(site.recruits).forEach(function (id) {
-      if (site.recruits[id] < (site.recruitCap || 0)) {
-        site.recruits[id] += rng.int(1, 3);
+    // 村庄壮丁是有限的一池人：招空就没了，不按天自动回填；城镇/关隘才持续募兵
+    if (site.type !== 'village') {
+      Object.keys(site.recruits).forEach(function (id) {
+        if (site.recruits[id] < (site.recruitCap || 0)) {
+          site.recruits[id] += rng.int(1, 3);
+        }
+      });
+      // 补满招募池上限：募兵木牌天天有人来
+      (site.recruitList || []).forEach(function (id) {
+        if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
+        const cap = site.recruitCap || 4;
+        if (site.recruits[id] > cap) site.recruits[id] = cap;
+      });
+    }
+
+    // 村市口粮：两天补一次，每样不超过村里能拿出来的那几份
+    if (site.type === 'village' && state.clock.day % 2 === 0) {
+      site.foodStock = site.foodStock || {};
+      VILLAGE_FOOD.forEach(function (f) {
+        const cap = f.stockMax || 3;
+        if ((site.foodStock[f.id] || 0) < cap) {
+          site.foodStock[f.id] = Math.min(cap, (site.foodStock[f.id] || 0) + 1);
+        }
+      });
+    }
+
+    // 领主招兵池：按城/村错开日子补一点，跟玩家招募池分开，也不额外消耗事件随机数
+    if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
+      site.lordRecruits = site.lordRecruits || {};
+      const lcap = site.type === 'village' ? 2 : 4;
+      if (state.clock.day % 3 === (site.x + site.y) % 3) {
+        (site.recruitList || []).forEach(function (id) {
+          const have = site.lordRecruits[id] || 0;
+          if (have < lcap) site.lordRecruits[id] = have + 1;
+        });
       }
-    });
-    // 补满招募池上限：募兵木牌天天有人来
-    (site.recruitList || []).forEach(function (id) {
-      if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
-      const cap = site.recruitCap || 4;
-      if (site.recruits[id] > cap) site.recruits[id] = cap;
-    });
+    }
 
     if (site.playerOwned) {
       site.garrison = Math.min(site.garrisonBase, site.garrison + rng.int(0, 2));

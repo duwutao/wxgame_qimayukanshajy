@@ -55,7 +55,7 @@ function pickFoe(state) {
 function enter(state, site) {
   const cost = FEE;
   if (state.player.gold < cost) {
-    return { ok: false, msg: '报名要 ' + cost + ' 金，你身上不够' };
+    return { ok: false, msg: '报名要 ' + cost + ' 金钱，你身上不够' };
   }
   state.player.gold -= cost;
   state.tourney = {
@@ -73,7 +73,7 @@ function enter(state, site) {
     pot: PRIZE,
     round: 0,
   };
-  return { ok: true, msg: '交了 ' + cost + ' 金报名费，签了生死状（其实不杀人）。' };
+  return { ok: true, msg: '交了 ' + cost + ' 金钱报名费，签了生死状（其实不杀人）。' };
 }
 
 /** 对手出招：多数时候乱来，偶尔读你上一手的习惯 */
@@ -165,7 +165,7 @@ function play(state, moveId) {
     result = 'draw';
     state.player.gold += t.fee;
     state.player.renown += 6;
-    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金报名费退了你，赏格对半分不成，只好作罢。');
+    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金钱报名费退了你，赏格对半分不成，只好作罢。');
   } else if (t.foeHp <= 0) {
     t.done = true;
     t.champion = true;
@@ -174,7 +174,7 @@ function play(state, moveId) {
     state.player.renown += 40;
     state.player.morale = Math.min(100, state.player.morale + 8);
     heroes.gainHeroExp(state, 10);
-    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金，声望 +40。');
+    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金钱，声望 +40。');
     if (t.foe.lordId) {
       const lid = t.foe.lordId;
       state.lords.forEach(function (l) {

@@ -21,7 +21,7 @@ const flows = require('./flows.js');
 
 const PAD = 16;
 
-function money(v) { return v + ' 金'; }
+function money(v) { return v + '金钱'; }
 
 function header(app, site) {
   const ctx = app.runtime.ctx;
@@ -56,18 +56,18 @@ function statusBar(app, y) {
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
-    { k: '金', v: p.gold, c: '#f0c060' },
-    { k: '粮', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
-    { k: '兵', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
-    { k: '望', v: p.renown, c: '#c98f6a' },
-    { k: '简', v: p.shi, c: '#b98fd8' },
-    { k: '气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
+    { k: '金钱', v: p.gold, c: '#f0c060' },
+    { k: '粮草', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
+    { k: '声望', v: p.renown, c: '#c98f6a' },
+    { k: '史简', v: p.shi, c: '#b98fd8' },
+    { k: '士气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
   ];
   const cw = (w - PAD * 2) / cells.length;
   cells.forEach(function (it, i) {
     const x = PAD + i * cw;
-    text(ctx, it.k, x, y + 12, { size: 16, color: '#8a8070' });
-    text(ctx, String(it.v), x, y + 38, { size: 20, color: it.c });
+    text(ctx, it.k, x, y + 10, { size: 13, color: '#8a8070' });
+    text(ctx, String(it.v), x, y + 38, { size: 17, color: it.c });
   });
 
   // 士气细条
@@ -132,7 +132,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_village', label: '村市 · 找村长', sub: '牛、羊、鸡、谷，村里卖得比城里便宜',
-      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + ' 金',
+      right: '粮 ' + Math.round(40 * (site.priceIndex || 1) * 0.85) + '金钱',
       onTap: function () { app.townView.view = 'village'; },
     });
     list.push({
@@ -145,7 +145,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_rest', label: resting ? '结束休整 · 上路' : '在村里歇下',
-      sub: '外面的日子照常过，你的粮吃得慢一半，也没人来追', fill: '#26372a',
+      sub: '粮耗减半；村里藏不住人，追兵会摸进来', fill: '#26372a',
       right: resting ? '休整中 · 粮耗减半' : '→', onTap: toggleRest,
     });
     const hermit = stateLib.hiddenLordsAt(app.state, site.id).filter(function (l) {
@@ -164,7 +164,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_market', label: '市场', sub: '粮草 · 货物 · 军械',
-      right: '粮 ' + economy.foodPrice(site) + ' 金/单位',
+      right: '粮 ' + economy.foodPrice(site) + '金钱/单位',
       onTap: function () { app.townView.view = 'market'; app.townView.tab = 'food'; },
     });
     list.push({
@@ -178,7 +178,7 @@ function menuItems(app, site) {
     });
     list.push({
       id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
-      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + ' 金',
+      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
     const obj = stateLib.campaignObjective(app.state, site);
@@ -215,11 +215,39 @@ function renderMenu(app, site) {
   let y = 280;
 
   if (site.type === 'camp') {
+    if (site.cleared) {
+      text(ctx, '到处是火。', PAD, y - 44, { size: 30, color: '#e08a50' });
+      text(ctx, '寨门烧塌了，营帐只剩黑桩，地上散着断刀和空粮袋。', PAD, y + 12, {
+        size: 19, color: '#c9bda2',
+      });
+      text(ctx, '财物已经被劫掠一空，连一把能用的弓都没留下。', PAD, y + 54, {
+        size: 21, color: '#f0c060',
+      });
+      text(ctx, '过几天再来看看。', PAD, y + 98, { size: 24, color: '#8fbf7a' });
+      if (site.respawnDay) {
+        text(ctx, '约第 ' + site.respawnDay + ' 天，也许会再聚起一伙人。', PAD, y + 140, {
+          size: 16, color: '#8a8070',
+        });
+      }
+      app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离开这里', {
+        id: 'camp_leave_looted', size: 26, fill: '#241c14', onTap: function () {
+          app.state.player.atSiteId = null;
+          app.pop();
+        },
+      });
+      return;
+    }
     text(ctx, '这里是一处贼巢。攻破它，你的名字会传出去。', PAD, y - 40, { size: 19, color: '#c9bda2' });
     app.ui.button(ctx, PAD, y, w - PAD * 2, 96, '进攻贼巢', {
       id: 'attack', size: 30, fill: '#4a241c', onTap: function () {
         stateLib.startSiege(app.state, site);
         app.push('battle', { mode: 'siege' });
+      },
+    });
+    app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '离开这里', {
+      id: 'camp_leave', size: 26, fill: '#241c14', onTap: function () {
+        app.state.player.atSiteId = null;
+        app.pop();
       },
     });
     return;
@@ -307,10 +335,9 @@ function renderRecruit(app, site) {
   });
 
   let list = site.recruitList || [];
-  // 村庄只出最低一档的壮丁
+  // 村庄只出最低一档的壮丁；池子空了就是空了，村里的壮丁就这些
   if (site.type === 'village') {
     list = ['militia'];
-    if (!site.recruits.militia || site.recruits.militia <= 0) site.recruits.militia = 3;
   }
   let y = 340;
 
@@ -331,7 +358,7 @@ function renderRecruit(app, site) {
     text(ctx, locked ? '需声望 ' + t.renownReq : '余 ' + stock + ' 人', PAD + 18, y + 58, {
       size: 17, color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
     });
-    text(ctx, price + ' 金/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
+    text(ctx, price + '金钱/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
 
     if (!locked && stock > 0) {
       app.ui.button(ctx, w - PAD - 190, y + 22, 86, 58, '招 1', {
@@ -415,13 +442,13 @@ function renderGoodOne(app, site, goodId) {
   const have = (p.goods || {})[goodId] || 0;
 
   text(ctx, gd.name, PAD, 358, { size: 30, color: '#f0c060' });
-  text(ctx, '基准 ' + gd.base + ' 金 / ' + gd.unit, w - PAD, 364, { size: 16, align: 'right', color: '#8a8070' });
+  text(ctx, '基准 ' + gd.base + '金钱 / ' + gd.unit, w - PAD, 364, { size: 16, align: 'right', color: '#8a8070' });
   wrap(ctx, gd.desc, w - PAD * 2, 16).slice(0, 2).forEach(function (ln, i) {
     text(ctx, ln, PAD, 400 + i * 24, { size: 16, color: '#a2947a' });
   });
 
-  text(ctx, '本地买 ' + buy + ' 金', PAD, 460, { size: 22, color: '#f0c060' });
-  text(ctx, '本地卖 ' + sell + ' 金', PAD + 220, 460, { size: 22, color: '#8fb0d8' });
+  text(ctx, '本地买 ' + buy + '金钱', PAD, 460, { size: 22, color: '#f0c060' });
+  text(ctx, '本地卖 ' + sell + '金钱', PAD + 220, 460, { size: 22, color: '#8fb0d8' });
   text(ctx, '持有 ' + have + ' · 驮队 ' + trade.goodsCount(p) + '/' + trade.GOODS_CAP, PAD, 498, {
     size: 18, color: '#efe3c6',
   });
@@ -455,12 +482,12 @@ function renderGoodOne(app, site, goodId) {
     if (!est.rows || !est.rows.length) {
       text(ctx, est.msg, PAD, y, { size: 17, color: '#a2947a' });
     } else {
-      text(ctx, '本城 ' + est.here + ' 金 · 往这些城去：', PAD, y, { size: 17, color: '#a2947a' });
+      text(ctx, '本城 ' + est.here + '金钱 · 往这些城去：', PAD, y, { size: 17, color: '#a2947a' });
       y += 30;
       est.rows.forEach(function (row) {
         if (y > h - 150) return;
         text(ctx, row.site.name, PAD, y, { size: 19, color: '#efe3c6' });
-        text(ctx, row.price + ' 金', PAD + 150, y, { size: 19, color: '#f0c060' });
+        text(ctx, row.price + '金钱', PAD + 150, y, { size: 19, color: '#f0c060' });
         text(ctx, '每件多赚 ' + row.profit, PAD + 260, y, { size: 17, color: '#8fbf7a' });
         text(ctx, row.dist + ' 格', w - PAD, y, { size: 15, align: 'right', color: '#8a8070' });
         y += 34;
@@ -493,14 +520,18 @@ function renderVillage(app, site) {
   let y = 380;
   VILLAGE_FOOD.forEach(function (f) {
     const price = Math.round(f.price * (site.priceIndex || 1) * 0.85);
+    const stock = (site.foodStock || {})[f.id] || 0;
     panel(ctx, PAD, y, w - PAD * 2, 96, { fill: '#241c14' });
-    text(ctx, f.name, PAD + 18, y + 10, { size: 24, color: '#efe3c6' });
+    text(ctx, f.name, PAD + 18, y + 10, { size: 24, color: stock > 0 ? '#efe3c6' : '#7a7160' });
     text(ctx, '+' + f.food + ' 口粮', PAD + 150, y + 16, { size: 18, color: '#a2947a' });
-    const dl = wrap(ctx, f.desc, w - PAD * 2 - 200, 15)[0] || '';
+    const dl = wrap(ctx, f.desc, w - PAD * 2 - 460, 15)[0] || '';
     text(ctx, dl, PAD + 18, y + 50, { size: 15, color: '#8a8070' });
-    text(ctx, price + ' 金', w - PAD - 142, y + 44, { size: 22, align: 'right', color: '#f0c060' });
+    text(ctx, stock > 0 ? '村里还有 ' + stock + ' 份' : '卖完了', PAD + 320, y + 54, {
+      size: 16, color: stock > 0 ? '#8fbf7a' : '#d06a4a',
+    });
+    text(ctx, price + '金钱', w - PAD - 142, y + 44, { size: 22, align: 'right', color: '#f0c060' });
     app.ui.button(ctx, w - PAD - 130, y + 22, 112, 54, '买', {
-      id: 'vf_' + f.id, size: 22, disabled: p.gold < price, onTap: function () {
+      id: 'vf_' + f.id, size: 22, disabled: p.gold < price || stock <= 0, onTap: function () {
         const r = stateLib.buyVillageFood(st, site, f.id);
         app.showToast(r.msg, 2.2);
       },
@@ -546,7 +577,7 @@ function renderMarket(app, site, tab) {
   if (tab === 'food') {
     const price = economy.foodPrice(site);
     const sell = economy.foodSellPrice(site);
-    text(ctx, '粮价 ' + price + ' 金 · 卖出 ' + sell + ' 金', PAD, 372, { size: 24, color: '#efe3c6' });
+    text(ctx, '粮价 ' + price + '金钱 · 卖出 ' + sell + '金钱', PAD, 372, { size: 24, color: '#efe3c6' });
     text(ctx, '你的粮草：' + st.player.food + ' 单位', PAD, 410, { size: 20, color: st.player.food < 40 ? '#d06a4a' : '#8fbf7a' });
     text(ctx, '每两天吃掉 ' + Math.max(1, Math.round(army.foodPerDay(st.player.troops) * 2)) + ' 单位', PAD, 442, { size: 17, color: '#a2947a' });
 
@@ -582,7 +613,7 @@ function renderMarket(app, site, tab) {
     text(ctx, eq.name, PAD + 18, y + 12, { size: 20, color: '#a2947a' });
     text(ctx, cur.name, PAD + 96, y + 10, { size: 26, color: '#efe3c6' });
     text(ctx, '第 ' + (level + 1) + ' / ' + eq.tiers.length + ' 档 · ' +
-      (next ? '下一档：' + next.name + ' · ' + next.price + ' 金' : '已是顶配'), PAD + 18, y + 58, {
+      (next ? '下一档：' + next.name + ' · ' + next.price + '金钱' : '已是顶配'), PAD + 18, y + 58, {
       size: 17, color: next ? '#f0c060' : '#8a8070',
     });
     if (next) {
@@ -625,7 +656,7 @@ function renderTavern(app, site) {
       text(ctx, q.title, PAD + 18, y + 12, { size: 24, color: '#efe3c6' });
       const lines = wrap(ctx, q.text, w - PAD * 2 - 36, 16, 'bold');
       text(ctx, lines[0] || '', PAD + 18, y + 48, { size: 16, color: '#a2947a' });
-      text(ctx, '赏 ' + q.reward.gold + ' 金 · ' + q.reward.renown + ' 望', PAD + 18, y + 84, {
+      text(ctx, '赏 ' + q.reward.gold + '金钱 · ' + q.reward.renown + ' 声望', PAD + 18, y + 84, {
         size: 17, color: '#f0c060',
       });
       if (q.type === 'grain') {
@@ -665,7 +696,7 @@ function renderTavern(app, site) {
       });
       const b = heroes.bonusOf(h.id, 1);
       text(ctx, '带的加成：' + (b.label || '无'), PAD + 18, y + 102, { size: 13, color: '#8fb0d8' });
-      text(ctx, h.cost + ' 金', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
+      text(ctx, h.cost + '金钱', w - PAD - 150, y + 62, { size: 22, color: '#f0c060' });
       app.ui.button(ctx, w - PAD - 120, y + 88, 104, 52, '招募', {
         id: 'hero_' + h.id, size: 20, disabled: st.player.gold < h.cost, onTap: function () {
           const r = heroes.hireHero(st, site, h.id);
@@ -680,12 +711,12 @@ function renderTavern(app, site) {
   const reg = regionDef(site.region);
   text(ctx, '“' + (reg ? reg.flavor : '') + '”', PAD, y + 40, { size: 17, color: '#8a8070' });
 
-  // 打听前朝旧主的下落：一次 40 金，问出一个人藏在哪个村
+  // 打听前朝旧主的下落：一次 40金钱，问出一个人藏在哪个村
   const unknown = st.lords.filter(function (l) {
     return l.hidden && l.hidden.siteId && (!st.knownHidden || !st.knownHidden[l.id]);
   });
   if (unknown.length) {
-    app.ui.button(ctx, PAD, y + 76, w - PAD * 2, 76, '打听前朝旧主的下落 · 40 金', {
+    app.ui.button(ctx, PAD, y + 76, w - PAD * 2, 76, '打听前朝旧主的下落 · 40金钱', {
       id: 'rumor', size: 22, fill: '#241c14', disabled: st.player.gold < 40, onTap: function () {
         const r = stateLib.tavernRumor(st);
         app.showToast(r.msg, 3);
@@ -769,13 +800,19 @@ function renderHall(app, site) {
   let y = 490;
 
   if (!p.faction && !hostile) {
-    app.ui.button(ctx, PAD, y, w - PAD * 2, 88, p.renown < 60 ? '效忠（需声望 60）' : '效忠' + fac.full, {
-      id: 'join', size: 26, disabled: p.renown < 60, onTap: function () {
-        const r = stateLib.joinFaction(st, site);
-        app.showToast(r.msg, 2.4);
-      },
+    const req = stateLib.joinRenownReq(f);
+    const small = req === 100;
+    app.ui.button(ctx, PAD, y, w - PAD * 2, 88,
+      p.renown < req ? '效忠（需声望 ' + req + '）' : '效忠' + fac.full, {
+        id: 'join', size: 26, disabled: p.renown < req, onTap: function () {
+          const r = stateLib.joinFaction(st, site);
+          app.showToast(r.msg, 2.4);
+        },
+      });
+    text(ctx, small ? '小国求贤：声望 100 即可投靠。' : '大国门槛：声望 200 才见得到守将。', PAD, y + 94, {
+      size: 15, color: small ? '#8fbf7a' : '#c9a05a',
     });
-    y += 100;
+    y += 120;
   }
 
   if (p.faction && p.faction !== f) {
@@ -838,7 +875,7 @@ function siteInfo(app, site) {
   text(ctx, String(site.garrison || 0), PAD + 22, y + 54, { size: 30, color: '#d8c8a6' });
 
   text(ctx, '粮价', PAD + 180, y + 28, { size: 17, color: '#8a8070' });
-  text(ctx, economy.foodPrice(site) + ' 金', PAD + 180, y + 54, { size: 30, color: '#d8c8a6' });
+  text(ctx, economy.foodPrice(site) + '金钱', PAD + 180, y + 54, { size: 30, color: '#d8c8a6' });
 
   if (fac) {
     const rel = (st.relations && st.relations[site.ownerFaction]) || 0;

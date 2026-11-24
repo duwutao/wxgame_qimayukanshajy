@@ -4,29 +4,13 @@
  * 放大（zoom>1）铺上各势力领土色、描州界，只留都城与重镇名。
  */
 
-const { REGIONS, FACTIONS } = require('../data/china.js');
+const { REGIONS, FACTIONS, CAPITAL_IDS } = require('../data/china.js');
 const { text } = require('../render/ui.js');
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 3.2;
-
-/** 各势力都城：放大时只标这些 */
-const CAPITALS = {
-  wei: 'xuchang',
-  shu: 'chengdu',
-  wu: 'jianye',
-  yuan: 'ye',
-  lv: 'xiapi',
-  biao: 'xiangyang',
-  zhang: 'chengdu',
-  xianbei: 'longcheng',
-  ma: 'wuwei',
-  han: 'changan',
-  bandit: '',
-};
-const CAPITAL_IDS = ['xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang'];
 
 function cellColor(t, region) {
   if (t === 'sea') return '#1e4166';
@@ -147,7 +131,8 @@ const AtlasScene = {
     const oy = MAP_TOP + 6 + Math.min(viewH, cell * world.h) / 2 - c.y * cell;
 
     const grid = buildFactionGrid(world);
-    const showTerritory = zoom > 1.35;
+    // 势力颜色是所有缩放级别的底图，不再等到放大才出现
+    const detailed = zoom > 1.35;
 
     ctx.save();
     ctx.beginPath();
@@ -166,7 +151,7 @@ const AtlasScene = {
         const t = world.tiles[i];
         const reg = world.regions[i] || 'zhongyuan';
         let col = cellColor(t, reg);
-        if (showTerritory && t !== 'sea' && t !== 'river') {
+        if (t !== 'sea' && t !== 'river') {
           const f = FACTIONS[grid[i]];
           if (f) col = mix(col, f.color, 0.55);
         }
@@ -175,8 +160,8 @@ const AtlasScene = {
       }
     }
 
-    // 州界：格子左侧/上侧与邻居归属不同就描一条线
-    if (showTerritory) {
+    // 州界：格子左侧/上侧与邻居归属不同就描一条线（缩小也描，势力范围一眼可见）
+    {
       ctx.strokeStyle = 'rgba(20,16,10,0.85)';
       ctx.lineWidth = Math.max(1.4, cell * 0.12);
       for (let y = y0; y <= y1; y++) {
@@ -237,18 +222,19 @@ const AtlasScene = {
         ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, 1);
       }
 
-      // 名字显示规则：放大时只留都城重镇，缩小时全部写上（有避让）
+      // 名字显示规则：放大只留都城，缩小写全部城名；都城无论缩放都不许消失
       const isCap = CAPITAL_IDS.indexOf(s.id) >= 0;
-      if (showTerritory && !isCap) return;
-      if (!showTerritory && !big && zoom > 1.2) return;
+      if (detailed && !isCap) return;
+      if (!detailed && !big && zoom > 1.2) return;
 
-      const fs = showTerritory ? 13 : 11;
+      const fs = detailed ? 13 : 11;
       ctx.font = 'bold ' + fs + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(s.name).width;
       const bx = sx - tw / 2 - 3;
       const by = sy + sz / 2 + 1;
-      if (!labelFits(placed, bx, by, tw + 6, fs + 5)) return;
-      placed.push({ x: bx, y: by, w: tw + 6, h: fs + 5 });
+      const fits = labelFits(placed, bx, by, tw + 6, fs + 5);
+      if (!fits && !isCap) return;
+      if (fits) placed.push({ x: bx, y: by, w: tw + 6, h: fs + 5 });
       ctx.fillStyle = 'rgba(8,6,4,0.78)';
       ctx.fillRect(bx, by, tw + 6, fs + 4);
       text(ctx, s.name, sx, by + 2, {
@@ -320,7 +306,7 @@ const AtlasScene = {
       : (marches ? marches + ' 路诸侯正在开拔 · 双击放大看城名' : '四境暂无围城 · 双击放大看城名');
     text(ctx, warLine, MAP_LEFT, legendY + 56, { size: 14, color: sieges.length ? '#e0a050' : '#8a8070' });
 
-    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + (showTerritory ? ' · 放大看州界与都城' : ' · 缩小看全部城名'), MAP_LEFT, legendY + 80, {
+    text(ctx, '双指缩放 · 当前 ×' + zoom.toFixed(1) + ' · 势力色常显 · 放大看州界与都城', MAP_LEFT, legendY + 80, {
       size: 13, color: '#8a8070',
     });
   },

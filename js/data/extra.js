@@ -344,11 +344,11 @@ const LORD_TALK = {
 
 /* ---------------------------------------------------------------- 村庄 */
 const VILLAGE_FOOD = [
-  { id: 'ox', name: '耕牛', price: 180, food: 60, desc: '一头牛换六十口粮。村里人舍不得，但给钱就卖。' },
-  { id: 'sheep', name: '羊', price: 70, food: 22, desc: '两只羊够一队人吃两天。' },
-  { id: 'chicken', name: '鸡鸭', price: 26, food: 8, desc: '零碎换的，胜在便宜。' },
-  { id: 'grain', name: '谷子', price: 40, food: 30, desc: '村里自己的存粮，价比城里低。' },
-  { id: 'veg', name: '菜蔬', price: 18, food: 6, desc: '地里刚拔的，撑不了几天。' },
+  { id: 'ox', name: '耕牛', price: 180, food: 60, stockMax: 1, desc: '一头牛换六十口粮。村里人舍不得，但给钱就卖。' },
+  { id: 'sheep', name: '羊', price: 70, food: 22, stockMax: 2, desc: '两只羊够一队人吃两天。' },
+  { id: 'chicken', name: '鸡鸭', price: 26, food: 8, stockMax: 4, desc: '零碎换的，胜在便宜。' },
+  { id: 'grain', name: '谷子', price: 40, food: 30, stockMax: 3, desc: '村里自己的存粮，价比城里低。' },
+  { id: 'veg', name: '菜蔬', price: 18, food: 6, stockMax: 5, desc: '地里刚拔的，撑不了几天。' },
 ];
 
 /**

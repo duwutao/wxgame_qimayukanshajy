@@ -27,6 +27,7 @@ const TACTICS = {
 };
 
 const TACTIC_LIST = ['assault', 'hold', 'flank', 'skirmish'];
+/** 每 12 轮为一“阵”。一阵打完不分胜负就继续下一阵，直到一方兵力归零。 */
 const MAX_ROUNDS = 12;
 
 function clamp(v, min, max) {
@@ -104,6 +105,9 @@ class Battle {
     this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
     this.context = opts.context || {};
     this.round = 0;
+    this.roundsInBatch = 0;
+    this.batch = 1;
+    this.batchDone = false;
     this.log = [];
     this.finished = false;
     this.result = null;
@@ -144,8 +148,10 @@ class Battle {
 
   /** 推进一个回合 */
   step() {
-    if (this.finished) return null;
+    if (this.finished || this.batchDone) return null;
     this.round += 1;
+    this.roundsInBatch += 1;
+    this.batch = Math.ceil(this.round / MAX_ROUNDS);
 
     const sa = strength(this.a.troops);
     const sb = strength(this.b.troops);
@@ -186,9 +192,10 @@ class Battle {
       alphaStrike = Math.round(sb.count * 0.06 + sa.ranged * 0.5);
     }
 
-    // 主将亲自带的人更经打：玩家侧伤亡再打六折，别让人一场就赔光
-    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 0);
-    if (this.a.isPlayer) lossA = Math.round(lossA * 0.45);
+    // 主将亲自带的人更经打：玩家侧伤亡打六折，但每轮至少折 1 人。
+    // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
+    if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
     const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
 
     const realA = distributeLosses(this.a.troops, lossA);
@@ -212,23 +219,26 @@ class Battle {
     };
     this.log.push(entry);
 
-    // 溃败判定：lock（白毦/禁军一类）不轻易溃
-    const ratioA = this.remainA() / (this.a.initialCount || 1);
-    const ratioB = this.remainB() / (this.b.initialCount || 1);
-    const lockA = strength(this.a.initialTroops).lockRatio > 0.25;
-    const lockB = strength(this.b.initialTroops).lockRatio > 0.25;
-    const breakA = ratioA < 0.28 && !lockA;
-    const breakB = ratioB < 0.28 && !lockB;
-
-    if (this.remainA() <= 0 || breakA || this.remainB() <= 0 || breakB) {
+    // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
+    // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。
+    if (this.remainA() <= 0 || this.remainB() <= 0) {
       if (this.remainA() <= 0 && this.remainB() <= 0) this.finish('draw');
-      else if (this.remainB() <= 0 || breakB) this.finish('win');
+      else if (this.remainB() <= 0) this.finish('win');
       else this.finish('lose');
-    } else if (this.round >= MAX_ROUNDS) {
-      this.finish(Math.abs(ratioA - ratioB) < 0.05 ? 'draw' : ratioA > ratioB ? 'win' : 'lose');
+    } else if (this.roundsInBatch >= MAX_ROUNDS) {
+      this.batchDone = true;
     }
 
     return entry;
+  }
+
+  /** 一阵打完还活着双方：开下一阵 12 轮 */
+  nextBatch() {
+    if (this.finished) return false;
+    if (!this.batchDone) return false;
+    this.batchDone = false;
+    this.roundsInBatch = 0;
+    return true;
   }
 
   finish(result) {
@@ -252,6 +262,7 @@ class Battle {
       }
     }
     this.finished = true;
+    this.batchDone = false;
     this.result = result;
   }
 
@@ -270,7 +281,8 @@ class Battle {
   }
 
   loot() {
-    if (this.result !== 'win') return 0;
+    // 没打到一方归零，就没有“缴获”这回事；中途一阵结束绝不结算金额。
+    if (!this.finished || this.result !== 'win') return 0;
     const ctx = this.context || {};
     // 打匪团来钱快（新手要靠这个滚雪球），攻城与战役另算
     const kindMul = ctx.kind === 'party' || ctx.kind === 'chase' ? 1.9
@@ -291,8 +303,10 @@ class Battle {
   summary() {
     return {
       result: this.result,
+      finished: this.finished,
       round: this.round,
       rounds: this.round,
+      batch: this.batch,
       remainA: this.remainA(),
       remainB: this.remainB(),
       initialA: this.a.initialCount,
@@ -302,6 +316,25 @@ class Battle {
       loot: this.loot(),
       shiMark: this.shiMark,
       shiName: this.shiName,
+    };
+  }
+
+  /** 一阵 12 轮结束、双方仍有兵：只报战况，不报缴获 */
+  interimSummary() {
+    return {
+      result: null,
+      finished: false,
+      interim: true,
+      round: this.round,
+      rounds: this.round,
+      batch: this.batch,
+      remainA: this.remainA(),
+      remainB: this.remainB(),
+      initialA: this.a.initialCount,
+      initialB: this.b.initialCount,
+      lossesA: this.lossesA,
+      lossesB: this.lossesB,
+      loot: 0,
     };
   }
 }

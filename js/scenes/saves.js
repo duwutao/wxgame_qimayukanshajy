@@ -29,7 +29,7 @@ function describe(data) {
   if (!data) return '';
   const p = data.player || {};
   const troops = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金';
+  return '第 ' + (data.clock ? data.clock.day : '?') + ' 天 · ' + troops + ' 兵 · ' + (p.gold || 0) + ' 金钱';
 }
 
 const SavesScene = {
@@ -108,7 +108,7 @@ const SavesScene = {
         text(ctx, '第 ' + (data.clock ? data.clock.day : '?') + ' 天', x + 12, y + 38, { size: 22, color: '#efe3c6' });
         const p = data.player || {};
         const troopN = Object.keys(p.troops || {}).reduce(function (s, k) { return s + (p.troops[k] || 0); }, 0);
-        text(ctx, troopN + ' 兵 · ' + (p.gold || 0) + ' 金', x + 12, y + 68, { size: 15, color: '#a2947a' });
+        text(ctx, troopN + ' 兵 · ' + (p.gold || 0) + ' 金钱', x + 12, y + 68, { size: 15, color: '#a2947a' });
         text(ctx, (data.player && data.player.flagName) || '无旗', x + 12, y + 92, { size: 14, color: '#8a8070' });
         text(ctx, data.clock ? formatClock(data.clock) : '', x + 12, y + 116, { size: 13, color: '#6a6050' });
       } else {

@@ -129,12 +129,12 @@ const LordScene = {
         });
       });
     } else if (d.page === 'gift') {
-      text(ctx, '送礼：君主 100 金换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
+      text(ctx, '送礼：君主 100 金钱换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
         size: 18, color: '#a2947a',
       });
       [100, 300, 500].forEach(function (g, i) {
         const bw = (w - 60) / 3;
-        app.ui.button(ctx, 20 + i * (bw + 10), bottomY + 34, bw, 70, g + ' 金', {
+        app.ui.button(ctx, 20 + i * (bw + 10), bottomY + 34, bw, 70, g + ' 金钱', {
           id: 'gift_' + g, size: 24, fill: '#3a2a12', onTap: function () {
             const r = stateLib.giftLord(st, lord, g);
             app.showToast(r.msg, 2);

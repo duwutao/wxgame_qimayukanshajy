@@ -66,7 +66,7 @@ function hireHero(state, site, heroId) {
   if (state.player.heroes.some(function (x) { return x.id === heroId; })) {
     return { ok: false, msg: '他已经在你队里了' };
   }
-  if (state.player.gold < def.cost) return { ok: false, msg: '金币不够，他要 ' + def.cost };
+  if (state.player.gold < def.cost) return { ok: false, msg: '金钱不够，他要 ' + def.cost };
   state.player.gold -= def.cost;
   state.player.heroes.push({ id: heroId, level: 1, exp: 0, kills: 0 });
   return { ok: true, msg: def.name + ' 加入了你的队伍' };

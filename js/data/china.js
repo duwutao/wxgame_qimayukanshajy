@@ -265,6 +265,11 @@ const ROADS = [
   ['taishan', 'pingyuan'],
 ];
 
+/** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
+const CAPITAL_IDS = [
+  'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
+];
+
 /** 势力 */
 const FACTIONS = {
   wei: {
@@ -622,6 +627,7 @@ module.exports = {
   RIVER_HUAI,
   MOUNTAINS,
   SITE_ROWS,
+  CAPITAL_IDS,
   RECRUIT_SETS,
   ROADS,
   FACTIONS,

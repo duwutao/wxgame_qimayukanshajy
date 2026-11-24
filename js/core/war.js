@@ -565,8 +565,8 @@ function ransom(state, lordId, amount) {
   p.escaped = true;
   state.prisoners = state.prisoners.filter(function (x) { return x.lordId !== lordId; });
   freeLord(state, lord, null);
-  logFn(state, lord.name + '的家人凑了 ' + gold + ' 金把人赎走。你数钱的时候，他没有回头。', 'war');
-  return { ok: true, msg: '收到赎金 ' + gold + ' 金，放走了' + lord.name, gold: gold };
+  logFn(state, lord.name + '的家人凑了 ' + gold + ' 金钱把人赎走。你数钱的时候，他没有回头。', 'war');
+  return { ok: true, msg: '收到赎金 ' + gold + ' 金钱，放走了' + lord.name, gold: gold };
 }
 
 /** 白放人：换人情 */

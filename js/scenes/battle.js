@@ -84,11 +84,14 @@ const BattleScene = {
       bv.timer += dt;
       if (bv.timer >= 0.6) {
         bv.timer = 0;
-        if (!b.finished) b.step();
+        if (!b.finished && !b.batchDone) b.step();
       }
       if (b.finished) {
         bv.summary = stateLib.resolveBattle(app.state, b);
         bv.phase = 'result';
+      } else if (b.batchDone) {
+        bv.summary = b.interimSummary();
+        bv.phase = 'interim';
       }
     }
   },
@@ -265,9 +268,11 @@ const BattleScene = {
         },
       });
       text(ctx, '撤离不损兵 · 撤退要留一成殿后', 16, byy + bh + 8, { size: 15, color: '#8fbf7a' });
-      text(ctx, b.shiMark ? '本战已落笔：' + b.shiName : '回合自动推进 · 每 0.6 秒一轮', 16, byy + bh + 32, {
+      text(ctx, b.shiMark ? '本战已落笔：' + b.shiName : '每 12 轮为一战 · 未分胜负可再战', 16, byy + bh + 32, {
         size: 15, color: b.shiMark ? '#c9a0e0' : '#8a8070',
       });
+    } else if (bv.phase === 'interim') {
+      renderInterim(app, bv.summary, w, h, b);
     } else {
       renderResult(app, bv.summary, w, h);
     }
@@ -316,6 +321,39 @@ function drawTroopRow(ctx, w, y, troops, initial, color, dir) {
   }
 }
 
+function renderInterim(app, sum, w, h, b) {
+  const ctx = app.runtime.ctx;
+  if (!sum || !b) return;
+  text(ctx, '未分胜负', 16, h - 238, { size: 40, color: '#e0b060' });
+  text(ctx, '第 ' + sum.round + ' 轮 · 第 ' + sum.batch + ' 阵结束', 16, h - 192, {
+    size: 18, color: '#a2947a',
+  });
+  text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA + '　敌方 ' + sum.remainB + ' / ' + sum.initialB,
+    16, h - 160, { size: 20, color: '#d8c8a6' });
+  text(ctx, '还有兵，这仗就没完。再打 12 轮，直到一方兵力归零才结算缴获。', 16, h - 126, {
+    size: 16, color: '#8fbf7a',
+  });
+
+  const gap = 12;
+  const leftW = Math.round((w - 32 - gap) * 0.62);
+  const rightW = w - 32 - gap - leftW;
+  app.ui.button(ctx, 16, h - 96, leftW, 76, '再战 12 轮', {
+    id: 'b_next', size: 26, fill: '#4a2a1a', onTap: function () {
+      if (!b.nextBatch()) return;
+      app.battleView.summary = null;
+      app.battleView.phase = 'fight';
+      app.battleView.timer = 0;
+    },
+  });
+  app.ui.button(ctx, 16 + leftW + gap, h - 96, rightW, 76, '撤退', {
+    id: 'b_retreat', size: 24, fill: '#241c14', onTap: function () {
+      b.retreat();
+      app.battleView.summary = stateLib.resolveBattle(app.state, b);
+      app.battleView.phase = 'result';
+    },
+  });
+}
+
 function renderResult(app, sum, w, h, y0Top) {
   const ctx = app.runtime.ctx;
   const y0 = y0Top || (h - 220);
@@ -327,10 +365,10 @@ function renderResult(app, sum, w, h, y0Top) {
   const label = win ? '胜' : retreat ? '撤退' : '败';
 
   text(ctx, label, 16, y0, { size: 46, color });
-  text(ctx, '第 ' + sum.round + ' 轮结束', 120, y0 + 12, { size: 18, color: '#a2947a' });
+  text(ctx, '共 ' + sum.round + ' 轮 · ' + sum.batch + ' 阵打完', 120, y0 + 12, { size: 18, color: '#a2947a' });
   text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA, 16, y0 + 58, { size: 20, color: '#9fb8d8' });
   text(ctx, '敌方 ' + sum.remainB + ' / ' + sum.initialB, 16, y0 + 88, { size: 20, color: '#d8a09f' });
-  if (win) text(ctx, '缴获 ' + sum.loot + ' 金', 16, y0 + 122, { size: 22, color: '#f0c060' });
+  if (win) text(ctx, '缴获 ' + sum.loot + ' 金钱', 16, y0 + 122, { size: 22, color: '#f0c060' });
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });

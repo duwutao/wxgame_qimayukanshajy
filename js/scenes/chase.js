@@ -35,6 +35,46 @@ function recentWarLines(st, n) {
   return out;
 }
 
+/** 西凉铁骑专用：不买路、不对战，只给“留人断后”一条路 */
+function renderIronChase(app, ctx, w, h, st, unit) {
+  const mine = army.troopCount(st.player.troops);
+  const foe = army.troopCount(unit.troops || {});
+  ctx.fillStyle = '#0d0a07';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#7a2118';
+  ctx.globalAlpha = 0.28;
+  ctx.fillRect(0, 0, w, 230);
+  ctx.globalAlpha = 1;
+
+  text(ctx, '西 凉 铁 骑', w / 2, 22, { size: 20, align: 'center', color: '#e08a70' });
+  text(ctx, '铁骑追上来了', w / 2, 60, { size: 44, align: 'center', color: '#f5e9cf', shadow: true });
+  text(ctx, '他们不列阵，也不收买路钱。', w / 2, 120, { size: 18, align: 'center', color: '#c9bda2' });
+  text(ctx, '铁骑只咬住你的后队，你只能留人断后。', w / 2, 150, { size: 18, align: 'center', color: '#c9bda2' });
+
+  panel(ctx, 20, 198, w - 40, 184, { fill: '#1b1611' });
+  text(ctx, '我方 ' + mine + ' 人', 36, 214, { size: 22, color: '#8fb0d8' });
+  text(ctx, '西凉铁骑 ' + foe + ' 人', 36, 254, { size: 22, color: '#d07060' });
+  text(ctx, '他们不会和你摆开阵势打。', 36, 296, { size: 16, color: '#8a8070' });
+  text(ctx, '每次被咬住，都要折几个人换八个时辰。', 36, 326, {
+    size: 17, color: mine > 1 ? '#d9a441' : '#d06a4a',
+  });
+  if (mine <= 1) text(ctx, '你身边已经没人可留了。', 36, 354, { size: 18, color: '#d06a4a' });
+
+  app.ui.button(ctx, 20, h - 178, w - 40, 96, '让士兵断后', {
+    id: 'iron_tail', size: 30, fill: '#4a241c', onTap: function () {
+      const r = stateLib.breakTail(st, unit.id, 'party');
+      app.showToast(r.msg, 3);
+      if (r.ended) {
+        app.replace('ending');
+        return;
+      }
+      if (r.ok) app.pop();
+    },
+  });
+  text(ctx, mine > 1 ? '折几个人，铁骑会在原地停 8 小时，之后不再主动追你。' : '没有人断后，铁骑会直接踏过去。',
+    w / 2, h - 64, { size: 15, align: 'center', color: '#8a8070' });
+}
+
 const ChaseScene = {
   enter(app, params) {
     const d = params || {};
@@ -65,6 +105,10 @@ const ChaseScene = {
     const unit = unitOf(app);
     if (!unit) return;
     const d = app.chase;
+    if (unit.scripted) {
+      renderIronChase(app, ctx, w, h, st, unit);
+      return;
+    }
     const isLord = d.kind !== 'party';
     const fac = isLord && FACTIONS[unit.faction] ? FACTIONS[unit.faction] : null;
     const col = fac ? fac.color : (unit.color || '#8b3a3a');
@@ -125,12 +169,12 @@ const ChaseScene = {
     const verdict = pPower / total;
     text(ctx, verdict > 0.62 ? '硬打能赢，但会死人。' : verdict > 0.48 ? '势均力敌，一仗下来两边都疼。' : '对面比你硬，坦然开战是下策。',
       36, y0 + 150, { size: 17, color: verdict > 0.62 ? '#8fbf7a' : '#d9a441' });
-    text(ctx, '买路钱随他手下的人数涨：' + cost + ' 金。', 36, y0 + 180, { size: 15, color: '#a2947a' });
+    text(ctx, '买路钱随他手下的人数涨：' + cost + ' 金钱。', 36, y0 + 180, { size: 15, color: '#a2947a' });
 
     /* 三条路 */
     const payY = y0 + 216 + 24;
     const bh = 92;
-    app.ui.button(ctx, 20, payY, w - 40, bh, '给钱脱身 · ' + cost + ' 金', {
+    app.ui.button(ctx, 20, payY, w - 40, bh, '给钱脱身 · ' + cost + ' 金钱', {
       id: 'chase_pay', size: 28, fill: '#3a3020', onTap: function () {
         const r = stateLib.giveWay(st, unit.id, d.kind);
         app.showToast(r.msg, 3);

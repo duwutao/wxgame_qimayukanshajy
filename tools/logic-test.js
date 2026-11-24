@@ -13,7 +13,8 @@ const economy = require(R + '/core/economy.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, CAMPAIGN, SITE_ROWS } = require(R + '/data/china.js');
+const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS } = require(R + '/data/china.js');
+const { VILLAGE_FOOD } = require(R + '/data/extra.js');
 
 let pass = 0;
 let fail = 0;
@@ -28,6 +29,17 @@ function ok(name, cond, extra) {
 
 function group(title) {
   console.log('\n[' + title + ']');
+}
+
+/** 12 轮一阵：测试里要把阵与阵之间手动续上 */
+function fightToEnd(b, limit) {
+  let n = 0;
+  const cap = limit || 2000;
+  while (!b.finished && n++ < cap) {
+    if (b.batchDone) b.nextBatch();
+    else b.step();
+  }
+  return b;
 }
 
 /* ---------------------------------------------------------------- 世界 */
@@ -112,7 +124,7 @@ ok('买粮扣钱加粮', st.player.gold === goldBefore - 10 * economy.foodPrice(
 
 const troopBefore = armyLib.troopCount(st.player.troops);
 const rec = economy.recruit(st, chenliu, 'militia', 3);
-ok('招兵接口可用', rec.ok || rec.msg.indexOf('金币') >= 0 || rec.msg.indexOf('满编') >= 0, rec.msg);
+ok('招兵接口可用', rec.ok || rec.msg.indexOf('金钱') >= 0 || rec.msg.indexOf('满编') >= 0, rec.msg);
 
 const eqBefore = st.player.equip.blade;
 st.player.gold = 9999;
@@ -129,8 +141,7 @@ const b1 = new Battle({
   attacker: { name: '我', troops: { militia: 26 }, morale: 70, isPlayer: true },
   defender: { name: '山贼', troops: { bandit: 15 }, morale: 60 },
 });
-let rounds = 0;
-while (!b1.finished && rounds < 20) { b1.step(); rounds++; }
+fightToEnd(b1);
 ok('26 打 15 山贼能赢', b1.result === 'win', b1.result + ' 轮' + b1.round);
 ok('赢也会掉人', b1.summary().remainA < 26 && b1.summary().remainA > 15,
   '剩 ' + b1.summary().remainA);
@@ -140,7 +151,7 @@ const b2 = new Battle({
   attacker: { name: '我', troops: { militia: 30 }, morale: 60, isPlayer: true },
   defender: { name: '西凉铁骑', troops: { cav: 40, tiefu: 20 }, morale: 90 },
 });
-while (!b2.finished) { b2.step(); }
+fightToEnd(b2);
 ok('30 民兵打不过 60 西凉铁骑', b2.result !== 'win', b2.result);
 
 const b3 = new Battle({
@@ -152,6 +163,127 @@ b3.retreat();
 ok('撤退成立', b3.result === 'retreat' && b3.retreated);
 ok('撤退额外留一成殿后', b3.summary().remainA <= 19, '剩 ' + b3.summary().remainA);
 
+/* ---------------------------------------------------------- 骑砍化规则 */
+
+group('骑砍化规则');
+const ruleState = stateLib.createGame({ seed: 20261124 });
+const camp = ruleState.world.sites.filter(function (s) { return s.type === 'camp'; })[0];
+const campDay = ruleState.clock.day;
+stateLib.takeSite(ruleState, camp);
+ok('攻破山寨进入洗劫态', camp.cleared && camp.looted && camp.respawnDay === campDay + stateLib.CAMP_RESPAWN_DAYS,
+  'respawn=' + camp.respawnDay);
+ok('洗劫山寨不再算敌对目标', !stateLib.isHostileSite(ruleState, camp));
+ok('空营不能再次开战刷钱', stateLib.startSiege(ruleState, camp) === null);
+stateLib.campRespawnTick(ruleState);
+ok('未到日子山寨不刷新', camp.cleared === true);
+ruleState.clock.day = camp.respawnDay;
+stateLib.campRespawnTick(ruleState);
+ok('数日后山寨重新聚人', camp.cleared === false && camp.garrison > 0, 'garrison=' + camp.garrison);
+
+const ruleVillage = ruleState.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+ruleVillage.recruits = ruleVillage.recruits || {};
+ruleVillage.recruits.militia = 0;
+const noRecruit = economy.recruit(ruleState, ruleVillage, 'militia', 1);
+ok('村庄招募池空后不能无限招', !noRecruit.ok, noRecruit.msg);
+ok('村庄招募上限不超过 5', ruleVillage.recruitCap <= 5, 'cap=' + ruleVillage.recruitCap);
+economy.dailyMarket(ruleState, ruleState.rng);
+ok('村庄壮丁不会每日自动回填', (ruleVillage.recruits.militia || 0) === 0,
+  'militia=' + (ruleVillage.recruits.militia || 0));
+
+const oldSaveState = stateLib.createGame({ seed: 778 });
+const oldVillage = oldSaveState.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+oldVillage.recruitCap = 7;
+oldVillage.recruits.militia = 9;
+oldVillage.foodStock = { veg: 9 };
+const reloaded = stateLib.deserialize(stateLib.serialize(oldSaveState));
+const reloadedVillage = reloaded.world.sites.filter(function (s) { return s.id === oldVillage.id; })[0];
+ok('旧档村庄壮丁进档压到 5', reloadedVillage.recruitCap === 5 && reloadedVillage.recruits.militia === 5,
+  'cap=' + reloadedVillage.recruitCap + ' stock=' + reloadedVillage.recruits.militia);
+ok('旧档村庄口粮进档压到 5', reloadedVillage.foodStock.veg === 5, 'veg=' + reloadedVillage.foodStock.veg);
+
+const food = VILLAGE_FOOD[4];
+ruleVillage.foodStock = {};
+ruleVillage.foodStock[food.id] = 1;
+ruleState.player.gold = 9999;
+ruleState.player.food = 0;
+const buy1 = stateLib.buyVillageFood(ruleState, ruleVillage, food.id);
+const buy2 = stateLib.buyVillageFood(ruleState, ruleVillage, food.id);
+ok('村里口粮买一份就少一份', buy1.ok && !buy2.ok, buy1.msg + ' / ' + buy2.msg);
+ok('村市口粮上限最多 5', VILLAGE_FOOD.every(function (f) { return f.stockMax <= 5; }));
+
+ruleState.player.resting = ruleVillage.id;
+ruleState.player.atSiteId = ruleVillage.id;
+ok('村里歇下不算安全休整', stateLib.isSafeResting(ruleState) === false);
+const ruleCity = ruleState.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+ruleState.player.resting = ruleCity.id;
+ruleState.player.atSiteId = ruleCity.id;
+ok('城里歇下才算安全休整', stateLib.isSafeResting(ruleState) === true);
+
+const lordForRecruit = ruleState.lords.filter(function (l) { return l.faction !== 'bandit'; })[0];
+const lordSite = ruleState.world.sites.filter(function (s) { return s.ownerFaction === lordForRecruit.faction && s.type === 'town'; })[0];
+if (lordSite) {
+  lordSite.lordRecruits = { militia: 3 };
+  lordSite.recruits = lordSite.recruits || {};
+  lordSite.recruits.militia = 7;
+  lordForRecruit.troops = {};
+  lordForRecruit.defTroops = { militia: 10 };
+  const beforePlayerPool = lordSite.recruits.militia;
+  const got = stateLib.recruitLordFromSite(ruleState, lordForRecruit, lordSite, 3);
+  ok('领主能在城镇招兵', got === 3 && (lordForRecruit.troops.militia || 0) === 3, 'got=' + got);
+  ok('领主招兵不扣玩家招募池', lordSite.recruits.militia === beforePlayerPool, 'pool=' + lordSite.recruits.militia);
+}
+
+ok('大国投靠声望门槛 200', stateLib.joinRenownReq('wei') === 200);
+ok('小国投靠声望门槛 100', stateLib.joinRenownReq('lv') === 100);
+const weiSite = ruleState.world.sites.filter(function (s) { return s.ownerFaction === 'wei' && s.type === 'town'; })[0];
+const oldFaction = ruleState.player.faction;
+ruleState.player.faction = null;
+ruleState.player.renown = 150;
+const joinLow = stateLib.joinFaction(ruleState, weiSite);
+ok('声望 150 投不了魏', !joinLow.ok, joinLow.msg);
+ruleState.player.renown = 200;
+const joinHigh = stateLib.joinFaction(ruleState, weiSite);
+ok('声望 200 可投魏', joinHigh.ok, joinHigh.msg);
+ruleState.player.faction = oldFaction;
+
+const batchBattle = new Battle({
+  rng: new RNG(8080),
+  attacker: { name: '我', troops: { militia: 120 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 100 }, morale: 70 },
+});
+for (let i = 0; i < 12 && !batchBattle.finished; i++) batchBattle.step();
+ok('12 轮只是一阵，不立刻分胜负', !batchBattle.finished && batchBattle.batchDone, String(batchBattle.round));
+ok('阵间不结算缴获', batchBattle.interimSummary().loot === 0 && batchBattle.summary().loot === 0);
+batchBattle.nextBatch();
+ok('可以续下一阵 12 轮', !batchBattle.batchDone && batchBattle.roundsInBatch === 0);
+fightToEnd(batchBattle);
+ok('一方归零才结束', batchBattle.finished && (batchBattle.remainA() === 0 || batchBattle.remainB() === 0));
+ok('最终才有缴获', batchBattle.result !== 'win' || batchBattle.summary().loot > 0, 'loot=' + batchBattle.summary().loot);
+
+const ironState = stateLib.createGame({ seed: 5150 });
+const iron = ironState.parties.filter(function (p) { return p.scripted; })[0];
+ok('开局有西凉铁骑追兵', !!iron && iron.slow === 2, iron ? 'slow=' + iron.slow : 'missing');
+if (iron) {
+  ironState.player.troops = { militia: 9 };
+  ironState.player.x = iron.x;
+  ironState.player.y = iron.y;
+  const tail = stateLib.breakTail(ironState, iron.id, 'party');
+  const left = armyLib.troopCount(ironState.player.troops);
+  ok('铁骑只能断后，不能拉出来对战', stateLib.startPartyBattle(ironState, iron) === null);
+  ok('断后损失几个兵', tail.ok && tail.lose >= 1 && tail.lose <= 3 && left === 9 - tail.lose,
+    'lose=' + tail.lose + ' left=' + left);
+  ok('铁骑断后停八小时', iron.dormant === true && tail.pause === 8 && iron.pauseUntil > 0);
+}
+const doomed = stateLib.createGame({ seed: 9090 });
+const doomedIron = doomed.parties.filter(function (p) { return p.scripted; })[0];
+if (doomedIron) {
+  doomed.player.troops = { militia: 1 };
+  const last = stateLib.breakTail(doomed, doomedIron.id, 'party');
+  ok('只剩玩家一人则被铁骑杀死剧终', last.ended === true && doomed.gameOver === true && doomed.ending && doomed.ending.title === '剧终');
+}
+
+ok('各国都城表覆盖十座', CAPITAL_IDS.length === 10 && CAPITAL_IDS.indexOf('xuchang') >= 0 && CAPITAL_IDS.indexOf('chengdu') >= 0);
+
 /* ---------------------------------------------------------------- 史简 */
 
 group('史简');
@@ -162,20 +294,23 @@ function runWith(mark) {
     defender: { name: '袁军', troops: { militia: 40 }, morale: 70 },
   });
   if (mark) b.applyShiMark(mark);
-  while (!b.finished) b.step();
+  while (!b.finished) {
+    if (b.batchDone) b.nextBatch();
+    else b.step();
+  }
   return b;
 }
 const plain = runWith(null);
 const wind = runWith('wind');
-ok('南风起让我方输出更高', wind.summary().remainB < plain.summary().remainB,
-  wind.summary().remainB + ' vs ' + plain.summary().remainB);
+ok('南风起让我方打得更快、少折人', wind.summary().round < plain.summary().round && wind.summary().remainA > plain.summary().remainA,
+  wind.summary().round + '轮/' + plain.summary().round + '轮 · 剩' + wind.summary().remainA + '/' + plain.summary().remainA);
 
 const calm = runWith('calm');
 function firstRoundRemain(mark) {
   const b = new Battle({
     rng: new RNG(4242),
-    attacker: { name: '我', troops: { militia: 40 }, morale: 70, isPlayer: true },
-    defender: { name: '袁军', troops: { militia: 40 }, morale: 70 },
+    attacker: { name: '我', troops: { militia: 120 }, morale: 70, isPlayer: true },
+    defender: { name: '袁军', troops: { militia: 120 }, morale: 70 },
   });
   if (mark) b.applyShiMark(mark);
   b.step();
@@ -200,7 +335,10 @@ const hres = stateLib.useHistory(st, 'roll');
 ok('用史简扣一支', hres.ok && st.player.shi === 2, hres.msg + ' 剩' + st.player.shi);
 ok('史简计入已用', st.player.shiUsed === 1, String(st.player.shiUsed));
 ok('用史简会得罪所有人', st.relations.wei < 0, String(st.relations.wei));
-while (!st.battle.finished) st.battle.step();
+  while (!st.battle.finished) {
+    if (st.battle.batchDone) st.battle.nextBatch();
+    else st.battle.step();
+  }
 const sum = stateLib.resolveBattle(st, st.battle);
 ok('名册战后回归士兵', sum.remainA > 0 && armyLib.troopCount(st.player.troops) > sum.remainA - 1,
   '剩' + sum.remainA);
@@ -269,7 +407,10 @@ const wuchao = stateLib.startCampaignBattle(st5, 'wuchao');
 ok('乌巢战役可开', !!wuchao && wuchao.b.initialCount === 170, String(wuchao && wuchao.b.initialCount));
 ok('乌巢是火攻战场', wuchao.fireGround === true);
 st5.battle.b.troops = { militia: 4 };
-while (!st5.battle.finished) st5.battle.step();
+  while (!st5.battle.finished) {
+    if (st5.battle.batchDone) st5.battle.nextBatch();
+    else st5.battle.step();
+  }
 st5.player.troops = { militia: 40, spear: 20, archer: 10 };
 const res = stateLib.resolveBattle(st5, wuchao);
 ok('乌巢可胜', res.result === 'win', res.result);
@@ -777,7 +918,10 @@ st21.flags.campaignCool = 0;
 const raidBattle = stateLib.tryCampaignBattle(st21);
 ok('四十五人能打濮阳小仗', !!raidBattle && raidBattle.b.initialCount === 55, String(raidBattle && raidBattle.b.initialCount));
 raidBattle.b.troops = { militia: 4 };
-while (!raidBattle.finished) raidBattle.step();
+  while (!raidBattle.finished) {
+    if (raidBattle.batchDone) raidBattle.nextBatch();
+    else raidBattle.step();
+  }
 st21.player.troops = { militia: 40, spear: 10 };
 stateLib.resolveBattle(st21, raidBattle);
 ok('濮阳小仗算进剧情', st21.flags.win_act1b === true && st21.campaign.stage === 3,

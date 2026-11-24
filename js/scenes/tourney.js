@@ -1,7 +1,7 @@
 /**
  * 比武大会：彩棚底下的"猜手"赌局。
  * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
- * 报名 40 金，赢的人拿 200。
+ * 报名 40 金钱，赢的人拿 200。
  */
 
 const { text, wrap, panel } = require('../render/ui.js');
@@ -48,7 +48,7 @@ const TourneyScene = {
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
-    text(ctx, '报名 ' + tourney.FEE + ' 金 · 夺冠赏 ' + tourney.PRIZE + ' 金 · 三滴血定胜负', 20, 70, {
+    text(ctx, '报名 ' + tourney.FEE + ' 金钱 · 夺冠赏 ' + tourney.PRIZE + ' 金钱 · 三滴血定胜负', 20, 70, {
       size: 16, color: '#a2947a',
     });
 
@@ -57,11 +57,11 @@ const TourneyScene = {
       const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
         + '每合一招：要么护住一边，要么从那一边切进去。'
         + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
-        + '三滴血，先倒下的认输。报名 40 金，赢的人捧走 200。';
+        + '三滴血，先倒下的认输。报名 40 金钱，赢的人捧走 200。';
       wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
         text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
       });
-      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金 · 报名下场', {
+      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金钱 · 报名下场', {
         id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
           const r = tourney.enter(st, site);
           app.showToast(r.msg, 2.2);
@@ -90,7 +90,7 @@ const TourneyScene = {
       text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
       drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
       text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
-      text(ctx, '金 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
+      text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
       text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
 
       if (!t.done) {
@@ -110,7 +110,7 @@ const TourneyScene = {
             id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
               const r = tourney.play(st, m.id);
               if (!r.ok) { app.showToast(r.msg); return; }
-              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金', 2.4);
+              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金钱', 2.4);
               else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
               else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
             },
@@ -119,7 +119,7 @@ const TourneyScene = {
       } else {
         const champion = t.champion;
         const drawn = t.draw;
-        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
+        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金钱' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
         text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
         app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
           id: 't_leave', size: 26, fill: '#33271b', onTap: function () {

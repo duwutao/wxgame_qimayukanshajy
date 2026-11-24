@@ -84,7 +84,7 @@ const ChapterScene = {
 
     if (ch.reward) {
       const parts = [];
-      if (ch.reward.gold) parts.push(ch.reward.gold + ' 金');
+      if (ch.reward.gold) parts.push(ch.reward.gold + ' 金钱');
       if (ch.reward.renown) parts.push(ch.reward.renown + ' 声望');
       if (ch.reward.shi) parts.push(ch.reward.shi + ' 支史简');
       if (ch.reward.banner) parts.push('一面自己的旗');

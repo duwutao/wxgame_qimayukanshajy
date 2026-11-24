@@ -55,14 +55,14 @@ function buyGoods(state, site, goodId, amount) {
   if (!good) return { ok: false, msg: '没有这种货' };
   const n = Math.max(1, Math.floor(amount));
   const cost = buyPrice(site, goodId) * n;
-  if (state.player.gold < cost) return { ok: false, msg: '金币不够，要 ' + cost };
+  if (state.player.gold < cost) return { ok: false, msg: '金钱不够，要 ' + cost };
   if (goodsCount(state.player) + n > GOODS_CAP) {
     return { ok: false, msg: '驮队装不下了（上限 ' + GOODS_CAP + ' 件）' };
   }
   state.player.gold -= cost;
   state.player.goods = state.player.goods || {};
   state.player.goods[goodId] = (state.player.goods[goodId] || 0) + n;
-  return { ok: true, msg: '买入 ' + good.name + ' ×' + n + '，花费 ' + cost + ' 金', cost };
+  return { ok: true, msg: '买入 ' + good.name + ' ×' + n + '，花费 ' + cost + ' 金钱', cost };
 }
 
 function sellGoods(state, site, goodId, amount) {
@@ -74,7 +74,7 @@ function sellGoods(state, site, goodId, amount) {
   state.player.goods[goodId] -= n;
   state.player.gold += gain;
   state.stats.goldEarned = (state.stats.goldEarned || 0) + gain;
-  return { ok: true, msg: '卖出 ' + goodById(goodId).name + ' ×' + n + '，得 ' + gain + ' 金', gain };
+  return { ok: true, msg: '卖出 ' + goodById(goodId).name + ' ×' + n + '，得 ' + gain + ' 金钱', gain };
 }
 
 /**
