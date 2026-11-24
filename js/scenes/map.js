@@ -287,11 +287,17 @@ const MapScene = {
 
     // 在城里歇着的时候出来看地图：点一下地图就回城
     if (app.restView) {
+      app.follow = null;
       const siteId = app.restView;
       app.restView = null;
       app.push('town', { siteId: siteId });
       return;
     }
+
+    // 只要不是拖地图，点哪儿都算"重新指路"：先松开正在跟的人，
+    // 否则走到半路、路一空又会自己拐回去追他，直到撞上为止。
+    const wasFollowing = !!app.follow;
+    app.follow = null;
 
     const tx = Math.floor((x + app.mapCam.x) / TS);
     const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
@@ -342,11 +348,15 @@ const MapScene = {
 
     const t = terrainAt(st.world, tx, ty);
     if (!t || !t.passable) {
+      if (wasFollowing) stateLib.stopMoving(st);
       app.showToast(t && t.id === 'sea' ? '前面是海，绕路走。' : '山地翻不过去。');
       return;
     }
     const r = stateLib.goTo(st, tx, ty);
-    if (!r.ok) app.showToast(r.msg);
+    if (!r.ok) {
+      if (wasFollowing) stateLib.stopMoving(st);
+      app.showToast(r.msg);
+    }
   },
 };
 

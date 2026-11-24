@@ -469,6 +469,53 @@ smoke('大地图：自由视野 + 跳回原处', function () {
   ok('点了就回自己身边', app.mapFree === false);
 });
 
+smoke('大地图：点领主跟着走，点别处就松开', function () {
+  const st = app.state = stateLib.createGame({ seed: 4328 });
+  st.events.length = 0;
+  app.replace('map');
+  app.mapZoom = 1;
+  app.mapFree = true;
+  const lord = st.lords.filter(function (l) { return l.alive && l.faction === 'wei'; })[0];
+  ok('有可点的领主', !!lord);
+  app.mapCam = { x: lord.x * 64 - 300, y: lord.y * 64 - 300 };
+  app.ui.begin();
+  app.top().scene.render(app);
+  const cam = app.mapCam;
+  const sx = lord.x * 64 - cam.x + 32;
+  const sy = 132 + lord.y * 64 - cam.y + 32;
+  app.onStart(sx, sy);
+  app.onEnd(sx, sy);
+  ok('点领主就开始跟', !!app.follow && app.follow.id === lord.id, app.follow && app.follow.id);
+  ok('跟的时候有路线', st.player.route.length > 0, st.player.route.length);
+
+  // 找一个空着的平地，点过去
+  let tx = -1, ty = -1;
+  for (let dx = 2; dx <= 7 && tx < 0; dx++) {
+    for (let dy = -3; dy <= 3; dy++) {
+      const x = lord.x + dx, y = lord.y + dy;
+      if (x < 0 || y < 0 || x >= st.world.w || y >= st.world.h) continue;
+      if (st.world.tiles[y * st.world.w + x] !== 'plain') continue;
+      if (st.world.sites.some(function (s) { return s.x === x && s.y === y; })) continue;
+      if (st.lords.some(function (l) { return l.x === x && l.y === y; })) continue;
+      if (st.parties.some(function (q) { return q.x === x && q.y === y; })) continue;
+      tx = x; ty = y; break;
+    }
+  }
+  ok('找到一块空地', tx >= 0, tx + ',' + ty);
+  const gx = tx * 64 - cam.x + 32;
+  const gy = 132 + ty * 64 - cam.y + 32;
+  app.onStart(gx, gy);
+  app.onEnd(gx, gy);
+  ok('点别处立刻松开领主', !app.follow);
+  ok('路线改指向空地', st.player.route.length > 0 &&
+    st.player.route[st.player.route.length - 1].x === tx &&
+    st.player.route[st.player.route.length - 1].y === ty);
+
+  // 走一段路，确认不会自己拐回去追人
+  for (let i = 0; i < 40; i++) app.top().scene.update(app, 0.12);
+  ok('走完也不回头追', !app.follow, app.follow && app.follow.id);
+});
+
 smoke('市场默认先看粮草，货物有转卖备注', function () {
   app.state = stateLib.createGame({ seed: 4324 });
   app.state.events.length = 0;
