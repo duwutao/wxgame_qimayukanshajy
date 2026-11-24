@@ -583,9 +583,25 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.fillStyle = 'rgba(10,8,6,0.78)';
       ctx.fillRect(sx - tw / 2 - 6, sy + 15 * z, tw + 12, nsz + 4);
       text(ctx, p.name, sx, sy + 16 * z, {
-        size: nsz, align: 'center', color: p.color === '#4f8f6a' ? '#9fd8b4' : '#f0c9b0',
+        size: nsz, align: 'center', color: '#f0c9b0',
       });
     }
+    // 匪团的旗：一面"贼"字，跟领主的势力旗同样大小，全国地图上也认得出
+    const fw = 20 * z;
+    const fh = 22 * z;
+    const fx = sx + 12 * z;
+    const fy = sy - 34 * z;
+    ctx.fillStyle = 'rgba(12,9,6,0.6)';
+    ctx.fillRect(fx - 2 * z, fy - 2 * z, fw + 4 * z, fh + 4 * z);
+    ctx.fillStyle = p.color || '#7a3a2a';
+    ctx.fillRect(fx, fy, fw, fh);
+    ctx.strokeStyle = 'rgba(255,240,210,0.45)';
+    ctx.lineWidth = Math.max(1, 1 * z);
+    ctx.strokeRect(fx, fy, fw, fh);
+    text(ctx, '贼', fx + fw / 2, fy + 16 * z, {
+      size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
+    });
+
     if (p.scuffle > 0) {
       ctx.fillStyle = 'rgba(220,80,50,0.85)';
       ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
