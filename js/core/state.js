@@ -48,6 +48,88 @@ function joinRenownReq(factionId) {
   return MAJOR_FACTIONS[factionId] ? 200 : 100;
 }
 
+/* ---------------------------------------------------------------- 自立国号 */
+
+// 旗色的中文名，和立国页十二色一一对应；扎营等界面用它，不直接露十六进制
+const FLAG_COLOR_NAMES = {
+  '#d9a441': '鎏金', '#b4463c': '赤', '#3f6fa8': '靛', '#4f8f5a': '苍',
+  '#8c6fae': '紫', '#b06a3c': '赭', '#6a8f8a': '青', '#8f8f86': '灰',
+  '#c95a7a': '桃', '#5a7fa0': '蓝', '#7a6a4a': '褐', '#2f6f6a': '墨青',
+};
+
+function flagColorName(hex) {
+  return FLAG_COLOR_NAMES[String(hex || '').toLowerCase()] || '';
+}
+
+/** 玩家那面旗在数据里的默认样子：没立国时仍是“你的旗” */
+function syncPlayerFaction(country) {
+  const f = FACTIONS.player;
+  if (!f) return;
+  if (country && country.name) {
+    f.name = country.name;
+    f.full = country.name + '国';
+    f.color = country.color || '#d9a441';
+    f.banner = country.name;
+  } else {
+    f.name = '我';
+    f.full = '你的旗';
+    f.color = '#d9a441';
+    f.banner = '我';
+  }
+}
+
+/** 把国号/旗色铺到所有已占领城与麾下领主：地图、城头、旗块都跟着换 */
+function applyPlayerCountry(state) {
+  const p = state && state.player;
+  if (!p) return;
+  syncPlayerFaction(p.country);
+  if (!p.country || !p.country.name) return;
+  p.faction = 'player';
+  state.world.sites.forEach(function (site) {
+    if (!site.playerOwned) return;
+    site.ownerFaction = 'player';
+    site.faction = 'player';
+    site.color = p.country.color;
+    site.banner = p.country.name;
+  });
+  // 玩家封出去的家臣，不论当年挂的是谁的旗，自立后都改挂你的国号
+  state.lords.forEach(function (lord) {
+    if (!lord.alive || lord.title !== '你的家臣') return;
+    lord.faction = 'player';
+  });
+}
+
+/** 国号必须是且只能是一个汉字 */
+function cleanCountryName(name) {
+  const s = String(name === undefined || name === null ? '' : name).trim();
+  return /^[\u4e00-\u9fa5]$/.test(s) ? s : null;
+}
+
+/** 立国 / 改国号：返回统一结果，UI 只负责选字和选色 */
+function foundCountry(state, name, color) {
+  const p = state && state.player;
+  if (!p) return { ok: false, msg: '还没有自己的队伍' };
+  const n = cleanCountryName(name);
+  if (!n) return { ok: false, msg: '国号只能取一个汉字' };
+  const c = /^#[0-9a-fA-F]{6}$/.test(String(color || '')) ? color : '#d9a441';
+  const old = p.country && p.country.name;
+  if (!p.country) p.country = { foundedDay: state.clock.day };
+  p.country.name = n;
+  p.country.color = c;
+  p.faction = 'player';
+  applyPlayerCountry(state);
+  pushLog(state, (old ? '改国号为「' + n + '」' : '你立国号为「' + n + '」') +
+    '，旗色换了新的。所有城头与麾下领主都改挂这面旗。', 'throne');
+  return {
+    ok: true,
+    msg: old
+      ? '国号「' + n + '」已改，所有城与领主换旗'
+      : '国号「' + n + '」已立，所有城与领主换旗',
+    name: n,
+    color: c,
+  };
+}
+
 function deepCopy(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -137,7 +219,11 @@ function createGame(opts) {
     morale: 58,
     renown: 0,
     faction: null,
+    // 自立后的国号与旗色：打下第一座城才会立，固定一字
+    country: null,
     banner: false,
+    foodWarnDay: 0,
+    foodWarned: false,
     troops: { militia: 9 },
     equip: { blade: 0, armor: 0, horse: 0 },
     shi: 1,
@@ -190,8 +276,11 @@ function createGame(opts) {
     questSeq: 1,
     partySeq: 1,
     battle: null,
+    playerSiege: null,
+    foodWarning: null,
   };
 
+  syncPlayerFaction(null);
   spawnLords(state);
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, 8);
@@ -408,7 +497,9 @@ function isHostileFaction(state, factionId) {
   const rel = relationOf(state, factionId);
   if (rel <= -25) return true;
   const pf = state.player.faction;
-  if (pf && factionId !== pf && rel < 20) return true;
+  // 自立的人不等于见谁都打：只有宣战、结仇或主动敌对才算敌人。
+  // 挂在一家诸侯名下时，才算“别家的人默认不对付”。
+  if (pf && pf !== 'player' && factionId !== pf && rel < 20) return true;
   return false;
 }
 
@@ -466,6 +557,10 @@ function currentPos(state) {
 function goTo(state, x, y) {
   if (state.gameOver) return { ok: false, msg: '旅途已经结束' };
   if (!isPassable(state.world, x, y)) return { ok: false, msg: '这里过不去' };
+  if (state.playerSiege) {
+    const ps = siteById(state.world, state.playerSiege.siteId);
+    if (!ps || Math.abs(x - ps.x) + Math.abs(y - ps.y) > 1) cancelPlayerSiege(state);
+  }
   const from = currentPos(state);
   if (from.x === x && from.y === y) return { ok: false, msg: '已经在这里了' };
   const path = findPath(state.world, from, { x, y });
@@ -546,6 +641,51 @@ function isSafeResting(state) {
   return !!site && site.type !== 'village';
 }
 
+/* ---------------------------------------------------------------- 粮草预警 */
+
+/** 下一次发粮要多少：和 dailyTick 用同一套兵力、加成、休整折扣 */
+function nextFoodNeed(state) {
+  const p = state.player;
+  if (!p) return 0;
+  const hb = heroes.heroBonus(state);
+  const restMul = isResting(state) ? 0.5 : 1;
+  return Math.max(1, Math.round(army.foodPerDay(p.troops) * (1 - hb.foodPct) * restMul));
+}
+
+/** 粮草够不够撑到下一次发粮；不够就留下一条常驻告警，补够了自动消 */
+function refreshFoodWarning(state) {
+  const p = state && state.player;
+  if (!p) return null;
+  const need = nextFoodNeed(state);
+  if (p.food >= need) {
+    state.foodWarning = null;
+    p.foodWarned = false;
+    return null;
+  }
+  const prev = state.foodWarning;
+  state.foodWarning = {
+    need: need,
+    food: p.food,
+    day: state.clock.day,
+    at: state.clock.hour,
+  };
+  if (prev && prev.need === need && prev.food === p.food) return state.foodWarning;
+  return state.foodWarning;
+}
+
+/** 扣完这一顿之后，提前把“下一顿不够”喊出来；一个缺粮段只喊一次 */
+function warnFoodShortage(state) {
+  const w = refreshFoodWarning(state);
+  const p = state.player;
+  if (!w || p.foodWarned) return;
+  p.foodWarned = true;
+  p.foodWarnDay = state.clock.day;
+  const text = '粮草不足以支撑两日（现存 ' + p.food + '，下次发粮需 ' + w.need +
+    '）。请尽快补充，否则军队哗变。';
+  pushLog(state, text, 'famine');
+  state.events.push({ type: 'warning', title: '粮草告急', text: text });
+}
+
 /* ---------------------------------------------------------------- 时间 */
 
 function advanceTime(state, hours) {
@@ -577,14 +717,19 @@ function dailyTick(state) {
         pushLog(state, '粮草见底（剩 ' + p.food + '），队伍开始嘀咕。');
       }
     } else {
+      // 上一轮预警过还补不上，就不是“饿肚子”，是真哗变
+      const mutiny = !!state.foodWarning;
       const short = need - p.food;
       p.food = 0;
-      p.morale = Math.max(0, p.morale - 10);
-      const starved = Math.min(short, army.troopCount(p.troops));
-      if (starved > 0) {
-        army.distributeLosses(p.troops, starved);
-        state.stats.troopsLost += starved;
-        pushLog(state, '断粮！' + short + ' 人夜里走了。');
+      p.morale = Math.max(0, p.morale - (mutiny ? 18 : 10));
+      const count = army.troopCount(p.troops);
+      const loss = Math.min(count, mutiny ? Math.max(short, Math.ceil(count * 0.12)) : short);
+      if (loss > 0) {
+        army.distributeLosses(p.troops, loss);
+        state.stats.troopsLost += loss;
+        pushLog(state, mutiny
+          ? '断粮哗变！粮车空了，' + loss + ' 人连夜散去，营里差点压不住。'
+          : '断粮！' + loss + ' 人夜里走了。');
       }
       if (army.troopCount(p.troops) <= 0) {
         reviveAfterDefeat(state, 'starve');
@@ -592,6 +737,9 @@ function dailyTick(state) {
       }
     }
   }
+
+  // 这一顿已经扣完：如果下一顿不够，立刻提前告警（一个缺粮段只弹一次）
+  warnFoodShortage(state);
 
   if (p.morale < 65) p.morale = Math.min(65 + hb.morale, p.morale + 3 + hb.morale);
   const income = economy.dailyIncome(state);
@@ -652,6 +800,8 @@ function update(state, dtSeconds, opts) {
   const dt = dtSeconds * (state.timeScale || 1);
   const p = state.player;
   settleUnitSteps(state);
+  // 每帧顺手看看下一顿够不够；第一次不够就告警，别等到哗变才说
+  warnFoodShortage(state);
 
   if (p.route.length && p.stepTo) {
     // 一步一步走：一帧最多交代一格，落格后立刻刷新插值起点，
@@ -727,7 +877,11 @@ function onArrive(state, x, y) {
     state.player.atSiteId = site.id;
     site.visited = true;
     if (isHostileSite(state, site)) {
-      if (canFight(state, site.id)) state.events.push({ type: 'siege', siteId: site.id });
+      if (canFight(state, site.id)) {
+        // 城与关隘先围城，贼巢和村庄直接开打
+        const kind = (site.type === 'town' || site.type === 'castle') ? 'player-siege' : 'siege';
+        state.events.push({ type: kind, siteId: site.id });
+      }
       advanceCampaign(state);
     } else {
       state.events.push({ type: 'enter-site', siteId: site.id });
@@ -1362,9 +1516,107 @@ function garrisonTroops(site) {
   return troops;
 }
 
+/** 玩家围城：城/关隘先扎营等 1-2 天，贼巢和村庄仍然直接打 */
+const PLAYER_SIEGE_DAYS = { town: 1, castle: 2 };
+
+function siegeWaitHours(site) {
+  return (PLAYER_SIEGE_DAYS[site && site.type] || 0) * 24;
+}
+
+function beginPlayerSiege(state, site) {
+  if (!site) return { ok: false, msg: '这里没有可围的城' };
+  if (site.type !== 'town' && site.type !== 'castle') {
+    return { ok: false, immediate: true, msg: '这里没有城墙，直接打' };
+  }
+  if (site.playerOwned) return { ok: false, msg: '这是你自己的城' };
+  if (state.playerSiege && state.playerSiege.siteId !== site.id) {
+    const other = siteById(state.world, state.playerSiege.siteId);
+    return { ok: false, msg: '你还在围' + (other ? other.name : '另一座城') + '，先撤围再说' };
+  }
+  const days = PLAYER_SIEGE_DAYS[site.type] || 1;
+  if (!state.playerSiege) {
+    if (!canFight(state, site.id)) return { ok: false, msg: '刚脱战，城头的弓手还盯着你' };
+    const now = gameHours(state);
+    state.playerSiege = {
+      siteId: site.id,
+      startHour: now,
+      readyHour: now + days * 24,
+      days: days,
+      stage: 'camp',
+    };
+    stopMoving(state);
+    state.player.atSiteId = site.id;
+    state.player.resting = null;
+    pushLog(state, '你在' + site.name + '城外扎下围营。' + days +
+      ' 天内只围不攻：断粮道、扎云梯，等守军先慌。', 'siege');
+  }
+  return {
+    ok: true,
+    msg: '围住' + site.name + '，需 ' + days + ' 天',
+    days: days,
+    leftHours: Math.max(0, state.playerSiege.readyHour - gameHours(state)),
+  };
+}
+
+/** 围城推进：一次最多等一天，够时辰就挂上“可决战” */
+function advancePlayerSiege(state, site, hours) {
+  const ps = state.playerSiege;
+  if (!ps || !site || ps.siteId !== site.id) {
+    return { ok: false, msg: '你还没有围这座城' };
+  }
+  const total = Math.max(1, Math.round(hours || 24));
+  const left = Math.max(0, ps.readyHour - gameHours(state));
+  if (left <= 0) {
+    ps.stage = ps.stage === 'storming' ? 'storming' : 'ready';
+    return { ok: true, msg: '围城已成，可以决战', ready: true, leftHours: 0 };
+  }
+  const step = Math.min(total, left);
+  advanceTime(state, step);
+  if (state.gameOver) return { ok: false, msg: '军中已乱，围不下去了' };
+  // 让诸侯在这段时间里照常走；剧情事件留到回地图再弹
+  update(state, 0, { ignoreEvents: true });
+  const leftNow = Math.max(0, ps.readyHour - gameHours(state));
+  if (leftNow <= 0) {
+    ps.stage = 'ready';
+    pushLog(state, site.name + '城头开始挂白旗。围城的壕沟已经推到城门下，可以决战了。', 'siege');
+  }
+  return {
+    ok: true,
+    ready: leftNow <= 0,
+    leftHours: leftNow,
+    msg: leftNow <= 0 ? '围城已成，可以决战'
+      : (total >= 24 ? '又围了一日，城中还没开门' : '又围了' + total + '个时辰，城中还没开门'),
+  };
+}
+
+/** 撤围：把营拔了，退回旁边的野地 */
+function cancelPlayerSiege(state) {
+  const ps = state.playerSiege;
+  if (!ps) return { ok: true, msg: '现在没有围城' };
+  const site = siteById(state.world, ps.siteId);
+  state.playerSiege = null;
+  if (site && state.player.atSiteId === site.id) {
+    shoveOutOfSite(state, site);
+    state.player.atSiteId = null;
+  }
+  pushLog(state, '你拔了' + (site ? site.name : '城下') + '的围营，退回野地。', 'siege');
+  return { ok: true, msg: '已撤围' };
+}
+
 function startSiege(state, site) {
   // 洗劫过的空营不能反复开战，否则 0 守军也能无限刷缴获
   if (!site || (site.type === 'camp' && site.cleared)) return null;
+  // 城与关隘必须先围够天数，没围完不给开打
+  if (site.type === 'town' || site.type === 'castle') {
+    const ps = state.playerSiege;
+    if (!ps || ps.siteId !== site.id) return null;
+    // 玩家可能在围城期间回大地图行军，时辰走够了也要算围成
+    if (ps.stage !== 'ready') {
+      if (gameHours(state) < ps.readyHour) return null;
+      ps.stage = 'ready';
+    }
+    ps.stage = 'storming';
+  }
   const battle = new Battle({
     rng: state.rng,
     attacker: playerSide(state),
@@ -1642,14 +1894,44 @@ function resolveBattle(state, battle) {
     }
     afterRetreat(state, battle.context);
   }
+  if (summary.result !== 'win' && battle.context && battle.context.kind === 'siege' &&
+      state.playerSiege && state.playerSiege.siteId === battle.context.siteId) {
+    const s = siteById(state.world, battle.context.siteId);
+    state.playerSiege = null;
+    pushLog(state, '攻城没成，' + (s ? s.name : '城下') + '的围营散了，只能退回野地。', 'siege');
+  }
 
   state.stats.troopsLost += Math.max(0, summary.initialA - summary.remainA);
   state.battle = null;
   return summary;
 }
 
+/** 第一座城到手：不管此前有没有投靠别人，都在这里立自己的旗 */
+function beginSelfRule(state, site) {
+  const p = state.player;
+  if (p.country) return false;
+  const oldFaction = p.faction;
+  p.country = {
+    name: '',
+    color: '#d9a441',
+    foundedDay: state.clock.day,
+    oldFaction: oldFaction || null,
+  };
+  p.faction = 'player';
+  p.banner = true;
+  syncPlayerFaction(p.country);
+  if (oldFaction && oldFaction !== 'player' && FACTIONS[oldFaction]) {
+    pushLog(state, '你把' + FACTIONS[oldFaction].full + '的印绶留在案上，从' + site.name +
+      '开始自立门户。');
+  }
+  pushLog(state, '打下' + site.name + '，部下推你竖自己的旗：先定一个字的国号。', 'throne');
+  state.events.push({ type: 'founding', siteId: site.id });
+  return true;
+}
+
 function takeSite(state, site) {
   const p = state.player;
+  if (state.playerSiege && state.playerSiege.siteId === site.id) state.playerSiege = null;
   if (site.type === 'camp') {
     site.cleared = true;
     site.looted = true;
@@ -1661,18 +1943,22 @@ function takeSite(state, site) {
     pushLog(state, '攻破' + site.name + '！贼巢被拔，声望 +45。过 ' + CAMP_RESPAWN_DAYS + ' 天再来，看还有没有人聚起来。');
   } else {
     const oldFaction = site.ownerFaction;
+    // 第一座城：先自立，再落旗；国号未定时先用默认旗色，选完国号再统一刷新
+    beginSelfRule(state, site);
     site.playerOwned = true;
+    site.faction = p.faction || site.faction;
     site.ownerFaction = p.faction || null;
     site.garrison = Math.max(10, Math.round(site.garrisonBase * 0.35));
     site.garrisonBase = site.garrison;
-    site.color = '#d9a441';
-    site.banner = '旗';
+    site.color = p.country && p.country.color ? p.country.color : '#d9a441';
+    site.banner = p.country && p.country.name ? p.country.name : '旗';
     p.gold += 150;
     state.stats.sitesTaken += 1;
     if (oldFaction && oldFaction !== 'bandit') {
       changeRelation(state, oldFaction, -60);
     }
     war.onSiteTaken(state, site, oldFaction);
+    applyPlayerCountry(state);
     pushLog(state, '你拿下了' + site.name + '。从今天起，这里归你。');
     checkVictory(state);
     advanceCampaign(state);
@@ -1680,6 +1966,26 @@ function takeSite(state, site) {
 }
 
 /* ---------------------------------------------------------------- 任务 */
+
+/** 酒馆任务的目标坐标：怪物队伍、贼巢或交粮城 */
+function questTargetPos(state, quest) {
+  if (!quest || quest.done) return null;
+  if (quest.type === 'hunt') {
+    const party = (state.parties || []).filter(function (p) { return p.id === quest.targetPartyId; })[0];
+    if (!party || army.troopCount(party.troops || {}) <= 0) return null;
+    return { x: party.x, y: party.y, name: party.name, kind: 'party', id: party.id };
+  }
+  const siteId = quest.type === 'scout' ? quest.targetSiteId : quest.siteId;
+  const site = siteById(state.world, siteId);
+  if (!site) return null;
+  return {
+    x: site.x,
+    y: site.y,
+    name: site.name,
+    kind: quest.type === 'scout' ? 'camp' : 'site',
+    id: site.id,
+  };
+}
 
 function offerQuest(state, site) {
   if (!site || site.faction === 'bandit' || site.playerOwned) return null;
@@ -1775,6 +2081,10 @@ function checkScoutQuest(state) {
 
 function joinFaction(state, site) {
   const p = state.player;
+  if (p.country && p.country.name) {
+    return { ok: false, msg: '你已经立了「' + p.country.name + '」的国号，不能再投别人' };
+  }
+  if (p.faction === 'player') return { ok: false, msg: '你已经自立，先把国号定下来' };
   if (p.faction) return { ok: false, msg: '你已经效忠' + FACTIONS[p.faction].full };
   if (!site.ownerFaction || site.ownerFaction === 'bandit') return { ok: false, msg: '这里没有可效忠的旗' };
   if (site.playerOwned) return { ok: false, msg: '这是你自己的地盘' };
@@ -2245,33 +2555,55 @@ function takeSomeTroops(base, n) {
   return out;
 }
 
+/** 某势力离这里最近的城，拿不到城就返回 9999 */
+function nearestFactionCity(state, id, from) {
+  let best = 9999;
+  state.world.sites.forEach(function (s) {
+    if (s.ownerFaction !== id || s.type === 'camp') return;
+    const d = Math.abs(s.x - from.x) + Math.abs(s.y - from.y);
+    if (d < best) best = d;
+  });
+  return best;
+}
+
+/** 势力亡了：残部按眼下所处位置就近择主；玩家自立且有城，也算一家 */
 function pickFactionFor(state, lord, from) {
-  const fixed = DEFECT_TO[lord.id];
-  if (fixed && fixed !== from && FACTIONS[fixed] && !(state.factionState[fixed] || {}).dead) return fixed;
+  const here = (lord && (lord.x !== undefined ? { x: lord.x, y: lord.y } : null)) ||
+    (lord && siteById(state.world, lord.home)) || { x: 0, y: 0 };
   const list = Object.keys(FACTIONS).filter(function (id) {
-    return id !== 'bandit' && id !== 'player' && id !== from && FACTIONS[id] && !(state.factionState[id] || {}).dead;
+    if (id === 'bandit' || id === from || !FACTIONS[id]) return false;
+    if ((state.factionState[id] || {}).dead) return false;
+    if (id === 'player') {
+      return state.player.faction === 'player' &&
+        state.world.sites.some(function (s) { return s.playerOwned && s.type !== 'camp'; });
+    }
+    return true;
   });
   if (!list.length) return null;
   const withCity = list.filter(function (id) {
     return state.world.sites.some(function (s) { return s.ownerFaction === id && s.type !== 'camp'; });
   });
   const pool = withCity.length ? withCity : list;
-  const home = siteById(state.world, lord.home);
-  if (!home) return pool[state.rng.int(0, pool.length - 1)];
-  let best = pool[state.rng.int(0, pool.length - 1)];
-  let bestD = 9999;
-  pool.forEach(function (id) {
-    state.world.sites.forEach(function (s) {
-      if (s.ownerFaction !== id) return;
-      const d = Math.abs(s.x - home.x) + Math.abs(s.y - home.y);
-      if (d < bestD) { bestD = d; best = id; }
-    });
-  });
-  return best;
+  const scored = pool.map(function (id) {
+    return { id: id, d: nearestFactionCity(state, id, here) };
+  }).sort(function (a, b) { return a.d - b.d; });
+
+  // 先看十格内：真有近邻就只在这些近邻里挑，别让隔了半张地图的曹刘来收人。
+  const near = scored.filter(function (x) { return x.d <= 10; });
+  const top = (near.length ? near : scored).slice(0, 3);
+  return top[state.rng.int(0, top.length - 1)].id;
 }
 
 function moveLordToFaction(state, lord, target) {
-  const city = state.world.sites.filter(function (s) { return s.ownerFaction === target && s.type !== 'camp'; })[0];
+  // 投过去也要落在离他最近的那座城，不要一脚跨到地图另一头
+  const cities = state.world.sites.filter(function (s) {
+    return s.ownerFaction === target && s.type !== 'camp';
+  }).sort(function (a, b) {
+    const da = Math.abs(a.x - lord.x) + Math.abs(a.y - lord.y);
+    const db = Math.abs(b.x - lord.x) + Math.abs(b.y - lord.y);
+    return da - db;
+  });
+  const city = cities[0];
   lord.faction = target;
   if (city) {
     lord.home = city.id;
@@ -2543,6 +2875,8 @@ function serialize(state) {
     heroSites: state.heroSites || null,
     warCampaigns: state.warCampaigns || {},
     siegeCooldown: state.siegeCooldown || {},
+    playerSiege: state.playerSiege || null,
+    foodWarning: state.foodWarning || null,
   };
   copy.player.route = [];
   copy.player.stepFrom = null;
@@ -2595,8 +2929,13 @@ function deserialize(json) {
     heroSites: data.heroSites || null,
     warCampaigns: data.warCampaigns || {},
     siegeCooldown: data.siegeCooldown || {},
+    playerSiege: data.playerSiege || null,
+    foodWarning: data.foodWarning || null,
     battle: null,
   };
+  state.player.country = state.player.country || null;
+  state.player.foodWarned = !!state.player.foodWarned;
+  state.player.foodWarnDay = state.player.foodWarnDay || 0;
   state.player.route = [];
   state.player.stepFrom = null;
   state.player.stepTo = null;
@@ -2656,6 +2995,8 @@ function deserialize(json) {
   war.init(state);
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
+  syncPlayerFaction(state.player.country);
+  if (state.player.country && state.player.country.name) applyPlayerCountry(state);
   return state;
 }
 
@@ -2691,10 +3032,21 @@ module.exports = {
   startPartyBattle,
   startLordBattle,
   startSiege,
+  beginPlayerSiege,
+  advancePlayerSiege,
+  cancelPlayerSiege,
+  PLAYER_SIEGE_DAYS,
   startCampaignBattle,
   resolveBattle,
   takeSite,
   offerQuest,
+  questTargetPos,
+  foundCountry,
+  applyPlayerCountry,
+  cleanCountryName,
+  flagColorName,
+  nextFoodNeed,
+  refreshFoodWarning,
   deliverGrain,
   checkScoutQuest,
   completeQuests,
@@ -2715,6 +3067,8 @@ module.exports = {
   factionAlive,
   factionLord,
   fallFaction,
+  pickFactionFor,
+  moveLordToFaction,
   tavernRumor,
   hiddenLordsAt,
   hiddenLordVisible,

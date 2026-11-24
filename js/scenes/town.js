@@ -49,15 +49,16 @@ function statusBar(app, y) {
   const p = app.state.player;
   const count = army.troopCount(p.troops);
   const cap = stateLib.capacity(app.state);
-  const need = Math.max(1, Math.round(army.foodPerDay(p.troops) * 2));
+  const need = stateLib.nextFoodNeed(app.state);
   const foodCap = army.foodCap(p.troops);
+  const foodShort = p.food < need;
 
   ctx.fillStyle = '#1d1711';
   ctx.fillRect(0, y, w, 96);
 
   const cells = [
     { k: '金钱', v: p.gold, c: '#f0c060' },
-    { k: '粮草', v: p.food + ' / ' + foodCap, c: p.food < need * 3 ? '#d06a4a' : '#c8b478' },
+    { k: '粮草', v: p.food + ' / ' + foodCap, c: foodShort ? '#e06a52' : p.food < need * 3 ? '#d06a4a' : '#c8b478' },
     { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
     { k: '声望', v: p.renown, c: '#c98f6a' },
     { k: '史简', v: p.shi, c: '#b98fd8' },
@@ -72,6 +73,11 @@ function statusBar(app, y) {
 
   // 士气细条
   bar(ctx, PAD, y + 68, w - PAD * 2, 8, p.morale / 100, p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);
+  if (foodShort) {
+    text(ctx, '粮草告急 · 撑不过两日 · 下次发粮需 ' + need + '，速补！', PAD, y + 80, {
+      size: 15, color: '#e06a52',
+    });
+  }
 
   return y + 106;
 }
@@ -632,6 +638,25 @@ function renderMarket(app, site, tab) {
 
 /* ---------------------------------------------------------------- 酒馆 */
 
+/** 把任务目标标到大地图上，并让镜头直接落到那一格 */
+function locateQuest(app, q) {
+  const st = app.state;
+  const pos = stateLib.questTargetPos(st, q);
+  if (!pos) {
+    app.showToast('这个目标已经不在了。', 2.2);
+    return;
+  }
+  app.mapQuestFocus = q.id;
+  const top = app.top();
+  if (top && top.name === 'town') app.pop();
+  else if (!top || top.name !== 'map') app.replace('map');
+  const mapEntry = app.top();
+  if (mapEntry && mapEntry.scene && mapEntry.scene.focusOn) {
+    mapEntry.scene.focusOn(app, pos.x, pos.y, pos.name);
+  }
+  app.showToast('已在大世界标出：' + pos.name, 2.6);
+}
+
 function renderTavern(app, site) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
@@ -654,17 +679,24 @@ function renderTavern(app, site) {
     mine.forEach(function (q) {
       panel(ctx, PAD, y, w - PAD * 2, 126, { fill: '#241c14' });
       text(ctx, q.title, PAD + 18, y + 12, { size: 24, color: '#efe3c6' });
-      const lines = wrap(ctx, q.text, w - PAD * 2 - 36, 16, 'bold');
+      const lines = wrap(ctx, q.text, w - PAD * 2 - 190, 16, 'bold');
       text(ctx, lines[0] || '', PAD + 18, y + 48, { size: 16, color: '#a2947a' });
       text(ctx, '赏 ' + q.reward.gold + '金钱 · ' + q.reward.renown + ' 声望', PAD + 18, y + 84, {
         size: 17, color: '#f0c060',
       });
       if (q.type === 'grain') {
-        app.ui.button(ctx, w - PAD - 150, y + 34, 132, 56, '交粮', {
+        app.ui.button(ctx, w - PAD - 150, y + 8, 132, 44, '查看位置', {
+          id: 'loc_' + q.id, size: 19, fill: '#2c2418', onTap: function () { locateQuest(app, q); },
+        });
+        app.ui.button(ctx, w - PAD - 150, y + 70, 132, 44, '交粮', {
           id: 'dg_' + q.id, size: 20, onTap: function () {
             const r = stateLib.deliverGrain(st, q);
             app.showToast(r.msg, 2.2);
           },
+        });
+      } else {
+        app.ui.button(ctx, w - PAD - 150, y + 40, 132, 48, '查看位置', {
+          id: 'loc_' + q.id, size: 20, fill: '#2c2418', onTap: function () { locateQuest(app, q); },
         });
       }
       y += 138;
@@ -792,7 +824,8 @@ function renderHall(app, site) {
   const rel = stateLib.relationOf(st, f);
   const hostile = stateLib.isHostileFaction(st, f);
 
-  text(ctx, fac.full + ' · ' + fac.name, PAD, 342, { size: 30, color: fac.color });
+  const facTitle = f === 'player' ? fac.full : (fac.full + ' · ' + fac.name);
+  text(ctx, facTitle, PAD, 342, { size: 30, color: fac.color });
   text(ctx, fac.desc, PAD, 386, { size: 17, color: '#a2947a' });
   text(ctx, '关系 ' + rel, PAD, 424, { size: 20, color: rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#c9bda2' });
   bar(ctx, PAD, 456, w - PAD * 2, 10, (rel + 100) / 200, rel < -25 ? UI_COLORS.danger : rel > 25 ? UI_COLORS.good : UI_COLORS.accent);
@@ -828,13 +861,21 @@ function renderHall(app, site) {
   if (hostile) {
     text(ctx, '你和他们已经在打仗。走近城门就会被攻击。', PAD, y, { size: 18, color: '#d06a4a' });
     y += 40;
-    app.ui.button(ctx, PAD, y, w - PAD * 2, 88, '攻城', {
+    const ps = st.playerSiege;
+    const sieging = ps && ps.siteId === site.id;
+    app.ui.button(ctx, PAD, y, w - PAD * 2, 88, sieging ? '继续围城' : '围城', {
       id: 'siege', size: 26, fill: '#4a241c', onTap: function () {
-        stateLib.startSiege(st, site);
-        app.push('battle', { mode: 'siege' });
+        if (sieging) { app.townView.view = 'siege'; return; }
+        const r = stateLib.beginPlayerSiege(st, site);
+        if (!r.ok) { app.showToast(r.msg, 2.4); return; }
+        app.townView.view = 'siege';
+        app.showToast(r.msg, 2.4);
       },
     });
-    y += 100;
+    text(ctx, sieging ? '围城营已扎下，继续等时辰' : '城有城墙：先围 1-2 天，围成后才能决战', PAD, y + 94, {
+      size: 15, color: '#c9a05a',
+    });
+    y += 126;
   }
 
   // 情报：该势力的领主
@@ -900,14 +941,95 @@ function siteInfo(app, site) {
   });
 }
 
+/* ---------------------------------------------------------------- 围城 */
+
+function renderSiege(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const H = app.runtime.height;
+  const st = app.state;
+  const ps = st.playerSiege;
+  const active = !!ps && ps.siteId === site.id;
+
+  text(ctx, '围城', PAD, 296, { size: 30, color: '#f0c060' });
+  text(ctx, site.name + ' · 守军 ' + (site.garrison || 0) + ' 人', w - PAD, 304, {
+    size: 18, align: 'right', color: '#a2947a',
+  });
+
+  if (!active) {
+    text(ctx, '城下还没有你的营寨。要攻这座城，先围起来。', PAD, 354, { size: 20, color: '#c9bda2' });
+    app.ui.button(ctx, PAD, 420, w - PAD * 2, 88, '开始围城', {
+      id: 'siege_begin', size: 26, fill: '#4a241c', onTap: function () {
+        const r = stateLib.beginPlayerSiege(st, site);
+        app.showToast(r.msg, 2.4);
+        if (r.ok) app.townView.view = 'siege';
+      },
+    });
+    app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '回大地图', {
+      id: 'siege_back2', size: 26, fill: '#241c14', onTap: function () { app.pop(); },
+    });
+    return;
+  }
+
+  const now = stateLib.gameHours(st);
+  const left = Math.max(0, ps.readyHour - now);
+  const ready = ps.stage === 'ready' || left <= 0;
+  const day = Math.min(ps.days, Math.floor(Math.max(0, now - ps.startHour) / 24) + 1);
+  const ring = Math.max(0, 1 - left / (ps.days * 24));
+
+  panel(ctx, PAD, 350, w - PAD * 2, 230, { fill: '#241c14' });
+  text(ctx, '围城第 ' + day + ' / ' + ps.days + ' 天', PAD + 18, 366, { size: 30, color: '#efe3c6' });
+  bar(ctx, PAD + 18, 408, w - PAD * 2 - 36, 12, ring, '#c97a42');
+  text(ctx, ready ? '壕沟已推到城门下，守军开始挂白旗。' : '四面扎营，断粮道、填壕沟；城中还没开门。',
+    PAD + 18, 432, { size: 17, color: ready ? '#8fbf7a' : '#a2947a' });
+  text(ctx, ready ? '可以决战了。' : '还需 ' + Math.ceil(left) + ' 个时辰（约 ' + Math.ceil(left / 24) + ' 天）',
+    PAD + 18, 470, { size: 20, color: ready ? '#8fbf7a' : '#f0c060' });
+  text(ctx, '围城期间粮草照常消耗；撤围或攻城失败，营寨就散了。', PAD + 18, 508, {
+    size: 15, color: '#8a8070',
+  });
+
+  app.ui.button(ctx, PAD, 610, w - PAD * 2, 88, ready ? '再围半日（已可决战）' : '再围一日', {
+    id: 'siege_wait', size: 24, fill: ready ? '#2a2a26' : '#33271b', disabled: ready,
+    onTap: function () {
+      const r = stateLib.advancePlayerSiege(st, site, 24);
+      app.showToast(r.msg, 2.4);
+    },
+  });
+
+  app.ui.button(ctx, PAD, 718, w - PAD * 2, 96, ready ? '决战 · 攻城' : '决战（先把城围成）', {
+    id: 'siege_storm', size: 28, fill: '#4a241c', disabled: !ready, onTap: function () {
+      const battle = stateLib.startSiege(st, site);
+      if (!battle) { app.showToast('还不到决战的时候。', 2); return; }
+      app.push('battle', { mode: 'siege' });
+    },
+  });
+
+  app.ui.button(ctx, PAD, 836, w - PAD * 2, 78, '撤围 · 退回野地', {
+    id: 'siege_cancel', size: 24, fill: '#241c14', onTap: function () {
+      const r = stateLib.cancelPlayerSiege(st);
+      app.showToast(r.msg, 2);
+      app.pop();
+    },
+  });
+
+  text(ctx, '围城越久，守军越慌；但粮草也在一日日少。', w / 2, 936, {
+    size: 15, align: 'center', color: '#8a8070',
+  });
+  app.ui.button(ctx, PAD, H - 100, w - PAD * 2, 84, '回大地图', {
+    id: 'siege_back', size: 26, fill: '#241c14', onTap: function () { app.pop(); },
+  });
+}
+
 /* ---------------------------------------------------------------- 场景 */
 
 const TownScene = {
   enter(app, params) {
     app.restView = null;
+    const st = app.state;
+    const autoSiege = st && st.playerSiege && st.playerSiege.siteId === params.siteId;
     app.townView = {
       siteId: params.siteId,
-      view: params.view || 'menu',
+      view: params.view || (autoSiege ? 'siege' : 'menu'),
       tab: 'food',
       goodId: null,
       estimate: null,
@@ -940,6 +1062,7 @@ const TownScene = {
     else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);
     else if (v === 'hall') renderHall(app, site);
+    else if (v === 'siege') renderSiege(app, site);
     else if (v === 'hermit') renderHermit(app, site);
     else {
       renderMenu(app, site);

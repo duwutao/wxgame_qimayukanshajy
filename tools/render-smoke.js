@@ -658,6 +658,115 @@ smoke('修养直接出城看地图，点一下回城，离城能走', function (
   ok('离城回地图并结束修养', app.stack[app.stack.length - 1].name === 'map' && !st.player.resting);
 });
 
+/* ---------------------------------------------------------------- 新页面 */
+
+smoke('立国页：选字 → 选色 → 落国号', function () {
+  const st = app.state = stateLib.createGame({ seed: 9101 });
+  st.events.length = 0;
+  st.player.country = { name: '', color: '#d9a441', foundedDay: 1 };
+  st.player.faction = 'player';
+  app.replace('founding');
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('立国页有字表与下一步', app.ui.items.some(function (it) { return it.id === 'name_next'; }));
+  ok('字表里有可选国号', app.ui.items.some(function (it) { return it.id === 'name_赵'; }));
+  const zhao = app.ui.items.filter(function (it) { return it.id === 'name_赵'; })[0];
+  if (zhao) zhao.onTap();
+  app.ui.begin();
+  app.top().scene.render(app);
+  const next = app.ui.items.filter(function (it) { return it.id === 'name_next'; })[0];
+  ok('选字后能进下一步', next && !next.disabled);
+  if (next) next.onTap();
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('选色页有颜色与立国按钮', app.ui.items.some(function (it) { return it.id === 'color_赤'; }) &&
+    app.ui.items.some(function (it) { return it.id === 'color_confirm'; }));
+  const red = app.ui.items.filter(function (it) { return it.id === 'color_赤'; })[0];
+  if (red) red.onTap();
+  const confirm = app.ui.items.filter(function (it) { return it.id === 'color_confirm'; })[0];
+  if (confirm) confirm.onTap();
+  ok('落国号成功', st.player.country.name === '赵' && st.player.country.color === '#b4463c',
+    JSON.stringify(st.player.country));
+});
+
+smoke('酒馆任务：查看位置 → 大世界镜头落到目标', function () {
+  const st = app.state = stateLib.createGame({ seed: 9102 });
+  st.events.length = 0;
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  const party = st.parties.filter(function (p) { return p.faction === 'bandit'; })[0];
+  st.quests = [{
+    id: 'q_smoke', type: 'hunt', siteId: city.id, siteName: city.name,
+    faction: city.ownerFaction, acceptedDay: 1, done: false,
+    targetPartyId: party.id, title: '清剿' + party.name,
+    text: '“' + party.name + ' 在附近劫道。”', reward: { gold: 180, renown: 24 },
+  }];
+  app.replace('map');
+  app.push('town', { siteId: city.id });
+  app.townView.view = 'tavern';
+  app.ui.begin();
+  app.top().scene.render(app);
+  const loc = app.ui.items.filter(function (it) { return it.id === 'loc_q_smoke'; })[0];
+  ok('酒馆任务有查看位置', !!loc);
+  if (loc) loc.onTap();
+  ok('定位后回到大地图', app.stack[app.stack.length - 1].name === 'map');
+  ok('地图记住被定位的任务', app.mapQuestFocus === 'q_smoke', String(app.mapQuestFocus));
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('地图绘制了任务标记', true);
+});
+
+smoke('玩家围城页：围一日 / 决战 / 撤围', function () {
+  const st = app.state = stateLib.createGame({ seed: 9103 });
+  st.events.length = 0;
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  city.ownerFaction = 'lv';
+  st.relations.lv = -50;
+  st.wars.lv = true;
+  const r = stateLib.beginPlayerSiege(st, city);
+  ok('围城状态建立', r.ok && !!st.playerSiege, r.msg);
+  app.replace('map');
+  app.push('town', { siteId: city.id, view: 'siege' });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('围城页有推进与撤围', app.ui.items.some(function (it) { return it.id === 'siege_wait'; }) &&
+    app.ui.items.some(function (it) { return it.id === 'siege_cancel'; }));
+  const wait = app.ui.items.filter(function (it) { return it.id === 'siege_wait'; })[0];
+  if (wait) wait.onTap();
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('围城页推进后仍能画', true);
+});
+
+smoke('自立后的地图：国号旗色 + 粮草告急条', function () {
+  const st = app.state = stateLib.createGame({ seed: 9104 });
+  st.events.length = 0;
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  city.playerOwned = true;
+  st.player.country = { name: '汉', color: '#3f6fa8', foundedDay: 1 };
+  stateLib.foundCountry(st, '汉', '#3f6fa8');
+  st.player.food = 0;
+  stateLib.refreshFoodWarning(st);
+  app.replace('map');
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('地图能画自立旗与告急条', true);
+});
+
+smoke('扎营：国号与旗色入口', function () {
+  const st = app.state = stateLib.createGame({ seed: 9105 });
+  st.events.length = 0;
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  city.playerOwned = true;
+  st.player.country = { name: '赵', color: '#b06a3c', foundedDay: 1 };
+  stateLib.foundCountry(st, '赵', '#b06a3c');
+  app.replace('map');
+  app.push('camp');
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('扎营有国号与旗色入口', app.ui.items.some(function (it) { return it.id === 'camp_3'; }));
+  app.pop();
+});
+
 /* ---------------------------------------------------------------- 长跑 */
 
 smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {

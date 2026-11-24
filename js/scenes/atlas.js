@@ -213,9 +213,10 @@ const AtlasScene = {
 
       const big = s.type === 'town';
       const sz = big ? Math.max(8, cell * 0.5) : Math.max(6, cell * 0.38);
+      const playerColor = FACTIONS.player ? FACTIONS.player.color : '#f0c060';
       ctx.fillStyle = '#0d0a07';
       ctx.fillRect(sx - sz / 2 - 1, sy - sz / 2 - 1, sz + 2, sz + 2);
-      ctx.fillStyle = s.playerOwned ? '#f0c060' : col;
+      ctx.fillStyle = s.playerOwned ? playerColor : col;
       ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
       if (big) {
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
@@ -238,7 +239,7 @@ const AtlasScene = {
       ctx.fillStyle = 'rgba(8,6,4,0.78)';
       ctx.fillRect(bx, by, tw + 6, fs + 4);
       text(ctx, s.name, sx, by + 2, {
-        size: fs, align: 'center', color: s.playerOwned ? '#f0c060' : '#ece1c8',
+        size: fs, align: 'center', color: s.playerOwned ? playerColor : '#ece1c8',
       });
     });
 

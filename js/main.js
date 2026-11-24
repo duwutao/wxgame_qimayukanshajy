@@ -26,6 +26,7 @@ class App {
       map: require('./scenes/map.js'),
       atlas: require('./scenes/atlas.js'),
       town: require('./scenes/town.js'),
+      founding: require('./scenes/founding.js'),
       battle: require('./scenes/battle.js'),
       contact: require('./scenes/contact.js'),
       army: require('./scenes/army.js'),

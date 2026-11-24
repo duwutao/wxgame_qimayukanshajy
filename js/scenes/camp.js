@@ -45,19 +45,25 @@ const CampScene = {
     // 状态条
     panel(ctx, PAD, 78, w - PAD * 2, 88, { fill: 'rgba(36,28,20,0.88)' });
     const p = st.player;
+    const foodNeed = stateLib.nextFoodNeed(st);
+    const foodShort = p.food < foodNeed;
     const items = [
       ['第', st.clock.day + ' 天'],
       ['士气', p.morale],
       ['金钱', p.gold],
-      ['粮草', p.food],
+      ['粮草', p.food, foodShort ? '#e06a52' : '#efe3c6'],
       ['兵力', army.troopCount(p.troops)],
     ];
     const cw = (w - PAD * 2 - 20) / items.length;
     items.forEach(function (it, i) {
       const x = PAD + 10 + i * cw;
       text(ctx, it[0], x, 94, { size: 13, color: '#8a8070' });
-      text(ctx, String(it[1]), x, 116, { size: 18, color: '#efe3c6' });
+      text(ctx, String(it[1]), x, 116, { size: 18, color: it[2] || '#efe3c6' });
     });
+    if (foodShort) {
+      text(ctx, '粮草不足以支撑两日 · 下次发粮需 ' + foodNeed + '，速补！',
+        PAD + 10, 142, { size: 14, color: '#e06a52' });
+    }
 
     if (this.view === 'wait') this.renderWait(app, ctx, w, h);
     else this.renderMenu(app, ctx, w, h);
@@ -77,6 +83,7 @@ const CampScene = {
     const sub = wars.length
       ? (sieges ? sieges + ' 处围城，' : '') + wars.length + ' 处交兵'
       : '四境暂无大战';
+    const country = st.player.country;
 
     const rows = [
       {
@@ -94,23 +101,38 @@ const CampScene = {
         onTap: function () { app.push('prison'); },
       },
       {
+        label: '国号与旗色',
+        sub: country
+          ? (country.name
+            ? '国号「' + country.name + '」 · 旗色 ' + (stateLib.flagColorName(country.color) || country.color)
+            : '旗已立，国号还没定')
+          : '打下第一座城后自立',
+        hint: country ? '改一字国号 · 换旗色' : '还没有自己的旗',
+        disabled: !country,
+        onTap: function () { app.push('founding', { edit: true }); },
+      },
+      {
         label: '玩法说明', sub: '行军 · 粮草 · 国战 · 攻城',
         hint: '不懂哪一条，点开看',
         onTap: function () { app.push('help'); },
       },
     ];
 
+    const rowH = rows.length >= 5 ? 92 : 104;
+    const rowGap = rows.length >= 5 ? 8 : 12;
     let y = 194;
     rows.forEach(function (r, i) {
-      app.ui.button(ctx, PAD, y, w - PAD * 2, 104, '', {
+      app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
         id: 'camp_' + i, disabled: r.disabled, fill: 'rgba(38,29,20,0.9)', onTap: r.onTap,
       });
-      text(ctx, r.label, PAD + 20, y + 16, {
-        size: 26, color: r.disabled ? '#6a6050' : '#f0c060',
+      text(ctx, r.label, PAD + 20, y + (rowH >= 100 ? 16 : 10), {
+        size: rowH >= 100 ? 26 : 24, color: r.disabled ? '#6a6050' : '#f0c060',
       });
-      text(ctx, r.sub, PAD + 20, y + 52, { size: 16, color: '#c9bda2' });
-      text(ctx, r.hint, w - PAD - 20, y + 72, { size: 13, align: 'right', color: '#8a8070' });
-      y += 116;
+      text(ctx, r.sub, PAD + 20, y + (rowH >= 100 ? 52 : 42), { size: 16, color: '#c9bda2' });
+      text(ctx, r.hint, w - PAD - 20, y + (rowH >= 100 ? 72 : 64), {
+        size: 13, align: 'right', color: '#8a8070',
+      });
+      y += rowH + rowGap;
     });
 
     const line = '火堆不灭，斥候放出。营里的人都在等你一句话。';

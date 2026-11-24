@@ -391,8 +391,20 @@ st4.player.renown = 500;
 const target = worldLib.siteById(st4.world, 'xiaopei');
 st4.relations.lv = -50;
 st4.wars.lv = true;
+ok('未围城不能直接开打', stateLib.startSiege(st4, target) === null);
+const beginSiege = stateLib.beginPlayerSiege(st4, target);
+ok('玩家可开始围城', beginSiege.ok && st4.playerSiege && st4.playerSiege.siteId === target.id, beginSiege.msg);
+let siegeWait = null;
+for (let i = 0; i < 3 && !(siegeWait && siegeWait.ready); i++) {
+  siegeWait = stateLib.advancePlayerSiege(st4, target, 24);
+}
+ok('围满所需天数后可决战', siegeWait && siegeWait.ok && siegeWait.ready === true, JSON.stringify(siegeWait));
+// 玩家围城后回大地图行军，时辰自然走够时也要能决战
+st4.playerSiege.stage = 'camp';
+st4.playerSiege.startHour = stateLib.gameHours(st4) - 48;
+st4.playerSiege.readyHour = stateLib.gameHours(st4) - 1;
 const siege = stateLib.startSiege(st4, target);
-ok('攻城战可开', !!siege && siege.b.initialCount > 40, String(siege && siege.b.initialCount));
+ok('时辰自然走够也能决战', !!siege && siege.b.initialCount > 40, String(siege && siege.b.initialCount));
 stateLib.takeSite(st4, target);
 ok('拿城后归自己', target.playerOwned === true);
 ok('拿城掉原主关系', st4.relations.lv < -50, String(st4.relations.lv));
@@ -978,6 +990,129 @@ ok('等待时人留在原地', st23.player.x === waitPos.x && st23.player.y === 
 ok('等待把欠下的天下步进跑完', st23.hoursPending === 0 && st23.npcClock < 3,
   'pending=' + st23.hoursPending + ' npc=' + st23.npcClock);
 ok('等待记账用“三日”', st23.log.some(function (l) { return l.text.indexOf('等了三日') >= 0; }));
+
+/* ---------------------------------------------------------------- 新规则 */
+
+group('酒馆任务定位');
+const stQ = stateLib.createGame({ seed: 9001 });
+stQ.events.length = 0;
+const huntParty = stQ.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+const qHunt = { id: 'qh', type: 'hunt', targetPartyId: huntParty.id, done: false };
+const huntPos = stateLib.questTargetPos(stQ, qHunt);
+ok('猎匪任务能定位到匪团', huntPos && huntPos.x === huntParty.x && huntPos.y === huntParty.y,
+  JSON.stringify(huntPos));
+const campQ = stQ.world.sites.filter(function (s) { return s.type === 'camp' && !s.cleared; })[0];
+const qScout = { id: 'qs', type: 'scout', targetSiteId: campQ.id, done: false };
+const scoutPos = stateLib.questTargetPos(stQ, qScout);
+ok('探查任务能定位到贼巢', scoutPos && scoutPos.x === campQ.x && scoutPos.y === campQ.y,
+  JSON.stringify(scoutPos));
+const qGrain = { id: 'qg', type: 'grain', siteId: 'chenliu', done: false };
+const grainPos = stateLib.questTargetPos(stQ, qGrain);
+ok('交粮任务能定位到城', grainPos && grainPos.name === '陈留', JSON.stringify(grainPos));
+
+group('自立国号与旗色');
+const stC = stateLib.createGame({ seed: 9002 });
+stC.events.length = 0;
+const firstCity = worldLib.siteById(stC.world, 'xiaopei');
+firstCity.ownerFaction = 'lv';
+stC.relations.lv = -50;
+stC.wars.lv = true;
+stateLib.takeSite(stC, firstCity);
+ok('首城到手即自立', stC.player.faction === 'player' && !!stC.player.country,
+  stC.player.faction + '/' + JSON.stringify(stC.player.country));
+ok('首城归玩家自立势力', firstCity.playerOwned && firstCity.ownerFaction === 'player',
+  firstCity.ownerFaction);
+ok('首城弹出定国号事件', stC.events.some(function (e) { return e.type === 'founding'; }));
+const badName = stateLib.foundCountry(stC, '大汉', '#b4463c');
+ok('国号只能一个字', badName.ok === false, badName.msg);
+const named = stateLib.foundCountry(stC, '汉', '#b4463c');
+ok('一字国号可立', named.ok && named.name === '汉', named.msg);
+ok('城头换国号与旗色', firstCity.banner === '汉' && firstCity.color === '#b4463c',
+  firstCity.banner + '/' + firstCity.color);
+ok('全势力数据跟着换', FACTIONS.player.banner === '汉' && FACTIONS.player.color === '#b4463c',
+  FACTIONS.player.banner + '/' + FACTIONS.player.color);
+ok('国号在势力名里读作汉国', FACTIONS.player.full === '汉国', FACTIONS.player.full);
+ok('旗色能显示中文名', stateLib.flagColorName('#b4463c') === '赤',
+  stateLib.flagColorName('#b4463c'));
+// 第二座已占城也要换旗
+const secondCity = stC.world.sites.filter(function (s) {
+  return s.id !== firstCity.id && s.type !== 'camp';
+})[0];
+secondCity.playerOwned = true;
+secondCity.ownerFaction = 'wei';
+stateLib.applyPlayerCountry(stC);
+ok('所有占领城统一挂国号', secondCity.ownerFaction === 'player' && secondCity.banner === '汉',
+  secondCity.ownerFaction + '/' + secondCity.banner);
+const renamed = stateLib.foundCountry(stC, '赵', '#3f6fa8');
+ok('扎营可改国号与颜色', renamed.ok && firstCity.banner === '赵' && firstCity.color === '#3f6fa8',
+  firstCity.banner + '/' + firstCity.color);
+
+group('玩家围城');
+const stS = stateLib.createGame({ seed: 9003 });
+stS.events.length = 0;
+stS.player.renown = 500;
+const castle = stS.world.sites.filter(function (s) { return s.type === 'castle'; })[0];
+castle.ownerFaction = 'lv';
+stS.relations.lv = -50;
+stS.wars.lv = true;
+const beginCastle = stateLib.beginPlayerSiege(stS, castle);
+ok('关隘围城要两天', beginCastle.ok && beginCastle.days === 2, JSON.stringify(beginCastle));
+ok('未围成不能开战', stateLib.startSiege(stS, castle) === null);
+const firstCastleWait = stateLib.advancePlayerSiege(stS, castle, 24);
+ok('围城推进文案按日说', firstCastleWait && firstCastleWait.msg.indexOf('一日') >= 0,
+  firstCastleWait && firstCastleWait.msg);
+let castleWait = firstCastleWait;
+for (let i = 0; i < 3 && !(castleWait && castleWait.ready); i++) {
+  castleWait = stateLib.advancePlayerSiege(stS, castle, 24);
+}
+ok('两天围成后可决战', castleWait && castleWait.ready === true, JSON.stringify(castleWait));
+ok('围成后可开战', !!stateLib.startSiege(stS, castle));
+stateLib.cancelPlayerSiege(stS);
+ok('撤围清掉围城状态', stS.playerSiege === null);
+
+group('灭亡后就近择主');
+const stN = stateLib.createGame({ seed: 9004 });
+stN.events.length = 0;
+stN.player.country = { name: '汉', color: '#b4463c' };
+stN.player.faction = 'player';
+const playerCity = stN.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+playerCity.playerOwned = true;
+playerCity.ownerFaction = 'player';
+// 把其他城都归到魏，玩家城离残部最近 → 应投玩家
+stN.world.sites.forEach(function (s) {
+  if (s !== playerCity && s.type !== 'camp') s.ownerFaction = 'wei';
+});
+const strayLord = stN.lords.filter(function (l) { return l.faction === 'lv'; })[0] || stN.lords[0];
+strayLord.x = playerCity.x;
+strayLord.y = playerCity.y;
+strayLord.home = playerCity.id;
+const chosen = stateLib.pickFactionFor(stN, strayLord, 'lv');
+ok('残部能投玩家自立势力', chosen === 'player', String(chosen));
+stateLib.moveLordToFaction(stN, strayLord, chosen);
+ok('投玩家后落在玩家城', strayLord.faction === 'player' && strayLord.home === playerCity.id,
+  strayLord.faction + '/' + strayLord.home);
+
+group('粮草两日预警与哗变');
+const stFood = stateLib.createGame({ seed: 9005 });
+stFood.events.length = 0;
+stFood.clock.day = 2;
+const foodNeed = stateLib.nextFoodNeed(stFood);
+stFood.player.food = foodNeed; // 付得起这一顿，付不起下一顿
+stateLib.dailyTick(stFood);
+ok('扣完这顿即预警下一顿', !!stFood.foodWarning && stFood.events.some(function (e) { return e.type === 'warning'; }),
+  JSON.stringify(stFood.foodWarning));
+ok('预警文案说两日与哗变', stFood.events.some(function (e) {
+  return e.type === 'warning' && e.text.indexOf('两日') >= 0 && e.text.indexOf('哗变') >= 0;
+}));
+const beforeMutiny = armyLib.troopCount(stFood.player.troops);
+stFood.clock.day = 4;
+stateLib.dailyTick(stFood);
+const afterMutiny = armyLib.troopCount(stFood.player.troops);
+ok('再断粮会哗变减员', afterMutiny < beforeMutiny, beforeMutiny + '→' + afterMutiny);
+ok('史册记下哗变', stFood.log.some(function (l) { return l.text.indexOf('哗变') >= 0; }));
+stFood.player.food = 200;
+stateLib.refreshFoodWarning(stFood);
+ok('补足粮草后告警消除', stFood.foodWarning === null);
 
 /* ---------------------------------------------------------------- 收尾 */
 

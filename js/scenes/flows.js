@@ -17,12 +17,32 @@ function process(app) {
       app.push('town', { siteId: ev.siteId });
       return;
     }
+    if (ev.type === 'player-siege') {
+      const site = siteById(st.world, ev.siteId);
+      if (!site) continue;
+      const r = stateLib.beginPlayerSiege(st, site);
+      if (r.ok) {
+        app.push('town', { siteId: site.id, view: 'siege' });
+        app.showToast('城下扎营：需围 ' + r.days + ' 天，围成后才能决战。', 3);
+        return;
+      }
+      app.showToast(r.msg || '现在围不了这座城。', 2);
+      continue;
+    }
     if (ev.type === 'siege') {
       const site = siteById(st.world, ev.siteId);
       if (!site) continue;
-      stateLib.startSiege(st, site);
+      const battle = stateLib.startSiege(st, site);
+      if (!battle) {
+        app.showToast('这座城现在打不下来。', 2);
+        continue;
+      }
       app.push('battle', { mode: 'siege' });
       return;
+    }
+    if (ev.type === 'warning') {
+      app.showToast(ev.text || ev.title || '军中告急！', 4.5);
+      continue;
     }
     if (ev.type === 'encounter') {
       const party = st.parties.filter(function (p) { return p.id === ev.partyId; })[0];
@@ -44,6 +64,10 @@ function process(app) {
     }
     if (ev.type === 'chapter') {
       app.push('chapter', { id: ev.chapterId });
+      return;
+    }
+    if (ev.type === 'founding') {
+      app.push('founding', { siteId: ev.siteId });
       return;
     }
     if (ev.type === 'faction-fall') {
