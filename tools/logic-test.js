@@ -1916,17 +1916,19 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   ok('低兵领主会放弃围城军令', !lord.order && !lord.defending, 'order=' + JSON.stringify(lord.order));
 }
 {
-  // 逃遁比正常行军快，但只快约一半：4.5 时辰/格，而不是 3 时辰/格
+  // 逃遁只比正常行军快 20%：6 时辰/格变 5 时辰/格，不是旧的 4.5。
   const g = stateLib.createGame({ seed: 2026112513 });
   g.parties = [];
   const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   const home = g.world.sites.filter(function (s) { return s.id === lord.home; })[0];
-  lord.inCity = null; lord.order = null; lord.pauseUntil = 0; lord.moveTick = 0;
+  g.lords = [lord];
+  lord.inCity = null; lord.order = null; lord.defending = null; lord.pauseUntil = 0; lord.moveTick = 0;
   lord.engagedWith = null; lord.x = home.x + 5; lord.y = home.y;
   lord.troops = { militia: 100 }; lord.defTroops = { militia: 100 };
-  lord.fleeing = true; lord.fleeTargetId = home.id; lord.fleePath = null;
+  lord.fleeing = true; lord.fleeTargetId = home.id; lord.fleePath = null; lord.fleePathFor = null;
   stateLib.moveLords(g);
-  ok('逃遁步速略快于正常行军', lord.stepHours > 3 && lord.stepHours < 6, 'stepHours=' + lord.stepHours);
+  ok('逃遁步速为 5 时辰一格', lord.stepHours === stateLib.LORD_FLEE_STEP_HOURS,
+    'stepHours=' + lord.stepHours);
 }
 {
   // 俘虏按天计时，刑期越久越容易逃；NPC 之间只俘不杀
@@ -2255,7 +2257,7 @@ group('n3 版：地图峡谷 · 巡逻路线 · 追匪 · 旗色');
 
 /* ---------------------------------------------------------------- n3b 版：匪团州内活动 · 四格追匪 · 三小时交战 */
 
-group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
+group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
 {
   const g = stateLib.createGame({ seed: 2026112531 });
   const start = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; });
@@ -2282,7 +2284,7 @@ group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
   ok('开局匪团不贴地图边缘', edgeBad.length === 0, edgeBad.slice(0, 5).join(','));
   ok('开局匪团离城镇/关隘不超过 22 格', cityBad.length === 0, cityBad.slice(0, 5).join(','));
 
-  // 领主只有身边四格内才会主动追匪。
+  // 领主只有身边三格内才会主动追匪。
   const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   const party = start[0];
   if (lord && party) {
@@ -2317,14 +2319,14 @@ group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
       party.x = spot[0] + 5;
       party.y = spot[1];
       const distant = stateLib.lordThreatFor(g, lord, true, false);
-      ok('匪团在五格外时领主不主动追', !distant || distant.role !== 'hunt',
+      ok('匪团在四格外时领主不主动追', !distant || distant.role !== 'hunt',
         distant ? distant.role : 'none');
-      party.x = spot[0] + 4;
+      party.x = spot[0] + 3;
       const close = stateLib.lordThreatFor(g, lord, true, false);
-      ok('匪团进四格内领主开始追', !!close && close.role === 'hunt' && close.target.unit.id === party.id,
+      ok('匪团进三格内领主开始追', !!close && close.role === 'hunt' && close.target.unit.id === party.id,
         close ? close.role : 'none');
 
-      // 交战至少撑满三时辰：100 打 8，也不能在头一两个时辰直接抹掉。
+      // 交战至少撑满六时辰：100 打 8，也不能在头几个时辰直接抹掉。
       party.x = lord.x + 1;
       party.y = lord.y;
       party.engagedWith = lord.id;
@@ -2332,22 +2334,22 @@ group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
       lord.engagedWith = 'party:' + party.id;
       lord.engagedSinceH = party.engagedSinceH;
       stateLib.fightNeighbors(g);
-      ok('交战未满三时辰不会结算', !party.dead, 'dead=' + !!party.dead);
-      party.engagedSinceH = stateLib.gameHours(g) - 3;
+      ok('交战未满六时辰不会结算', !party.dead, 'dead=' + !!party.dead);
+      party.engagedSinceH = stateLib.gameHours(g) - 6;
       lord.engagedSinceH = party.engagedSinceH;
       stateLib.fightNeighbors(g);
-      ok('交战满三时辰后才可能打散匪团', !!party.dead, 'dead=' + !!party.dead);
+      ok('交战满六时辰后才可能打散匪团', !!party.dead, 'dead=' + !!party.dead);
     } else {
-      ok('匪团在五格外时领主不主动追', false, 'setup missing');
-      ok('匪团进四格内领主开始追', false, 'setup missing');
-      ok('交战未满三时辰不会结算', false, 'setup missing');
-      ok('交战满三时辰后才可能打散匪团', false, 'setup missing');
+      ok('匪团在四格外时领主不主动追', false, 'setup missing');
+      ok('匪团进三格内领主开始追', false, 'setup missing');
+      ok('交战未满六时辰不会结算', false, 'setup missing');
+      ok('交战满六时辰后才可能打散匪团', false, 'setup missing');
     }
   } else {
-    ok('匪团在五格外时领主不主动追', false, 'lord/party missing');
-    ok('匪团进四格内领主开始追', false, 'lord/party missing');
-    ok('交战未满三时辰不会结算', false, 'lord/party missing');
-    ok('交战满三时辰后才可能打散匪团', false, 'lord/party missing');
+    ok('匪团在四格外时领主不主动追', false, 'lord/party missing');
+    ok('匪团进三格内领主开始追', false, 'lord/party missing');
+    ok('交战未满六时辰不会结算', false, 'lord/party missing');
+    ok('交战满六时辰后才可能打散匪团', false, 'lord/party missing');
   }
 }
 {
@@ -2404,15 +2406,274 @@ group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
     g.lords = [lord];
     g.parties = [];
     let touchedSite = false;
+    let crossed = false;
     for (let h = 0; h < 30; h++) {
       stateLib.advanceTime(g, 6);
       stateLib.moveLords(g);
       if (worldLib.siteAt(g.world, lord.x, lord.y)) touchedSite = true;
+      if (lord.x > city.x) crossed = true;
     }
-    ok('领主会绕开他国城池', !touchedSite && lord.x > city.x && lord.y !== city.y,
-      'x=' + lord.x + ' y=' + lord.y + ' city=' + city.x + ',' + city.y + ' touched=' + touchedSite);
+    ok('领主会绕开他国城池', !touchedSite && crossed && lord.y !== city.y,
+      'x=' + lord.x + ' y=' + lord.y + ' city=' + city.x + ',' + city.y + ' crossed=' + crossed + ' touched=' + touchedSite);
   }
 }
+
+
+{
+  // n6：领主基础 6 时辰一格，逃遁 5 时辰一格，进城也按 6；不允许别的加速来源。
+  const g = stateLib.createGame({ seed: 2026112547 });
+  const city = g.world.sites.find(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'wei';
+  });
+  function findOpen(span) {
+    for (let y = 8; y < g.world.h - 8; y++) {
+      for (let x = 8; x < g.world.w - span - 8; x++) {
+        let clean = true;
+        for (let i = 0; i <= span; i++) {
+          if (!worldLib.terrainAt(g.world, x + i, y).passable || worldLib.siteAt(g.world, x + i, y)) {
+            clean = false;
+            break;
+          }
+        }
+        if (clean) return { x: x, y: y };
+      }
+    }
+    return null;
+  }
+  const spot = findOpen(8);
+  function makeLord(id, faction, x, y, troops) {
+    return {
+      id: id,
+      name: id,
+      faction: faction,
+      alive: true,
+      dead: false,
+      retired: false,
+      inCity: null,
+      prisoner: null,
+      engagedWith: null,
+      defending: null,
+      order: null,
+      x: x,
+      y: y,
+      home: city ? city.id : null,
+      level: 1,
+      troops: { militia: troops },
+      defTroops: { militia: troops },
+      sight: 5,
+      fleeing: false,
+      fleeTargetId: null,
+      fleeingAtH: null,
+      nextMoveH: stateLib.gameHours(g),
+    };
+  }
+  if (!spot || !city) {
+    ok('普通领主 6 时辰走一格', false, 'setup missing');
+    ok('逃遁领主 5 时辰走一格', false, 'setup missing');
+    ok('逃遁比普通快 20%', false, 'setup missing');
+    ok('逃遁进城也按 6 时辰', false, 'setup missing');
+  } else {
+    const lord = makeLord('n6-speed', city.ownerFaction, spot.x, spot.y, 40);
+    lord.wander = { x: spot.x + 4, y: spot.y };
+    g.lords = [lord];
+    g.parties = [];
+    g.player.x = Math.min(g.world.w - 4, spot.x + 50);
+    g.player.y = Math.min(g.world.h - 4, spot.y + 50);
+    let now = stateLib.gameHours(g);
+    lord.nextMoveH = now;
+    const x0 = lord.x;
+    stateLib.moveLords(g);
+    const afterBase = stateLib.gameHours(g);
+    ok('普通领主开始走一格', lord.x !== x0 || lord.y !== spot.y, lord.x + ',' + lord.y);
+    ok('普通领主 6 时辰走一格', lord.nextMoveH - afterBase === stateLib.LORD_STEP_HOURS,
+      'next=' + lord.nextMoveH + ' hour=' + afterBase);
+    const xAfterBase = lord.x;
+    stateLib.advanceTime(g, 5);
+    stateLib.moveLords(g);
+    ok('普通领主 5 时辰时还不走', lord.x === xAfterBase, 'x=' + lord.x);
+    stateLib.advanceTime(g, 1);
+    stateLib.moveLords(g);
+    ok('普通领主 6 时辰时再走一格', lord.x !== xAfterBase, 'x=' + lord.x);
+
+    // 逃遁：基础 6 * 0.8 = 4.8，向上取整到 5 时辰；不是旧的 4.5 或 3。
+    lord.x = spot.x;
+    lord.y = spot.y;
+    lord.nextMoveH = stateLib.gameHours(g);
+    lord.fleeing = true;
+    lord.fleeTargetId = city.id;
+    lord.fleePath = null;
+    lord.fleePathFor = null;
+    now = stateLib.gameHours(g);
+    stateLib.moveLords(g);
+    const xAfterFleeFirst = lord.x;
+    ok('逃遁领主开始走一格', lord.x !== spot.x || lord.y !== spot.y, lord.x + ',' + lord.y);
+    ok('逃遁领主 5 时辰走一格', lord.nextMoveH - now === stateLib.LORD_FLEE_STEP_HOURS,
+      'next=' + lord.nextMoveH + ' now=' + now);
+    ok('逃遁比普通快 20%（5 对 6 时辰）',
+      stateLib.LORD_FLEE_STEP_HOURS * 1.2 === stateLib.LORD_STEP_HOURS,
+      stateLib.LORD_FLEE_STEP_HOURS + ' * 1.2 = ' + (stateLib.LORD_FLEE_STEP_HOURS * 1.2));
+    stateLib.advanceTime(g, 4);
+    stateLib.moveLords(g);
+    ok('逃遁领主 4 时辰时还不走', lord.x === xAfterFleeFirst, 'x=' + lord.x);
+    stateLib.advanceTime(g, 1);
+    stateLib.moveLords(g);
+    ok('逃遁领主 5 时辰时再走一格', lord.x !== xAfterFleeFirst, 'x=' + lord.x);
+
+    // 贴着自己的城，逃遁也只按 6 时辰收旗进城，不能按 5 或 4.5 提前钻进去。
+    let adjacent = null;
+    for (let i = 0; i < 8; i++) {
+      const d = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]][i];
+      const nx = city.x + d[0];
+      const ny = city.y + d[1];
+      if (worldLib.terrainAt(g.world, nx, ny).passable && !worldLib.siteAt(g.world, nx, ny)) {
+        adjacent = { x: nx, y: ny };
+        break;
+      }
+    }
+    if (adjacent) {
+      lord.x = adjacent.x;
+      lord.y = adjacent.y;
+      lord.inCity = null;
+      lord.enteringSiteId = null;
+      lord.cityEnterAtH = null;
+      lord.fleePath = null;
+      lord.fleePathFor = null;
+      lord.fleeing = true;
+      lord.fleeTargetId = city.id;
+      lord.nextMoveH = stateLib.gameHours(g);
+      now = stateLib.gameHours(g);
+      stateLib.moveLords(g);
+      ok('逃遁到城下只摆出进城等待', lord.enteringSiteId === city.id, 'entering=' + lord.enteringSiteId);
+      ok('逃遁进城等待 6 时辰', lord.cityEnterAtH - now === stateLib.LORD_ENTER_CITY_HOURS,
+        'wait=' + (lord.cityEnterAtH - now));
+      stateLib.advanceTime(g, 5);
+      stateLib.moveLords(g);
+      ok('进城等待 5 时辰时还没进城', !lord.inCity, 'inCity=' + lord.inCity);
+      stateLib.advanceTime(g, 1);
+      stateLib.moveLords(g);
+      ok('进城等待 6 时辰后收旗进城', lord.inCity === city.id, 'inCity=' + lord.inCity);
+    } else {
+      ok('逃遁到城下只摆出进城等待', false, 'no adjacent');
+      ok('逃遁进城等待 6 时辰', false, 'no adjacent');
+      ok('进城等待 5 时辰时还没进城', false, 'no adjacent');
+      ok('进城等待 6 时辰后收旗进城', false, 'no adjacent');
+    }
+  }
+}
+
+{
+  // n6：三类硬顶 + 十人以下才允许逃遁。
+  const g = stateLib.createGame({ seed: 2026112548 });
+  const city = g.world.sites.find(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'wei';
+  });
+  if (!city) {
+    ok('逃遁豁免测试需要一座魏城', false, 'setup missing');
+  } else {
+    const lord = {
+      id: 'n6-hold', name: '硬顶测试', faction: 'wei', alive: true, x: 40, y: 40,
+      home: city.id, level: 1, troops: { militia: 20 }, defTroops: { militia: 20 },
+      sight: 5, inCity: null, prisoner: null, engagedWith: null,
+      defending: null, order: null, fleeing: false, fleeTargetId: null,
+    };
+    const party = {
+      id: 'n6-bandit', faction: 'bandit', name: '测试匪团', dead: false,
+      engagedWith: null, x: lord.x + 2, y: lord.y, troops: { militia: 100 },
+      defTroops: { militia: 100 }, sight: 5,
+    };
+    g.player.x = 160;
+    g.player.y = 160;
+    g.parties = [party];
+    g.lords = [lord];
+    const control = stateLib.lordThreatFor(g, lord, true, false);
+    ok('兵力悬殊且无豁免时领主会逃', !!control && control.role === 'flee',
+      control ? control.role : 'none');
+
+    // 一、本阵营已无城：无路可逃，硬着头皮上。
+    lord.faction = 'qun';
+    const noCity = stateLib.lordThreatFor(g, lord, true, false);
+    ok('本阵营没有城池时不再逃遁', !noCity, noCity ? noCity.role : 'none');
+    lord.faction = 'wei';
+
+    // 二、敌军围城，自己超过十人：守军必须上城。
+    lord.defending = city.id;
+    lord.order = { type: 'defend', siteId: city.id };
+    const guard = stateLib.lordThreatFor(g, lord, true, false);
+    ok('守城且兵力超过十人时不许逃遁', !guard, guard ? guard.role : 'none');
+    lord.defending = null;
+    lord.order = null;
+
+    // 三、五格内有盟友，自己超过十人：群战必须硬顶；盟友和敌人交战也算。
+    const ally = {
+      id: 'n6-ally', faction: 'wei', alive: true, x: lord.x + 2, y: lord.y,
+      home: city.id, level: 1, troops: { militia: 20 }, defTroops: { militia: 20 },
+      inCity: null, prisoner: null, engagedWith: 'shu-lord', sight: 5,
+      defending: null, order: null,
+    };
+    g.lords = [lord, ally];
+    const allyHold = stateLib.lordThreatFor(g, lord, true, false);
+    ok('五格内有盟友且兵力超过十人时不许逃遁', !allyHold, allyHold ? allyHold.role : 'none');
+    g.lords = [lord];
+    const allyGone = stateLib.lordThreatFor(g, lord, true, false);
+    ok('盟友离开五格后才恢复逃遁判定', !!allyGone && allyGone.role === 'flee',
+      allyGone ? allyGone.role : 'none');
+
+    // 十人及以下：上面两条“超过十人”的硬顶不再适用，仍可以按兵力差逃。
+    lord.troops = { militia: 10 };
+    lord.defTroops = { militia: 10 };
+    lord.defending = city.id;
+    lord.order = { type: 'defend', siteId: city.id };
+    const ten = stateLib.lordThreatFor(g, lord, true, false);
+    ok('守城但只剩十人时允许逃遁判定', !!ten && ten.role === 'flee', ten ? ten.role : 'none');
+    lord.troops = { militia: 20 };
+    lord.defTroops = { militia: 20 };
+    lord.defending = null;
+    lord.order = null;
+
+    // 将领主野战层：无豁免时弱者后撤，有守城豁免时进入正面交战并掉人。
+    function fieldLord(id, faction, count, x, y) {
+      return {
+        id: id, name: id, faction: faction, alive: true, dead: false, retired: false,
+        x: x, y: y, home: city.id, level: 1,
+        troops: { militia: count }, defTroops: { militia: count },
+        inCity: null, prisoner: null, engagedWith: null,
+        defending: null, order: null, fleeing: false, fleeTargetId: null,
+      };
+    }
+    const weak = fieldLord('n6-field-weak', 'wei', 20, 50, 50);
+    const strong = fieldLord('n6-field-strong', 'shu', 100, 51, 50);
+    g.lords = [weak, strong];
+    g.factionWars = {};
+    g.factionWars['shu|wei'] = { since: 0, score: 0 };
+    g.player.x = 160;
+    g.player.y = 160;
+    warLib.fieldTick(g);
+    const weakBeforeGuard = armyLib.troopCount(weak.troops);
+    ok('野战无豁免时弱者只后撤不硬碰', weak.fleeing === true &&
+      armyLib.troopCount(weak.troops) === 20,
+      'flee=' + weak.fleeing + ' troops=' + armyLib.troopCount(weak.troops));
+
+    const weakGuard = fieldLord('n6-field-guard', 'wei', 20, 50, 50);
+    const strongGuard = fieldLord('n6-field-guard-strong', 'shu', 100, 51, 50);
+    weakGuard.defending = city.id;
+    weakGuard.order = { type: 'defend', siteId: city.id };
+    g.lords = [weakGuard, strongGuard];
+    warLib.fieldTick(g);
+    ok('守城豁免在野战层也禁止后撤',
+      armyLib.troopCount(weakGuard.troops) < weakBeforeGuard,
+      'troops=' + armyLib.troopCount(weakGuard.troops));
+
+    const weakAlly = fieldLord('n6-field-ally', 'wei', 20, 50, 50);
+    const strongAlly = fieldLord('n6-field-ally-strong', 'shu', 100, 51, 50);
+    const allyField = fieldLord('n6-field-friend', 'wei', 20, 48, 50);
+    g.lords = [weakAlly, allyField, strongAlly];
+    warLib.fieldTick(g);
+    ok('盟友豁免在野战层也禁止后撤',
+      armyLib.troopCount(weakAlly.troops) < 20,
+      'troops=' + armyLib.troopCount(weakAlly.troops));
+  }
+}
+
 
 /* ---------------------------------------------------------------- 收尾 */
 

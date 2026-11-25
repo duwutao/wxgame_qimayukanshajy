@@ -5314,7 +5314,9 @@ function moveAway(state, lord) {
 }
 
 let isPassable = null;
+let fleeGuard = null;
 function bindPassable(fn) { isPassable = fn; }
+function bindFleeGuard(fn) { fleeGuard = fn; }
 
 /** 俘虏这位领主，押在 captor 的老家 */
 function capture(state, loser, captorFaction, captorName) {
@@ -5481,6 +5483,8 @@ function fleeDisparity(state, a, b) {
   if (lo <= 0 || hi < lo * DUEL_FLEE_RATIO || hi - lo < DUEL_FLEE_GAP) return false;
   const strong = ca >= cb ? a : b;
   const weak = ca >= cb ? b : a;
+  // 守城、结阵、无城可退时不许后撤，直接进入下面的正面交战。
+  if (fleeGuard && !fleeGuard(state, weak, strong)) return false;
   clearEngagement(a, b);
   weak.fleeing = true;
   weak.fleeFrom = strong.id || strong.name;
@@ -6268,6 +6272,7 @@ module.exports = {
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   nearestFoe,
   strategyTick, siegeTick,
+  bindFleeGuard,
   ESCAPE_BASE, ESCAPE_STEP,
 };
 
@@ -6833,15 +6838,21 @@ const { LORD_BIOS } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+/** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
+const LORD_STEP_HOURS = 6;
+/** 逃遁只比基础速度多 20%：6 / 1.2 = 5 时辰一格。 */
+const LORD_FLEE_STEP_HOURS = 5;
+/** 进城同样按基础 6 时辰一格，逃遁也不能在城下提速。 */
+const LORD_ENTER_CITY_HOURS = 6;
 const NPC_SLOT_COUNT = 3; // NPC 按 3 个时辰槽错开走，避免整点所有队伍一起重算
 const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
 const LORD_BANDIT_HUNT_RATIO = 1.25;
 const LORD_BANDIT_HUNT_GAP = 4;
-/** 领主只在身边四格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
-const LORD_BANDIT_HUNT_RANGE = 4;
-/** 匪团与领主交战至少撑满三个时辰，不能被一刀秒掉。 */
-const BANDIT_MIN_BATTLE_HOURS = 3;
+/** 领主只在身边三格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
+const LORD_BANDIT_HUNT_RANGE = 3;
+/** 匪团与领主交战至少撑满六个时辰，不能被一刀秒掉。 */
+const BANDIT_MIN_BATTLE_HOURS = 6;
 const LORD_FLEE_OWN_MAX = 30;
 const LORD_RESPAWN_DAYS = 12;
 /** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
@@ -7163,6 +7174,7 @@ function createGame(opts) {
   war.init(state);
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
+  war.bindFleeGuard(lordMayFlee);
   warmPatrolFields(state);
 
   pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
@@ -8260,14 +8272,14 @@ function update(state, dtSeconds, opts) {
   const elapsed = state.hoursPending || 0;
   state.hoursPending = 0;
   state.npcClock += elapsed;
-  // 每个时辰只推进一组 NPC（0/1/2 槽），每支队伍仍是 3 个时辰走一格，
-  // 但不会在整点把全图队伍、领主和国战一次性塞进同一帧里。
+  // 每个时辰只推进一组 NPC 槽；领主改用自己的 nextMoveH 精确计时，
+  // 这样普通 6 时辰/格、逃遁 5 时辰/格不必被 3 个时辰的槽切碎。
   while (state.npcClock >= 1) {
     state.npcClock -= 1;
     state.npcTick = (state.npcTick || 0) + 1;
     const slot = state.npcTick % NPC_SLOT_COUNT;
     moveParties(state, slot);
-    moveLords(state, slot);
+    moveLords(state);
     checkPursuit(state);
     // 国战、战役与任务检查仍按 3 个时辰一轮结算，避免改变战局节奏
     if (state.npcTick % NPC_SLOT_COUNT === 0) {
@@ -9528,6 +9540,58 @@ function threatCount(unit) {
   return Math.max(1, army.troopCount((unit && unit.troops) || {}));
 }
 
+/** 本阵营还有没有城/关；全丢光了就无路可逃。 */
+function factionHasCity(state, faction) {
+  if (!state || !state.world || !state.world.sites || !faction) return false;
+  return state.world.sites.some(function (site) {
+    return (site.type === 'town' || site.type === 'castle') && site.ownerFaction === faction;
+  });
+}
+
+/** 五格内有没有不敌对自己的领主；不要求对方和敌人也停战。 */
+function lordHasBattleAllyNear(state, lord, range) {
+  const r = range || 5;
+  return (state.lords || []).some(function (other) {
+    if (!other || other === lord || !other.alive || other.dead || other.retired) return false;
+    if (other.inCity || other.prisoner) return false;
+    if (!other.faction || other.faction === 'bandit') return false;
+    // 不能和自己是敌对关系；和共同的敌人是否交战不影响结阵。
+    if (other.faction !== lord.faction && war.atWar(state, lord.faction, other.faction)) return false;
+    return gridDistance(lord, other) <= r;
+  });
+}
+
+/** 敌军已经围到城下，且自己还有十人以上：守军必须上城，不许先逃。 */
+function lordGuardsBesiegedCity(state, lord) {
+  const siteId = lord.defending || (lord.order && lord.order.type === 'defend' && lord.order.siteId);
+  if (!siteId) return false;
+  const site = siteById(state.world, siteId);
+  if (!site || site.ownerFaction !== lord.faction) return false;
+  // 只要守城令还在、城还是自己的，就按守军处理；老档没有 campaign 记录也不能放跑。
+  return true;
+}
+
+/**
+ * 逃遁豁免：
+ * - 本阵营城全丢光，无路可逃；
+ * - 敌军围城且自己超过十人，守军必须硬顶；
+ * - 五格内有友军且自己超过十人，群战必须硬顶。
+ * 十人以下才重新允许按兵力差判断是否逃。
+ */
+function lordMustHold(state, lord) {
+  if (!factionHasCity(state, lord.faction)) return true;
+  const own = threatCount(lord);
+  if (own <= 10) return false;
+  if (lordGuardsBesiegedCity(state, lord)) return true;
+  if (lordHasBattleAllyNear(state, lord, 5)) return true;
+  return false;
+}
+
+/** war.js 在开打前调用：返回 false 时把“兵力悬殊就后撤”改成正面接战。 */
+function lordMayFlee(state, lord) {
+  return !lordMustHold(state, lord);
+}
+
 /**
  * 找视野里值得动手/需要躲开的对象。
  * 先算“谁明显比我多”，优先逃；再算“谁明显比我少”，追。
@@ -9561,7 +9625,7 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
     if (!party || party.dead || party.engagedWith) return;
     if (party.faction !== 'bandit' && !war.atWar(state, lord.faction, party.faction)) return;
     const d = gridDistance(lord, party);
-    // 匪团只有进了身边四格才被主动追；更远就当没看见。
+    // 匪团只有进了身边三格才被主动追；更远就当没看见。
     if (d > LORD_BANDIT_HUNT_RANGE) return;
     candidates.push({ kind: 'party', unit: party, count: threatCount(party), d: d, name: party.name || '匪团' });
   });
@@ -9584,10 +9648,18 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
       }
     }
   });
-  if (flee) return { role: 'flee', target: flee };
+  if (flee && !lordMustHold(state, lord)) return { role: 'flee', target: flee };
   if (huntParty) return { role: 'hunt', target: huntParty };
   if (huntOther) return { role: 'hunt', target: huntOther };
   return null;
+}
+
+function stopLordFlee(lord) {
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
 }
 
 function markLordFlee(state, lord, site, threat) {
@@ -9673,7 +9745,7 @@ function moveLords(state, slot) {
   const playerSide = p.faction || 'player';
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
-    // 分槽推进：领主仍按 3 个时辰走一格，只是不和全图队伍同一帧结算
+    // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
 
     // 已经走到城中心、这一步也走完了：现在才收旗进城。
@@ -9687,6 +9759,8 @@ function moveLords(state, slot) {
     }
     // 还差最后半步到城中心：等这一步走完，不能再提前收进城。
     if (lord.enteringSiteId) return;
+    // 精确到时辰的下一步时间：普通 6、逃遁 5，不再用 3 时辰槽粗切。
+    if (nowH < (lord.nextMoveH || 0)) return;
 
     // 旧档/中途被删掉的匪团会留下 engagedWith 死锁，先验证再决定停不停。
     if (lord.engagedWith) {
@@ -9739,8 +9813,6 @@ function moveLords(state, slot) {
         lord.banditChasing = null;
         lord.resting = false;
         if (lord.order.hold && od <= 1) return;
-        lord.moveTick = (lord.moveTick || 0) + 1;
-        if (lord.moveTick % 2 !== 0) return;
         const orderTarget = { x: orderSite.x, y: orderSite.y, siteId: orderSite.id };
         const orderSig = orderTarget.x + ',' + orderTarget.y;
         if (lord.orderPathFor !== orderSig || !lord.orderPath) {
@@ -9761,13 +9833,18 @@ function moveLords(state, slot) {
         }
         // 绕不过去时再退回贪心；贪心本身也不会踩进任意据点格。
         if (!orderStep) orderStep = greedyStep(state, lord, orderTarget);
-        if (orderStep) stepUnitTo(state, lord, orderStep, NPC_STEP_HOURS * 2);
+        if (orderStep) {
+          stepUnitTo(state, lord, orderStep, LORD_STEP_HOURS);
+          lord.nextMoveH = nowH + LORD_STEP_HOURS;
+        }
         return;
       }
       lord.order = null;
     }
     let target;
     const threat = lordThreatFor(state, lord, isOwnCountry, paidOff);
+    // 已经在撤的领主，一旦进入守城/结阵/无城可退状态，也要立刻停止逃遁。
+    if (lord.fleeing && lordMustHold(state, lord)) stopLordFlee(lord);
 
     if (threat && threat.role === 'flee') {
       // 兵少：向最近的本方城撤；本方城太远才投不敌对国家的城。
@@ -9843,13 +9920,9 @@ function moveLords(state, slot) {
       }
       target = lord.wander;
     }
-    // 逃遁比正常行军快，但只快一点：正常两拍一格（6 时辰），逃遁每拍都走、每格 4.5 时辰。
+    // 基础 6 时辰一格；逃遁只给 20% 加成，即 5 时辰一格。追匪、军令、进城都不另提速。
     const fleeing = !!lord.fleeing;
-    const banditHunter = !!(lord.hunting && lord.banditChasing);
-    const stride = fleeing ? 1 : (banditHunter ? 1 : 2);
-    const travelHours = fleeing ? NPC_STEP_HOURS * 1.5 : NPC_STEP_HOURS * stride;
-    lord.moveTick = (lord.moveTick || 0) + 1;
-    if (lord.moveTick % stride !== 0) return;
+    const travelHours = fleeing ? LORD_FLEE_STEP_HOURS : LORD_STEP_HOURS;
     if (!target) return;
     let step = null;
     let routeBlocked = false;
@@ -9914,6 +9987,7 @@ function moveLords(state, slot) {
     if (!step && !routeBlocked) step = greedyStep(state, lord, target);
     if (step) {
       stepUnitTo(state, lord, step, travelHours);
+      lord.nextMoveH = nowH + travelHours;
     } else if (target === lord.wander && !routeBlocked) {
       // 前面被别的队伍堵住：跳过这个巡逻落脚点，别在一格上反复撞。
       advancePatrolLeg(state, lord);
@@ -9928,10 +10002,11 @@ function moveLords(state, slot) {
         if (d === 0) {
           enterLordCity(state, lord, targetSite);
         } else if (d <= 1) {
-          const enterHours = fleeing ? NPC_STEP_HOURS * 1.5 : NPC_STEP_HOURS * 1.2;
+          // 进城统一按基础速度，逃遁不享受城下加速。
           lord.enteringSiteId = targetSite.id;
-          lord.cityEnterAtH = nowH + enterHours;
-          stepUnitTo(state, lord, { x: targetSite.x, y: targetSite.y }, enterHours);
+          lord.cityEnterAtH = nowH + LORD_ENTER_CITY_HOURS;
+          stepUnitTo(state, lord, { x: targetSite.x, y: targetSite.y }, LORD_ENTER_CITY_HOURS);
+          lord.nextMoveH = nowH + LORD_ENTER_CITY_HOURS;
         }
       }
     }
@@ -12656,6 +12731,7 @@ function deserialize(json) {
   war.init(state);
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
+  war.bindFleeGuard(lordMayFlee);
   syncPlayerFaction(state.player.country);
   if (state.player.country && state.player.country.name) applyPlayerCountry(state);
   warmPatrolFields(state);
@@ -12673,6 +12749,9 @@ module.exports = {
   BANDIT_CITY_RANGE,
   LORD_BANDIT_HUNT_RANGE,
   BANDIT_MIN_BATTLE_HOURS,
+  LORD_STEP_HOURS,
+  LORD_FLEE_STEP_HOURS,
+  LORD_ENTER_CITY_HOURS,
   createGame,
   update,
   unitAnimPos,

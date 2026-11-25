@@ -357,7 +357,9 @@ function moveAway(state, lord) {
 }
 
 let isPassable = null;
+let fleeGuard = null;
 function bindPassable(fn) { isPassable = fn; }
+function bindFleeGuard(fn) { fleeGuard = fn; }
 
 /** 俘虏这位领主，押在 captor 的老家 */
 function capture(state, loser, captorFaction, captorName) {
@@ -524,6 +526,8 @@ function fleeDisparity(state, a, b) {
   if (lo <= 0 || hi < lo * DUEL_FLEE_RATIO || hi - lo < DUEL_FLEE_GAP) return false;
   const strong = ca >= cb ? a : b;
   const weak = ca >= cb ? b : a;
+  // 守城、结阵、无城可退时不许后撤，直接进入下面的正面交战。
+  if (fleeGuard && !fleeGuard(state, weak, strong)) return false;
   clearEngagement(a, b);
   weak.fleeing = true;
   weak.fleeFrom = strong.id || strong.name;
@@ -1311,6 +1315,7 @@ module.exports = {
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   nearestFoe,
   strategyTick, siegeTick,
+  bindFleeGuard,
   ESCAPE_BASE, ESCAPE_STEP,
 };
 
