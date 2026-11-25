@@ -1,0 +1,36 @@
+name: bw-n-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download patch
+        run: curl -fsSL https://aka.doubaocdn.com/s/rHlO8U8ngq -o /tmp/bw-n.patch
+      - name: Apply and test
+        run: |
+          git apply --check /tmp/bw-n.patch
+          git apply /tmp/bw-n.patch
+          node tools/logic-test.js
+          node tools/render-smoke.js
+      - name: Commit and push
+        run: |
+          git config user.name 'bw-release-bot'
+          git config user.email 'bw-release-bot@users.noreply.github.com'
+          rm -f .github/workflows/bw-n-sync.yml
+          git add -A
+          git commit -m 'release: 20261125n 点兵三国·峡谷桥面·劫匪州分布·三国上限 [skip ci]'
+          git push origin HEAD:main
