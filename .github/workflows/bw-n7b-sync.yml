@@ -1,0 +1,37 @@
+name: bw-n7b-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download patch
+        run: curl -fsSL --http1.1 --retry 5 --retry-delay 2 --user-agent 'bw-release-bot' https://aka.doubaocdn.com/s/ZPsl8u7U5e -o /tmp/bw-n7b.patch
+      - name: Apply and test
+        run: |
+          git apply --check /tmp/bw-n7b.patch
+          git apply /tmp/bw-n7b.patch
+          node tools/logic-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Commit and push
+        run: |
+          git config user.name 'bw-release-bot'
+          git config user.email 'bw-release-bot@users.noreply.github.com'
+          rm -f .github/workflows/bw-n7b-sync.yml
+          git add -A
+          git commit -m 'release: 20261125n7b 城池暂停与三国格局 [skip ci]'
+          git push origin HEAD:main
