@@ -517,7 +517,7 @@ st2.player.x = lord.x + 3;
 st2.player.y = lord.y;
 const dBefore = worldLib.gridDistance(lord, st2.player);
 stateLib.advanceTime(st2, 9);
-stateLib.update(st2, 0.05);
+stateLib.update(st2, 0.05, { ignoreEvents: true });
 ok('敌对领主会追近', worldLib.gridDistance(lord, st2.player) <= dBefore, dBefore + ' → ' + worldLib.gridDistance(lord, st2.player));
 ok('领主视野内标记追击', lord.chasing === true,
   lord.id + ' chasing=' + lord.chasing + ' dist=' + worldLib.gridDistance(lord, st2.player) +

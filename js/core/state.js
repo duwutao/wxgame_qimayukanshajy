@@ -36,6 +36,7 @@ const { LORD_BIOS } = require('../data/bios.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+const NPC_SLOT_COUNT = 3; // NPC 按 3 个时辰槽错开走，避免整点所有队伍一起重算
 const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
 const LORD_BANDIT_HUNT_RATIO = 1.25;
@@ -310,6 +311,7 @@ function createGame(opts) {
     ending: null,
     timeScale: 1,
     npcClock: 0,
+    npcTick: 0,
     rng,
     questSeq: 1,
     partySeq: 1,
@@ -332,9 +334,12 @@ function createGame(opts) {
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, BANDIT_START_COUNT);
   spawnChaseParty(state, spawn);
+  state.parties.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
+  state.lords.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
   war.init(state);
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
+  warmPatrolFields(state);
 
   pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
   pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
@@ -1236,16 +1241,23 @@ function update(state, dtSeconds, opts) {
   const elapsed = state.hoursPending || 0;
   state.hoursPending = 0;
   state.npcClock += elapsed;
-  while (state.npcClock >= NPC_STEP_HOURS) {
-    state.npcClock -= NPC_STEP_HOURS;
-    moveParties(state);
-    moveLords(state);
-    war.fieldTick(state);
-    if (war.siegeTick) war.siegeTick(state);
+  // 每个时辰只推进一组 NPC（0/1/2 槽），每支队伍仍是 3 个时辰走一格，
+  // 但不会在整点把全图队伍、领主和国战一次性塞进同一帧里。
+  while (state.npcClock >= 1) {
+    state.npcClock -= 1;
+    state.npcTick = (state.npcTick || 0) + 1;
+    const slot = state.npcTick % NPC_SLOT_COUNT;
+    moveParties(state, slot);
+    moveLords(state, slot);
     checkPursuit(state);
-    advanceCampaign(state);
-    checkQuestTargets(state);
-    checkPlayerSiegeReady(state);
+    // 国战、战役与任务检查仍按 3 个时辰一轮结算，避免改变战局节奏
+    if (state.npcTick % NPC_SLOT_COUNT === 0) {
+      war.fieldTick(state);
+      if (war.siegeTick) war.siegeTick(state);
+      advanceCampaign(state);
+      checkQuestTargets(state);
+      checkPlayerSiegeReady(state);
+    }
     if (state.events.length && !ignoreEvents) return;
   }
   checkQuestTargets(state);
@@ -1439,6 +1451,17 @@ function nearestBandit(state, lord, range) {
 
 /* ------------------------------------------------------------ NPC 走路 */
 
+/** NPC 的错峰槽位：同一支队伍仍然每 3 个时辰走一格，但全图不再同一帧一起算 */
+function npcSlotFor(unit) {
+  if (unit && unit.npcSlot !== undefined && unit.npcSlot !== null) return unit.npcSlot;
+  const key = String((unit && (unit.id || unit.name)) || '0');
+  let sum = 0;
+  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i);
+  const slot = sum % NPC_SLOT_COUNT;
+  if (unit) unit.npcSlot = slot;
+  return slot;
+}
+
 /** NPC 当前该画在哪：按游戏时辰在两格之间插值，跟主角一样一步一步走 */
 function unitAnimPos(unit, nowH) {
   if (!unit.stepFrom || !unit.stepTo) return { x: unit.x, y: unit.y };
@@ -1480,10 +1503,12 @@ function settleUnitSteps(state) {
   });
 }
 
-function moveParties(state) {
+function moveParties(state, slot) {
   const p = state.player;
   const nowH = gameHours(state);
   state.parties.forEach(function (party) {
+    // 分槽推进：本时辰不是它这一组，就继续走上一段的插值动画
+    if (slot !== undefined && npcSlotFor(party) !== slot) return;
     // 已经和某支队伍缠上：模型停在原地显示交战，不再滑走。
     if (party.engagedWith) return;
     // 断后/买路约好的停战时辰，匪团也必须遵守，否则刚断完后脚又贴上来
@@ -1553,8 +1578,9 @@ function moveParties(state) {
     }
   });
 
-  // 路上相逢：匪团与领主互殴
-  fightNeighbors(state);
+  // 路上相逢：匪团与领主互殴。等到三个槽都走完再统一结算，
+  // 避免刚走完一组就提前把还没动的另一组判成“贴上了”。
+  if (slot === undefined || slot === NPC_SLOT_COUNT - 1) fightNeighbors(state);
 }
 
 /** 按编制给领主补人：先补缺得最多的兵种；不超过等级带兵上限 */
@@ -1820,58 +1846,122 @@ function lordRestTick(state) {
 }
 
 /**
- * 巡逻用的短路径：绕过河流、山脊和城池，不再只靠一步贪心。
- * 只算领主的巡逻目标；目标城不可走，所以走到邻格就算到达。
- * 返回从当前位置迈出的第一步，后续步骤缓存在领主身上。
+ * 巡逻/逃遁用的短路径：绕过河流、山脊和城池。
+ * 地形是静态的，所以按目标城缓存一张距离场：同城所有领主只算一次，
+ * 后面每时辰只是沿着距离场下坡，不再反复 BFS 全图。
  */
-function patrolPathTo(state, lord, target) {
+const PATH_DIRS = [
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+];
+
+function pathBlockedMask(state) {
   const w = state.world.w;
   const h = state.world.h;
-  if (!target) return null;
+  let rec = state._pathBlocked;
+  if (rec && rec.w === w && rec.h === h) return rec;
   const size = w * h;
-  const start = lord.y * w + lord.x;
-  const queue = [start];
-  const parent = new Int32Array(size);
-  parent.fill(-2);
-  parent[start] = -1;
-  const dirs = [
-    [1, 0], [-1, 0], [0, 1], [0, -1],
-    [1, 1], [1, -1], [-1, 1], [-1, -1],
-  ];
-  let head = 0;
-  let goal = -1;
-  while (head < queue.length) {
-    const cur = queue[head++];
+  const mask = new Uint8Array(size);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!isPassable(state.world, x, y) || siteAt(state.world, x, y)) {
+        mask[y * w + x] = 1;
+      }
+    }
+  }
+  rec = { w: w, h: h, mask: mask };
+  state._pathBlocked = rec;
+  return rec;
+}
+
+function pathFieldFor(state, target) {
+  const w = state.world.w;
+  const h = state.world.h;
+  const key = target.patrolSite || target.siteId || (target.x + ',' + target.y);
+  state._pathFields = state._pathFields || {};
+  const old = state._pathFields[key];
+  if (old && old.w === w && old.h === h) return old;
+
+  const size = w * h;
+  const blocked = pathBlockedMask(state).mask;
+  // Uint16 够装 20k 格以内，65535 表示还没访问
+  const dist = new Uint16Array(size);
+  dist.fill(0xffff);
+  const queue = new Int32Array(size);
+  let qh = 0;
+  let qt = 0;
+  // 目标城本身不可走，从它周围八个可走格出发做距离场
+  for (let d = 0; d < 8; d++) {
+    const nx = target.x + PATH_DIRS[d][0];
+    const ny = target.y + PATH_DIRS[d][1];
+    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+    const idx = ny * w + nx;
+    if (blocked[idx] || dist[idx] !== 0xffff) continue;
+    dist[idx] = 0;
+    queue[qt++] = idx;
+  }
+  while (qh < qt) {
+    const cur = queue[qh++];
     const cx = cur % w;
     const cy = Math.floor(cur / w);
-    if (cur !== start && Math.max(Math.abs(cx - target.x), Math.abs(cy - target.y)) <= 1) {
-      goal = cur;
-      break;
-    }
+    const nd = dist[cur] + 1;
     for (let d = 0; d < 8; d++) {
-      const nx = cx + dirs[d][0];
-      const ny = cy + dirs[d][1];
+      const nx = cx + PATH_DIRS[d][0];
+      const ny = cy + PATH_DIRS[d][1];
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
       const nidx = ny * w + nx;
-      if (parent[nidx] !== -2) continue;
-      if (!isPassable(state.world, nx, ny)) continue;
-      if (siteAt(state.world, nx, ny)) continue;
-      if (unitOccupies(state, lord, nx, ny)) continue;
-      parent[nidx] = cur;
-      queue.push(nidx);
+      if (blocked[nidx] || dist[nidx] !== 0xffff) continue;
+      dist[nidx] = nd;
+      queue[qt++] = nidx;
     }
   }
-  if (goal < 0) return null;
+  const rec = { w: w, h: h, dist: dist };
+  state._pathFields[key] = rec;
+  const keys = Object.keys(state._pathFields);
+  if (keys.length > 64) delete state._pathFields[keys[0]];
+  return rec;
+}
+
+function patrolPathTo(state, lord, target) {
+  const w = state.world.w;
+  if (!target) return null;
+  if (Math.max(Math.abs(lord.x - target.x), Math.abs(lord.y - target.y)) <= 1) return [];
+  const field = pathFieldFor(state, target);
+  const start = lord.y * w + lord.x;
+  const d0 = field.dist[start];
+  if (d0 === 0xffff) return null;
+  // 从当前位置沿距离场下坡走，天然得到一条绕开河流/山脊/城池的路
   const path = [];
-  let node = goal;
-  while (node !== start) {
-    path.push({ x: node % w, y: Math.floor(node / w) });
-    const prev = parent[node];
-    if (prev < 0) break;
-    node = prev;
+  let cur = start;
+  let guard = 0;
+  const maxSteps = w * state.world.h;
+  while (field.dist[cur] > 0 && guard++ < maxSteps) {
+    const cx = cur % w;
+    const cy = Math.floor(cur / w);
+    let best = -1;
+    let bestD = field.dist[cur];
+    for (let d = 0; d < 8; d++) {
+      const nx = cx + PATH_DIRS[d][0];
+      const ny = cy + PATH_DIRS[d][1];
+      if (nx < 0 || ny < 0 || nx >= w || ny >= state.world.h) continue;
+      const nidx = ny * w + nx;
+      const nd = field.dist[nidx];
+      if (nd !== 0xffff && nd < bestD) { best = nidx; bestD = nd; }
+    }
+    if (best < 0) break;
+    cur = best;
+    path.push({ x: cur % w, y: Math.floor(cur / w) });
   }
-  path.reverse();
   return path;
+}
+
+/** 开局/读档后先把当前巡逻城的距离场铺好，避免前三个时辰集中解冻 */
+function warmPatrolFields(state) {
+  (state.lords || []).forEach(function (lord) {
+    if (!lord.alive || lord.prisoner) return;
+    if (!lord.wander) lord.wander = patrolTargetFor(state, lord);
+    if (lord.wander && lord.wander.patrolSite) pathFieldFor(state, lord.wander);
+  });
 }
 
 /** 最近的本势力城；领主逃命时先保这里。 */
@@ -2027,12 +2117,14 @@ function clearLordChase(lord) {
 }
 
 /** 领主：兵多追、兵少逃；其余情况按军令、休整和巡逻路线走。 */
-function moveLords(state) {
+function moveLords(state, slot) {
   const p = state.player;
   const nowH = gameHours(state);
   const playerSide = p.faction || 'player';
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
+    // 分槽推进：领主仍按 3 个时辰走一格，只是不和全图队伍同一帧结算
+    if (slot !== undefined && npcSlotFor(lord) !== slot) return;
     // NPC 在野地里缠上之后，双方把兵停住，先打完再谈走路。
     if (lord.engagedWith) return;
     // 自己国家的领主不替你决定打谁：只在军令、守城和清匪时动兵
@@ -2728,6 +2820,7 @@ function reviveAfterDefeat(state, reason) {
   // 时间倒回一天（只退时钟，天下不会真的倒退）
   state.clock.day = Math.max(1, state.clock.day - 1);
   state.npcClock = 0;
+  state.npcTick = 0;
   state.flee = {};
   state.events.length = 0;
   state.battle = null;
@@ -4703,6 +4796,7 @@ function deserialize(json) {
     ending: data.ending || null,
     timeScale: data.timeScale || 1,
     npcClock: 0,
+    npcTick: 0,
     rng: new RNG((data.seed || 1) + (data.clock ? data.clock.day : 1) * 7919),
     questSeq: data.questSeq || 1,
     partySeq: data.partySeq || 1,
@@ -4845,6 +4939,7 @@ function deserialize(json) {
   war.bindPassable(isPassable);
   syncPlayerFaction(state.player.country);
   if (state.player.country && state.player.country.name) applyPlayerCountry(state);
+  warmPatrolFields(state);
   return state;
 }
 
