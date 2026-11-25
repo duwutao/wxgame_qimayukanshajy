@@ -360,81 +360,119 @@ function makeSiteSprite(runtime, type, seed) {
  * 朱红披风 + 金甲 + 黑马，配长枪与背后旗
  */
 function makePlayerSprite(runtime) {
-  const W = 32;
-  const H = 40;
+  // 主公是全场唯一一套“将盔甲胄 + 披风 + 长戟”的重装骑将，和普通领主的棋子明显分开。
+  const W = 48;
+  const H = 56;
   const c = newCanvas(runtime, W, H);
   const g = c.getContext('2d');
   g.clearRect(0, 0, W, H);
 
-  const horse = '#241d18';
-  const horseLight = '#3a2f26';
-  const cape = '#b8342a';
-  const capeLight = '#d9503f';
-  const armor = '#e0a83c';
-  const armorLight = '#f5cf72';
-  const armorDark = '#a97a22';
+  const horse = '#211a16';
+  const horseHi = '#4a3a2e';
+  const horseDk = '#0f0b09';
+  const barding = '#7d1f1a';
+  const bardingHi = '#b0342a';
+  const armor = '#d8a63a';
+  const armorHi = '#ffe08a';
+  const armorDk = '#8f641c';
+  const steel = '#d8dde6';
+  const steelDk = '#7d848f';
+  const cape = '#a82822';
+  const capeHi = '#e04a38';
   const skin = '#e0b98d';
-  const steel = '#cfd3da';
-  const plume = '#f2e6c8';
+  const skinDk = '#b8845e';
 
-  // 马身
-  px(g, 9, 24, horse, 16, 9);
-  px(g, 9, 24, horseLight, 16, 1);
-  px(g, 23, 20, horse, 4, 6); // 颈
-  px(g, 25, 17, horse, 4, 4); // 头
-  px(g, 27, 15, horse, 2, 2);
-  px(g, 24, 16, '#e8e2d2', 1, 2); // 眼
-  px(g, 11, 33, horse, 2, 6); // 前腿
-  px(g, 15, 33, horse, 2, 6);
-  px(g, 21, 33, horse, 2, 6); // 后腿
-  px(g, 24, 33, horse, 2, 6);
-  px(g, 12, 32, '#1a1512', 2, 1);
-  px(g, 22, 32, '#1a1512', 2, 1);
-  // 马鞍与缰
-  px(g, 12, 23, '#7d4a2a', 10, 3);
-  px(g, 13, 22, '#a5683a', 8, 1);
-  px(g, 26, 18, '#c9a06a', 4, 1);
+  // 马：后腿蹬地、前蹄微抬，拉出一点冲阵的动势
+  px(g, 7, 31, horse, 30, 12);
+  px(g, 7, 31, horseHi, 30, 2);
+  px(g, 5, 38, horseDk, 4, 8);
+  px(g, 11, 44, horseDk, 4, 7);
+  px(g, 29, 43, horseDk, 4, 8);
+  px(g, 34, 40, horseDk, 4, 9);
+  px(g, 35, 24, horse, 7, 14);      // 颈
+  px(g, 39, 18, horse, 8, 8);       // 头
+  px(g, 41, 16, horseDk, 5, 2);
+  px(g, 45, 20, '#e8e2d2', 1, 2);   // 眼
+  px(g, 37, 23, '#3a2a20', 2, 1);   // 缰
+  px(g, 6, 38, horseHi, 2, 6);      // 尾
 
-  // 披风（在马后飘）
-  px(g, 6, 18, cape, 7, 14);
-  px(g, 4, 22, cape, 3, 8);
-  px(g, 7, 18, capeLight, 5, 2);
-  px(g, 5, 30, '#8f251d', 6, 2);
+  // 马铠：赤底金边，横向甲片
+  px(g, 8, 33, barding, 26, 7);
+  px(g, 8, 33, bardingHi, 26, 2);
+  px(g, 8, 37, '#5f1713', 26, 1);
+  px(g, 12, 34, armor, 2, 5);
+  px(g, 20, 34, armor, 2, 5);
+  px(g, 28, 34, armor, 2, 5);
+  px(g, 14, 25, barding, 8, 9);     // 马颈护甲
+  px(g, 14, 25, bardingHi, 8, 1);
+  px(g, 16, 27, armor, 2, 2);
 
-  // 躯干
-  px(g, 13, 15, armor, 8, 8);
-  px(g, 13, 15, armorLight, 8, 2);
-  px(g, 13, 21, armorDark, 8, 2);
-  px(g, 12, 17, armor, 1, 6);
-  // 肩甲
-  px(g, 11, 14, armorLight, 4, 3);
-  px(g, 20, 14, armorLight, 4, 3);
-  px(g, 11, 16, armorDark, 4, 1);
-  px(g, 20, 16, armorDark, 4, 1);
+  // 披风从肩后一直拖到马臀
+  px(g, 10, 18, cape, 9, 18);
+  px(g, 8, 23, cape, 5, 12);
+  px(g, 10, 18, capeHi, 7, 2);
+  px(g, 9, 33, '#711611', 9, 3);
+  px(g, 5, 34, cape, 6, 5);
 
-  // 头与盔
-  px(g, 15, 8, skin, 6, 7);
-  px(g, 14, 6, armorDark, 8, 3);
-  px(g, 14, 5, armor, 8, 2);
-  px(g, 16, 3, plume, 4, 3); // 盔缨
-  px(g, 15, 4, plume, 1, 2);
-  px(g, 20, 4, plume, 1, 2);
-  px(g, 16, 10, '#3a2a1e', 1, 1); // 眼
-  px(g, 19, 10, '#3a2a1e', 1, 1);
-  px(g, 16, 12, '#8a5a3a', 4, 1);
+  // 骑手躯干：金甲 + 兽吞肩 + 护心镜
+  px(g, 21, 17, armor, 13, 14);
+  px(g, 21, 17, armorHi, 13, 3);
+  px(g, 21, 27, armorDk, 13, 4);
+  px(g, 21, 22, '#8e2a1e', 13, 2);   // 束甲红绦
+  px(g, 18, 16, armorHi, 5, 5);      // 左肩
+  px(g, 32, 16, armorHi, 5, 5);      // 右肩
+  px(g, 18, 20, armorDk, 5, 2);
+  px(g, 32, 20, armorDk, 5, 2);
+  px(g, 25, 21, armorHi, 5, 5);      // 护心镜
+  px(g, 25, 21, '#fff0b0', 5, 1);
 
-  // 长枪（右手，斜指前方）
-  px(g, 24, 4, steel, 1, 22);
-  px(g, 22, 26, '#5f4830', 3, 2);
-  px(g, 24, 1, steel, 1, 3);
-  px(g, 23, 2, '#eef2f6', 1, 1);
-  // 枪缨
-  px(g, 23, 5, '#c93a2a', 3, 2);
+  // 腰甲、护腿
+  px(g, 22, 30, armorDk, 11, 3);
+  px(g, 23, 32, '#5a4320', 4, 7);
+  px(g, 30, 32, '#5a4320', 4, 7);
+  px(g, 23, 35, armor, 4, 2);
+  px(g, 30, 35, armor, 4, 2);
 
-  // 背后旗
-  px(g, 8, 4, '#5f4830', 1, 14);
-  px(g, 8, 3, '#d9a441', 6, 6);
-  px(g, 9, 4, '#7a2118', 4, 3);
+  // 头：束发、眉眼、短髯
+  px(g, 25, 9, skin, 8, 8);
+  px(g, 25, 9, '#f0cba0', 8, 1);
+  px(g, 25, 15, skinDk, 8, 1);
+  px(g, 27, 12, '#3a2418', 1, 1);
+  px(g, 31, 12, '#3a2418', 1, 1);
+  px(g, 27, 11, '#2a1a12', 2, 1);
+  px(g, 31, 11, '#2a1a12', 2, 1);
+  px(g, 27, 16, '#4a2a1c', 4, 1);
+  px(g, 29, 17, '#3a2014', 2, 1);
+
+  // 将盔：金顶、双凤翅、红缨
+  px(g, 23, 6, steel, 12, 4);
+  px(g, 23, 9, steelDk, 12, 1);
+  px(g, 26, 4, armor, 7, 2);
+  px(g, 29, 2, armorHi, 2, 2);
+  px(g, 21, 5, armor, 4, 2);          // 左凤翅
+  px(g, 18, 3, armorHi, 3, 2);
+  px(g, 33, 5, armor, 4, 2);          // 右凤翅
+  px(g, 38, 3, armorHi, 3, 2);
+  px(g, 28, 1, capeHi, 5, 2);         // 红缨
+  px(g, 30, 0, '#ff7a54', 1, 2);
+  px(g, 23, 10, '#6d1f1a', 12, 1);    // 护颈
+
+  // 长戟：右手斜举，戟枝和红缨都露在轮廓外
+  px(g, 40, 8, '#6a4a2a', 2, 31);
+  px(g, 40, 6, steel, 2, 4);
+  px(g, 42, 8, steel, 6, 2);
+  px(g, 47, 5, steel, 2, 5);
+  px(g, 43, 3, '#eef4ff', 2, 1);
+  px(g, 38, 9, '#d83a28', 3, 3);
+  px(g, 38, 12, '#8f1f18', 2, 4);
+
+  // 背旗：赤底金边，旗面在风里折一下
+  px(g, 14, 6, '#5f4830', 2, 18);
+  px(g, 16, 5, '#8f1f18', 9, 9);
+  px(g, 16, 5, armor, 9, 1);
+  px(g, 18, 7, '#f0c060', 2, 4);
+  px(g, 22, 8, '#d84a32', 2, 4);
+  px(g, 16, 14, '#5f1713', 9, 1);
 
   return c;
 }
@@ -1059,25 +1097,27 @@ function drawTerrain(ctx, assets, world, camX, camY, tileSize, viewW, viewH) {
 
 /** 画玩家（大号骑马立绘 + 光晕 + 脚下阴影） */
 function drawPlayer(ctx, assets, sx, sy, tileSize, phase, facing) {
-  const w = tileSize * 1.36;
-  const h = tileSize * 1.62;
+  // 主公模型比普通领主更大，保留金甲赤袍的长戟骑将轮廓
+  const w = tileSize * 1.72;
+  const h = w * (56 / 48);
   const bob = Math.sin(phase) * 1.8;
+  const bottom = sy + tileSize * 0.44;
 
-  // 光晕
+  // 光晕：放大后的骑将整体罩一层淡金，远看也能和普通领主的土色棋子分开
   ctx.save();
-  ctx.globalAlpha = 0.28 + Math.sin(phase * 0.7) * 0.06;
+  ctx.globalAlpha = 0.2 + Math.sin(phase * 0.7) * 0.045;
   ctx.fillStyle = '#f0c060';
   ctx.beginPath();
-  ctx.arc(sx, sy + tileSize * 0.1, tileSize * 0.72, 0, Math.PI * 2);
+  ctx.arc(sx, sy - tileSize * 0.35, tileSize * 0.98, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   // 阴影
   ctx.save();
-  ctx.globalAlpha = 0.4;
+  ctx.globalAlpha = 0.42;
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.ellipse(sx, sy + tileSize * 0.44, tileSize * 0.42, tileSize * 0.15, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx, bottom, tileSize * 0.58, tileSize * 0.17, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -1085,9 +1125,9 @@ function drawPlayer(ctx, assets, sx, sy, tileSize, phase, facing) {
   if (facing === -1) {
     ctx.translate(sx, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(assets.player, -w / 2, sy - h * 0.72 + bob, w, h);
+    ctx.drawImage(assets.player, -w / 2, bottom - h + bob, w, h);
   } else {
-    ctx.drawImage(assets.player, sx - w / 2, sy - h * 0.72 + bob, w, h);
+    ctx.drawImage(assets.player, sx - w / 2, bottom - h + bob, w, h);
   }
   ctx.restore();
 }

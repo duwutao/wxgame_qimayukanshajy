@@ -50,15 +50,36 @@ function bindLogger(fn) {
 function init(state) {
   if (!state.factionWars || typeof state.factionWars !== 'object') state.factionWars = {};
   const m = state.factionWars;
-  if (!state.diplomacySeeded) {
-    SEED_WARS.forEach(function (pair) {
-      const k = key(pair[0], pair[1]);
-      if (!m[k]) m[k] = { since: state.clock ? state.clock.day : 1, score: 0 };
-    });
-    state.diplomacySeeded = true;
-  }
+  // 开局全天下按兵不动。旧档里已经有战争记录的，视为天下已经动过，原样保留。
+  if (!state.diplomacyStarted && Object.keys(m).length) state.diplomacyStarted = true;
+  if (!state.diplomacySeeded) state.diplomacySeeded = true;
   if (!state.prisoners) state.prisoners = [];
   return m;
+}
+
+/** 战和消息是否要弹到玩家眼前（扎营里可以关掉） */
+function alertsEnabled(state) {
+  return !state || !state.settings || state.settings.diplomacyAlerts !== false;
+}
+
+/** 陈留歇满一天后，天下开始动：第一批战书一次放出，只合成一条军情。 */
+function startDiplomacy(state) {
+  if (!state || state.openingWarsDeclared) return 0;
+  state.openingWarsDeclared = true;
+  state.diplomacyStarted = true;
+  const pairs = [
+    ['wei', 'yuan'],
+    ['wei', 'lv'],
+    ['wu', 'biao'],
+    ['yuan', 'xianbei'],
+    ['ma', 'han'],
+  ];
+  let started = 0;
+  pairs.forEach(function (pair) {
+    if (started >= 3) return;
+    if (declare(state, pair[0], pair[1], true)) started += 1;
+  });
+  return started;
 }
 
 function atWar(state, a, b) {
@@ -91,7 +112,7 @@ function declare(state, a, b, quiet) {
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '翻了脸，使者连夜出境，边关开始点烽火。', 'war');
     // 剧情序章走完以后，天下大事要让人看见；几息后自己散
-    if (state.campaign && state.campaign.stage >= 1) {
+    if (alertsEnabled(state) && state.campaign && state.campaign.stage >= 1) {
       state.events.push({
         type: 'diplomacy', kind: 'war', a: a, b: b,
         title: '战云再起', lines: [
@@ -142,7 +163,7 @@ function makePeace(state, a, b, quiet) {
   }
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '遣使议和，两家把刀收回鞘里，边界的鼓角停了一阵。', 'war');
-    if (state.campaign && state.campaign.stage >= 1) {
+    if (alertsEnabled(state) && state.campaign && state.campaign.stage >= 1) {
       state.events.push({
         type: 'diplomacy', kind: 'peace', a: a, b: b,
         title: '两家议和', lines: [
@@ -165,32 +186,71 @@ function aiCanDeclare(state, a, b) {
   return true;
 }
 
+/** 一天的战和合成一条军情，别再一条一条往外弹 */
+function announceDiplomacyBatch(state, warPairs, peacePairs) {
+  if (!alertsEnabled(state)) return;
+  if (!warPairs.length && !peacePairs.length) return;
+  const lines = [];
+  warPairs.slice(0, 3).forEach(function (p) {
+    lines.push(FACTIONS[p[0]].full + '与' + FACTIONS[p[1]].full + '正式宣战。');
+  });
+  if (warPairs.length > 3) lines.push('另外还有 ' + (warPairs.length - 3) + ' 路诸侯也在调兵。');
+  peacePairs.slice(0, 2).forEach(function (p) {
+    lines.push(FACTIONS[p[0]].full + '与' + FACTIONS[p[1]].full + '遣使议和，暂时收兵。');
+  });
+  if (peacePairs.length > 2) lines.push('另有 ' + (peacePairs.length - 2) + ' 对诸侯停了刀兵。');
+  if (lines.length < 2) lines.push('驿道上的信使跑了一夜，边关的烽火跟着换了方向。');
+  state.events.push({
+    type: 'diplomacy',
+    kind: warPairs.length ? 'war' : 'peace',
+    title: warPairs.length ? '天下军情' : '两家罢兵',
+    lines: lines.slice(0, 5),
+  });
+}
+
 /** 每日外交：随机宣战、随机议和。打的年头太久会自己收手。 */
 function diplomacyTick(state) {
   const m = state.factionWars || init(state);
+  if (!state.diplomacyStarted && Object.keys(m).length) state.diplomacyStarted = true;
+  if (!state.diplomacyStarted) return;
+  // 一天最多合成一条军情，降低连续弹窗
+  if (state.lastDiplomacyDay === state.clock.day) return;
   const rng = state.rng;
   const ids = Object.keys(FACTIONS).filter(function (id) { return id !== 'bandit' && id !== 'player'; });
+  const warPairs = [];
+  const peacePairs = [];
 
-  // 新仇：天下不太平，隔三差五就有人翻脸
-  if (rng.next() < 0.2) {
+  // 新仇：天下不太平，隔三差五才有人翻脸
+  if (rng.next() < 0.11) {
     const a = ids[rng.int(0, ids.length - 1)];
     const b = ids[rng.int(0, ids.length - 1)];
     if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && warPartners(state, a).length < 3) {
-      declare(state, a, b, false);
+      if (declare(state, a, b, true)) warPairs.push([a, b]);
     }
   }
 
-  // 议和：打得久了，两边都缺粮
-  const keys = Object.keys(m);
-  keys.forEach(function (k) {
-    const w = m[k];
-    if (!w) return;
-    const days = state.clock.day - (w.since || 1);
-    if (days > MIN_WAR_DAYS && rng.next() < 0.03) {
-      const parts = k.split('|');
-      makePeace(state, parts[0], parts[1], false);
+  // 议和：打得久了，两边都缺粮。一天最多一对，且只在新仇没发生时谈。
+  if (!warPairs.length) {
+    const keys = Object.keys(m);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const w = m[k];
+      if (!w) continue;
+      const days = state.clock.day - (w.since || 1);
+      if (days > MIN_WAR_DAYS && rng.next() < 0.02) {
+        const parts = k.split('|');
+        if (makePeace(state, parts[0], parts[1], true)) {
+          peacePairs.push(parts);
+          break;
+        }
+      }
     }
-  });
+  }
+
+  if (warPairs.length || peacePairs.length) {
+    state.lastDiplomacyDay = state.clock.day;
+    announceDiplomacyBatch(state, warPairs, peacePairs);
+  }
 }
 
 /** 敌国主动向玩家求和：开战满 30 天才可能发；杀过对方将领则要等 60 天。
@@ -202,6 +262,8 @@ const PEACE_OFFER_GAP = 7;
 
 function peaceOfferTick(state) {
   if (!state || state.peaceOfferPending) return false;
+  // 扎营里关了战和提醒：不再用求和使者把玩家从地图上拽下来
+  if (!alertsEnabled(state)) return false;
   const rng = state.rng;
   const now = state.clock.day;
   const ids = Object.keys(FACTIONS).filter(function (id) {
@@ -293,6 +355,10 @@ function capture(state, loser, captorFaction, captorName) {
   loser.fleePath = null;
   loser.order = null;
   loser.defending = null;
+  loser.inCity = null;
+  loser.engagedWith = null;
+  loser.engagedSinceH = null;
+  loser.scuffle = 0;
   loser.prisoner = {
     by: captorFaction,
     byName: captorName || '',
@@ -333,6 +399,12 @@ function freeLord(state, lord, why) {
   lord.fleeing = false;
   lord.fleeTargetId = null;
   lord.fleePath = null;
+  lord.fleePathFor = null;
+  lord.engagedWith = null;
+  lord.engagedSinceH = null;
+  lord.scuffle = 0;
+  lord.enteringSiteId = null;
+  lord.cityEnterAtH = null;
   lord.x = home ? home.x : lord.x;
   lord.y = home ? home.y : lord.y;
   const keep = Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.45));
@@ -344,8 +416,8 @@ function freeLord(state, lord, why) {
 }
 
 function clearEngagement(a, b) {
-  if (a) a.engagedWith = null;
-  if (b) b.engagedWith = null;
+  if (a) { a.engagedWith = null; a.engagedSinceH = null; }
+  if (b) { b.engagedWith = null; b.engagedSinceH = null; }
 }
 
 /**
@@ -361,6 +433,11 @@ function clash(state, a, b) {
   const totalA = army.troopCount(a.troops);
   const totalB = army.troopCount(b.troops);
 
+  if (a.engagedWith !== b.id || b.engagedWith !== a.id) {
+    const nowH = state.clock.day * 24 + state.clock.hour;
+    a.engagedSinceH = nowH;
+    b.engagedSinceH = nowH;
+  }
   a.engagedWith = b.id;
   b.engagedWith = a.id;
   a.scuffle = 0;
@@ -427,8 +504,9 @@ function fieldTick(state) {
     if (a.engagedWith) {
       const b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
       if (!b || !b.alive || Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 ||
-          a.faction === b.faction || !atWar(state, a.faction, b.faction)) {
-        a.engagedWith = null;
+          a.faction === b.faction || !atWar(state, a.faction, b.faction) ||
+          (a.engagedSinceH && (state.clock.day * 24 + state.clock.hour) - a.engagedSinceH > 72)) {
+        clearEngagement(a, b);
         continue;
       }
       const pairKey = [a.id, b.id].sort().join('|');
@@ -474,9 +552,11 @@ function prisonerTick(state) {
   if (!state.prisoners) state.prisoners = [];
   const rng = state.rng;
   state.prisoners.forEach(function (p) {
+    if (p.escaped) return;
     p.days = (p.days || 0) + 1;
     const lord = state.lords.filter(function (l) { return l.id === p.lordId; })[0];
     if (!lord) return;
+    if (lord.prisoner) lord.prisoner.days = p.days;
     const chance = Math.min(ESCAPE_CAP, ESCAPE_BASE + ESCAPE_STEP * p.days);
     if (rng.next() < chance) {
       p.escaped = true;
@@ -909,7 +989,13 @@ function planCampaign(state, faction, day) {
 function attackersOf(state, cp) {
   return cp.attackerIds.map(function (id) {
     return state.lords.filter(function (l) { return l.id === id; })[0];
-  }).filter(function (l) { return l && l.alive && !l.prisoner; });
+  }).filter(function (l) {
+    if (!l || !l.alive || l.prisoner) return false;
+    // 兵太少的不再算进集结/围城队列：先回城补人，别跟着去送
+    const now = army.troopCount(l.troops || {});
+    const full = army.troopCount(l.defTroops || {});
+    return now > Math.max(6, Math.round(full * 0.65));
+  });
 }
 
 function startSiege(state, cp, site, day) {
@@ -1168,7 +1254,7 @@ function summaryLines(state) {
 }
 
 module.exports = {
-  init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick,
+  init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick, startDiplomacy, alertsEnabled,
   aiCanDeclare,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,

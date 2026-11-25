@@ -105,7 +105,7 @@ const rt = makeRuntime();
 let app = null;
 smoke('App 构造 + 资源生成', function () {
   app = new App(rt);
-  ok('assets 有玩家贴图', !!app.assets.player && app.assets.player.width === 32);
+  ok('assets 有玩家贴图', !!app.assets.player && app.assets.player.width === 48 && app.assets.player.height === 56);
   ok('地形贴图懒生成', !!app.assets.terrainFor('zhongyuan', 'farm'));
   ok('新地形贴图能生成', ['bridge', 'foothill', 'pass', 'oasis'].every(function (t) {
     return !!app.assets.terrainFor('zhongyuan', t);
@@ -592,7 +592,7 @@ smoke('大地图：点领主跟着走，点别处就松开', function () {
   // 找一个空着的平地，点过去
   let tx = -1, ty = -1;
   for (let dx = 2; dx <= 7 && tx < 0; dx++) {
-    for (let dy = -3; dy <= 3; dy++) {
+    for (let dy = 3; dy >= -3; dy--) {
       const x = lord.x + dx, y = lord.y + dy;
       if (x < 0 || y < 0 || x >= st.world.w || y >= st.world.h) continue;
       const tile = st.world.tiles[y * st.world.w + x];
@@ -1018,6 +1018,51 @@ smoke('长跑 4000 帧（地图推进 + 场景切换）', function () {
   }
   ok('长跑后仍有场景栈', app.stack.length >= 1, '栈深 ' + app.stack.length);
   ok('长跑后 state 还在', !!app.state);
+});
+
+smoke('任务卡：折叠、主支线与定位', function () {
+  const st = app.state = stateLib.createGame({ seed: 9901 });
+  st.events.length = 0;
+  app.replace('map');
+  app.questTrackCollapsed = false;
+  st.settings.questTrackCollapsed = false;
+  app.mapZoom = 1;
+  app.mapFree = false;
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('任务卡同时有开关、主线和支线', ids.indexOf('quest_toggle') >= 0 &&
+    ids.indexOf('quest_main') >= 0 && ids.indexOf('quest_side') >= 0, ids.join(','));
+
+  app.ui.items.filter(function (b) { return b.id === 'quest_toggle'; })[0].onTap();
+  ok('点收起能缩成小条', app.questTrackCollapsed === true && st.settings.questTrackCollapsed === true);
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids2 = app.ui.items.map(function (b) { return b.id; });
+  ok('收起后不再铺开整条主线', ids2.indexOf('quest_main') === -1 && ids2.indexOf('quest_side') === -1,
+    ids2.join(','));
+
+  app.ui.items.filter(function (b) { return b.id === 'quest_toggle'; })[0].onTap();
+  app.ui.begin();
+  app.top().scene.render(app);
+  const main = app.ui.items.filter(function (b) { return b.id === 'quest_main'; })[0];
+  const before = { x: app.mapCam.x, y: app.mapCam.y, z: app.mapZoom };
+  main.onTap();
+  ok('点主线任务会跳到当前章节位置', app.mapCam.x !== before.x || app.mapCam.y !== before.y ||
+    app.mapZoom !== before.z, JSON.stringify(before) + ' → ' + JSON.stringify(app.mapCam));
+
+  // 酒馆支线也要能从任务卡直接定位；只挂一条，避免左上角摊成任务列表
+  const bandit = st.parties.filter(function (q) { return q.faction === 'bandit'; })[0];
+  st.quests = [{
+    id: 'q_side_card', type: 'hunt', targetPartyId: bandit.id, done: false,
+    title: '清剿' + bandit.name, reward: { gold: 120, renown: 12 },
+  }];
+  app.ui.begin();
+  app.top().scene.render(app);
+  const side = app.ui.items.filter(function (b) { return b.id === 'quest_side'; })[0];
+  ok('任务卡收一条酒馆支线', !!side && app.ui.items.filter(function (b) { return b.id === 'quest_side'; }).length === 1);
+  if (side) side.onTap();
+  ok('点支线会定位到酒馆任务目标', app.mapQuestFocus === 'q_side_card', String(app.mapQuestFocus));
 });
 
 /* ---------------------------------------------------------------- 存档 */

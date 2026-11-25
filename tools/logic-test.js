@@ -341,11 +341,17 @@ if (lordSite) {
   lordForRecruit.defTroops = { militia: 10 };
   lordForRecruit.x = lordSite.x + 1;
   lordForRecruit.y = lordSite.y;
+  lordForRecruit.moveTick = 1;
   ruleState.player.route = [];
   ruleState.player.stepTo = null;
-  ruleState.hoursPending = 6;
-  ruleState.npcClock = 0;
-  stateLib.update(ruleState, 0, { ignoreEvents: true });
+  stateLib.moveLords(ruleState);
+  // 新规则：先走到城池中心，再等这一步走完才收旗
+  ok('到城下会先迈最后半步进城中心', lordForRecruit.enteringSiteId === lordSite.id &&
+    lordForRecruit.x === lordSite.x && lordForRecruit.y === lordSite.y,
+    'entering=' + lordForRecruit.enteringSiteId + ' at=' + lordForRecruit.x + ',' + lordForRecruit.y);
+  ruleState.clock.hour += 6;
+  if (ruleState.clock.hour >= 24) { ruleState.clock.hour -= 24; ruleState.clock.day += 1; }
+  stateLib.moveLords(ruleState);
   const entered = lordForRecruit.inCity === lordSite.id;
   ok('低兵领主会进城门，不再卡在城下', entered, 'inCity=' + lordForRecruit.inCity +
     ' at=' + lordForRecruit.x + ',' + lordForRecruit.y);
@@ -738,12 +744,16 @@ const warLib = require(R + '/core/war.js');
 const st7 = stateLib.createGame({ seed: 777001 });
 st7.events.length = 0;
 warLib.init(st7);
-ok('开局有史实仇家', Object.keys(st7.factionWars).length >= 8, String(Object.keys(st7.factionWars).length));
-ok('曹操与袁绍开局就翻脸', warLib.atWar(st7, 'wei', 'yuan'));
-ok('孙权与刘表有杀父之仇', warLib.atWar(st7, 'wu', 'biao'));
-ok('马腾韩遂互咬', warLib.atWar(st7, 'ma', 'han'));
+ok('开局所有诸侯按兵不动', Object.keys(st7.factionWars).length === 0, String(Object.keys(st7.factionWars).length));
+ok('曹操与袁绍开局没有翻脸', !warLib.atWar(st7, 'wei', 'yuan'));
+ok('孙权与刘表开局也没有开战', !warLib.atWar(st7, 'wu', 'biao'));
 ok('同势力不算交战', !warLib.atWar(st7, 'wei', 'wei'));
 ok('贼与谁都打', warLib.atWar(st7, 'wei', 'bandit'));
+// 陈留歇满一天后，第一批战书一次放出
+ok('陈留之后天下开始互相宣战', warLib.startDiplomacy(st7) >= 2,
+  String(Object.keys(st7.factionWars).length));
+ok('曹操与袁绍这时才翻脸', warLib.atWar(st7, 'wei', 'yuan'));
+ok('孙权与刘表这时才开战', warLib.atWar(st7, 'wu', 'biao'));
 
 // 宣战 / 议和
 const wcount = Object.keys(st7.factionWars).length;
@@ -1787,6 +1797,7 @@ group('领主追击与逃遁');
   weak.troops = { militia: 10 }; weak.defTroops = { militia: 110 };
   // 这一组只测领主对领主；清掉匪团，避免“先剿匪”抢走目标。
   g.parties = [];
+  warLib.declare(g, 'wei', 'yuanshu', true);
   stateLib.moveLords(g);
   ok('兵多的领主会追击', strong.hunting && strong.chasing && strong.foeChasing === 'jiling',
     'hunting=' + strong.hunting + ' foe=' + strong.foeChasing);
@@ -1860,6 +1871,136 @@ group('领主追击与逃遁');
   stateLib.moveLords(g);
   ok('领主会主动锁定并追剿匪团', lord.hunting && lord.banditChasing === 'p_hunt',
     'hunting=' + lord.hunting + ' bandit=' + lord.banditChasing);
+}
+
+/* ---------------------------------------------------------------- l 版新规则 */
+
+group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
+{
+  // 城外城下和村口都能招兵，不再只限进城
+  const g = stateLib.createGame({ seed: 2026112511 });
+  g.parties = [];
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const city = g.world.sites.filter(function (s) { return s.ownerFaction === 'wei' && s.type === 'town'; })[0];
+  city.lordRecruits = { militia: 30 };
+  lord.inCity = null;
+  lord.prisoner = null;
+  lord.troops = { militia: 2 };
+  lord.defTroops = { militia: 100 };
+  lord.x = city.x + 1; lord.y = city.y;
+  stateLib.lordRecruitTick(g);
+  const cityGain = (lord.troops.militia || 0) - 2;
+  ok('领主在城下等候也能招兵', cityGain > 0, 'gain=' + cityGain);
+
+  const village = g.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+  village.ownerFaction = 'wei';
+  village.lordRecruits = { militia: 30 };
+  lord.x = village.x + 1; lord.y = village.y;
+  lord.troops = { militia: 2 };
+  stateLib.lordRecruitTick(g);
+  ok('领主在村庄附近也能招兵', (lord.troops.militia || 0) > 2, 'militia=' + lord.troops.militia);
+}
+{
+  // 低兵领主不再去集结/围城，先回城补人
+  const g = stateLib.createGame({ seed: 2026112512 });
+  g.parties = [];
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const enemyCity = g.world.sites.filter(function (s) { return s.ownerFaction === 'yuan'; })[0];
+  lord.inCity = null;
+  lord.troops = { militia: 5 };
+  lord.defTroops = { militia: 100 };
+  lord.order = { type: 'siege', siteId: enemyCity.id, hold: false };
+  lord.moveTick = 1;
+  stateLib.moveLords(g);
+  ok('低兵领主会放弃围城军令', !lord.order && !lord.defending, 'order=' + JSON.stringify(lord.order));
+}
+{
+  // 逃遁比正常行军快，但只快约一半：4.5 时辰/格，而不是 3 时辰/格
+  const g = stateLib.createGame({ seed: 2026112513 });
+  g.parties = [];
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const home = g.world.sites.filter(function (s) { return s.id === lord.home; })[0];
+  lord.inCity = null; lord.order = null; lord.pauseUntil = 0; lord.moveTick = 0;
+  lord.engagedWith = null; lord.x = home.x + 5; lord.y = home.y;
+  lord.troops = { militia: 100 }; lord.defTroops = { militia: 100 };
+  lord.fleeing = true; lord.fleeTargetId = home.id; lord.fleePath = null;
+  stateLib.moveLords(g);
+  ok('逃遁步速略快于正常行军', lord.stepHours > 3 && lord.stepHours < 6, 'stepHours=' + lord.stepHours);
+}
+{
+  // 俘虏按天计时，刑期越久越容易逃；NPC 之间只俘不杀
+  const g = stateLib.createGame({ seed: 2026112514 });
+  const lord = g.lords.filter(function (l) { return l.id === 'jiling'; })[0];
+  warLib.capture(g, lord, 'bandit', '试刀匪');
+  const rec = g.prisoners.filter(function (p) { return p.lordId === lord.id; })[0];
+  const savedNext = g.rng.next;
+  g.rng.next = function () { return 0.99; };
+  warLib.prisonerTick(g);
+  ok('俘虏天数按天累加', rec.days === 1 && lord.prisoner.days === 1,
+    'rec=' + rec.days + ' lord=' + lord.prisoner.days);
+  g.rng.next = function () { return 0; };
+  rec.days = 10;
+  warLib.prisonerTick(g);
+  ok('关久了能按时间逃遁', lord.alive && !lord.prisoner, 'alive=' + lord.alive);
+  g.rng.next = savedNext;
+}
+{
+  // 交战对象被删掉后不能把领主钉死
+  const g = stateLib.createGame({ seed: 2026112515 });
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  lord.inCity = null; lord.engagedWith = 'party:ghost'; lord.engagedSinceH = 0;
+  stateLib.moveLords(g);
+  ok('失踪的交战对象会解除缠斗', !lord.engagedWith, 'engaged=' + lord.engagedWith);
+
+  const party = g.parties[0];
+  party.engagedWith = 'ghost_lord';
+  stateLib.moveParties(g);
+  ok('失踪的领主也会解除匪团缠斗', !party.engagedWith, 'engaged=' + party.engagedWith);
+}
+{
+  // 打完之后 party.scuffle 只是冷却，必须逐时辰消退：地图上的“交战中”才不会永远挂着
+  const g = stateLib.createGame({ seed: 2026112518 });
+  const party = g.parties.filter(function (q) { return q.faction === 'bandit' && !q.scripted; })[0];
+  party.engagedWith = null;
+  party.pauseUntil = 0;
+  party.scuffle = 2;
+  stateLib.moveParties(g);
+  ok('匪团战后余惊会消退，不会永远挂交战中', party.scuffle === 1, 'scuffle=' + party.scuffle);
+}
+{
+  // 外交提醒可以关，关了不弹军情；打开后恢复
+  const g = stateLib.createGame({ seed: 2026112516 });
+  g.campaign.stage = 2;
+  g.settings = { diplomacyAlerts: false };
+  const n0 = g.events.length;
+  warLib.declare(g, 'wei', 'shu', false);
+  ok('关闭战和提醒后不弹军情', g.events.length === n0, 'events=' + (g.events.length - n0));
+  g.settings.diplomacyAlerts = true;
+  warLib.declare(g, 'wu', 'shu', false);
+  ok('打开战和提醒后恢复弹窗', g.events.length > n0,
+    'events=' + (g.events.length - n0));
+
+  // 陈留歇满一天才开战
+  g.diplomacyStarted = false;
+  g.openingWarsDeclared = false;
+  g.factionWars = {};
+  g.player.atSiteId = 'chenliu';
+  const chenliu = g.world.sites.filter(function (s) { return s.id === 'chenliu'; })[0];
+  g.player.x = chenliu.x; g.player.y = chenliu.y;
+  g.chenliuArrivalH = stateLib.gameHours(g) - 25;
+  g.events.length = 0;
+  const started = stateLib.maybeStartDiplomacy(g);
+  ok('陈留歇满一天后诸侯开战', started && g.diplomacyStarted &&
+    Object.keys(g.factionWars).length >= 2, 'wars=' + Object.keys(g.factionWars).length);
+  ok('开局战书合成一条军情', g.events.filter(function (e) { return e.type === 'diplomacy'; }).length === 1,
+    'events=' + g.events.length);
+}
+{
+  // 主线任务卡能定位到当前章节
+  const g = stateLib.createGame({ seed: 2026112517 });
+  const pos = stateLib.campaignTargetPos(g);
+  const site = pos && g.world.sites.filter(function (s) { return s.id === pos.siteId; })[0];
+  ok('主线目标有地图落点', !!pos && pos.siteId === 'chenliu' && !!site, pos && pos.siteId);
 }
 
 /* ---------------------------------------------------------------- 收尾 */

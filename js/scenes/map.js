@@ -223,6 +223,9 @@ const MapScene = {
     app.follow = null;
     app.mapFree = false;
     app.siegePrompt = null;
+    if (app.questTrackCollapsed === undefined) {
+      app.questTrackCollapsed = !!(app.state && app.state.settings && app.state.settings.questTrackCollapsed);
+    }
     ensureCam(app);
     flows.process(app);
     if (app.state && app.state.player.atSiteId) {
@@ -1077,8 +1080,8 @@ function drawSites(ctx, app, cam, box, w) {
     const sprite = assets.site[site.type] || assets.site.village;
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
-    const fw = 12 * uiScale;
-    const fh = 14 * uiScale;
+    const fw = 19 * uiScale;
+    const fh = 22 * uiScale;
     const fx = sx + TS - fw - 4;
     const fy = sy + 4;
     // 势力旗：无主城围攻失败后，城头插一面“仇”字赤旗，和敌对城一个待遇
@@ -1087,7 +1090,7 @@ function drawSites(ctx, app, cam, box, w) {
       ctx.fillRect(fx, fy, fw, fh);
       ctx.fillStyle = 'rgba(255,235,210,0.8)';
       ctx.fillRect(fx, fy, fw, 2);
-      text(ctx, '仇', fx + fw / 2, fy + 2, { size: Math.round(13 * uiScale), align: 'center', color: '#fff' });
+      text(ctx, '仇', fx + fw / 2, fy + 2, { size: Math.round(16 * uiScale), align: 'center', color: '#fff' });
     } else if (site.ownerFaction) {
       const col = FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#8f8f86';
       ctx.fillStyle = col;
@@ -1095,7 +1098,7 @@ function drawSites(ctx, app, cam, box, w) {
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.fillRect(fx, fy, fw, 2);
       text(ctx, FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].banner : '?', fx + fw / 2, fy + 2, {
-        size: Math.round(13 * uiScale), align: 'center', color: '#fff',
+        size: Math.round(16 * uiScale), align: 'center', color: '#fff',
       });
     } else {
       ctx.fillStyle = '#6a655c';
@@ -1104,9 +1107,16 @@ function drawSites(ctx, app, cam, box, w) {
 
     // 围城标记：城下营寨连成圈，远远就看得见
     if (siege) {
+      const bw = 52 * uiScale;
+      const bh = 30 * uiScale;
       ctx.fillStyle = mySiege ? 'rgba(120,82,18,0.94)' : 'rgba(120,32,18,0.92)';
-      ctx.fillRect(sx + 4, sy + 4, 30 * uiScale, 20 * uiScale);
-      text(ctx, mySiege ? '我围' : '围城', sx + 19 * uiScale, sy + 6, { size: Math.round(13 * uiScale), align: 'center', color: '#ffe0a8' });
+      ctx.fillRect(sx + 5 * uiScale, sy + 5 * uiScale, bw, bh);
+      ctx.strokeStyle = '#f0c060';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx + 5 * uiScale, sy + 5 * uiScale, bw, bh);
+      text(ctx, mySiege ? '我围' : '围城', sx + 5 * uiScale + bw / 2, sy + 7 * uiScale, {
+        size: Math.round(20 * uiScale), align: 'center', color: '#ffe0a8',
+      });
     }
 
     // 名牌
@@ -1202,55 +1212,55 @@ function drawUnits(ctx, app, cam, box, w) {
       return;
     }
     const icon = assets.banditPartyFor(p.banditTier || 'qing', p.color);
-    const sz = (p.banditTier === 'hong' ? 70 : p.banditTier === 'cheng' ? 64 : 56) * z;
+    const sz = (p.banditTier === 'hong' ? 90 : p.banditTier === 'cheng' ? 82 : 72) * z;
     ctx.drawImage(icon, sx - sz / 2, sy - sz * 0.78, sz, sz);
 
     // 兵力小字：先看人数再决定上不上（拉远时省掉，免得糊成一团）
     const n = army.troopCount(p.troops || {});
-    if (n > 0 && z >= 0.9) {
-      text(ctx, String(n), sx + 16 * z, sy - 6 * z, {
-        size: Math.round(14 * z), color: p.color === '#4f8f6a' ? '#8fd0a8' : '#f0c9b0', shadow: true,
+    if (n > 0 && z >= 0.8) {
+      text(ctx, String(n), sx + 20 * z, sy - 8 * z, {
+        size: Math.round(19 * z), color: p.color === '#4f8f6a' ? '#8fd0a8' : '#f0c9b0', shadow: true,
       });
     }
     if (p.chasing) {
-      text(ctx, '!', sx, sy - 52 * z, { size: Math.round(20 * z), align: 'center', color: '#e05a42', shadow: true });
+      text(ctx, '!', sx, sy - 62 * z, { size: Math.round(24 * z), align: 'center', color: '#e05a42', shadow: true });
     }
     // 匪团的名号：跟领主一样挂在模型下面，一眼看清是谁
-    if (z >= 0.9) {
-      const nsz = Math.max(11, Math.round(14 * z));
+    if (z >= 0.8) {
+      const nsz = Math.max(12, Math.round(17 * z));
       ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(p.name).width;
       ctx.fillStyle = 'rgba(10,8,6,0.78)';
-      ctx.fillRect(sx - tw / 2 - 6, sy + 15 * z, tw + 12, nsz + 4);
-      text(ctx, p.name, sx, sy + 16 * z, {
+      ctx.fillRect(sx - tw / 2 - 7, sy + 18 * z, tw + 14, nsz + 5);
+      text(ctx, p.name, sx, sy + 19 * z, {
         size: nsz, align: 'center', color: '#f0c9b0',
       });
     }
     // 匪团的旗：一面"贼"字，跟领主的势力旗同样大小，全国地图上也认得出
-    const fw = 20 * z;
-    const fh = 22 * z;
-    const fx = sx + 12 * z;
-    const fy = sy - 34 * z;
+    const fw = 27 * z;
+    const fh = 30 * z;
+    const fx = sx + 16 * z;
+    const fy = sy - 44 * z;
     ctx.fillStyle = 'rgba(12,9,6,0.6)';
     ctx.fillRect(fx - 2 * z, fy - 2 * z, fw + 4 * z, fh + 4 * z);
     ctx.fillStyle = p.color || '#7a3a2a';
     ctx.fillRect(fx, fy, fw, fh);
     ctx.strokeStyle = 'rgba(255,240,210,0.45)';
-    ctx.lineWidth = Math.max(1, 1 * z);
+    ctx.lineWidth = Math.max(1, 1.2 * z);
     ctx.strokeRect(fx, fy, fw, fh);
-    text(ctx, '贼', fx + fw / 2, fy + 16 * z, {
-      size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
+    text(ctx, '贼', fx + fw / 2, fy + 3 * z, {
+      size: Math.max(13, Math.round(19 * z)), align: 'center', color: '#fff',
     });
 
-    if (p.engagedWith || p.scuffle > 0) {
-      ctx.fillStyle = 'rgba(220,80,50,0.85)';
-      ctx.fillRect(sx - 22 * z, sy - 58 * z, 44 * z, 16 * z);
-      text(ctx, '交战中', sx, sy - 57 * z, { size: Math.round(12 * z), align: 'center', color: '#fff' });
+    if (p.engagedWith) {
+      ctx.fillStyle = 'rgba(220,80,50,0.9)';
+      ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
+      text(ctx, '交战中', sx, sy - 76 * z, { size: Math.round(19 * z), align: 'center', color: '#fff' });
     }
     if (p.scripted) {
       ctx.fillStyle = 'rgba(200,60,40,0.9)';
-      ctx.fillRect(sx - 22 * z, sy - 76 * z, 44 * z, 16 * z);
-      text(ctx, '追兵', sx, sy - 75 * z, { size: Math.round(13 * z), align: 'center', color: '#fff' });
+      ctx.fillRect(sx - 32 * z, sy - 94 * z, 64 * z, 24 * z);
+      text(ctx, '追兵', sx, sy - 92 * z, { size: Math.round(17 * z), align: 'center', color: '#fff' });
     }
   });
 
@@ -1277,62 +1287,62 @@ function drawUnits(ctx, app, cam, box, w) {
     if (hostile) {
       ctx.fillStyle = 'rgba(180,60,45,0.85)';
       ctx.beginPath();
-      ctx.arc(sx, sy, 22 * z, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 28 * z, 0, Math.PI * 2);
       ctx.fill();
     }
     // 领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
     const look = lookFor(lord.id);
     const icon = assets.partyIconFor(col, look);
-    const isz = (lord.id === 'lvbu' ? 82 : look.big ? 74 : 68) * z;
+    const isz = (lord.id === 'lvbu' ? 122 : look.big ? 112 : 100) * z;
     ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
 
     // 势力简写：一面小旗，全国地图上也认得出是哪家的
     const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
-    const bw = 20 * z;
-    const bh = 22 * z;
-    const bxx = sx + 12 * z;
-    const byy = sy - 30 * z;
+    const bw = 28 * z;
+    const bh = 30 * z;
+    const bxx = sx + 16 * z;
+    const byy = sy - 42 * z;
     ctx.fillStyle = 'rgba(12,9,6,0.6)';
     ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;
     ctx.fillRect(bxx, byy, bw, bh);
     ctx.strokeStyle = 'rgba(255,240,210,0.55)';
-    ctx.lineWidth = Math.max(1, 1 * z);
+    ctx.lineWidth = Math.max(1, 1.2 * z);
     ctx.strokeRect(bxx, byy, bw, bh);
-    text(ctx, banner, bxx + bw / 2, byy + 16 * z, {
-      size: Math.max(12, Math.round(15 * z)), align: 'center', color: '#fff',
+    text(ctx, banner, bxx + bw / 2, byy + 3 * z, {
+      size: Math.max(13, Math.round(19 * z)), align: 'center', color: '#fff',
     });
 
-    const nsz = Math.max(11, Math.round(15 * z));
+    const nsz = Math.max(12, Math.round(18 * z));
     if (z >= 0.4) {
       ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(lord.name).width;
       ctx.fillStyle = 'rgba(10,8,6,0.75)';
-      ctx.fillRect(sx - tw / 2 - 6, sy + 18 * z, tw + 12, nsz + 5);
-      text(ctx, lord.name, sx, sy + 19 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
+      ctx.fillRect(sx - tw / 2 - 7, sy + 20 * z, tw + 14, nsz + 6);
+      text(ctx, lord.name, sx, sy + 21 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
     }
     // 拉近了才写兵力，远望只认旗
-    if (z >= 1.2) {
-      text(ctx, String(army.troopCount(lord.troops || {})), sx + 18 * z, sy - 46 * z, {
-        size: Math.max(11, Math.round(14 * z)), align: 'left', color: '#efe3c6', shadow: true,
+    if (z >= 0.9) {
+      text(ctx, String(army.troopCount(lord.troops || {})), sx + 24 * z, sy - 58 * z, {
+        size: Math.max(14, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
       });
     }
 
     if (lord.engagedWith) {
       ctx.fillStyle = 'rgba(220,80,50,0.9)';
-      ctx.fillRect(sx - 24 * z, sy - 58 * z, 48 * z, 16 * z);
-      text(ctx, '交战中', sx, sy - 57 * z, {
-        size: Math.round(12 * z), align: 'center', color: '#fff',
+      ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
+      text(ctx, '交战中', sx, sy - 76 * z, {
+        size: Math.round(19 * z), align: 'center', color: '#fff',
       });
     }
     if (lord.fleeing) {
-      ctx.fillStyle = 'rgba(60,42,18,0.88)';
-      ctx.fillRect(sx - 20 * z, sy - 57 * z, 40 * z, 16 * z);
-      text(ctx, '逃遁', sx, sy - 56 * z, {
-        size: Math.round(12 * z), align: 'center', color: '#ffd18a',
+      ctx.fillStyle = 'rgba(60,42,18,0.9)';
+      ctx.fillRect(sx - 32 * z, sy - 78 * z, 64 * z, 26 * z);
+      text(ctx, '逃遁', sx, sy - 76 * z, {
+        size: Math.round(18 * z), align: 'center', color: '#ffd18a',
       });
     } else if (lord.chasing) {
-      text(ctx, '!', sx, sy - 44 * z, { size: Math.round(22 * z), align: 'center', color: '#e05a42' });
+      text(ctx, '!', sx, sy - 54 * z, { size: Math.round(26 * z), align: 'center', color: '#e05a42' });
     }
   });
   ctx.restore();
@@ -1445,17 +1455,17 @@ function drawPlayerOnMap(ctx, app, cam, box) {
 
   pixel.drawPlayer(ctx, app.assets, sx, sy, TS, app.mapPhase || 0, p.facing || 1);
 
-  // 头顶旗标（跟着缩放一起变大变小）：自立后直接写国号一字
+  // 头顶旗标：模型放大后要吊在盔顶之上，别压在脸和胸甲上
   const country = p.country && p.country.name ? p.country : null;
   ctx.fillStyle = country ? country.color : '#d9a441';
   ctx.beginPath();
-  ctx.moveTo(sx - TS * 0.19, sy - TS * 0.81);
-  ctx.lineTo(sx + TS * 0.19, sy - TS * 0.81);
-  ctx.lineTo(sx, sy - TS * 0.625);
+  ctx.moveTo(sx - TS * 0.19, sy - TS * 1.64);
+  ctx.lineTo(sx + TS * 0.19, sy - TS * 1.64);
+  ctx.lineTo(sx, sy - TS * 1.44);
   ctx.closePath();
   ctx.fill();
-  text(ctx, country ? country.name : (p.banner ? '旗' : '我'), sx, sy - TS * 0.78, {
-    size: Math.max(10, Math.round(TS * 0.2)), align: 'center', color: '#2a1c08',
+  text(ctx, country ? country.name : (p.banner ? '旗' : '我'), sx, sy - TS * 1.6, {
+    size: Math.max(10, Math.round(TS * 0.18)), align: 'center', color: '#2a1c08',
   });
 }
 
@@ -1505,44 +1515,123 @@ function drawQuestMarkers(ctx, app, cam, box, w) {
   ctx.restore();
 }
 
-/** 左上角常驻任务卡：现在该干什么，点开能看详情 */
+/** 任务卡点一下：把镜头直接送到目标格 */
+function focusTaskTarget(app, target, label) {
+  if (!target) {
+    app.showToast('这个目标暂时不在图上。', 2.2);
+    return;
+  }
+  MapScene.focusOn(app, target.x, target.y, target.name || label || '');
+  app.showToast('已在地图上标出：' + (target.name || label || '任务目标'), 2.4);
+}
+
+/** 左上角常驻任务卡：只留一条主线 + 一条酒馆支线，可收起 */
 function drawQuestCard(ctx, app, box, w) {
   const st = app.state;
   const info = stateLib.campaignInfo(st);
   if (!info) return;
+  const activeSide = (st.quests || []).filter(function (q) { return q && !q.done && !q.failed; });
+  const side = activeSide[0] || null;
+  const collapsed = !!app.questTrackCollapsed;
 
-  const pw = Math.min(520, w - 20);
-  const ph = info.done ? 78 : 116;
+  const pw = Math.min(420, w - 20);
   const x = 10;
   const y = box.top + 10;
 
-  ctx.fillStyle = 'rgba(10,8,6,0.80)';
-  ctx.fillRect(x, y, pw, ph);
-  ctx.fillStyle = '#d9a441';
-  ctx.fillRect(x, y, 4, ph);
-  ctx.fillStyle = 'rgba(217,164,65,0.10)';
-  ctx.fillRect(x + 4, y, pw - 4, 26);
-
-  if (info.done) {
-    text(ctx, '主线已走完', x + 16, y + 8, { size: 17, color: '#8fbf7a' });
-    text(ctx, '剩下的是占地与写史', x + 16, y + 38, { size: 15, color: '#a2947a' });
-    app.ui.rect('quest_card', x, y, pw, ph, function () { app.push('journal'); });
+  if (collapsed) {
+    const cw = Math.min(190, pw);
+    const ch = 38;
+    ctx.fillStyle = 'rgba(10,8,6,0.84)';
+    ctx.fillRect(x, y, cw, ch);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(x, y, 4, ch);
+    text(ctx, '任务追踪', x + 14, y + 8, { size: 17, color: '#f0c060' });
+    text(ctx, '▸', x + cw - 22, y + 7, { size: 18, color: '#a2947a' });
+    app.ui.rect('quest_toggle', x, y, cw, ch, function () {
+      app.questTrackCollapsed = false;
+      if (st.settings) st.settings.questTrackCollapsed = false;
+    });
     return;
   }
 
-  text(ctx, '主线 · 第 ' + (info.index + 1) + '/' + info.total + ' 章', x + 16, y + 4, {
-    size: 16, color: '#a2947a',
-  });
-  const tl = wrap(ctx, info.title, pw - 130, 20, 'bold')[0] || '';
-  text(ctx, tl, x + 16, y + 28, { size: 20, color: '#f0c060' });
+  const headerH = 34;
+  const mainH = 78;
+  const sideH = side ? 68 : 42;
+  const ph = headerH + mainH + sideH + 8;
 
-  const hintLine = wrap(ctx, info.hint, pw - 44, 16).slice(0, 2);
-  hintLine.forEach(function (ln, i) {
-    text(ctx, ln, x + 16, y + 60 + i * 24, { size: 16, color: i === 0 ? '#efe3c6' : '#a2947a' });
+  ctx.fillStyle = 'rgba(10,8,6,0.84)';
+  ctx.fillRect(x, y, pw, ph);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(x, y, 4, ph);
+  ctx.fillStyle = 'rgba(217,164,65,0.12)';
+  ctx.fillRect(x + 4, y, pw - 4, headerH);
+
+  text(ctx, '任务追踪', x + 14, y + 7, { size: 17, color: '#f0c060' });
+  text(ctx, '▾ 收起', x + pw - 12, y + 8, { size: 14, align: 'right', color: '#a2947a' });
+  app.ui.rect('quest_toggle', x, y, pw, headerH, function () {
+    app.questTrackCollapsed = true;
+    if (st.settings) st.settings.questTrackCollapsed = true;
   });
 
-  text(ctx, '点开看任务', x + pw - 14, y + 6, { size: 14, align: 'right', color: '#8a8070' });
-  app.ui.rect('quest_card', x, y, pw, ph, function () { app.push('journal'); });
+  let ry = y + headerH + 4;
+  // 主线：只显示当前这一章，不再把整条主线摊开
+  const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
+  const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
+  ctx.fillStyle = 'rgba(38,29,18,0.72)';
+  ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(x + 8, ry, 3, mainH - 4);
+  text(ctx, '主线', x + 18, ry + 5, { size: 13, color: '#8a8070' });
+  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 19)[0] || mainTitle;
+  text(ctx, mainTitleLine, x + 18, ry + 20, { size: 19, color: '#f0c060' });
+  const mainLines = wrap(ctx, mainHint, pw - 52, 14).slice(0, 2);
+  mainLines.forEach(function (ln, i) {
+    text(ctx, ln, x + 18, ry + 46 + i * 18, { size: 14, color: '#c9bda2' });
+  });
+  text(ctx, '定位 ▸', x + pw - 18, ry + 6, { size: 12, align: 'right', color: '#8a8070' });
+  app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
+    const target = stateLib.campaignTargetPos(st);
+    if (target) focusTaskTarget(app, target, '主线目标');
+    else app.push('journal');
+  });
+
+  ry += mainH;
+  // 支线：只收一条酒馆差事，点一下把镜头送到目标
+  const sideHint = side
+    ? (side.type === 'hunt' ? '去地图上找到目标队伍并打散' :
+      side.type === 'scout' ? '去目标贼巢门口探查' : '把粮草送到' + (side.siteName || '目标城'))
+    : '';
+  ctx.fillStyle = 'rgba(26,23,17,0.72)';
+  ctx.fillRect(x + 8, ry, pw - 16, sideH - 4);
+  ctx.fillStyle = '#7fa4c8';
+  ctx.fillRect(x + 8, ry, 3, sideH - 4);
+  text(ctx, '支线 · 酒馆', x + 18, ry + 4, { size: 13, color: '#8a8070' });
+  if (side) {
+    text(ctx, side.title, x + 18, ry + 18, { size: 17, color: '#efe3c6' });
+    text(ctx, sideHint, x + 18, ry + 42, { size: 13, color: '#a2947a' });
+  } else {
+    text(ctx, '暂无差事 · 去陈留酒馆接一桩', x + 18, ry + 18, {
+      size: 15, color: '#8a8070',
+    });
+  }
+  if (activeSide.length > 1) {
+    text(ctx, '另有 ' + (activeSide.length - 1) + ' 件', x + pw - 18, ry + 4, {
+      size: 12, align: 'right', color: '#8a8070',
+    });
+  }
+  app.ui.rect('quest_side', x + 8, ry, pw - 16, sideH - 4, function () {
+    if (!side) {
+      app.showToast('去酒馆打听一桩事，支线才会挂在这里。', 2.4);
+      return;
+    }
+    const target = stateLib.questTargetPos(st, side);
+    if (target) {
+      app.mapQuestFocus = side.id;
+      focusTaskTarget(app, target, side.title);
+    } else {
+      app.showToast(side.failed ? (side.failReason || '目标已被清剿') : '这个目标暂时不在图上。', 2.4);
+    }
+  });
 }
 
 function drawRegionTag(ctx, app, box, w) {
@@ -1622,7 +1711,7 @@ function drawTop(ctx, app, w) {
   items.forEach(function (it, i) {
     const x = 16 + i * cw;
     text(ctx, it.k, x, 72, { size: 13, color: '#8a8070' });
-    text(ctx, String(it.v), x, 92, { size: 17, color: it.c });
+    text(ctx, String(it.v), x, 92, { size: 20, color: it.c });
   });
 
   if (foodShort) {

@@ -179,6 +179,16 @@ const CampScene = {
         onTap: function () { this.foreignScroll = 0; this.view = 'foreign'; }.bind(this),
       },
       {
+        label: '战和提醒 · ' + (stateLib.diplomacyAlertsEnabled(st) ? '开' : '关'),
+        sub: stateLib.diplomacyAlertsEnabled(st) ? '诸侯宣战、议和会弹军情' : '所有战和消息都不再弹出',
+        hint: '点一下切换 · 只影响提醒',
+        onTap: function () {
+          st.settings = st.settings || {};
+          st.settings.diplomacyAlerts = !stateLib.diplomacyAlertsEnabled(st);
+          app.showToast(st.settings.diplomacyAlerts ? '战和提醒已开启。' : '战和提醒已关闭，军情只记在史册里。', 2);
+        },
+      },
+      {
         label: '招降俘虏', sub: mine.length ? '牢里捆着 ' + mine.length + ' 位领主' : '牢里暂时空着',
         hint: mine.length ? '无旗必拒 · 城多则服' : '打赢一位领主，才有人可招',
         disabled: !mine.length,
@@ -204,20 +214,25 @@ const CampScene = {
 
     const rowGap = 6;
     const buttonY = h - 78;
-    const rowH = Math.max(58, Math.min(78,
+    const rowH = Math.max(44, Math.min(78,
       Math.floor((buttonY - 194 - 28 - rowGap * (rows.length - 1)) / rows.length)));
     let y = 194;
     rows.forEach(function (r, i) {
       app.ui.button(ctx, PAD, y, w - PAD * 2, rowH, '', {
         id: 'camp_' + i, disabled: r.disabled, fill: 'rgba(38,29,20,0.9)', onTap: r.onTap,
       });
-      text(ctx, r.label, PAD + 20, y + 8, {
-        size: rowH >= 72 ? 23 : 20, color: r.disabled ? '#6a6050' : '#f0c060',
+      const titleSize = rowH >= 72 ? 23 : rowH >= 58 ? 20 : 18;
+      text(ctx, r.label, PAD + 20, y + 7, {
+        size: titleSize, color: r.disabled ? '#6a6050' : '#f0c060',
       });
-      text(ctx, r.sub, PAD + 20, y + 33, { size: 14, color: '#c9bda2' });
-      text(ctx, r.hint, w - PAD - 20, y + 53, {
-        size: 12, align: 'right', color: '#8a8070',
+      text(ctx, r.sub, PAD + 20, y + (rowH >= 58 ? 31 : 30), {
+        size: rowH >= 58 ? 14 : 13, color: '#c9bda2',
       });
+      if (rowH >= 58) {
+        text(ctx, r.hint, w - PAD - 20, y + rowH - 20, {
+          size: 12, align: 'right', color: '#8a8070',
+        });
+      }
       y += rowH + rowGap;
     });
 
