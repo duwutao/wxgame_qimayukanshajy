@@ -286,6 +286,8 @@ const ROADS = [
   ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['tianshui', 'hanzhong'], ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
+  // 陈留—小沛驿道：曹吕前线不能只隔着一片农田对望，有路才走得过去、攻得起来。
+  ['chenliu', 'xiaopei'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
   ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],

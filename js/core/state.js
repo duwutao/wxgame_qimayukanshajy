@@ -6623,6 +6623,10 @@ function deserialize(json) {
     arc: data.arc || null,
     battle: null,
   };
+  // n16 旧档补路：陈留到小沛以前没有道路，曹吕两军只能隔着农田对望。
+  // 新开局由 ROADS 铺好；旧档在这里补一次，重复铺也不会改坏已有桥/山口。
+  layRoads(state.world, [['chenliu', 'xiaopei']]);
+  state.world.factionGrid = null;
   state.player.country = state.player.country || null;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;

@@ -913,6 +913,8 @@ const ROADS = [
   ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['tianshui', 'hanzhong'], ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
+  // 陈留—小沛驿道：曹吕前线不能只隔着一片农田对望，有路才走得过去、攻得起来。
+  ['chenliu', 'xiaopei'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
   ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
@@ -14859,6 +14861,10 @@ function deserialize(json) {
     arc: data.arc || null,
     battle: null,
   };
+  // n16 旧档补路：陈留到小沛以前没有道路，曹吕两军只能隔着农田对望。
+  // 新开局由 ROADS 铺好；旧档在这里补一次，重复铺也不会改坏已有桥/山口。
+  layRoads(state.world, [['chenliu', 'xiaopei']]);
+  state.world.factionGrid = null;
   state.player.country = state.player.country || null;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;

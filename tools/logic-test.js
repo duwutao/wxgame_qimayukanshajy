@@ -7,6 +7,7 @@ const path = require('path');
 const R = path.join(__dirname, '..', 'js');
 
 const worldLib = require(R + '/core/world.js');
+const warLib = require(R + '/core/war.js');
 const stateLib = require(R + '/core/state.js');
 const armyLib = require(R + '/core/army.js');
 const economy = require(R + '/core/economy.js');
@@ -112,6 +113,37 @@ world.sites.forEach(function (s) {
   if (!reach[worldLib.idx(s.x, s.y)]) unreachable.push(s.id);
 });
 ok('所有据点可达', unreachable.length === 0, unreachable.join(','));
+
+const clRoad = worldLib.siteById(world, 'chenliu');
+const xpRoad = worldLib.siteById(world, 'xiaopei');
+ok('陈留—小沛之间铺出连续驿道', clRoad && xpRoad && (function () {
+  for (let x = clRoad.x + 1; x < xpRoad.x; x++) {
+    const t = world.tiles[xpRoad.y * world.w + x];
+    if (!(t === 'road' || t === 'bridge' || t === 'pass')) return false;
+  }
+  return true;
+})(), clRoad && xpRoad ? clRoad.x + ',' + clRoad.y + ' -> ' + xpRoad.x + ',' + xpRoad.y : 'missing');
+ok('陈留到小沛有直接可走路径', !!(clRoad && xpRoad && worldLib.findPath(world,
+  { x: clRoad.x, y: clRoad.y }, { x: xpRoad.x, y: xpRoad.y })), 'no path');
+const roadState = stateLib.createGame({ seed: 2026112516 });
+ok('陈留—小沛道路让魏吕接壤', warLib.factionsAdjacent(roadState, 'wei', 'lv'), 'not adjacent');
+warLib.startDiplomacy(roadState);
+ok('曹吕宣战后可沿路攻小沛', warLib.canSiegeSiteFromFaction(roadState, 'wei', xpRoad).ok === true,
+  JSON.stringify(warLib.canSiegeSiteFromFaction(roadState, 'wei', xpRoad)));
+const roadSave = JSON.parse(stateLib.serialize(roadState));
+const oldCl = roadSave.world.sites.filter(function (s) { return s.id === 'chenliu'; })[0];
+const oldXp = roadSave.world.sites.filter(function (s) { return s.id === 'xiaopei'; })[0];
+for (let x = oldCl.x + 1; x < oldXp.x; x++) {
+  roadSave.world.tiles[oldXp.y * roadSave.world.w + x] = 'farm';
+}
+const loadedRoad = stateLib.deserialize(roadSave);
+ok('旧档读入时补回陈留—小沛路', !!loadedRoad && (function () {
+  for (let x = oldCl.x + 1; x < oldXp.x; x++) {
+    const t = loadedRoad.world.tiles[oldXp.y * loadedRoad.world.w + x];
+    if (!(t === 'road' || t === 'bridge' || t === 'pass')) return false;
+  }
+  return true;
+})(), 'old save road repair failed');
 
 /* ---------------------------------------------------------------- 开局 */
 
@@ -744,7 +776,6 @@ ok('读档后可以行走', walkOk);
 /* ---------------------------------------------------------------- 国战 */
 
 group('国战与俘虏');
-const warLib = require(R + '/core/war.js');
 const st7 = stateLib.createGame({ seed: 777001 });
 st7.events.length = 0;
 warLib.init(st7);
