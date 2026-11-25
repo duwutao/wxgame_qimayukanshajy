@@ -2517,6 +2517,8 @@ function resolveBattle(state, battle) {
         }
       });
       p.troops = deepCopy(battle.a.troops);
+      summary.remainA = battle.remainA();
+      summary.rollBack = put;
       pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
     }
   }

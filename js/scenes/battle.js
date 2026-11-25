@@ -398,7 +398,7 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
-  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已记下，战后结算' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
 
   if (pending) {
     panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
