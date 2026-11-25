@@ -34,3 +34,4 @@ jobs:
           git add -A
           git commit -m 'release: 20261125n 点兵三国·峡谷桥面·劫匪州分布·三国上限 [skip ci]'
           git push origin HEAD:main
+# trigger 20261125n
