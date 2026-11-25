@@ -2944,7 +2944,26 @@ function moveLords(state, slot) {
         if (lord.order.hold && od <= 1) return;
         lord.moveTick = (lord.moveTick || 0) + 1;
         if (lord.moveTick % 2 !== 0) return;
-        const orderStep = greedyStep(state, lord, { x: orderSite.x, y: orderSite.y });
+        const orderTarget = { x: orderSite.x, y: orderSite.y, siteId: orderSite.id };
+        const orderSig = orderTarget.x + ',' + orderTarget.y;
+        if (lord.orderPathFor !== orderSig || !lord.orderPath) {
+          lord.orderPath = patrolPathTo(state, lord, orderTarget);
+          lord.orderPathFor = orderSig;
+        }
+        let orderStep = null;
+        if (lord.orderPath && lord.orderPath.length) {
+          const next = lord.orderPath[0];
+          if (!siteAt(state.world, next.x, next.y) &&
+              !unitOccupies(state, lord, next.x, next.y) &&
+              isPassable(state.world, next.x, next.y)) {
+            orderStep = lord.orderPath.shift();
+          } else {
+            lord.orderPath = null;
+            lord.orderPathFor = null;
+          }
+        }
+        // 绕不过去时再退回贪心；贪心本身也不会踩进任意据点格。
+        if (!orderStep) orderStep = greedyStep(state, lord, orderTarget);
         if (orderStep) stepUnitTo(state, lord, orderStep, NPC_STEP_HOURS * 2);
         return;
       }
@@ -3036,6 +3055,7 @@ function moveLords(state, slot) {
     if (lord.moveTick % stride !== 0) return;
     if (!target) return;
     let step = null;
+    let routeBlocked = false;
     // 逃遁也走 BFS，避免沿河岸或城角一步贪心来回打转。
     if (lord.fleeing && target && target.siteId) {
       const sig = target.siteId + ':' + target.x + ',' + target.y;
@@ -3069,10 +3089,35 @@ function moveLords(state, slot) {
         }
       }
     }
-    if (!step) step = greedyStep(state, lord, target);
+    // 追人、回城、逃遁等所有目标都先走一次绕据点距离场：
+    // 城池/关隘/村庄一律不可穿，队伍会从城外绕过去，不再顶在城门口。
+    if (!step && target) {
+      const routeSig = target.x + ',' + target.y;
+      if (lord.routePathFor !== routeSig || !lord.routePath) {
+        lord.routePath = patrolPathTo(state, lord, target);
+        lord.routePathFor = routeSig;
+      }
+      if (lord.routePath && lord.routePath.length) {
+        const next = lord.routePath[0];
+        if (!siteAt(state.world, next.x, next.y) &&
+            isPassable(state.world, next.x, next.y)) {
+          if (!unitOccupies(state, lord, next.x, next.y)) {
+            step = lord.routePath.shift();
+          } else {
+            // 前面被别的队伍堵住：保留路线原地等一拍，别反复重算/绕小圈。
+            routeBlocked = true;
+          }
+        } else {
+          lord.routePath = null;
+          lord.routePathFor = null;
+        }
+      }
+    }
+    // 路线被堵时不要退化到贪心；否则会在城门口来回横跳，队伍越堆越死。
+    if (!step && !routeBlocked) step = greedyStep(state, lord, target);
     if (step) {
       stepUnitTo(state, lord, step, travelHours);
-    } else if (target === lord.wander) {
+    } else if (target === lord.wander && !routeBlocked) {
       // 前面被别的队伍堵住：跳过这个巡逻落脚点，别在一格上反复撞。
       advancePatrolLeg(state, lord);
       lord.wander = patrolTargetFor(state, lord);

@@ -2383,6 +2383,37 @@ group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
   ok('巡游一天后匪团仍离城镇不远', cityBad.length === 0, cityBad.slice(0, 5).join(','));
 }
 
+{
+  // 领主横穿别国城池时不能顶在城门口：应沿城池外围绕过去。
+  const g = stateLib.createGame({ seed: 2026112546 });
+  const city = g.world.sites.find(function (s) { return s.id === 'xuchang'; });
+  let lord = g.lords.find(function (l) { return l.faction === 'biao' && !l.inCity && l.alive; });
+  if (!city || !lord) {
+    ok('领主会绕开他国城池', false, 'setup missing');
+  } else {
+    lord.x = city.x - 6;
+    lord.y = city.y;
+    lord.inCity = null;
+    lord.order = null;
+    lord.wander = { x: city.x + 6, y: city.y };
+    lord.patrolPath = null;
+    lord.routePath = null;
+    lord.moveTick = 0;
+    g.player.x = city.x + 35;
+    g.player.y = city.y + 35;
+    g.lords = [lord];
+    g.parties = [];
+    let touchedSite = false;
+    for (let h = 0; h < 30; h++) {
+      stateLib.advanceTime(g, 6);
+      stateLib.moveLords(g);
+      if (worldLib.siteAt(g.world, lord.x, lord.y)) touchedSite = true;
+    }
+    ok('领主会绕开他国城池', !touchedSite && lord.x > city.x && lord.y !== city.y,
+      'x=' + lord.x + ' y=' + lord.y + ' city=' + city.x + ',' + city.y + ' touched=' + touchedSite);
+  }
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
