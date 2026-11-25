@@ -1,0 +1,40 @@
+name: n18 release
+on:
+  push:
+    paths:
+      - '.github/workflows/n18-release.yml'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n18 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/n18-src.patch 'https://aka.doubaocdn.com/s/w8ELj61q1V'
+          git apply --check /tmp/n18-src.patch
+          git apply /tmp/n18-src.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Commit release
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n18 征战汉末 · 北方三势力与南蛮扩图 [skip ci]'
+          git push origin HEAD:main
