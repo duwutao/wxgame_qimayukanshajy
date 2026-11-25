@@ -2659,6 +2659,8 @@ group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
     weakGuard.order = { type: 'defend', siteId: city.id };
     g.lords = [weakGuard, strongGuard];
     warLib.fieldTick(g);
+    g.clock.hour = (g.clock.hour + 3) % 24;
+    warLib.fieldTick(g);
     ok('守城豁免在野战层也禁止后撤',
       armyLib.troopCount(weakGuard.troops) < weakBeforeGuard,
       'troops=' + armyLib.troopCount(weakGuard.troops));
@@ -2667,6 +2669,8 @@ group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
     const strongAlly = fieldLord('n6-field-ally-strong', 'shu', 100, 51, 50);
     const allyField = fieldLord('n6-field-friend', 'wei', 20, 48, 50);
     g.lords = [weakAlly, allyField, strongAlly];
+    warLib.fieldTick(g);
+    g.clock.hour = (g.clock.hour + 3) % 24;
     warLib.fieldTick(g);
     ok('盟友豁免在野战层也禁止后撤',
       armyLib.troopCount(weakAlly.troops) < 20,
@@ -2753,8 +2757,10 @@ group('n7 版：城下暂停 · 假交战 · 入川 · 国别战力');
     warLib.factionEdge('wei', 'wu') === 1);
   ok('蜀吴对普通势力各有加成', warLib.factionEdge('shu', 'zhang') > 1 &&
     warLib.factionEdge('wu', 'yuanshu') > 1);
-  ok('国别表明确', FACTION_COMBAT.wei.power === 1.5 && FACTION_COMBAT.shu.power === 1.35 &&
-    FACTION_COMBAT.wu.power === 1.3);
+  ok('国别表明确', FACTION_COMBAT.wei.power === 1.5 && FACTION_COMBAT.shu.power === 1.5 &&
+    FACTION_COMBAT.wu.power === 1.5 &&
+    FACTION_COMBAT.wei.neutral.indexOf('shu') >= 0 &&
+    FACTION_COMBAT.shu.neutral.indexOf('wu') >= 0);
 
   const g = stateLib.createGame({ seed: 2026112554 });
   function clashLord(id, faction, n, x) {
@@ -2777,6 +2783,116 @@ group('n7 版：城下暂停 · 假交战 · 入川 · 国别战力');
     'lostWei=' + lostWei + ' lostZhang=' + lostZhang);
 }
 
+
+/* ---------------------------------------------------------------- n8 版：两层对碰 · 五格合战 · NPC 动态战场 */
+
+group('n8 版：两层对碰 · 五格合战 · NPC 动态战场');
+{
+  ok('t1 两兵与 t2 一兵等权', warLib.tierForce({ militia: 2 }) === warLib.tierForce({ spear: 1 }),
+    't1x2=' + warLib.tierForce({ militia: 2 }) + ' t2x1=' + warLib.tierForce({ spear: 1 }));
+  ok('兵种每升一级翻一倍，t5 也连续',
+    warLib.tierPower(1) === 1 && warLib.tierPower(2) === 2 &&
+    warLib.tierPower(3) === 4 && warLib.tierPower(4) === 8 && warLib.tierPower(5) === 16,
+    [1, 2, 3, 4, 5].map(function (n) { return warLib.tierPower(n); }).join(','));
+  const scaled = warLib.scaleTroopsTo({ militia: 7, spear: 5 }, 6);
+  ok('分摊伤亡不会凭空多出兵', armyLib.troopCount(scaled) === 6,
+    JSON.stringify(scaled));
+}
+{
+  function testLord(id, faction, n, x, y) {
+    return {
+      id: id, name: id, faction: faction, alive: true, dead: false, retired: false,
+      x: x, y: y, home: null, level: 3, morale: 75, troops: { militia: n },
+      inCity: null, prisoner: null, fieldBattleId: null, engagedWith: null,
+    };
+  }
+  const g = stateLib.createGame({ seed: 2026112591 });
+  g.player.x = 50; g.player.y = 50;
+  g.player.faction = 'wei'; g.player.troops = { militia: 300, spear: 80 };
+  g.player.morale = 85; g.player.atSiteId = null; g.player.route = [];
+  g.parties = [];
+  g.wars = {}; g.factionWars = {};
+  const ally = testLord('n8-ally', 'wei', 40, 49, 51);
+  const foe = testLord('n8-foe', 'shu', 30, 52, 50);
+  const foeAlly = testLord('n8-foe-ally', 'shu', 20, 53, 51);
+  g.lords = [ally, foe, foeAlly];
+  warLib.declare(g, 'wei', 'shu');
+  const playerStart = armyLib.troopCount(g.player.troops);
+  const battle = stateLib.startLordBattle(g, foe);
+  ok('玩家开战会带上五格内友军',
+    !!battle && battle.a.contingents.length >= 2 &&
+    battle.a.contingents.some(function (c) { return c.name === 'n8-ally军'; }),
+    battle ? JSON.stringify(battle.a.contingents.map(function (c) { return c.name + ':' + c.count; })) : 'no battle');
+  ok('五格内敌军也会加入对方阵线',
+    !!battle && battle.b.contingents.some(function (c) { return c.name === 'n8-foe-ally军'; }),
+    battle ? JSON.stringify(battle.b.contingents.map(function (c) { return c.name + ':' + c.count; })) : 'no battle');
+  let guard = 0;
+  while (battle && !battle.finished && guard++ < 20) {
+    if (battle.batchDone) battle.nextBatch();
+    for (let i = 0; i < 12 && !battle.finished; i++) battle.step();
+  }
+  if (battle) stateLib.resolveBattle(g, battle);
+  const playerAfter = armyLib.troopCount(g.player.troops);
+  ok('玩家战后只拿走自己那队的兵，不吞并盟军',
+    playerAfter > 0 && playerAfter < playerStart + 40 &&
+    armyLib.troopCount(ally.troops) > 0,
+    'player=' + playerAfter + ' ally=' + armyLib.troopCount(ally.troops));
+  ok('玩家合战结束后战场清空、参战者解锁',
+    g.fieldBattles.length === 0 && !g.player.fieldBattleId &&
+    !ally.fieldBattleId && !foe.fieldBattleId,
+    'fields=' + g.fieldBattles.length);
+
+  // 同一套状态换一场 NPC 对 NPC：开局只有原始两方，战中邻近队伍才加入。
+  const g2 = stateLib.createGame({ seed: 2026112592 });
+  g2.player.x = 10; g2.player.y = 10; g2.player.route = [];
+  g2.parties = []; g2.fieldBattles = []; g2.fieldBattleSeq = 1; g2.factionWars = {};
+  const a = testLord('n8-a', 'wei', 100, 50, 50);
+  const b = testLord('n8-b', 'shu', 100, 51, 50);
+  const c = testLord('n8-c', 'wei', 30, 49, 51);
+  const d = testLord('n8-d', 'shu', 20, 52, 51);
+  g2.lords = [a, b, c, d];
+  warLib.declare(g2, 'wei', 'shu');
+  const bf = warLib.createFieldBattle(g2, { kind: 'lord', id: 'n8-a' },
+    { kind: 'lord', id: 'n8-b' }, { preAggregate: false, context: { kind: 'field' } });
+  ok('NPC 对 NPC 开局不预先聚合', !!bf && bf.participants.length === 2 &&
+    !c.fieldBattleId && !d.fieldBattleId,
+    bf ? 'participants=' + bf.participants.length : 'no field');
+  const added = warLib.addNearbyToFieldBattle(g2, bf, { npc: true });
+  ok('NPC 战场阶段五格内友军/敌军可动态加入', added === 2 &&
+    bf.battle.a.contingents.length === 2 && bf.battle.b.contingents.length === 2,
+    'added=' + added + ' a=' + bf.battle.a.contingents.length + ' b=' + bf.battle.b.contingents.length);
+  // 真正由每 3 时辰的 NPC 野战 tick 生成战场，而不是手工 create：首拍只有两方。
+  const g3 = stateLib.createGame({ seed: 2026112593 });
+  g3.player.x = 10; g3.player.y = 10; g3.player.route = [];
+  g3.parties = []; g3.fieldBattles = []; g3.fieldBattleSeq = 1; g3.factionWars = {};
+  const aa = testLord('n8-tick-a', 'wei', 5000, 50, 50);
+  const bb = testLord('n8-tick-b', 'shu', 5000, 51, 50);
+  const cc = testLord('n8-tick-c', 'wei', 600, 49, 51);
+  const dd = testLord('n8-tick-d', 'shu', 600, 52, 51);
+  g3.lords = [aa, bb, cc, dd];
+  warLib.declare(g3, 'wei', 'shu');
+  warLib.fieldTick(g3);
+  const live = g3.fieldBattles[0];
+  ok('NPC 野战 tick 会生成战场且首拍只有原始两方',
+    !!live && live.participants.length === 2 &&
+    !cc.fieldBattleId && !dd.fieldBattleId,
+    live ? 'participants=' + live.participants.length : 'no battle');
+  if (live) {
+    g3.clock.hour = (g3.clock.hour + 3) % 24;
+    warLib.tickFieldBattles(g3);
+    ok('战场进入下一拍后五格内 NPC 动态加入',
+      live.participants.length >= 3,
+      'participants=' + live.participants.length);
+    live.battle.finish('draw');
+    warLib.settleFieldBattle(g3, live, live.battle.summary(), {});
+  }
+  bf.battle.finish('draw');
+  warLib.settleFieldBattle(g2, bf, bf.battle.summary(), {});
+  ok('NPC 战场结算后所有人解锁，不永久卡死',
+    g2.fieldBattles.length === 0 && !a.fieldBattleId && !b.fieldBattleId &&
+    !c.fieldBattleId && !d.fieldBattleId,
+    'fields=' + g2.fieldBattles.length);
+}
 
 /* ---------------------------------------------------------------- 收尾 */
 

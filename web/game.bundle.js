@@ -996,9 +996,9 @@ const FACTIONS = {
  * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
  */
 const FACTION_COMBAT = {
-  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对非蜀吴势力 2 兵抵 3 兵' },
-  shu: { power: 1.35, neutral: ['wei', 'wu'], note: '刘备军：对非魏吴势力略占上风' },
-  wu: { power: 1.3, neutral: ['wei', 'shu'], note: '孙权军：对非魏蜀势力略占上风' },
+  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
+  shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
+  wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
 };
 
 /**
@@ -5000,6 +5000,427 @@ module.exports = {
 
   };
 
+  /* js/core/battle.js */
+  __defs[16] = function (module, exports, __require) {
+/**
+ * 战斗层：回合制战术结算 + 天机简
+ * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
+ * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
+ */
+
+const { TROOPS } = __require(10);
+const { HISTORY_MARKS } = __require(5);
+const { troopCount, strength, distributeLosses } = __require(9);
+
+const TACTICS = {
+  assault: {
+    id: 'assault', name: '全军冲锋', atk: 1.28, def: 0.85,
+    desc: '攻击 +28%，防御 -15%。骑兵越多越赚。',
+  },
+  hold: {
+    id: 'hold', name: '结阵固守', atk: 0.9, def: 1.35,
+    desc: '防御 +35%。枪盾多时能顶住骑兵。',
+  },
+  flank: {
+    id: 'flank', name: '骑兵包抄', atk: 1.1, def: 1.0,
+    desc: '骑兵超过 12% 时，攻击额外 +35%。',
+  },
+  skirmish: {
+    id: 'skirmish', name: '弓弩先射', atk: 1.15, def: 0.95,
+    desc: '远程超过 15% 时，开局多一轮齐射。',
+  },
+};
+
+const TACTIC_LIST = ['assault', 'hold', 'flank', 'skirmish'];
+/** 每 12 轮为一“阵”。一阵打完不分胜负就继续下一阵，直到一方兵力归零。 */
+const MAX_ROUNDS = 12;
+
+function clamp(v, min, max) {
+  return v < min ? min : v > max ? max : v;
+}
+
+function moraleFactor(morale) {
+  const m = clamp(typeof morale === 'number' ? morale : 60, 0, 100);
+  const base = 0.75 + (m / 100) * 0.35;
+  return m < 30 ? base * 0.8 : base;
+}
+
+function tierPower(tier) {
+  const t = Math.max(1, Math.min(5, Math.round(tier || 1)));
+  return Math.pow(2, t - 1);
+}
+
+/** 兵种层级：t1=1、t2=2、t3=4、t4=8、t5=16；同级 1:1，每升一级 2:1 */
+function tierFactor(troops) {
+  let power = 0;
+  let count = 0;
+  Object.keys(troops || {}).forEach(function (id) {
+    const t = TROOPS[id];
+    const c = troops[id] || 0;
+    if (c <= 0) return;
+    power += tierPower(t ? t.tier : 1) * c;
+    count += c;
+  });
+  return count > 0 ? power / count : 1;
+}
+
+function makeSide(unit) {
+  const troops = {};
+  Object.keys(unit.troops || {}).forEach(function (id) {
+    const c = unit.troops[id] || 0;
+    if (c > 0) troops[id] = c;
+  });
+  const factionEdge = typeof unit.edge === 'number' ? unit.edge : 1;
+  return {
+    name: unit.name || '无名之师',
+    faction: unit.faction || null,
+    troops,
+    morale: typeof unit.morale === 'number' ? unit.morale : 60,
+    atkPct: unit.atkPct || 0,
+    defPct: unit.defPct || 0,
+    isPlayer: !!unit.isPlayer,
+    edge: factionEdge,
+    tierFactor: tierFactor(troops),
+    combatEdge: factionEdge * tierFactor(troops),
+    contingents: Array.isArray(unit.contingents) ? unit.contingents : [],
+    coalitionNames: unit.coalitionNames || '',
+    initialTroops: JSON.parse(JSON.stringify(troops)),
+    initialCount: troopCount(troops),
+    lastCount: troopCount(troops),
+  };
+}
+
+function offenseOf(side, st, tactic) {
+  let atk = st.atk * moraleFactor(side.morale) * tactic.atk * (1 + side.atkPct);
+  if (tactic.id === 'flank') atk *= st.cavRatio > 0.12 ? 1.35 : 1.05;
+  if (tactic.id === 'assault') atk *= 1 + st.cavRatio * 0.3;
+  if (tactic.id === 'skirmish' && st.rangedRatio > 0.15) atk *= 1.12;
+  if (st.fireRatio > 0.1) atk *= 1.08;
+  return atk;
+}
+
+function defenseOf(side, st, tactic, enemySt) {
+  let def = st.def * moraleFactor(side.morale) * tactic.def * (1 + side.defPct);
+  if (st.spearRatio > 0.18 && enemySt.cavRatio > 0.15) def *= 1.3;
+  return def;
+}
+
+/**
+ * 每回合伤亡比例。
+ * 防守权重给得高（3.2）：甲厚、结阵的一方几乎不掉人，输的一方才会被碾。
+ * minLoss 传 0 时，弱势一方可能整轮无伤亡（仗就不会打成磨盘）。
+ */
+function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng, minLoss) {
+  const ratio = defenderAtk / (defenderAtk + attackerDef * 3.2);
+  const base = clamp(Math.pow(Math.min(1.2, ratio), 1.9) * 0.56, 0.02, 0.3);
+  const jitter = 0.9 + rng.random() * 0.2;
+  const n = Math.round(attackerCount * base * jitter);
+  return Math.max(minLoss === undefined ? 1 : minLoss, n);
+}
+
+function lossText(troops, losses) {
+  const parts = [];
+  Object.keys(losses).forEach(function (id) {
+    const t = TROOPS[id];
+    parts.push((t ? t.name : id) + '-' + losses[id]);
+  });
+  return parts.length ? parts.join(' ') : '无伤亡';
+}
+
+class Battle {
+  constructor(opts) {
+    this.rng = opts.rng;
+    this.a = makeSide(opts.attacker);
+    this.b = makeSide(opts.defender);
+    this.aTactic = opts.aTactic && TACTICS[opts.aTactic] ? opts.aTactic : 'assault';
+    this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
+    this.context = opts.context || {};
+    this.round = 0;
+    this.roundsInBatch = 0;
+    this.batch = 1;
+    this.batchDone = false;
+    this.log = [];
+    this.finished = false;
+    this.result = null;
+    this.lossesA = {};
+    this.lossesB = {};
+    this.retreated = false;
+    this.fireGround = false;
+    this.shiMark = null;
+    this.shiTiming = '';
+    this.shiRounds = 0;
+    this.shiName = '';
+  }
+
+  tacticOf(side) {
+    return TACTICS[side === 'a' ? this.aTactic : this.bTactic] || TACTICS.assault;
+  }
+
+  setTactic(id) {
+    if (!TACTICS[id]) return false;
+    this.aTactic = id;
+    return true;
+  }
+
+  remainA() {
+    return troopCount(this.a.troops);
+  }
+
+  remainB() {
+    return troopCount(this.b.troops);
+  }
+
+  /** 写一笔天机简 */
+  applyShiMark(id) {
+    const mark = HISTORY_MARKS[id];
+    this.shiMark = id;
+    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
+    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
+    this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
+    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
+    if (id === 'wind') this.fireGround = true;
+  }
+
+  /** 推进一个回合 */
+  step() {
+    if (this.finished || this.batchDone) return null;
+    this.round += 1;
+    this.roundsInBatch += 1;
+    this.batch = Math.ceil(this.round / MAX_ROUNDS);
+
+    const sa = strength(this.a.troops);
+    const sb = strength(this.b.troops);
+
+    if (sa.count <= 0 || sb.count <= 0) {
+      this.finish(sa.count <= 0 && sb.count <= 0 ? 'draw' : sa.count > 0 ? 'win' : 'lose');
+      return null;
+    }
+
+    const tacticA = this.tacticOf('a');
+    const tacticB = this.tacticOf('b');
+    let atkA = offenseOf(this.a, sa, tacticA);
+    let defA = defenseOf(this.a, sa, tacticA, sb);
+    let atkB = offenseOf(this.b, sb, tacticB);
+    let defB = defenseOf(this.b, sb, tacticB, sa);
+    // 国别 2:3 与兵种每级 2:1 两层相乘，同时放大攻防。
+    atkA *= this.a.combatEdge || 1;
+    defA *= this.a.combatEdge || 1;
+    atkB *= this.b.combatEdge || 1;
+    defB *= this.b.combatEdge || 1;
+
+    // 弩破甲：忽略一部分敌方甲
+    if (sa.pierceRatio > 0.12) defB *= 0.82;
+    if (sb.pierceRatio > 0.12) defA *= 0.82;
+
+    // 天机简效果：只利己，不反噬
+    const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
+    if (shi && this.shiMark === 'wind') {
+      atkA *= shi.atkMul;
+      if (this.fireGround) atkA *= shi.fireMul;
+    }
+    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
+      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
+      if (this.a.isPlayer) atkB *= shi.enemyMul;
+      else if (this.b.isPlayer) atkA *= shi.enemyMul;
+      this.shiRounds -= 1;
+    }
+
+    // 火攻战：带火船/火计的兵种威力翻倍的一部分
+    if (this.fireGround && sa.fireRatio > 0.05) atkA *= 1.15;
+
+    // 弓弩首轮齐射
+    let alphaStrike = 0;
+    if (this.round === 1 && tacticA.id === 'skirmish' && sa.rangedRatio > 0.15) {
+      alphaStrike = Math.round(sb.count * 0.06 + sa.ranged * 0.5);
+    }
+
+    // 主将亲自带的人更经打：玩家侧伤亡打六折，但每轮至少折 1 人。
+    // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
+    if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
+    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+
+    const realA = distributeLosses(this.a.troops, lossA);
+    const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
+
+    const self = this;
+    Object.keys(realA).forEach(function (id) {
+      self.lossesA[id] = (self.lossesA[id] || 0) + realA[id];
+    });
+    Object.keys(realB).forEach(function (id) {
+      self.lossesB[id] = (self.lossesB[id] || 0) + realB[id];
+    });
+
+    const entry = {
+      round: this.round,
+      aLossText: lossText(this.a.troops, realA),
+      bLossText: lossText(this.b.troops, realB),
+      remainA: this.remainA(),
+      remainB: this.remainB(),
+      alphaStrike,
+    };
+    this.log.push(entry);
+
+    // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
+    // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。
+    if (this.remainA() <= 0 || this.remainB() <= 0) {
+      if (this.remainA() <= 0 && this.remainB() <= 0) this.finish('draw');
+      else if (this.remainB() <= 0) this.finish('win');
+      else this.finish('lose');
+    } else if (this.roundsInBatch >= MAX_ROUNDS) {
+      this.batchDone = true;
+    }
+
+    return entry;
+  }
+
+  /** 一阵打完还活着双方：开下一阵 12 轮 */
+  nextBatch() {
+    if (this.finished) return false;
+    if (!this.batchDone) return false;
+    this.batchDone = false;
+    this.roundsInBatch = 0;
+    return true;
+  }
+
+  finish(result) {
+    // 哪怕是碾压，也总有几个人倒在阵前：胜仗至少记一笔零星伤亡
+    if (this.a.isPlayer && result === 'win') {
+      const lost = this.a.initialCount - this.remainA();
+      if (lost <= 0 && this.a.initialCount >= 6) {
+        const real = distributeLosses(this.a.troops, 1);
+        const self = this;
+        Object.keys(real).forEach(function (id) {
+          self.lossesA[id] = (self.lossesA[id] || 0) + real[id];
+        });
+        this.log.push({
+          round: this.round,
+          aLossText: lossText(this.a.troops, real),
+          bLossText: '无伤亡',
+          remainA: this.remainA(),
+          remainB: this.remainB(),
+          alphaStrike: 0,
+        });
+      }
+    }
+    this.finished = true;
+    this.batchDone = false;
+    this.result = result;
+  }
+
+  retreat() {
+    if (this.finished) return this.result;
+    // 殿后留一成，不再一刀砍掉四分之一
+    const extra = Math.max(1, Math.round(this.remainA() * 0.1));
+    const real = distributeLosses(this.a.troops, extra);
+    const self = this;
+    Object.keys(real).forEach(function (id) {
+      self.lossesA[id] = (self.lossesA[id] || 0) + real[id];
+    });
+    this.retreated = true;
+    this.finish('retreat');
+    return 'retreat';
+  }
+
+  /** 战场中增援：把新队伍并进一侧，用于五格内后续赶到的友军/敌军 */
+  reinforce(sideKey, payload) {
+    const side = sideKey === 'b' ? this.b : this.a;
+    if (!side || !payload || !payload.troops) return false;
+    const add = {};
+    let count = 0;
+    Object.keys(payload.troops).forEach(function (id) {
+      const n = Math.max(0, Math.round(payload.troops[id] || 0));
+      if (n > 0) { add[id] = n; count += n; }
+    });
+    if (count <= 0) return false;
+    Object.keys(add).forEach(function (id) {
+      side.troops[id] = (side.troops[id] || 0) + add[id];
+      side.initialTroops[id] = (side.initialTroops[id] || 0) + add[id];
+    });
+    side.initialCount += count;
+    side.lastCount = (side.lastCount == null ? side.initialCount - count : side.lastCount) + count;
+    side.contingents.push({
+      key: payload.key || '',
+      kind: payload.kind || '',
+      id: payload.id || '',
+      name: payload.name || '援军',
+      faction: payload.faction || null,
+      count: count,
+      initialCount: count,
+      snapshot: JSON.parse(JSON.stringify(add)),
+      isPlayer: !!payload.isPlayer,
+    });
+    side.coalitionNames = (side.coalitionNames ? side.coalitionNames + '、' : '') + (payload.name || '援军');
+    return true;
+  }
+
+  loot() {
+    // 没打到一方归零，就没有“缴获”这回事；中途一阵结束绝不结算金额。
+    if (!this.finished || this.result !== 'win') return 0;
+    const ctx = this.context || {};
+    // 打匪团来钱快（新手要靠这个滚雪球），攻城与战役另算
+    const kindMul = ctx.kind === 'party' || ctx.kind === 'chase' ? 1.9
+      : ctx.kind === 'lord' ? 2.1
+      : ctx.kind === 'siege' ? 1.5
+      : ctx.kind === 'campaign' ? 2.4 : 1.2;
+    const tierMul = ctx.tier ? 1 + (ctx.tier - 1) * 0.35 : 1;
+    let base = 0;
+    const self = this;
+    Object.keys(this.b.initialTroops).forEach(function (id) {
+      const t = TROOPS[id];
+      const unit = t && t.recruit ? t.recruit : t ? Math.max(16, t.tier * 12) : 16;
+      base += unit * 0.7 * self.b.initialTroops[id];
+    });
+    return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
+  }
+
+  summary() {
+    return {
+      result: this.result,
+      finished: this.finished,
+      round: this.round,
+      rounds: this.round,
+      batch: this.batch,
+      remainA: this.remainA(),
+      remainB: this.remainB(),
+      initialA: this.a.initialCount,
+      initialB: this.b.initialCount,
+      lossesA: this.lossesA,
+      lossesB: this.lossesB,
+      loot: this.loot(),
+      shiMark: this.shiMark,
+      shiName: this.shiName,
+      shiTiming: this.shiTiming,
+      contingentsA: this.a.contingents || [],
+      contingentsB: this.b.contingents || [],
+    };
+  }
+
+  /** 一阵 12 轮结束、双方仍有兵：只报战况，不报缴获 */
+  interimSummary() {
+    return {
+      result: null,
+      finished: false,
+      interim: true,
+      round: this.round,
+      rounds: this.round,
+      batch: this.batch,
+      remainA: this.remainA(),
+      remainB: this.remainB(),
+      initialA: this.a.initialCount,
+      initialB: this.b.initialCount,
+      lossesA: this.lossesA,
+      lossesB: this.lossesB,
+      loot: 0,
+    };
+  }
+}
+
+module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFactor };
+
+
+  };
+
   /* js/core/war.js */
   __defs[15] = function (module, exports, __require) {
 /**
@@ -5015,6 +5436,7 @@ module.exports = {
 const { FACTIONS, FACTION_COMBAT } = __require(5);
 const { TROOPS } = __require(10);
 const army = __require(9);
+const { Battle } = __require(16);
 
 const ESCAPE_BASE = 0.008;   // 第一天：0.8% + 1.4% ≈ 2.2%
 const ESCAPE_STEP = 0.014;
@@ -5028,6 +5450,7 @@ const LIUBEI_YI_WAR_DAY = 8;
 // 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
 const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
 const OPENING_DAYS = 30;
+let destroyPartyFn = null;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
@@ -5055,6 +5478,10 @@ let logFn = pushLogSafe;
 
 function bindLogger(fn) {
   logFn = fn || pushLogSafe;
+}
+
+function bindPartyDestroyer(fn) {
+  destroyPartyFn = fn || null;
 }
 
 function init(state) {
@@ -5331,14 +5758,25 @@ function peaceOfferTick(state) {
 
 /* ------------------------------------------------------------ 战斗 */
 
-function weight(troops) {
+/** 兵种层级基准：t1=1、t2=2、t3=4、t4=8、t5=16 */
+function tierPower(tier) {
+  const t = Math.max(1, Math.min(5, Math.round(tier || 1)));
+  return Math.pow(2, t - 1);
+}
+
+/** 单兵层级战力，不含国别倍率；1 个 t2 等于 2 个 t1 */
+function tierForce(troops) {
   let sum = 0;
   Object.keys(troops || {}).forEach(function (id) {
     const t = TROOPS[id];
-    const w = t ? t.tier * 2 + t.atk / 3 + t.def / 3 : 4;
-    sum += (troops[id] || 0) * w;
+    sum += (troops[id] || 0) * tierPower(t ? t.tier : 1);
   });
   return sum;
+}
+
+/** 野战/攻城权重：保留原来 t1≈6 的量级，方便守军常数继续用 */
+function weight(troops) {
+  return tierForce(troops) * 6;
 }
 
 /**
@@ -5538,6 +5976,563 @@ function clash(state, a, b) {
   return { capture: true };
 }
 
+
+/* ------------------------------------------------------- 五格合战 / 动态战场 */
+
+const FIELD_BATTLE_RADIUS = 5;
+const FIELD_BATTLE_LIMIT = 8;
+
+function copyTroops(troops) {
+  return JSON.parse(JSON.stringify(troops || {}));
+}
+
+function fieldRefKey(ref) {
+  if (!ref) return '';
+  if (ref.kind === 'player') return 'player';
+  return (ref.kind || '') + ':' + (ref.id || '');
+}
+
+function fieldUnitOfRef(state, ref) {
+  if (!ref) return null;
+  if (ref.kind === 'player') return state.player;
+  if (ref.kind === 'lord') {
+    return (state.lords || []).filter(function (l) { return l.id === ref.id; })[0] || null;
+  }
+  if (ref.kind === 'party') {
+    return (state.parties || []).filter(function (p) { return p.id === ref.id; })[0] || null;
+  }
+  return null;
+}
+
+function fieldUnitInfo(state, ref, override) {
+  if (override) {
+    const copy = Object.assign({}, override);
+    copy.key = copy.key || fieldRefKey(ref);
+    copy.kind = copy.kind || (ref && ref.kind) || '';
+    copy.id = copy.id || (ref && ref.id) || '';
+    copy.relationFaction = copy.relationFaction !== undefined ? copy.relationFaction : (copy.faction || null);
+    copy.pos = copy.pos || (ref && fieldUnitOfRef(state, ref)) || null;
+    copy.troops = copyTroops(copy.troops);
+    copy.count = army.troopCount(copy.troops);
+    copy.initialCount = copy.count;
+    return copy;
+  }
+  if (!ref) return null;
+  if (ref.kind === 'player') {
+    const p = state.player;
+    return {
+      key: 'player', kind: 'player', id: 'player', name: p.name,
+      faction: p.faction || null, relationFaction: p.faction || 'player',
+      troops: copyTroops(p.troops), morale: p.morale, atkPct: 0, defPct: 0,
+      isPlayer: true, pos: p, count: army.troopCount(p.troops),
+    };
+  }
+  const unit = fieldUnitOfRef(state, ref);
+  if (!unit) return null;
+  if (ref.kind === 'lord') {
+    return {
+      key: 'lord:' + unit.id, kind: 'lord', id: unit.id, name: unit.name + '军',
+      faction: unit.faction || null, relationFaction: unit.faction || null,
+      troops: copyTroops(unit.troops), morale: unit.morale,
+      atkPct: 0.05, defPct: 0.05, isPlayer: false, pos: unit,
+      count: army.troopCount(unit.troops),
+    };
+  }
+  return {
+    key: 'party:' + unit.id, kind: 'party', id: unit.id, name: unit.name,
+    faction: unit.faction || 'bandit', relationFaction: unit.faction || 'bandit',
+    troops: copyTroops(unit.troops), morale: unit.morale,
+    atkPct: 0, defPct: 0, isPlayer: false, pos: unit,
+    count: army.troopCount(unit.troops),
+  };
+}
+
+function fieldUnitEligible(info) {
+  if (!info || !info.pos) return false;
+  if (info.kind === 'player') {
+    return !!info.pos && !info.pos.gameOver && !info.pos.atSiteId;
+  }
+  if (info.kind === 'lord') {
+    const l = info.pos;
+    return !!l && l.alive && !l.dead && !l.retired && !l.prisoner && !l.inCity &&
+      !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  }
+  if (info.kind === 'party') {
+    const q = info.pos;
+    return !!q && !q.dead && !q.scripted && !q.fieldBattleId &&
+      army.troopCount(q.troops || {}) > 0;
+  }
+  return false;
+}
+
+/** 五格内所有可参战单位（玩家、领主、匪团） */
+function collectNearbyFieldUnits(state, center, radius) {
+  const r = typeof radius === 'number' ? radius : FIELD_BATTLE_RADIUS;
+  const out = [];
+  const refs = [{ kind: 'player', id: 'player' }];
+  (state.lords || []).forEach(function (l) { refs.push({ kind: 'lord', id: l.id }); });
+  (state.parties || []).forEach(function (p) { refs.push({ kind: 'party', id: p.id }); });
+  refs.forEach(function (ref) {
+    const info = fieldUnitInfo(state, ref);
+    if (!info || !fieldUnitEligible(info)) return;
+    const pos = info.pos;
+    if (!pos) return;
+    const d = Math.max(Math.abs(pos.x - center.x), Math.abs(pos.y - center.y));
+    if (d > r) return;
+    out.push(info);
+  });
+  return out;
+}
+
+function fieldFactionOf(info) {
+  if (!info) return null;
+  return info.relationFaction !== undefined ? info.relationFaction : (info.faction || null);
+}
+
+/** 严格按“对对方敌对、但不对自己敌对”的阵营规则归边 */
+function fieldSideFor(state, info, fa, fb) {
+  const f = fieldFactionOf(info);
+  if (!f) return null;
+  if (f === fa) return 'a';
+  if (f === fb) return 'b';
+  const atA = atWar(state, f, fa);
+  const atB = atWar(state, f, fb);
+  if (atB && !atA) return 'a';
+  if (atA && !atB) return 'b';
+  return null;
+}
+
+function scaleTroopsTo(troops, target) {
+  const source = copyTroops(troops);
+  const total = army.troopCount(source);
+  const want = Math.max(0, Math.round(target));
+  if (want <= 0) return {};
+  if (want >= total) return source;
+  const out = {};
+  let assigned = 0;
+  const ids = Object.keys(source);
+  const fractions = [];
+  ids.forEach(function (id) {
+    const exact = source[id] * want / total;
+    const n = Math.floor(exact);
+    if (n > 0) { out[id] = n; assigned += n; }
+    fractions.push({ id: id, frac: exact - n, count: source[id] });
+  });
+  let remain = want - assigned;
+  fractions.sort(function (a, b) { return b.frac - a.frac; });
+  for (let i = 0; i < fractions.length && remain > 0; i++) {
+    const f = fractions[i];
+    if ((out[f.id] || 0) < f.count) { out[f.id] = (out[f.id] || 0) + 1; remain -= 1; }
+  }
+  return out;
+}
+
+function contingentTroops(contingent) {
+  if (!contingent) return {};
+  return scaleTroopsTo(contingent.snapshot, contingent.count);
+}
+
+function buildCoalitionSide(infos, foeFaction, opts) {
+  const sideTroops = {};
+  const contingents = [];
+  let countTotal = 0;
+  let moraleWeight = 0;
+  let atkWeight = 0;
+  let defWeight = 0;
+  let forceTotal = 0;
+  let edgeWeight = 0;
+  const primary = infos[0];
+  infos.forEach(function (info) {
+    const group = copyTroops(info.troops);
+    const n = army.troopCount(group);
+    if (n <= 0) return;
+    Object.keys(group).forEach(function (id) {
+      sideTroops[id] = (sideTroops[id] || 0) + group[id];
+    });
+    countTotal += n;
+    moraleWeight += (typeof info.morale === 'number' ? info.morale : 60) * n;
+    atkWeight += (info.atkPct || 0) * n;
+    defWeight += (info.defPct || 0) * n;
+    const force = tierForce(group);
+    forceTotal += force;
+    edgeWeight += force * factionEdge(info.faction, foeFaction);
+    contingents.push({
+      key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
+      kind: info.kind, id: info.id, name: info.name,
+      faction: info.faction || null,
+      count: n, initialCount: n, snapshot: group,
+      isPlayer: !!info.isPlayer,
+    });
+  });
+  const baseName = (opts && opts.name) || (primary && primary.name) || '无名之师';
+  const sideName = contingents.length > 1
+    ? baseName.replace(/军$/, '') + '联军'
+    : baseName;
+  const names = contingents.map(function (c) { return c.name; }).join('、');
+  return {
+    name: sideName,
+    faction: primary ? (primary.faction || null) : null,
+    troops: sideTroops,
+    morale: countTotal ? moraleWeight / countTotal : 60,
+    atkPct: countTotal ? atkWeight / countTotal : 0,
+    defPct: countTotal ? defWeight / countTotal : 0,
+    isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
+    edge: forceTotal ? edgeWeight / forceTotal : 1,
+    coalitionNames: names,
+    contingents: contingents,
+    force: forceTotal,
+  };
+}
+
+function playerContingentOf(battle) {
+  const side = battle && battle.a;
+  if (!side || !side.contingents) return null;
+  return side.contingents.filter(function (c) { return c.isPlayer; })[0] || null;
+}
+
+function fieldBattleById(state, id) {
+  return (state.fieldBattles || []).filter(function (b) { return b && b.id === id; })[0] || null;
+}
+
+function markFieldParticipants(state, battlefield, infos, side) {
+  infos.forEach(function (info) {
+    const unit = info.pos;
+    if (!unit) return;
+    unit.fieldBattleId = battlefield.id;
+    battlefield.participants.push({
+      key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
+      side: side, kind: info.kind, id: info.id, name: info.name, faction: info.faction,
+    });
+  });
+}
+
+/** 创建一场野战。preAggregate=false 时先只让最初两方入阵，其他单位战中再进。 */
+function createFieldBattle(state, aRef, bRef, opts) {
+  const options = opts || {};
+  if (!state.fieldBattles) state.fieldBattles = [];
+  if (state.fieldBattles.length >= FIELD_BATTLE_LIMIT) return null;
+  const aInfo = fieldUnitInfo(state, aRef, options.aInfo);
+  const bInfo = fieldUnitInfo(state, bRef, options.bInfo);
+  if (!aInfo || !bInfo) return null;
+  if (!options.playerInvolved && (!fieldUnitEligible(aInfo) || !fieldUnitEligible(bInfo))) return null;
+  const fa = fieldFactionOf(aInfo);
+  const fb = fieldFactionOf(bInfo);
+  if (!atWar(state, fa, fb)) return null;
+  const center = {
+    x: Math.round(((aInfo.pos ? aInfo.pos.x : 0) + (bInfo.pos ? bInfo.pos.x : 0)) / 2),
+    y: Math.round(((aInfo.pos ? aInfo.pos.y : 0) + (bInfo.pos ? bInfo.pos.y : 0)) / 2),
+  };
+  const playerInvolved = !!options.playerInvolved || !!aInfo.isPlayer || !!bInfo.isPlayer;
+  const seq = (state.fieldBattleSeq || 1);
+  state.fieldBattleSeq = seq + 1;
+  const id = 'fb' + seq;
+
+  const aInfos = [aInfo];
+  const bInfos = [bInfo];
+  if (options.preAggregate !== false) {
+    const existing = [aInfo.key, bInfo.key];
+    collectNearbyFieldUnits(state, center, options.radius || FIELD_BATTLE_RADIUS).forEach(function (info) {
+      if (existing.indexOf(info.key) >= 0) return;
+      if (playerInvolved && info.isPlayer) return;
+      const side = fieldSideFor(state, info, fa, fb);
+      if (side === 'a') aInfos.push(info);
+      else if (side === 'b') bInfos.push(info);
+    });
+  }
+
+  const aSide = buildCoalitionSide(aInfos, fb, {
+    name: aInfo.name, isPlayer: playerInvolved && options.playerSide !== 'b',
+  });
+  const bSide = buildCoalitionSide(bInfos, fa, {
+    name: bInfo.name, isPlayer: playerInvolved && options.playerSide === 'b',
+  });
+  const context = Object.assign({ kind: 'field' }, options.context || {});
+  context.fieldBattleId = id;
+  const battle = new Battle({
+    rng: state.rng,
+    attacker: aSide,
+    defender: bSide,
+    context: context,
+  });
+  battle.fieldBattleId = id;
+  battle.joinLog = [];
+  const battlefield = {
+    id: id,
+    center: center,
+    radius: options.radius || FIELD_BATTLE_RADIUS,
+    primaryA: { key: aInfo.key, faction: fa, name: aInfo.name },
+    primaryB: { key: bInfo.key, faction: fb, name: bInfo.name },
+    aSide: aSide,
+    bSide: bSide,
+    battle: battle,
+    participants: [],
+    startedH: state.clock.day * 24 + state.clock.hour,
+    lastTickH: 0,
+    joinLog: [],
+    playerInvolved: playerInvolved,
+    playerSide: options.playerSide || (aInfo.isPlayer ? 'a' : bInfo.isPlayer ? 'b' : null),
+    context: context,
+  };
+  markFieldParticipants(state, battlefield, aInfos, 'a');
+  markFieldParticipants(state, battlefield, bInfos, 'b');
+  state.fieldBattles.push(battlefield);
+  if (playerInvolved) state.battle = battle;
+  return battlefield;
+}
+
+/** 把某一侧总兵力变化按各队现有人数摊回各队；Battle 只认总兵力，队伍身份保留在这里 */
+function syncFieldBattle(state, battlefield) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf || !bf.battle) return;
+  ['a', 'b'].forEach(function (sk) {
+    const side = bf.battle[sk];
+    if (!side || !side.contingents) return;
+    const current = army.troopCount(side.troops);
+    const last = typeof side.lastCount === 'number' ? side.lastCount : side.initialCount;
+    let loss = Math.max(0, last - current);
+    if (loss > 0) {
+      const totalBefore = side.contingents.reduce(function (s, c) { return s + Math.max(0, c.count || 0); }, 0);
+      let left = loss;
+      side.contingents.forEach(function (c, i) {
+        if (left <= 0) return;
+        const before = Math.max(0, c.count || 0);
+        const take = i === side.contingents.length - 1
+          ? Math.min(left, before)
+          : Math.min(left, Math.floor(loss * before / Math.max(1, totalBefore)));
+        c.count = Math.max(0, before - take);
+        left -= take;
+      });
+      // 舍入误差再扣一遍，保证不会出现“队里有人、总数已归零”
+      if (left > 0) {
+        side.contingents.forEach(function (c) {
+          if (left <= 0) return;
+          const take = Math.min(left, Math.max(0, c.count || 0));
+          c.count -= take;
+          left -= take;
+        });
+      }
+    }
+    side.lastCount = current;
+    const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
+    let force = 0;
+    let edge = 0;
+    side.contingents.forEach(function (c) {
+      const f = tierForce(c.snapshot);
+      force += f;
+      edge += f * factionEdge(c.faction, foeFaction);
+    });
+    side.edge = force > 0 ? edge / force : 1;
+    side.force = force;
+    const currentCount = army.troopCount(side.troops);
+    side.tierFactor = currentCount > 0 ? tierForce(side.troops) / currentCount : 1;
+    side.combatEdge = side.edge * side.tierFactor;
+  });
+}
+
+function addNearbyToFieldBattle(state, bf, options) {
+  if (!bf || !bf.battle || bf.battle.finished) return 0;
+  const battle = bf.battle;
+  const fa = bf.primaryA.faction;
+  const fb = bf.primaryB.faction;
+  const candidates = collectNearbyFieldUnits(state, bf.center, bf.radius);
+  let added = 0;
+  const existing = {};
+  bf.participants.forEach(function (p) { existing[p.key] = true; });
+  candidates.forEach(function (info) {
+    if (!info || existing[info.key]) return;
+    if (!bf.playerInvolved && info.isPlayer) return;
+    const side = fieldSideFor(state, info, fa, fb);
+    if (!side) return;
+    if (army.troopCount(info.troops) <= 0) return;
+    battle.reinforce(side, info);
+    const text = info.name + '率军赶到，加入' + (side === 'a' ? '友军' : '敌军') + '阵线。';
+    battle.joinLog.push({ round: battle.round, text: text, side: side });
+    bf.joinLog.push({ h: state.clock.day * 24 + state.clock.hour, text: text, side: side });
+    markFieldParticipants(state, bf, [info], side);
+    existing[info.key] = true;
+    added += 1;
+    if (nearPlayer(state, info.pos, 12)) logFn(state, text, 'war');
+  });
+  if (added) syncFieldBattle(state, bf);
+  return added;
+}
+
+function releaseFieldBattleUnit(unit) {
+  if (!unit) return;
+  if (unit.fieldBattleId) unit.fieldBattleId = null;
+  if (String(unit.engagedWith || '').indexOf('field:') === 0) {
+    unit.engagedWith = null;
+    unit.engagedSinceH = null;
+  }
+}
+
+function unitForParticipant(state, p) {
+  if (!p) return null;
+  if (p.kind === 'player') return state.player;
+  if (p.kind === 'lord') return (state.lords || []).filter(function (l) { return l.id === p.id; })[0] || null;
+  if (p.kind === 'party') return (state.parties || []).filter(function (q) { return q.id === p.id; })[0] || null;
+  return null;
+}
+
+/**
+ * 结算合战：把每队剩余人数写回；NPC 败方溃逃/被俘，匪团被打散。
+ * 玩家主战由 state.resolveBattle 处理玩家本人与主敌，这里只收束盟军和其他参战者。
+ */
+function settleFieldBattle(state, battlefield, summary, options) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf || !bf.battle) return null;
+  const opts = options || {};
+  syncFieldBattle(state, bf);
+  const battle = bf.battle;
+  const result = summary && summary.result ? summary.result : battle.result;
+  if (!result) return null;
+  const playerBattle = !!bf.playerInvolved || !!opts.playerBattle;
+  const pending = state.postBattleLord;
+  const winnerSide = result === 'win' ? 'a' : result === 'lose' ? 'b' : null;
+  const partyDestroyed = [];
+  const contingentsByKey = {};
+  ['a', 'b'].forEach(function (sk) {
+    (battle[sk].contingents || []).forEach(function (c) { contingentsByKey[c.key] = c; });
+  });
+
+  bf.participants.forEach(function (p) {
+    const unit = unitForParticipant(state, p);
+    if (!unit) return;
+    const c = contingentsByKey[p.key];
+    const isPrimaryB = bf.primaryB.key === p.key;
+    const skipPlayer = p.kind === 'player' && playerBattle;
+    const skipBeatenLord = playerBattle && result === 'win' && isPrimaryB &&
+      pending && pending.lordId === p.id;
+    const skipDestroyedParty = playerBattle && result === 'win' && isPrimaryB && p.kind === 'party';
+    if (c && !skipPlayer && !skipBeatenLord && !skipDestroyedParty) {
+      unit.troops = contingentTroops(c);
+    }
+    releaseFieldBattleUnit(unit);
+    if (p.kind === 'party' && army.troopCount(unit.troops || {}) <= 0) {
+      partyDestroyed.push(unit);
+    }
+  });
+
+  // 玩家不在场：按胜负让败方溃逃或被俘；两败俱伤则各自收兵。
+  if (!playerBattle) {
+    const loserSide = winnerSide === null ? null : winnerSide === 'a' ? 'b' : 'a';
+    bf.participants.forEach(function (p) {
+      if (p.kind === 'player') return;
+      const unit = unitForParticipant(state, p);
+      if (!unit) return;
+      const lost = winnerSide !== null && p.side === loserSide;
+      const draw = winnerSide === null;
+      if (!lost && !draw) return;
+      if (p.kind === 'party') {
+        if (draw || army.troopCount(unit.troops || {}) <= 0) {
+          unit.dead = true;
+          unit.troops = {};
+        }
+        return;
+      }
+      if (!unit.alive || unit.prisoner || unit.inCity) return;
+      if (winnerSide !== null && army.troopCount(unit.troops || {}) <= 0) {
+        capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+          p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        return;
+      }
+      if (p.key === bf.primaryB.key || p.key === bf.primaryA.key) {
+        if (draw) {
+          unit.fleeing = true;
+          unit.fleeFrom = null;
+          moveAway(state, unit);
+          unit.scuffle = Math.max(unit.scuffle || 0, 8);
+        } else if (state.rng.next() < 0.82) {
+          unit.fleeing = true;
+          unit.fleeFrom = null;
+          moveAway(state, unit);
+          unit.scuffle = Math.max(unit.scuffle || 0, 8);
+        } else {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        }
+      } else {
+        unit.fleeing = true;
+        unit.fleeFrom = null;
+        if (army.troopCount(unit.troops || {}) > 0) moveAway(state, unit);
+        unit.scuffle = Math.max(unit.scuffle || 0, 5);
+      }
+    });
+  }
+
+  // 战场纪录移除；匪团尸体从地图上清掉，交给 state 的重生队列处理
+  state.fieldBattles = (state.fieldBattles || []).filter(function (x) { return x.id !== bf.id; });
+  if (partyDestroyed.length) {
+    partyDestroyed.forEach(function (q) {
+      if (destroyPartyFn) destroyPartyFn(state, q, 'field');
+      else q.dead = true;
+    });
+    state.parties = (state.parties || []).filter(function (q) { return partyDestroyed.indexOf(q) < 0; });
+  }
+  if (result && (result === 'win' || result === 'lose') && !playerBattle) {
+    const winner = winnerSide === 'a' ? bf.primaryA : bf.primaryB;
+    const loser = winnerSide === 'a' ? bf.primaryB : bf.primaryA;
+    const near = Math.max(Math.abs(state.player.x - bf.center.x), Math.abs(state.player.y - bf.center.y)) <= 14;
+    if (near) logFn(state, loser.name + '与' + winner.name + '在战场上分出胜负，败军退出五格战场。', 'war');
+  }
+  return {
+    battlefieldId: bf.id,
+    result: result,
+    playerBattle: playerBattle,
+    deadParties: partyDestroyed.map(function (q) { return q.id; }),
+  };
+}
+
+function abandonFieldBattle(state, battlefield, reason) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf) return false;
+  const battle = bf.battle;
+  const summary = battle ? battle.summary() : { result: 'retreat' };
+  summary.result = summary.result || 'retreat';
+  settleFieldBattle(state, bf, summary, { playerBattle: bf.playerInvolved, keepPlayer: true });
+  return true;
+}
+
+/** NPC 战场：每 3 时辰推进一阵；其他队伍在战中进入五格就加入 */
+function tickFieldBattles(state) {
+  if (!state.fieldBattles || !state.fieldBattles.length) return 0;
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  let processed = 0;
+  state.fieldBattles.slice().forEach(function (bf) {
+    if (!bf || !bf.battle || bf.playerInvolved) return;
+    if (nowH - bf.startedH > 72) {
+      bf.battle.finish('draw');
+      settleFieldBattle(state, bf, bf.battle.summary(), {});
+      processed += 1;
+      return;
+    }
+    // 开战这一拍先只有最初两方入阵；下一轮（3 时辰后）起，五格内
+    // 已经站着的队伍再按阵营动态加入，保证“不预先聚合”。
+    if (nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
+    const battle = bf.battle;
+    let batches = 0;
+    let safe = 0;
+    while (!battle.finished && batches < 2 && safe++ < 4) {
+      if (battle.batchDone) battle.nextBatch();
+      let rounds = 0;
+      while (!battle.finished && !battle.batchDone && rounds < 12) {
+        battle.step();
+        rounds += 1;
+      }
+      syncFieldBattle(state, bf);
+      if (!battle.finished && battle.batchDone) {
+        battle.nextBatch();
+        batches += 1;
+      }
+    }
+    if (battle.finished) {
+      settleFieldBattle(state, bf, battle.summary(), {});
+      processed += 1;
+    }
+  });
+  return processed;
+}
+
 /**
  * 领主对领主：兵力差到 1.65 倍且差 10 人以上时，弱者不硬碰，
  * 直接后撤两格并进入逃遁，避免小部队被大军一口吃掉。
@@ -5573,49 +6568,57 @@ function fleeDisparity(state, a, b) {
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
-  // 进了城的领主不在地图上，也不能在城门口跟人“野战”。
-  const list = state.lords.filter(function (l) { return l.alive && !l.inCity; });
+  if (!state.fieldBattles) state.fieldBattles = [];
+  // 先推进上一拍就已经存在的战场：让五格内的援军有机会在这一拍加入；
+  // 这一拍新开的战场则留到下一拍再打，避免“刚进战场就打完”。
+  const processed = tickFieldBattles(state);
+  const list = state.lords.filter(function (l) {
+    return l.alive && !l.inCity && !l.prisoner && !l.fieldBattleId;
+  });
   const seen = {};
-  let count = 0;
-  for (let i = 0; i < list.length; i++) {
+  let created = 0;
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  for (let i = 0; i < list.length && created < 4; i++) {
     const a = list[i];
-    if (!a.alive) continue;
-    // 和匪团缠在一起时由 state 的 fightNeighbors 接管，别在这里抢
+    if (!a.alive || a.fieldBattleId) continue;
     if (a.engagedWith && String(a.engagedWith).indexOf('party:') === 0) continue;
+    let b = null;
     if (a.engagedWith) {
-      const b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
+      b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
       if (!b || !b.alive || Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 ||
           a.faction === b.faction || !atWar(state, a.faction, b.faction) ||
-          (a.engagedSinceH && (state.clock.day * 24 + state.clock.hour) - a.engagedSinceH > 72)) {
+          (a.engagedSinceH && nowH - a.engagedSinceH > 72)) {
         clearEngagement(a, b);
         continue;
       }
-      const pairKey = [a.id, b.id].sort().join('|');
-      if (seen[pairKey]) continue;
-      seen[pairKey] = true;
-      if (!fleeDisparity(state, a, b)) clash(state, a, b);
-      count += 1;
-      if (count > 3) return count;
-      continue;
+    } else {
+      if (a.scuffle && a.scuffle > 0) { a.scuffle -= 1; continue; }
+      for (let j = i + 1; j < list.length; j++) {
+        const cand = list[j];
+        if (!cand.alive || !cand.troops || cand.engagedWith || cand.fieldBattleId) continue;
+        if (cand.scuffle && cand.scuffle > 0) continue;
+        if (Math.abs(a.x - cand.x) > 1 || Math.abs(a.y - cand.y) > 1) continue;
+        if (a.faction === cand.faction) continue;
+        if (a.faction === 'bandit' || cand.faction === 'bandit') continue;
+        if (!atWar(state, a.faction, cand.faction)) continue;
+        b = cand;
+        break;
+      }
+      if (!b) continue;
     }
-    if (a.scuffle && a.scuffle > 0) { a.scuffle -= 1; continue; }
-    for (let j = i + 1; j < list.length; j++) {
-      const b = list[j];
-      if (!b.alive || !b.troops || b.engagedWith) continue;
-      if (b.scuffle && b.scuffle > 0) continue;
-      if (Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1) continue;
-      if (a.faction === b.faction) continue;
-      if (a.faction === 'bandit' && b.faction === 'bandit') continue;
-      if (!atWar(state, a.faction, b.faction)) continue;
-      const pairKey = [a.id, b.id].sort().join('|');
-      if (seen[pairKey]) continue;
-      seen[pairKey] = true;
-      if (!fleeDisparity(state, a, b)) clash(state, a, b);
-      count += 1;
-      if (count > 3) return count;
-    }
+    if (!b || b.fieldBattleId) continue;
+    const pairKey = [a.id, b.id].sort().join('|');
+    if (seen[pairKey]) continue;
+    seen[pairKey] = true;
+    if (fleeDisparity(state, a, b)) continue;
+    const bf = createFieldBattle(state,
+      { kind: 'lord', id: a.id }, { kind: 'lord', id: b.id }, {
+        preAggregate: false,
+        context: { kind: 'field', cause: 'npc' },
+      });
+    if (bf) created += 1;
   }
-  return count;
+  return created + processed;
 }
 
 /* ------------------------------------------------------------ 俘虏 */
@@ -6378,365 +7381,13 @@ module.exports = {
   nearestFoe,
   strategyTick, siegeTick,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
-  bindFleeGuard,
+  bindFleeGuard, bindPartyDestroyer,
   ESCAPE_BASE, ESCAPE_STEP,
+  tierPower, tierForce, FIELD_BATTLE_RADIUS, FIELD_BATTLE_LIMIT,
+  createFieldBattle, addNearbyToFieldBattle, syncFieldBattle, settleFieldBattle,
+  abandonFieldBattle, tickFieldBattles, fieldBattleById, playerContingentOf,
+  contingentTroops, scaleTroopsTo, fieldUnitInfo, fieldSideFor, collectNearbyFieldUnits,
 };
-
-
-  };
-
-  /* js/core/battle.js */
-  __defs[16] = function (module, exports, __require) {
-/**
- * 战斗层：回合制战术结算 + 天机简
- * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
- * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
- */
-
-const { TROOPS } = __require(10);
-const { HISTORY_MARKS } = __require(5);
-const { troopCount, strength, distributeLosses } = __require(9);
-
-const TACTICS = {
-  assault: {
-    id: 'assault', name: '全军冲锋', atk: 1.28, def: 0.85,
-    desc: '攻击 +28%，防御 -15%。骑兵越多越赚。',
-  },
-  hold: {
-    id: 'hold', name: '结阵固守', atk: 0.9, def: 1.35,
-    desc: '防御 +35%。枪盾多时能顶住骑兵。',
-  },
-  flank: {
-    id: 'flank', name: '骑兵包抄', atk: 1.1, def: 1.0,
-    desc: '骑兵超过 12% 时，攻击额外 +35%。',
-  },
-  skirmish: {
-    id: 'skirmish', name: '弓弩先射', atk: 1.15, def: 0.95,
-    desc: '远程超过 15% 时，开局多一轮齐射。',
-  },
-};
-
-const TACTIC_LIST = ['assault', 'hold', 'flank', 'skirmish'];
-/** 每 12 轮为一“阵”。一阵打完不分胜负就继续下一阵，直到一方兵力归零。 */
-const MAX_ROUNDS = 12;
-
-function clamp(v, min, max) {
-  return v < min ? min : v > max ? max : v;
-}
-
-function moraleFactor(morale) {
-  const m = clamp(typeof morale === 'number' ? morale : 60, 0, 100);
-  const base = 0.75 + (m / 100) * 0.35;
-  return m < 30 ? base * 0.8 : base;
-}
-
-function makeSide(unit) {
-  const troops = {};
-  Object.keys(unit.troops || {}).forEach(function (id) {
-    const c = unit.troops[id] || 0;
-    if (c > 0) troops[id] = c;
-  });
-  return {
-    name: unit.name || '无名之师',
-    faction: unit.faction || null,
-    troops,
-    morale: typeof unit.morale === 'number' ? unit.morale : 60,
-    atkPct: unit.atkPct || 0,
-    defPct: unit.defPct || 0,
-    isPlayer: !!unit.isPlayer,
-    initialTroops: JSON.parse(JSON.stringify(troops)),
-    initialCount: troopCount(troops),
-  };
-}
-
-function offenseOf(side, st, tactic) {
-  let atk = st.atk * moraleFactor(side.morale) * tactic.atk * (1 + side.atkPct);
-  if (tactic.id === 'flank') atk *= st.cavRatio > 0.12 ? 1.35 : 1.05;
-  if (tactic.id === 'assault') atk *= 1 + st.cavRatio * 0.3;
-  if (tactic.id === 'skirmish' && st.rangedRatio > 0.15) atk *= 1.12;
-  if (st.fireRatio > 0.1) atk *= 1.08;
-  return atk;
-}
-
-function defenseOf(side, st, tactic, enemySt) {
-  let def = st.def * moraleFactor(side.morale) * tactic.def * (1 + side.defPct);
-  if (st.spearRatio > 0.18 && enemySt.cavRatio > 0.15) def *= 1.3;
-  return def;
-}
-
-/**
- * 每回合伤亡比例。
- * 防守权重给得高（3.2）：甲厚、结阵的一方几乎不掉人，输的一方才会被碾。
- * minLoss 传 0 时，弱势一方可能整轮无伤亡（仗就不会打成磨盘）。
- */
-function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng, minLoss) {
-  const ratio = defenderAtk / (defenderAtk + attackerDef * 3.2);
-  const base = clamp(Math.pow(Math.min(1.2, ratio), 1.9) * 0.56, 0.02, 0.3);
-  const jitter = 0.9 + rng.random() * 0.2;
-  const n = Math.round(attackerCount * base * jitter);
-  return Math.max(minLoss === undefined ? 1 : minLoss, n);
-}
-
-function lossText(troops, losses) {
-  const parts = [];
-  Object.keys(losses).forEach(function (id) {
-    const t = TROOPS[id];
-    parts.push((t ? t.name : id) + '-' + losses[id]);
-  });
-  return parts.length ? parts.join(' ') : '无伤亡';
-}
-
-class Battle {
-  constructor(opts) {
-    this.rng = opts.rng;
-    this.a = makeSide(opts.attacker);
-    this.b = makeSide(opts.defender);
-    this.aTactic = opts.aTactic && TACTICS[opts.aTactic] ? opts.aTactic : 'assault';
-    this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
-    this.context = opts.context || {};
-    this.round = 0;
-    this.roundsInBatch = 0;
-    this.batch = 1;
-    this.batchDone = false;
-    this.log = [];
-    this.finished = false;
-    this.result = null;
-    this.lossesA = {};
-    this.lossesB = {};
-    this.retreated = false;
-    this.fireGround = false;
-    this.shiMark = null;
-    this.shiTiming = '';
-    this.shiRounds = 0;
-    this.shiName = '';
-  }
-
-  tacticOf(side) {
-    return TACTICS[side === 'a' ? this.aTactic : this.bTactic] || TACTICS.assault;
-  }
-
-  setTactic(id) {
-    if (!TACTICS[id]) return false;
-    this.aTactic = id;
-    return true;
-  }
-
-  remainA() {
-    return troopCount(this.a.troops);
-  }
-
-  remainB() {
-    return troopCount(this.b.troops);
-  }
-
-  /** 写一笔天机简 */
-  applyShiMark(id) {
-    const mark = HISTORY_MARKS[id];
-    this.shiMark = id;
-    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
-    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
-    this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
-    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
-    if (id === 'wind') this.fireGround = true;
-  }
-
-  /** 推进一个回合 */
-  step() {
-    if (this.finished || this.batchDone) return null;
-    this.round += 1;
-    this.roundsInBatch += 1;
-    this.batch = Math.ceil(this.round / MAX_ROUNDS);
-
-    const sa = strength(this.a.troops);
-    const sb = strength(this.b.troops);
-
-    if (sa.count <= 0 || sb.count <= 0) {
-      this.finish(sa.count <= 0 && sb.count <= 0 ? 'draw' : sa.count > 0 ? 'win' : 'lose');
-      return null;
-    }
-
-    const tacticA = this.tacticOf('a');
-    const tacticB = this.tacticOf('b');
-    let atkA = offenseOf(this.a, sa, tacticA);
-    let defA = defenseOf(this.a, sa, tacticA, sb);
-    let atkB = offenseOf(this.b, sb, tacticB);
-    let defB = defenseOf(this.b, sb, tacticB, sa);
-
-    // 弩破甲：忽略一部分敌方甲
-    if (sa.pierceRatio > 0.12) defB *= 0.82;
-    if (sb.pierceRatio > 0.12) defA *= 0.82;
-
-    // 天机简效果：只利己，不反噬
-    const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
-    if (shi && this.shiMark === 'wind') {
-      atkA *= shi.atkMul;
-      if (this.fireGround) atkA *= shi.fireMul;
-    }
-    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
-      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
-      if (this.a.isPlayer) atkB *= shi.enemyMul;
-      else if (this.b.isPlayer) atkA *= shi.enemyMul;
-      this.shiRounds -= 1;
-    }
-
-    // 火攻战：带火船/火计的兵种威力翻倍的一部分
-    if (this.fireGround && sa.fireRatio > 0.05) atkA *= 1.15;
-
-    // 弓弩首轮齐射
-    let alphaStrike = 0;
-    if (this.round === 1 && tacticA.id === 'skirmish' && sa.rangedRatio > 0.15) {
-      alphaStrike = Math.round(sb.count * 0.06 + sa.ranged * 0.5);
-    }
-
-    // 主将亲自带的人更经打：玩家侧伤亡打六折，但每轮至少折 1 人。
-    // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
-    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
-    if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
-    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
-
-    const realA = distributeLosses(this.a.troops, lossA);
-    const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
-
-    const self = this;
-    Object.keys(realA).forEach(function (id) {
-      self.lossesA[id] = (self.lossesA[id] || 0) + realA[id];
-    });
-    Object.keys(realB).forEach(function (id) {
-      self.lossesB[id] = (self.lossesB[id] || 0) + realB[id];
-    });
-
-    const entry = {
-      round: this.round,
-      aLossText: lossText(this.a.troops, realA),
-      bLossText: lossText(this.b.troops, realB),
-      remainA: this.remainA(),
-      remainB: this.remainB(),
-      alphaStrike,
-    };
-    this.log.push(entry);
-
-    // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
-    // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。
-    if (this.remainA() <= 0 || this.remainB() <= 0) {
-      if (this.remainA() <= 0 && this.remainB() <= 0) this.finish('draw');
-      else if (this.remainB() <= 0) this.finish('win');
-      else this.finish('lose');
-    } else if (this.roundsInBatch >= MAX_ROUNDS) {
-      this.batchDone = true;
-    }
-
-    return entry;
-  }
-
-  /** 一阵打完还活着双方：开下一阵 12 轮 */
-  nextBatch() {
-    if (this.finished) return false;
-    if (!this.batchDone) return false;
-    this.batchDone = false;
-    this.roundsInBatch = 0;
-    return true;
-  }
-
-  finish(result) {
-    // 哪怕是碾压，也总有几个人倒在阵前：胜仗至少记一笔零星伤亡
-    if (this.a.isPlayer && result === 'win') {
-      const lost = this.a.initialCount - this.remainA();
-      if (lost <= 0 && this.a.initialCount >= 6) {
-        const real = distributeLosses(this.a.troops, 1);
-        const self = this;
-        Object.keys(real).forEach(function (id) {
-          self.lossesA[id] = (self.lossesA[id] || 0) + real[id];
-        });
-        this.log.push({
-          round: this.round,
-          aLossText: lossText(this.a.troops, real),
-          bLossText: '无伤亡',
-          remainA: this.remainA(),
-          remainB: this.remainB(),
-          alphaStrike: 0,
-        });
-      }
-    }
-    this.finished = true;
-    this.batchDone = false;
-    this.result = result;
-  }
-
-  retreat() {
-    if (this.finished) return this.result;
-    // 殿后留一成，不再一刀砍掉四分之一
-    const extra = Math.max(1, Math.round(this.remainA() * 0.1));
-    const real = distributeLosses(this.a.troops, extra);
-    const self = this;
-    Object.keys(real).forEach(function (id) {
-      self.lossesA[id] = (self.lossesA[id] || 0) + real[id];
-    });
-    this.retreated = true;
-    this.finish('retreat');
-    return 'retreat';
-  }
-
-  loot() {
-    // 没打到一方归零，就没有“缴获”这回事；中途一阵结束绝不结算金额。
-    if (!this.finished || this.result !== 'win') return 0;
-    const ctx = this.context || {};
-    // 打匪团来钱快（新手要靠这个滚雪球），攻城与战役另算
-    const kindMul = ctx.kind === 'party' || ctx.kind === 'chase' ? 1.9
-      : ctx.kind === 'lord' ? 2.1
-      : ctx.kind === 'siege' ? 1.5
-      : ctx.kind === 'campaign' ? 2.4 : 1.2;
-    const tierMul = ctx.tier ? 1 + (ctx.tier - 1) * 0.35 : 1;
-    let base = 0;
-    const self = this;
-    Object.keys(this.b.initialTroops).forEach(function (id) {
-      const t = TROOPS[id];
-      const unit = t && t.recruit ? t.recruit : t ? Math.max(16, t.tier * 12) : 16;
-      base += unit * 0.7 * self.b.initialTroops[id];
-    });
-    return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
-  }
-
-  summary() {
-    return {
-      result: this.result,
-      finished: this.finished,
-      round: this.round,
-      rounds: this.round,
-      batch: this.batch,
-      remainA: this.remainA(),
-      remainB: this.remainB(),
-      initialA: this.a.initialCount,
-      initialB: this.b.initialCount,
-      lossesA: this.lossesA,
-      lossesB: this.lossesB,
-      loot: this.loot(),
-      shiMark: this.shiMark,
-      shiName: this.shiName,
-      shiTiming: this.shiTiming,
-    };
-  }
-
-  /** 一阵 12 轮结束、双方仍有兵：只报战况，不报缴获 */
-  interimSummary() {
-    return {
-      result: null,
-      finished: false,
-      interim: true,
-      round: this.round,
-      rounds: this.round,
-      batch: this.batch,
-      remainA: this.remainA(),
-      remainB: this.remainB(),
-      initialA: this.a.initialCount,
-      initialB: this.b.initialCount,
-      lossesA: this.lossesA,
-      lossesB: this.lossesB,
-      loot: 0,
-    };
-  }
-}
-
-module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor };
 
 
   };
@@ -8810,6 +9461,7 @@ function moveParties(state, slot) {
   const nowH = gameHours(state);
   releaseStuckBanditEngagements(state);
   state.parties.forEach(function (party) {
+    if (party.fieldBattleId) return;
     const isBandit = party.faction === 'bandit' && !party.scripted;
     // 匪团按 6.5 时辰一格走，比普通领主（6 时辰一格）慢，
     // 领主追杀时能逐步逼近；它们不受三槽错峰限制，靠 nextBanditMoveH 控制节奏。
@@ -9917,6 +10569,7 @@ function moveLords(state, slot) {
   const playerSide = p.faction || 'player';
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
+    if (lord.fieldBattleId) return;
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
 
@@ -10415,7 +11068,8 @@ function playerSide(state) {
     name: state.player.country && state.player.country.name
       ? state.player.country.name + '军'
       : state.player.name + ' · ' + renownTitle(state.player.renown),
-    faction: state.player.faction,
+    faction: state.player.faction || null,
+    relationFaction: state.player.faction || 'player',
     troops: deepCopy(state.player.troops),
     morale: state.player.morale,
     atkPct: bonus.atkPct + hb.atkPct,
@@ -10427,9 +11081,26 @@ function playerSide(state) {
 function startPartyBattle(state, party) {
   // 西凉步卒是剧情追兵，不能拉出来正常对战；只能在被追上页留人断后
   if (!party || party.scripted) return null;
+  const player = playerSide(state);
+  const bf = war.createFieldBattle(state, { kind: 'player', id: 'player' },
+    { kind: 'party', id: party.id }, {
+      playerInvolved: true,
+      playerSide: 'a',
+      preAggregate: true,
+      aInfo: player,
+      context: {
+        kind: 'party',
+        partyId: party.id,
+        partyName: party.name,
+        tier: party.banditTier ? BANDIT_TIERS[party.banditTier].rank : 0,
+      },
+    });
+  if (bf) return bf.battle;
+  // 兜底：万一合战条件不成立（例如阵营关系数据异常），仍然给一场单挑
+  player.edge = war.factionEdge(player.faction, party.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: party.name,
       faction: party.faction,
@@ -10437,11 +11108,10 @@ function startPartyBattle(state, party) {
       morale: party.morale,
       atkPct: 0,
       defPct: 0,
+      edge: war.factionEdge(party.faction, player.faction),
     },
     context: {
-      kind: party.scripted ? 'chase' : 'party',
-      partyId: party.id,
-      partyName: party.name,
+      kind: 'party', partyId: party.id, partyName: party.name,
       tier: party.banditTier ? BANDIT_TIERS[party.banditTier].rank : 0,
     },
   });
@@ -10450,9 +11120,23 @@ function startPartyBattle(state, party) {
 }
 
 function startLordBattle(state, lord) {
+  const player = playerSide(state);
+  const bf = war.createFieldBattle(state, { kind: 'player', id: 'player' },
+    { kind: 'lord', id: lord.id }, {
+      playerInvolved: true,
+      playerSide: 'a',
+      preAggregate: true,
+      aInfo: player,
+      context: {
+        kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction,
+      },
+    });
+  if (bf) return bf.battle;
+  // 兜底：单挑，保持旧行为
+  player.edge = war.factionEdge(player.faction, lord.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: lord.name + '军',
       faction: lord.faction,
@@ -10460,6 +11144,7 @@ function startLordBattle(state, lord) {
       morale: lord.morale,
       atkPct: 0.05,
       defPct: 0.05,
+      edge: war.factionEdge(lord.faction, player.faction),
     },
     context: { kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction },
   });
@@ -10618,9 +11303,11 @@ function startSiege(state, site) {
     }
     ps.stage = 'storming';
   }
+  const player = playerSide(state);
+  player.edge = war.factionEdge(player.faction, site.ownerFaction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: site.name + '守军',
       faction: site.ownerFaction,
@@ -10628,6 +11315,7 @@ function startSiege(state, site) {
       morale: site.type === 'town' ? 68 : 62,
       atkPct: site.type === 'castle' ? 0.12 : 0.05,
       defPct: site.type === 'castle' ? 0.2 : 0.12,
+      edge: war.factionEdge(site.ownerFaction, player.faction),
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
   });
@@ -10671,9 +11359,11 @@ function startCampaignBattle(state, id) {
   };
   const cfg = configs[id];
   if (!cfg) return null;
+  const player = playerSide(state);
+  player.edge = war.factionEdge(player.faction, cfg.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: cfg.name,
       faction: cfg.faction,
@@ -10681,6 +11371,7 @@ function startCampaignBattle(state, id) {
       morale: cfg.morale,
       atkPct: 0.05,
       defPct: 0.1,
+      edge: war.factionEdge(cfg.faction, player.faction),
     },
     context: cfg.context,
   });
@@ -10792,8 +11483,20 @@ function reviveAfterDefeat(state, reason) {
 /** 把战果写回 state */
 function resolveBattle(state, battle) {
   const summary = battle.summary();
-  state.player.troops = deepCopy(battle.a.troops);
   const p = state.player;
+  const fieldBattle = battle.fieldBattleId ? war.fieldBattleById(state, battle.fieldBattleId) : null;
+  if (fieldBattle) war.syncFieldBattle(state, fieldBattle);
+  const playerContingent = fieldBattle ? war.playerContingentOf(battle) : null;
+  function syncPlayerTroopsFromField() {
+    if (playerContingent) {
+      p.troops = deepCopy(war.contingentTroops(playerContingent));
+      summary.playerInitial = playerContingent.initialCount;
+      summary.playerRemain = playerContingent.count;
+    } else {
+      p.troops = deepCopy(battle.a.troops);
+    }
+  }
+  syncPlayerTroopsFromField();
 
   // 缴获：会搜战场的英雄能多刮一点
   const hbLoot = heroes.heroBonus(state).lootPct;
@@ -10814,7 +11517,7 @@ function resolveBattle(state, battle) {
           put += n;
         }
       });
-      p.troops = deepCopy(battle.a.troops);
+      syncPlayerTroopsFromField();
       summary.remainA = battle.remainA();
       summary.rollBack = put;
       pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
@@ -10924,7 +11627,10 @@ function resolveBattle(state, battle) {
     }
   }
 
-  state.stats.troopsLost += Math.max(0, summary.initialA - summary.remainA);
+  const playerInitial = typeof summary.playerInitial === 'number' ? summary.playerInitial : summary.initialA;
+  const playerRemain = typeof summary.playerRemain === 'number' ? summary.playerRemain : summary.remainA;
+  state.stats.troopsLost += Math.max(0, playerInitial - playerRemain);
+  if (fieldBattle) war.settleFieldBattle(state, fieldBattle, summary, { playerBattle: true });
   state.battle = null;
   return summary;
 }
@@ -12680,9 +13386,14 @@ function serialize(state) {
       delete copy.patrolPath;
       delete copy.fleePath;
       delete copy.fleePathFor;
+      copy.fieldBattleId = null;
       return copy;
     }),
-    parties: state.parties,
+    parties: (state.parties || []).map(function (q) {
+      const copy = Object.assign({}, q);
+      copy.fieldBattleId = null;
+      return copy;
+    }),
     quests: state.quests,
     log: state.log,
     stats: state.stats,
@@ -12712,6 +13423,7 @@ function serialize(state) {
     arc: state.arc || null,
   };
   copy.player.route = [];
+  copy.player.fieldBattleId = null;
   copy.player.stepFrom = null;
   copy.player.stepTo = null;
   copy.player.stepProgress = 0;
@@ -12751,9 +13463,14 @@ function deserialize(json) {
       copy.patrolPath = null;
       copy.fleePath = null;
       copy.fleePathFor = null;
+      copy.fieldBattleId = null;
       return copy;
     }),
-    parties: data.parties || [],
+    parties: (data.parties || []).map(function (q) {
+      const copy = Object.assign({}, q);
+      copy.fieldBattleId = null;
+      return copy;
+    }),
     banditRespawning: data.banditRespawning || [],
     quests: data.quests || [],
     log: data.log || [],
@@ -12912,6 +13629,8 @@ function deserialize(json) {
   warmPatrolFields(state);
   return state;
 }
+
+war.bindPartyDestroyer(destroyBanditParty);
 
 module.exports = {
   HOUR_SECONDS,
@@ -15462,6 +16181,32 @@ function drawUnits(ctx, app, cam, box, w) {
       text(ctx, '!', sx, sy - 54 * z, { size: Math.round(26 * z), align: 'center', color: '#e05a42' });
     }
   });
+
+  // NPC 的合战战场：不是把几支队伍叠成一个点，而是在两军中间立一块“合战”牌，
+  // 让玩家看得见这里正在打、双方各剩多少人。
+  (st.fieldBattles || []).forEach(function (bf) {
+    if (!bf || bf.playerInvolved || !bf.battle) return;
+    const sx = bf.center.x * TS - cam.x + TS / 2;
+    const sy = box.top + bf.center.y * TS - cam.y + TS / 2;
+    if (sx < -80 || sx > w + 80 || sy < box.top - 100 || sy > box.top + box.h + 100) return;
+    const ca = army.troopCount(bf.battle.a.troops);
+    const cb = army.troopCount(bf.battle.b.troops);
+    const bw = 96 * z;
+    const bh = 30 * z;
+    ctx.fillStyle = 'rgba(36,18,12,0.92)';
+    ctx.fillRect(sx - bw / 2, sy - 78 * z, bw, bh);
+    ctx.strokeStyle = 'rgba(220,90,60,0.85)';
+    ctx.lineWidth = Math.max(1, 1.2 * z);
+    ctx.strokeRect(sx - bw / 2, sy - 78 * z, bw, bh);
+    text(ctx, '合战', sx, sy - 76 * z, {
+      size: Math.max(14, Math.round(19 * z)), align: 'center', color: '#ffd0a0',
+    });
+    if (z >= 0.45) {
+      text(ctx, ca + ' : ' + cb, sx, sy - 50 * z, {
+        size: Math.max(11, Math.round(14 * z)), align: 'center', color: '#efe3c6',
+      });
+    }
+  });
   ctx.restore();
 }
 
@@ -15972,7 +16717,9 @@ function drawBottom(ctx, app, w, box) {
   const st = app.state;
   const p = st.player;
   const wars = stateLib.factionWars(st);
-  const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
+  const liveFields = (st.fieldBattles || []).filter(function (bf) { return bf && !bf.playerInvolved; }).length;
+  const warTxt = (wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战') +
+    (liveFields ? ' · 合战 ' + liveFields + ' 处' : '');
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
   if (app.mapTimePaused) {
     drawPauseTag(ctx, w, y0);
@@ -19675,8 +20422,8 @@ const BattleScene = {
     const bb = b.b;
     const y1 = compact ? 112 : 190;
     const y2 = compact ? 190 : 300;
-    drawSide(ctx, w, y1, a, '我方', '#6f9fd8', true);
-    drawSide(ctx, w, y2, bb, '敌方', '#d07060', false);
+    drawSide(ctx, w, y1, a, '我方', '#6f9fd8', true, compact);
+    drawSide(ctx, w, y2, bb, '敌方', '#d07060', false, compact);
 
     if (!compact) {
       drawTroopRow(ctx, w, 430, a.troops, a.initialTroops, '#5a8fd0', 1);
@@ -19833,7 +20580,7 @@ const BattleScene = {
   onTouchEnd() {},
 };
 
-function drawSide(ctx, w, y, side, label, color, isPlayer) {
+function drawSide(ctx, w, y, side, label, color, isPlayer, compact) {
   const ratio = side.initialCount ? army.troopCount(side.troops) / side.initialCount : 0;
   text(ctx, label, 16, y, { size: 17, color: '#8a8070' });
   text(ctx, side.name, 16, y + 22, { size: 26, color: color });
@@ -19845,6 +20592,14 @@ function drawSide(ctx, w, y, side, label, color, isPlayer) {
     return (TROOPS[id] ? TROOPS[id].name : id) + ' ' + side.initialTroops[id];
   }).join(' · ');
   text(ctx, str, 16, y + 76, { size: 15, color: '#8a8070' });
+  // 五格合战：把加入的友军/敌军分别列出来，人数仍按侧面总数叠加。
+  if (!compact && side.contingents && side.contingents.length > 1) {
+    const line = (isPlayer ? '友军 ' : '敌军 ') + side.contingents.map(function (c) {
+      return c.name + ' ' + c.count;
+    }).join(' · ');
+    const one = wrap(ctx, line, w - 32, 13)[0] || line;
+    text(ctx, one, 16, y + 99, { size: 13, color: '#a2947a' });
+  }
 }
 
 function drawTroopRow(ctx, w, y, troops, initial, color, dir) {

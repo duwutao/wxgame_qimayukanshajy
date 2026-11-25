@@ -1697,6 +1697,32 @@ function drawUnits(ctx, app, cam, box, w) {
       text(ctx, '!', sx, sy - 54 * z, { size: Math.round(26 * z), align: 'center', color: '#e05a42' });
     }
   });
+
+  // NPC 的合战战场：不是把几支队伍叠成一个点，而是在两军中间立一块“合战”牌，
+  // 让玩家看得见这里正在打、双方各剩多少人。
+  (st.fieldBattles || []).forEach(function (bf) {
+    if (!bf || bf.playerInvolved || !bf.battle) return;
+    const sx = bf.center.x * TS - cam.x + TS / 2;
+    const sy = box.top + bf.center.y * TS - cam.y + TS / 2;
+    if (sx < -80 || sx > w + 80 || sy < box.top - 100 || sy > box.top + box.h + 100) return;
+    const ca = army.troopCount(bf.battle.a.troops);
+    const cb = army.troopCount(bf.battle.b.troops);
+    const bw = 96 * z;
+    const bh = 30 * z;
+    ctx.fillStyle = 'rgba(36,18,12,0.92)';
+    ctx.fillRect(sx - bw / 2, sy - 78 * z, bw, bh);
+    ctx.strokeStyle = 'rgba(220,90,60,0.85)';
+    ctx.lineWidth = Math.max(1, 1.2 * z);
+    ctx.strokeRect(sx - bw / 2, sy - 78 * z, bw, bh);
+    text(ctx, '合战', sx, sy - 76 * z, {
+      size: Math.max(14, Math.round(19 * z)), align: 'center', color: '#ffd0a0',
+    });
+    if (z >= 0.45) {
+      text(ctx, ca + ' : ' + cb, sx, sy - 50 * z, {
+        size: Math.max(11, Math.round(14 * z)), align: 'center', color: '#efe3c6',
+      });
+    }
+  });
   ctx.restore();
 }
 
@@ -2207,7 +2233,9 @@ function drawBottom(ctx, app, w, box) {
   const st = app.state;
   const p = st.player;
   const wars = stateLib.factionWars(st);
-  const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
+  const liveFields = (st.fieldBattles || []).filter(function (bf) { return bf && !bf.playerInvolved; }).length;
+  const warTxt = (wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战') +
+    (liveFields ? ' · 合战 ' + liveFields + ' 处' : '');
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
   if (app.mapTimePaused) {
     drawPauseTag(ctx, w, y0);

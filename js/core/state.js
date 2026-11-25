@@ -1902,6 +1902,7 @@ function moveParties(state, slot) {
   const nowH = gameHours(state);
   releaseStuckBanditEngagements(state);
   state.parties.forEach(function (party) {
+    if (party.fieldBattleId) return;
     const isBandit = party.faction === 'bandit' && !party.scripted;
     // 匪团按 6.5 时辰一格走，比普通领主（6 时辰一格）慢，
     // 领主追杀时能逐步逼近；它们不受三槽错峰限制，靠 nextBanditMoveH 控制节奏。
@@ -3009,6 +3010,7 @@ function moveLords(state, slot) {
   const playerSide = p.faction || 'player';
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
+    if (lord.fieldBattleId) return;
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
 
@@ -3507,7 +3509,8 @@ function playerSide(state) {
     name: state.player.country && state.player.country.name
       ? state.player.country.name + '军'
       : state.player.name + ' · ' + renownTitle(state.player.renown),
-    faction: state.player.faction,
+    faction: state.player.faction || null,
+    relationFaction: state.player.faction || 'player',
     troops: deepCopy(state.player.troops),
     morale: state.player.morale,
     atkPct: bonus.atkPct + hb.atkPct,
@@ -3519,9 +3522,26 @@ function playerSide(state) {
 function startPartyBattle(state, party) {
   // 西凉步卒是剧情追兵，不能拉出来正常对战；只能在被追上页留人断后
   if (!party || party.scripted) return null;
+  const player = playerSide(state);
+  const bf = war.createFieldBattle(state, { kind: 'player', id: 'player' },
+    { kind: 'party', id: party.id }, {
+      playerInvolved: true,
+      playerSide: 'a',
+      preAggregate: true,
+      aInfo: player,
+      context: {
+        kind: 'party',
+        partyId: party.id,
+        partyName: party.name,
+        tier: party.banditTier ? BANDIT_TIERS[party.banditTier].rank : 0,
+      },
+    });
+  if (bf) return bf.battle;
+  // 兜底：万一合战条件不成立（例如阵营关系数据异常），仍然给一场单挑
+  player.edge = war.factionEdge(player.faction, party.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: party.name,
       faction: party.faction,
@@ -3529,11 +3549,10 @@ function startPartyBattle(state, party) {
       morale: party.morale,
       atkPct: 0,
       defPct: 0,
+      edge: war.factionEdge(party.faction, player.faction),
     },
     context: {
-      kind: party.scripted ? 'chase' : 'party',
-      partyId: party.id,
-      partyName: party.name,
+      kind: 'party', partyId: party.id, partyName: party.name,
       tier: party.banditTier ? BANDIT_TIERS[party.banditTier].rank : 0,
     },
   });
@@ -3542,9 +3561,23 @@ function startPartyBattle(state, party) {
 }
 
 function startLordBattle(state, lord) {
+  const player = playerSide(state);
+  const bf = war.createFieldBattle(state, { kind: 'player', id: 'player' },
+    { kind: 'lord', id: lord.id }, {
+      playerInvolved: true,
+      playerSide: 'a',
+      preAggregate: true,
+      aInfo: player,
+      context: {
+        kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction,
+      },
+    });
+  if (bf) return bf.battle;
+  // 兜底：单挑，保持旧行为
+  player.edge = war.factionEdge(player.faction, lord.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: lord.name + '军',
       faction: lord.faction,
@@ -3552,6 +3585,7 @@ function startLordBattle(state, lord) {
       morale: lord.morale,
       atkPct: 0.05,
       defPct: 0.05,
+      edge: war.factionEdge(lord.faction, player.faction),
     },
     context: { kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction },
   });
@@ -3710,9 +3744,11 @@ function startSiege(state, site) {
     }
     ps.stage = 'storming';
   }
+  const player = playerSide(state);
+  player.edge = war.factionEdge(player.faction, site.ownerFaction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: site.name + '守军',
       faction: site.ownerFaction,
@@ -3720,6 +3756,7 @@ function startSiege(state, site) {
       morale: site.type === 'town' ? 68 : 62,
       atkPct: site.type === 'castle' ? 0.12 : 0.05,
       defPct: site.type === 'castle' ? 0.2 : 0.12,
+      edge: war.factionEdge(site.ownerFaction, player.faction),
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
   });
@@ -3763,9 +3800,11 @@ function startCampaignBattle(state, id) {
   };
   const cfg = configs[id];
   if (!cfg) return null;
+  const player = playerSide(state);
+  player.edge = war.factionEdge(player.faction, cfg.faction);
   const battle = new Battle({
     rng: state.rng,
-    attacker: playerSide(state),
+    attacker: player,
     defender: {
       name: cfg.name,
       faction: cfg.faction,
@@ -3773,6 +3812,7 @@ function startCampaignBattle(state, id) {
       morale: cfg.morale,
       atkPct: 0.05,
       defPct: 0.1,
+      edge: war.factionEdge(cfg.faction, player.faction),
     },
     context: cfg.context,
   });
@@ -3884,8 +3924,20 @@ function reviveAfterDefeat(state, reason) {
 /** 把战果写回 state */
 function resolveBattle(state, battle) {
   const summary = battle.summary();
-  state.player.troops = deepCopy(battle.a.troops);
   const p = state.player;
+  const fieldBattle = battle.fieldBattleId ? war.fieldBattleById(state, battle.fieldBattleId) : null;
+  if (fieldBattle) war.syncFieldBattle(state, fieldBattle);
+  const playerContingent = fieldBattle ? war.playerContingentOf(battle) : null;
+  function syncPlayerTroopsFromField() {
+    if (playerContingent) {
+      p.troops = deepCopy(war.contingentTroops(playerContingent));
+      summary.playerInitial = playerContingent.initialCount;
+      summary.playerRemain = playerContingent.count;
+    } else {
+      p.troops = deepCopy(battle.a.troops);
+    }
+  }
+  syncPlayerTroopsFromField();
 
   // 缴获：会搜战场的英雄能多刮一点
   const hbLoot = heroes.heroBonus(state).lootPct;
@@ -3906,7 +3958,7 @@ function resolveBattle(state, battle) {
           put += n;
         }
       });
-      p.troops = deepCopy(battle.a.troops);
+      syncPlayerTroopsFromField();
       summary.remainA = battle.remainA();
       summary.rollBack = put;
       pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
@@ -4016,7 +4068,10 @@ function resolveBattle(state, battle) {
     }
   }
 
-  state.stats.troopsLost += Math.max(0, summary.initialA - summary.remainA);
+  const playerInitial = typeof summary.playerInitial === 'number' ? summary.playerInitial : summary.initialA;
+  const playerRemain = typeof summary.playerRemain === 'number' ? summary.playerRemain : summary.remainA;
+  state.stats.troopsLost += Math.max(0, playerInitial - playerRemain);
+  if (fieldBattle) war.settleFieldBattle(state, fieldBattle, summary, { playerBattle: true });
   state.battle = null;
   return summary;
 }
@@ -5772,9 +5827,14 @@ function serialize(state) {
       delete copy.patrolPath;
       delete copy.fleePath;
       delete copy.fleePathFor;
+      copy.fieldBattleId = null;
       return copy;
     }),
-    parties: state.parties,
+    parties: (state.parties || []).map(function (q) {
+      const copy = Object.assign({}, q);
+      copy.fieldBattleId = null;
+      return copy;
+    }),
     quests: state.quests,
     log: state.log,
     stats: state.stats,
@@ -5804,6 +5864,7 @@ function serialize(state) {
     arc: state.arc || null,
   };
   copy.player.route = [];
+  copy.player.fieldBattleId = null;
   copy.player.stepFrom = null;
   copy.player.stepTo = null;
   copy.player.stepProgress = 0;
@@ -5843,9 +5904,14 @@ function deserialize(json) {
       copy.patrolPath = null;
       copy.fleePath = null;
       copy.fleePathFor = null;
+      copy.fieldBattleId = null;
       return copy;
     }),
-    parties: data.parties || [],
+    parties: (data.parties || []).map(function (q) {
+      const copy = Object.assign({}, q);
+      copy.fieldBattleId = null;
+      return copy;
+    }),
     banditRespawning: data.banditRespawning || [],
     quests: data.quests || [],
     log: data.log || [],
@@ -6004,6 +6070,8 @@ function deserialize(json) {
   warmPatrolFields(state);
   return state;
 }
+
+war.bindPartyDestroyer(destroyBanditParty);
 
 module.exports = {
   HOUR_SECONDS,

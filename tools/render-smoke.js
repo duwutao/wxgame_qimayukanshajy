@@ -246,6 +246,13 @@ smoke('匪巢洗劫态：火烧空营 + 离开按钮', function () {
 smoke('战斗：战前 + 开打 + 结算', function () {
   const st = app.state;
   const party = st.parties.filter(function (p) { return p.faction === 'bandit'; })[0] || st.parties[0];
+  // 这个用例只验证 12 轮续战页，不要让五格内的 NPC 把战斗提前打完。
+  const oldLords = st.lords;
+  const oldFields = st.fieldBattles;
+  st.lords = [];
+  st.fieldBattles = [];
+  party.fieldBattleId = null;
+  st.player.fieldBattleId = null;
   party.troops = { bandit: 45 };
   st.player.troops = { militia: 40 };
   stateLib.startPartyBattle(st, party);
@@ -270,6 +277,9 @@ smoke('战斗：战前 + 开打 + 结算', function () {
   app.battleView.summary = st.battle.summary();
   app.ui.begin();
   app.top().scene.render(app);
+  st.fieldBattles = oldFields || [];
+  st.lords = oldLords;
+  st.player.fieldBattleId = null;
 });
 
 function campaignBattleInterim(st) {

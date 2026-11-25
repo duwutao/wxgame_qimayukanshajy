@@ -41,12 +41,32 @@ function moraleFactor(morale) {
   return m < 30 ? base * 0.8 : base;
 }
 
+function tierPower(tier) {
+  const t = Math.max(1, Math.min(5, Math.round(tier || 1)));
+  return Math.pow(2, t - 1);
+}
+
+/** 兵种层级：t1=1、t2=2、t3=4、t4=8、t5=16；同级 1:1，每升一级 2:1 */
+function tierFactor(troops) {
+  let power = 0;
+  let count = 0;
+  Object.keys(troops || {}).forEach(function (id) {
+    const t = TROOPS[id];
+    const c = troops[id] || 0;
+    if (c <= 0) return;
+    power += tierPower(t ? t.tier : 1) * c;
+    count += c;
+  });
+  return count > 0 ? power / count : 1;
+}
+
 function makeSide(unit) {
   const troops = {};
   Object.keys(unit.troops || {}).forEach(function (id) {
     const c = unit.troops[id] || 0;
     if (c > 0) troops[id] = c;
   });
+  const factionEdge = typeof unit.edge === 'number' ? unit.edge : 1;
   return {
     name: unit.name || '无名之师',
     faction: unit.faction || null,
@@ -55,8 +75,14 @@ function makeSide(unit) {
     atkPct: unit.atkPct || 0,
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
+    edge: factionEdge,
+    tierFactor: tierFactor(troops),
+    combatEdge: factionEdge * tierFactor(troops),
+    contingents: Array.isArray(unit.contingents) ? unit.contingents : [],
+    coalitionNames: unit.coalitionNames || '',
     initialTroops: JSON.parse(JSON.stringify(troops)),
     initialCount: troopCount(troops),
+    lastCount: troopCount(troops),
   };
 }
 
@@ -172,6 +198,11 @@ class Battle {
     let defA = defenseOf(this.a, sa, tacticA, sb);
     let atkB = offenseOf(this.b, sb, tacticB);
     let defB = defenseOf(this.b, sb, tacticB, sa);
+    // 国别 2:3 与兵种每级 2:1 两层相乘，同时放大攻防。
+    atkA *= this.a.combatEdge || 1;
+    defA *= this.a.combatEdge || 1;
+    atkB *= this.b.combatEdge || 1;
+    defB *= this.b.combatEdge || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;
@@ -287,6 +318,38 @@ class Battle {
     return 'retreat';
   }
 
+  /** 战场中增援：把新队伍并进一侧，用于五格内后续赶到的友军/敌军 */
+  reinforce(sideKey, payload) {
+    const side = sideKey === 'b' ? this.b : this.a;
+    if (!side || !payload || !payload.troops) return false;
+    const add = {};
+    let count = 0;
+    Object.keys(payload.troops).forEach(function (id) {
+      const n = Math.max(0, Math.round(payload.troops[id] || 0));
+      if (n > 0) { add[id] = n; count += n; }
+    });
+    if (count <= 0) return false;
+    Object.keys(add).forEach(function (id) {
+      side.troops[id] = (side.troops[id] || 0) + add[id];
+      side.initialTroops[id] = (side.initialTroops[id] || 0) + add[id];
+    });
+    side.initialCount += count;
+    side.lastCount = (side.lastCount == null ? side.initialCount - count : side.lastCount) + count;
+    side.contingents.push({
+      key: payload.key || '',
+      kind: payload.kind || '',
+      id: payload.id || '',
+      name: payload.name || '援军',
+      faction: payload.faction || null,
+      count: count,
+      initialCount: count,
+      snapshot: JSON.parse(JSON.stringify(add)),
+      isPlayer: !!payload.isPlayer,
+    });
+    side.coalitionNames = (side.coalitionNames ? side.coalitionNames + '、' : '') + (payload.name || '援军');
+    return true;
+  }
+
   loot() {
     // 没打到一方归零，就没有“缴获”这回事；中途一阵结束绝不结算金额。
     if (!this.finished || this.result !== 'win') return 0;
@@ -324,6 +387,8 @@ class Battle {
       shiMark: this.shiMark,
       shiName: this.shiName,
       shiTiming: this.shiTiming,
+      contingentsA: this.a.contingents || [],
+      contingentsB: this.b.contingents || [],
     };
   }
 
@@ -347,5 +412,5 @@ class Battle {
   }
 }
 
-module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor };
+module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFactor };
 

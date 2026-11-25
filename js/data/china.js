@@ -369,9 +369,9 @@ const FACTIONS = {
  * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
  */
 const FACTION_COMBAT = {
-  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对非蜀吴势力 2 兵抵 3 兵' },
-  shu: { power: 1.35, neutral: ['wei', 'wu'], note: '刘备军：对非魏吴势力略占上风' },
-  wu: { power: 1.3, neutral: ['wei', 'shu'], note: '孙权军：对非魏蜀势力略占上风' },
+  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
+  shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
+  wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
 };
 
 /**

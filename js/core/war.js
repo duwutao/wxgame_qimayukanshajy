@@ -11,6 +11,7 @@
 const { FACTIONS, FACTION_COMBAT } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const army = require('./army.js');
+const { Battle } = require('./battle.js');
 
 const ESCAPE_BASE = 0.008;   // 第一天：0.8% + 1.4% ≈ 2.2%
 const ESCAPE_STEP = 0.014;
@@ -24,6 +25,7 @@ const LIUBEI_YI_WAR_DAY = 8;
 // 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
 const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
 const OPENING_DAYS = 30;
+let destroyPartyFn = null;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
@@ -51,6 +53,10 @@ let logFn = pushLogSafe;
 
 function bindLogger(fn) {
   logFn = fn || pushLogSafe;
+}
+
+function bindPartyDestroyer(fn) {
+  destroyPartyFn = fn || null;
 }
 
 function init(state) {
@@ -327,14 +333,25 @@ function peaceOfferTick(state) {
 
 /* ------------------------------------------------------------ 战斗 */
 
-function weight(troops) {
+/** 兵种层级基准：t1=1、t2=2、t3=4、t4=8、t5=16 */
+function tierPower(tier) {
+  const t = Math.max(1, Math.min(5, Math.round(tier || 1)));
+  return Math.pow(2, t - 1);
+}
+
+/** 单兵层级战力，不含国别倍率；1 个 t2 等于 2 个 t1 */
+function tierForce(troops) {
   let sum = 0;
   Object.keys(troops || {}).forEach(function (id) {
     const t = TROOPS[id];
-    const w = t ? t.tier * 2 + t.atk / 3 + t.def / 3 : 4;
-    sum += (troops[id] || 0) * w;
+    sum += (troops[id] || 0) * tierPower(t ? t.tier : 1);
   });
   return sum;
+}
+
+/** 野战/攻城权重：保留原来 t1≈6 的量级，方便守军常数继续用 */
+function weight(troops) {
+  return tierForce(troops) * 6;
 }
 
 /**
@@ -534,6 +551,563 @@ function clash(state, a, b) {
   return { capture: true };
 }
 
+
+/* ------------------------------------------------------- 五格合战 / 动态战场 */
+
+const FIELD_BATTLE_RADIUS = 5;
+const FIELD_BATTLE_LIMIT = 8;
+
+function copyTroops(troops) {
+  return JSON.parse(JSON.stringify(troops || {}));
+}
+
+function fieldRefKey(ref) {
+  if (!ref) return '';
+  if (ref.kind === 'player') return 'player';
+  return (ref.kind || '') + ':' + (ref.id || '');
+}
+
+function fieldUnitOfRef(state, ref) {
+  if (!ref) return null;
+  if (ref.kind === 'player') return state.player;
+  if (ref.kind === 'lord') {
+    return (state.lords || []).filter(function (l) { return l.id === ref.id; })[0] || null;
+  }
+  if (ref.kind === 'party') {
+    return (state.parties || []).filter(function (p) { return p.id === ref.id; })[0] || null;
+  }
+  return null;
+}
+
+function fieldUnitInfo(state, ref, override) {
+  if (override) {
+    const copy = Object.assign({}, override);
+    copy.key = copy.key || fieldRefKey(ref);
+    copy.kind = copy.kind || (ref && ref.kind) || '';
+    copy.id = copy.id || (ref && ref.id) || '';
+    copy.relationFaction = copy.relationFaction !== undefined ? copy.relationFaction : (copy.faction || null);
+    copy.pos = copy.pos || (ref && fieldUnitOfRef(state, ref)) || null;
+    copy.troops = copyTroops(copy.troops);
+    copy.count = army.troopCount(copy.troops);
+    copy.initialCount = copy.count;
+    return copy;
+  }
+  if (!ref) return null;
+  if (ref.kind === 'player') {
+    const p = state.player;
+    return {
+      key: 'player', kind: 'player', id: 'player', name: p.name,
+      faction: p.faction || null, relationFaction: p.faction || 'player',
+      troops: copyTroops(p.troops), morale: p.morale, atkPct: 0, defPct: 0,
+      isPlayer: true, pos: p, count: army.troopCount(p.troops),
+    };
+  }
+  const unit = fieldUnitOfRef(state, ref);
+  if (!unit) return null;
+  if (ref.kind === 'lord') {
+    return {
+      key: 'lord:' + unit.id, kind: 'lord', id: unit.id, name: unit.name + '军',
+      faction: unit.faction || null, relationFaction: unit.faction || null,
+      troops: copyTroops(unit.troops), morale: unit.morale,
+      atkPct: 0.05, defPct: 0.05, isPlayer: false, pos: unit,
+      count: army.troopCount(unit.troops),
+    };
+  }
+  return {
+    key: 'party:' + unit.id, kind: 'party', id: unit.id, name: unit.name,
+    faction: unit.faction || 'bandit', relationFaction: unit.faction || 'bandit',
+    troops: copyTroops(unit.troops), morale: unit.morale,
+    atkPct: 0, defPct: 0, isPlayer: false, pos: unit,
+    count: army.troopCount(unit.troops),
+  };
+}
+
+function fieldUnitEligible(info) {
+  if (!info || !info.pos) return false;
+  if (info.kind === 'player') {
+    return !!info.pos && !info.pos.gameOver && !info.pos.atSiteId;
+  }
+  if (info.kind === 'lord') {
+    const l = info.pos;
+    return !!l && l.alive && !l.dead && !l.retired && !l.prisoner && !l.inCity &&
+      !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  }
+  if (info.kind === 'party') {
+    const q = info.pos;
+    return !!q && !q.dead && !q.scripted && !q.fieldBattleId &&
+      army.troopCount(q.troops || {}) > 0;
+  }
+  return false;
+}
+
+/** 五格内所有可参战单位（玩家、领主、匪团） */
+function collectNearbyFieldUnits(state, center, radius) {
+  const r = typeof radius === 'number' ? radius : FIELD_BATTLE_RADIUS;
+  const out = [];
+  const refs = [{ kind: 'player', id: 'player' }];
+  (state.lords || []).forEach(function (l) { refs.push({ kind: 'lord', id: l.id }); });
+  (state.parties || []).forEach(function (p) { refs.push({ kind: 'party', id: p.id }); });
+  refs.forEach(function (ref) {
+    const info = fieldUnitInfo(state, ref);
+    if (!info || !fieldUnitEligible(info)) return;
+    const pos = info.pos;
+    if (!pos) return;
+    const d = Math.max(Math.abs(pos.x - center.x), Math.abs(pos.y - center.y));
+    if (d > r) return;
+    out.push(info);
+  });
+  return out;
+}
+
+function fieldFactionOf(info) {
+  if (!info) return null;
+  return info.relationFaction !== undefined ? info.relationFaction : (info.faction || null);
+}
+
+/** 严格按“对对方敌对、但不对自己敌对”的阵营规则归边 */
+function fieldSideFor(state, info, fa, fb) {
+  const f = fieldFactionOf(info);
+  if (!f) return null;
+  if (f === fa) return 'a';
+  if (f === fb) return 'b';
+  const atA = atWar(state, f, fa);
+  const atB = atWar(state, f, fb);
+  if (atB && !atA) return 'a';
+  if (atA && !atB) return 'b';
+  return null;
+}
+
+function scaleTroopsTo(troops, target) {
+  const source = copyTroops(troops);
+  const total = army.troopCount(source);
+  const want = Math.max(0, Math.round(target));
+  if (want <= 0) return {};
+  if (want >= total) return source;
+  const out = {};
+  let assigned = 0;
+  const ids = Object.keys(source);
+  const fractions = [];
+  ids.forEach(function (id) {
+    const exact = source[id] * want / total;
+    const n = Math.floor(exact);
+    if (n > 0) { out[id] = n; assigned += n; }
+    fractions.push({ id: id, frac: exact - n, count: source[id] });
+  });
+  let remain = want - assigned;
+  fractions.sort(function (a, b) { return b.frac - a.frac; });
+  for (let i = 0; i < fractions.length && remain > 0; i++) {
+    const f = fractions[i];
+    if ((out[f.id] || 0) < f.count) { out[f.id] = (out[f.id] || 0) + 1; remain -= 1; }
+  }
+  return out;
+}
+
+function contingentTroops(contingent) {
+  if (!contingent) return {};
+  return scaleTroopsTo(contingent.snapshot, contingent.count);
+}
+
+function buildCoalitionSide(infos, foeFaction, opts) {
+  const sideTroops = {};
+  const contingents = [];
+  let countTotal = 0;
+  let moraleWeight = 0;
+  let atkWeight = 0;
+  let defWeight = 0;
+  let forceTotal = 0;
+  let edgeWeight = 0;
+  const primary = infos[0];
+  infos.forEach(function (info) {
+    const group = copyTroops(info.troops);
+    const n = army.troopCount(group);
+    if (n <= 0) return;
+    Object.keys(group).forEach(function (id) {
+      sideTroops[id] = (sideTroops[id] || 0) + group[id];
+    });
+    countTotal += n;
+    moraleWeight += (typeof info.morale === 'number' ? info.morale : 60) * n;
+    atkWeight += (info.atkPct || 0) * n;
+    defWeight += (info.defPct || 0) * n;
+    const force = tierForce(group);
+    forceTotal += force;
+    edgeWeight += force * factionEdge(info.faction, foeFaction);
+    contingents.push({
+      key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
+      kind: info.kind, id: info.id, name: info.name,
+      faction: info.faction || null,
+      count: n, initialCount: n, snapshot: group,
+      isPlayer: !!info.isPlayer,
+    });
+  });
+  const baseName = (opts && opts.name) || (primary && primary.name) || '无名之师';
+  const sideName = contingents.length > 1
+    ? baseName.replace(/军$/, '') + '联军'
+    : baseName;
+  const names = contingents.map(function (c) { return c.name; }).join('、');
+  return {
+    name: sideName,
+    faction: primary ? (primary.faction || null) : null,
+    troops: sideTroops,
+    morale: countTotal ? moraleWeight / countTotal : 60,
+    atkPct: countTotal ? atkWeight / countTotal : 0,
+    defPct: countTotal ? defWeight / countTotal : 0,
+    isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
+    edge: forceTotal ? edgeWeight / forceTotal : 1,
+    coalitionNames: names,
+    contingents: contingents,
+    force: forceTotal,
+  };
+}
+
+function playerContingentOf(battle) {
+  const side = battle && battle.a;
+  if (!side || !side.contingents) return null;
+  return side.contingents.filter(function (c) { return c.isPlayer; })[0] || null;
+}
+
+function fieldBattleById(state, id) {
+  return (state.fieldBattles || []).filter(function (b) { return b && b.id === id; })[0] || null;
+}
+
+function markFieldParticipants(state, battlefield, infos, side) {
+  infos.forEach(function (info) {
+    const unit = info.pos;
+    if (!unit) return;
+    unit.fieldBattleId = battlefield.id;
+    battlefield.participants.push({
+      key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
+      side: side, kind: info.kind, id: info.id, name: info.name, faction: info.faction,
+    });
+  });
+}
+
+/** 创建一场野战。preAggregate=false 时先只让最初两方入阵，其他单位战中再进。 */
+function createFieldBattle(state, aRef, bRef, opts) {
+  const options = opts || {};
+  if (!state.fieldBattles) state.fieldBattles = [];
+  if (state.fieldBattles.length >= FIELD_BATTLE_LIMIT) return null;
+  const aInfo = fieldUnitInfo(state, aRef, options.aInfo);
+  const bInfo = fieldUnitInfo(state, bRef, options.bInfo);
+  if (!aInfo || !bInfo) return null;
+  if (!options.playerInvolved && (!fieldUnitEligible(aInfo) || !fieldUnitEligible(bInfo))) return null;
+  const fa = fieldFactionOf(aInfo);
+  const fb = fieldFactionOf(bInfo);
+  if (!atWar(state, fa, fb)) return null;
+  const center = {
+    x: Math.round(((aInfo.pos ? aInfo.pos.x : 0) + (bInfo.pos ? bInfo.pos.x : 0)) / 2),
+    y: Math.round(((aInfo.pos ? aInfo.pos.y : 0) + (bInfo.pos ? bInfo.pos.y : 0)) / 2),
+  };
+  const playerInvolved = !!options.playerInvolved || !!aInfo.isPlayer || !!bInfo.isPlayer;
+  const seq = (state.fieldBattleSeq || 1);
+  state.fieldBattleSeq = seq + 1;
+  const id = 'fb' + seq;
+
+  const aInfos = [aInfo];
+  const bInfos = [bInfo];
+  if (options.preAggregate !== false) {
+    const existing = [aInfo.key, bInfo.key];
+    collectNearbyFieldUnits(state, center, options.radius || FIELD_BATTLE_RADIUS).forEach(function (info) {
+      if (existing.indexOf(info.key) >= 0) return;
+      if (playerInvolved && info.isPlayer) return;
+      const side = fieldSideFor(state, info, fa, fb);
+      if (side === 'a') aInfos.push(info);
+      else if (side === 'b') bInfos.push(info);
+    });
+  }
+
+  const aSide = buildCoalitionSide(aInfos, fb, {
+    name: aInfo.name, isPlayer: playerInvolved && options.playerSide !== 'b',
+  });
+  const bSide = buildCoalitionSide(bInfos, fa, {
+    name: bInfo.name, isPlayer: playerInvolved && options.playerSide === 'b',
+  });
+  const context = Object.assign({ kind: 'field' }, options.context || {});
+  context.fieldBattleId = id;
+  const battle = new Battle({
+    rng: state.rng,
+    attacker: aSide,
+    defender: bSide,
+    context: context,
+  });
+  battle.fieldBattleId = id;
+  battle.joinLog = [];
+  const battlefield = {
+    id: id,
+    center: center,
+    radius: options.radius || FIELD_BATTLE_RADIUS,
+    primaryA: { key: aInfo.key, faction: fa, name: aInfo.name },
+    primaryB: { key: bInfo.key, faction: fb, name: bInfo.name },
+    aSide: aSide,
+    bSide: bSide,
+    battle: battle,
+    participants: [],
+    startedH: state.clock.day * 24 + state.clock.hour,
+    lastTickH: 0,
+    joinLog: [],
+    playerInvolved: playerInvolved,
+    playerSide: options.playerSide || (aInfo.isPlayer ? 'a' : bInfo.isPlayer ? 'b' : null),
+    context: context,
+  };
+  markFieldParticipants(state, battlefield, aInfos, 'a');
+  markFieldParticipants(state, battlefield, bInfos, 'b');
+  state.fieldBattles.push(battlefield);
+  if (playerInvolved) state.battle = battle;
+  return battlefield;
+}
+
+/** 把某一侧总兵力变化按各队现有人数摊回各队；Battle 只认总兵力，队伍身份保留在这里 */
+function syncFieldBattle(state, battlefield) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf || !bf.battle) return;
+  ['a', 'b'].forEach(function (sk) {
+    const side = bf.battle[sk];
+    if (!side || !side.contingents) return;
+    const current = army.troopCount(side.troops);
+    const last = typeof side.lastCount === 'number' ? side.lastCount : side.initialCount;
+    let loss = Math.max(0, last - current);
+    if (loss > 0) {
+      const totalBefore = side.contingents.reduce(function (s, c) { return s + Math.max(0, c.count || 0); }, 0);
+      let left = loss;
+      side.contingents.forEach(function (c, i) {
+        if (left <= 0) return;
+        const before = Math.max(0, c.count || 0);
+        const take = i === side.contingents.length - 1
+          ? Math.min(left, before)
+          : Math.min(left, Math.floor(loss * before / Math.max(1, totalBefore)));
+        c.count = Math.max(0, before - take);
+        left -= take;
+      });
+      // 舍入误差再扣一遍，保证不会出现“队里有人、总数已归零”
+      if (left > 0) {
+        side.contingents.forEach(function (c) {
+          if (left <= 0) return;
+          const take = Math.min(left, Math.max(0, c.count || 0));
+          c.count -= take;
+          left -= take;
+        });
+      }
+    }
+    side.lastCount = current;
+    const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
+    let force = 0;
+    let edge = 0;
+    side.contingents.forEach(function (c) {
+      const f = tierForce(c.snapshot);
+      force += f;
+      edge += f * factionEdge(c.faction, foeFaction);
+    });
+    side.edge = force > 0 ? edge / force : 1;
+    side.force = force;
+    const currentCount = army.troopCount(side.troops);
+    side.tierFactor = currentCount > 0 ? tierForce(side.troops) / currentCount : 1;
+    side.combatEdge = side.edge * side.tierFactor;
+  });
+}
+
+function addNearbyToFieldBattle(state, bf, options) {
+  if (!bf || !bf.battle || bf.battle.finished) return 0;
+  const battle = bf.battle;
+  const fa = bf.primaryA.faction;
+  const fb = bf.primaryB.faction;
+  const candidates = collectNearbyFieldUnits(state, bf.center, bf.radius);
+  let added = 0;
+  const existing = {};
+  bf.participants.forEach(function (p) { existing[p.key] = true; });
+  candidates.forEach(function (info) {
+    if (!info || existing[info.key]) return;
+    if (!bf.playerInvolved && info.isPlayer) return;
+    const side = fieldSideFor(state, info, fa, fb);
+    if (!side) return;
+    if (army.troopCount(info.troops) <= 0) return;
+    battle.reinforce(side, info);
+    const text = info.name + '率军赶到，加入' + (side === 'a' ? '友军' : '敌军') + '阵线。';
+    battle.joinLog.push({ round: battle.round, text: text, side: side });
+    bf.joinLog.push({ h: state.clock.day * 24 + state.clock.hour, text: text, side: side });
+    markFieldParticipants(state, bf, [info], side);
+    existing[info.key] = true;
+    added += 1;
+    if (nearPlayer(state, info.pos, 12)) logFn(state, text, 'war');
+  });
+  if (added) syncFieldBattle(state, bf);
+  return added;
+}
+
+function releaseFieldBattleUnit(unit) {
+  if (!unit) return;
+  if (unit.fieldBattleId) unit.fieldBattleId = null;
+  if (String(unit.engagedWith || '').indexOf('field:') === 0) {
+    unit.engagedWith = null;
+    unit.engagedSinceH = null;
+  }
+}
+
+function unitForParticipant(state, p) {
+  if (!p) return null;
+  if (p.kind === 'player') return state.player;
+  if (p.kind === 'lord') return (state.lords || []).filter(function (l) { return l.id === p.id; })[0] || null;
+  if (p.kind === 'party') return (state.parties || []).filter(function (q) { return q.id === p.id; })[0] || null;
+  return null;
+}
+
+/**
+ * 结算合战：把每队剩余人数写回；NPC 败方溃逃/被俘，匪团被打散。
+ * 玩家主战由 state.resolveBattle 处理玩家本人与主敌，这里只收束盟军和其他参战者。
+ */
+function settleFieldBattle(state, battlefield, summary, options) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf || !bf.battle) return null;
+  const opts = options || {};
+  syncFieldBattle(state, bf);
+  const battle = bf.battle;
+  const result = summary && summary.result ? summary.result : battle.result;
+  if (!result) return null;
+  const playerBattle = !!bf.playerInvolved || !!opts.playerBattle;
+  const pending = state.postBattleLord;
+  const winnerSide = result === 'win' ? 'a' : result === 'lose' ? 'b' : null;
+  const partyDestroyed = [];
+  const contingentsByKey = {};
+  ['a', 'b'].forEach(function (sk) {
+    (battle[sk].contingents || []).forEach(function (c) { contingentsByKey[c.key] = c; });
+  });
+
+  bf.participants.forEach(function (p) {
+    const unit = unitForParticipant(state, p);
+    if (!unit) return;
+    const c = contingentsByKey[p.key];
+    const isPrimaryB = bf.primaryB.key === p.key;
+    const skipPlayer = p.kind === 'player' && playerBattle;
+    const skipBeatenLord = playerBattle && result === 'win' && isPrimaryB &&
+      pending && pending.lordId === p.id;
+    const skipDestroyedParty = playerBattle && result === 'win' && isPrimaryB && p.kind === 'party';
+    if (c && !skipPlayer && !skipBeatenLord && !skipDestroyedParty) {
+      unit.troops = contingentTroops(c);
+    }
+    releaseFieldBattleUnit(unit);
+    if (p.kind === 'party' && army.troopCount(unit.troops || {}) <= 0) {
+      partyDestroyed.push(unit);
+    }
+  });
+
+  // 玩家不在场：按胜负让败方溃逃或被俘；两败俱伤则各自收兵。
+  if (!playerBattle) {
+    const loserSide = winnerSide === null ? null : winnerSide === 'a' ? 'b' : 'a';
+    bf.participants.forEach(function (p) {
+      if (p.kind === 'player') return;
+      const unit = unitForParticipant(state, p);
+      if (!unit) return;
+      const lost = winnerSide !== null && p.side === loserSide;
+      const draw = winnerSide === null;
+      if (!lost && !draw) return;
+      if (p.kind === 'party') {
+        if (draw || army.troopCount(unit.troops || {}) <= 0) {
+          unit.dead = true;
+          unit.troops = {};
+        }
+        return;
+      }
+      if (!unit.alive || unit.prisoner || unit.inCity) return;
+      if (winnerSide !== null && army.troopCount(unit.troops || {}) <= 0) {
+        capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+          p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        return;
+      }
+      if (p.key === bf.primaryB.key || p.key === bf.primaryA.key) {
+        if (draw) {
+          unit.fleeing = true;
+          unit.fleeFrom = null;
+          moveAway(state, unit);
+          unit.scuffle = Math.max(unit.scuffle || 0, 8);
+        } else if (state.rng.next() < 0.82) {
+          unit.fleeing = true;
+          unit.fleeFrom = null;
+          moveAway(state, unit);
+          unit.scuffle = Math.max(unit.scuffle || 0, 8);
+        } else {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        }
+      } else {
+        unit.fleeing = true;
+        unit.fleeFrom = null;
+        if (army.troopCount(unit.troops || {}) > 0) moveAway(state, unit);
+        unit.scuffle = Math.max(unit.scuffle || 0, 5);
+      }
+    });
+  }
+
+  // 战场纪录移除；匪团尸体从地图上清掉，交给 state 的重生队列处理
+  state.fieldBattles = (state.fieldBattles || []).filter(function (x) { return x.id !== bf.id; });
+  if (partyDestroyed.length) {
+    partyDestroyed.forEach(function (q) {
+      if (destroyPartyFn) destroyPartyFn(state, q, 'field');
+      else q.dead = true;
+    });
+    state.parties = (state.parties || []).filter(function (q) { return partyDestroyed.indexOf(q) < 0; });
+  }
+  if (result && (result === 'win' || result === 'lose') && !playerBattle) {
+    const winner = winnerSide === 'a' ? bf.primaryA : bf.primaryB;
+    const loser = winnerSide === 'a' ? bf.primaryB : bf.primaryA;
+    const near = Math.max(Math.abs(state.player.x - bf.center.x), Math.abs(state.player.y - bf.center.y)) <= 14;
+    if (near) logFn(state, loser.name + '与' + winner.name + '在战场上分出胜负，败军退出五格战场。', 'war');
+  }
+  return {
+    battlefieldId: bf.id,
+    result: result,
+    playerBattle: playerBattle,
+    deadParties: partyDestroyed.map(function (q) { return q.id; }),
+  };
+}
+
+function abandonFieldBattle(state, battlefield, reason) {
+  const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
+  if (!bf) return false;
+  const battle = bf.battle;
+  const summary = battle ? battle.summary() : { result: 'retreat' };
+  summary.result = summary.result || 'retreat';
+  settleFieldBattle(state, bf, summary, { playerBattle: bf.playerInvolved, keepPlayer: true });
+  return true;
+}
+
+/** NPC 战场：每 3 时辰推进一阵；其他队伍在战中进入五格就加入 */
+function tickFieldBattles(state) {
+  if (!state.fieldBattles || !state.fieldBattles.length) return 0;
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  let processed = 0;
+  state.fieldBattles.slice().forEach(function (bf) {
+    if (!bf || !bf.battle || bf.playerInvolved) return;
+    if (nowH - bf.startedH > 72) {
+      bf.battle.finish('draw');
+      settleFieldBattle(state, bf, bf.battle.summary(), {});
+      processed += 1;
+      return;
+    }
+    // 开战这一拍先只有最初两方入阵；下一轮（3 时辰后）起，五格内
+    // 已经站着的队伍再按阵营动态加入，保证“不预先聚合”。
+    if (nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
+    const battle = bf.battle;
+    let batches = 0;
+    let safe = 0;
+    while (!battle.finished && batches < 2 && safe++ < 4) {
+      if (battle.batchDone) battle.nextBatch();
+      let rounds = 0;
+      while (!battle.finished && !battle.batchDone && rounds < 12) {
+        battle.step();
+        rounds += 1;
+      }
+      syncFieldBattle(state, bf);
+      if (!battle.finished && battle.batchDone) {
+        battle.nextBatch();
+        batches += 1;
+      }
+    }
+    if (battle.finished) {
+      settleFieldBattle(state, bf, battle.summary(), {});
+      processed += 1;
+    }
+  });
+  return processed;
+}
+
 /**
  * 领主对领主：兵力差到 1.65 倍且差 10 人以上时，弱者不硬碰，
  * 直接后撤两格并进入逃遁，避免小部队被大军一口吃掉。
@@ -569,49 +1143,57 @@ function fleeDisparity(state, a, b) {
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
-  // 进了城的领主不在地图上，也不能在城门口跟人“野战”。
-  const list = state.lords.filter(function (l) { return l.alive && !l.inCity; });
+  if (!state.fieldBattles) state.fieldBattles = [];
+  // 先推进上一拍就已经存在的战场：让五格内的援军有机会在这一拍加入；
+  // 这一拍新开的战场则留到下一拍再打，避免“刚进战场就打完”。
+  const processed = tickFieldBattles(state);
+  const list = state.lords.filter(function (l) {
+    return l.alive && !l.inCity && !l.prisoner && !l.fieldBattleId;
+  });
   const seen = {};
-  let count = 0;
-  for (let i = 0; i < list.length; i++) {
+  let created = 0;
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  for (let i = 0; i < list.length && created < 4; i++) {
     const a = list[i];
-    if (!a.alive) continue;
-    // 和匪团缠在一起时由 state 的 fightNeighbors 接管，别在这里抢
+    if (!a.alive || a.fieldBattleId) continue;
     if (a.engagedWith && String(a.engagedWith).indexOf('party:') === 0) continue;
+    let b = null;
     if (a.engagedWith) {
-      const b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
+      b = list.filter(function (l) { return l.id === a.engagedWith; })[0];
       if (!b || !b.alive || Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 ||
           a.faction === b.faction || !atWar(state, a.faction, b.faction) ||
-          (a.engagedSinceH && (state.clock.day * 24 + state.clock.hour) - a.engagedSinceH > 72)) {
+          (a.engagedSinceH && nowH - a.engagedSinceH > 72)) {
         clearEngagement(a, b);
         continue;
       }
-      const pairKey = [a.id, b.id].sort().join('|');
-      if (seen[pairKey]) continue;
-      seen[pairKey] = true;
-      if (!fleeDisparity(state, a, b)) clash(state, a, b);
-      count += 1;
-      if (count > 3) return count;
-      continue;
+    } else {
+      if (a.scuffle && a.scuffle > 0) { a.scuffle -= 1; continue; }
+      for (let j = i + 1; j < list.length; j++) {
+        const cand = list[j];
+        if (!cand.alive || !cand.troops || cand.engagedWith || cand.fieldBattleId) continue;
+        if (cand.scuffle && cand.scuffle > 0) continue;
+        if (Math.abs(a.x - cand.x) > 1 || Math.abs(a.y - cand.y) > 1) continue;
+        if (a.faction === cand.faction) continue;
+        if (a.faction === 'bandit' || cand.faction === 'bandit') continue;
+        if (!atWar(state, a.faction, cand.faction)) continue;
+        b = cand;
+        break;
+      }
+      if (!b) continue;
     }
-    if (a.scuffle && a.scuffle > 0) { a.scuffle -= 1; continue; }
-    for (let j = i + 1; j < list.length; j++) {
-      const b = list[j];
-      if (!b.alive || !b.troops || b.engagedWith) continue;
-      if (b.scuffle && b.scuffle > 0) continue;
-      if (Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1) continue;
-      if (a.faction === b.faction) continue;
-      if (a.faction === 'bandit' && b.faction === 'bandit') continue;
-      if (!atWar(state, a.faction, b.faction)) continue;
-      const pairKey = [a.id, b.id].sort().join('|');
-      if (seen[pairKey]) continue;
-      seen[pairKey] = true;
-      if (!fleeDisparity(state, a, b)) clash(state, a, b);
-      count += 1;
-      if (count > 3) return count;
-    }
+    if (!b || b.fieldBattleId) continue;
+    const pairKey = [a.id, b.id].sort().join('|');
+    if (seen[pairKey]) continue;
+    seen[pairKey] = true;
+    if (fleeDisparity(state, a, b)) continue;
+    const bf = createFieldBattle(state,
+      { kind: 'lord', id: a.id }, { kind: 'lord', id: b.id }, {
+        preAggregate: false,
+        context: { kind: 'field', cause: 'npc' },
+      });
+    if (bf) created += 1;
   }
-  return count;
+  return created + processed;
 }
 
 /* ------------------------------------------------------------ 俘虏 */
@@ -1374,7 +1956,11 @@ module.exports = {
   nearestFoe,
   strategyTick, siegeTick,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
-  bindFleeGuard,
+  bindFleeGuard, bindPartyDestroyer,
   ESCAPE_BASE, ESCAPE_STEP,
+  tierPower, tierForce, FIELD_BATTLE_RADIUS, FIELD_BATTLE_LIMIT,
+  createFieldBattle, addNearbyToFieldBattle, syncFieldBattle, settleFieldBattle,
+  abandonFieldBattle, tickFieldBattles, fieldBattleById, playerContingentOf,
+  contingentTroops, scaleTroopsTo, fieldUnitInfo, fieldSideFor, collectNearbyFieldUnits,
 };
 

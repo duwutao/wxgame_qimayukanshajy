@@ -152,8 +152,8 @@ const BattleScene = {
     const bb = b.b;
     const y1 = compact ? 112 : 190;
     const y2 = compact ? 190 : 300;
-    drawSide(ctx, w, y1, a, '我方', '#6f9fd8', true);
-    drawSide(ctx, w, y2, bb, '敌方', '#d07060', false);
+    drawSide(ctx, w, y1, a, '我方', '#6f9fd8', true, compact);
+    drawSide(ctx, w, y2, bb, '敌方', '#d07060', false, compact);
 
     if (!compact) {
       drawTroopRow(ctx, w, 430, a.troops, a.initialTroops, '#5a8fd0', 1);
@@ -310,7 +310,7 @@ const BattleScene = {
   onTouchEnd() {},
 };
 
-function drawSide(ctx, w, y, side, label, color, isPlayer) {
+function drawSide(ctx, w, y, side, label, color, isPlayer, compact) {
   const ratio = side.initialCount ? army.troopCount(side.troops) / side.initialCount : 0;
   text(ctx, label, 16, y, { size: 17, color: '#8a8070' });
   text(ctx, side.name, 16, y + 22, { size: 26, color: color });
@@ -322,6 +322,14 @@ function drawSide(ctx, w, y, side, label, color, isPlayer) {
     return (TROOPS[id] ? TROOPS[id].name : id) + ' ' + side.initialTroops[id];
   }).join(' · ');
   text(ctx, str, 16, y + 76, { size: 15, color: '#8a8070' });
+  // 五格合战：把加入的友军/敌军分别列出来，人数仍按侧面总数叠加。
+  if (!compact && side.contingents && side.contingents.length > 1) {
+    const line = (isPlayer ? '友军 ' : '敌军 ') + side.contingents.map(function (c) {
+      return c.name + ' ' + c.count;
+    }).join(' · ');
+    const one = wrap(ctx, line, w - 32, 13)[0] || line;
+    text(ctx, one, 16, y + 99, { size: 13, color: '#a2947a' });
+  }
 }
 
 function drawTroopRow(ctx, w, y, troops, initial, color, dir) {
