@@ -2422,6 +2422,9 @@ function patrolRouteFor(state, lord) {
  *  这里的“路线”指绕城巡逻的一串短路径点，不是领主跨城的主路线。 */
 function patrolRouteCount(site) {
   if (!site) return 5;
+  // 新野是刘备唯一的新城，城不大但四面都要巡；给十条远近相交的路线，
+  // 让守将既能贴着城根绕，也能走到外围的远点，不被固定一条线。
+  if (site.id === 'xinye') return 10;
   return (site.garrisonBase || 0) >= 130 ? 9 : 5;
 }
 
@@ -2429,7 +2432,9 @@ function patrolRouteCount(site) {
 function patrolWaypointRing(state, site) {
   const world = state.world;
   const out = [];
-  for (let r = 2; r <= 4; r++) {
+  // 新野要给十条远近相交的路线，外圈放宽到六格；普通城仍保持 2~4 格。
+  const maxR = site && site.id === 'xinye' ? 6 : 4;
+  for (let r = 2; r <= maxR; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
@@ -2445,6 +2450,77 @@ function patrolWaypointRing(state, site) {
     }
   }
   return out;
+}
+
+/**
+ * 新野专用巡逻路线：十条按角度铺出去，长短圈交替。
+ * 偶数条偏外圈（3~5 格的远点），奇数条偏内圈（2 格左右的近点）；
+ * 每条再取三个相隔 120° 的方向，路线之间会自然交叉，不会十个人挤一条线。
+ */
+function xinyePatrolRoutes(state, site, usable) {
+  const routes = [];
+  if (!usable.length) return routes;
+  const TAU = Math.PI * 2;
+  const used = {};
+
+  function pick(points, angle, radius) {
+    let best = null;
+    let bestScore = Infinity;
+    usable.forEach(function (p) {
+      if (points.some(function (q) { return q.x === p.x && q.y === p.y; })) return;
+      const dx = p.x - site.x;
+      const dy = p.y - site.y;
+      const r = Math.max(Math.abs(dx), Math.abs(dy));
+      let da = Math.abs(Math.atan2(dy, dx) - angle);
+      if (da > Math.PI) da = TAU - da;
+      const radial = Math.abs(r - radius);
+      // 角度优先；同一点被前面路线用得多，就轻微降权，十条不会挤成同一条。
+      const key = p.x + ',' + p.y;
+      const repeat = used[key] || 0;
+      const score = da * 2.2 + radial * 0.7 + repeat * 0.11;
+      if (score < bestScore) { bestScore = score; best = p; }
+    });
+    return best;
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const base = i * TAU / 10 + (i % 2 ? 0.12 : 0);
+    const farFirst = i % 2 === 0;
+    const radii = farFirst ? [3.8, 2.0, 3.8] : [2.0, 3.8, 2.0];
+    const points = [];
+    for (let k = 0; k < 3; k++) {
+      const p = pick(points, base + TAU * k / 3, radii[k]);
+      if (p) points.push({ x: p.x, y: p.y });
+    }
+    if (!points.length) points.push({ x: usable[i % usable.length].x, y: usable[i % usable.length].y });
+    points.forEach(function (p) {
+      const key = p.x + ',' + p.y;
+      used[key] = (used[key] || 0) + 1;
+    });
+    routes.push(points);
+  }
+
+  // 极端窄城（可用落脚点只有五六格）仍可能撞出同一条；用未重复的三点组合补开。
+  const seen = {};
+  for (let i = 0; i < routes.length; i++) {
+    let sig = routes[i].map(function (p) { return p.x + ',' + p.y; }).join('|');
+    if (!seen[sig]) { seen[sig] = true; continue; }
+    let alt = null;
+    for (let a = 0; a < usable.length && !alt; a++) {
+      for (let b = a + 1; b < usable.length && !alt; b++) {
+        for (let c = b + 1; c < usable.length && !alt; c++) {
+          const cand = [usable[a], usable[b], usable[c]];
+          const csig = cand.map(function (p) { return p.x + ',' + p.y; }).join('|');
+          if (!seen[csig]) {
+            alt = cand.map(function (p) { return { x: p.x, y: p.y }; });
+            seen[csig] = true;
+          }
+        }
+      }
+    }
+    if (alt) routes[i] = alt;
+  }
+  return routes;
 }
 
 /** 每座城生成 5/9 条互不相同的短巡逻路线（每条 3 个谷口/城外落脚点）。
@@ -2495,6 +2571,11 @@ function patrolRoutesForSite(state, site) {
   }
 
   const count = patrolRouteCount(site);
+  if (site.id === 'xinye') {
+    const routes = xinyePatrolRoutes(state, site, usable);
+    state._patrolRoutes[key] = { w: state.world.w, h: state.world.h, routes: routes };
+    return routes;
+  }
   const routes = [];
   for (let i = 0; i < count; i++) {
     const points = [];
@@ -3726,6 +3807,11 @@ function cancelPlayerSiege(state) {
   const ps = state.playerSiege;
   if (!ps) return { ok: true, msg: '现在没有围城' };
   const site = siteById(state.world, ps.siteId);
+  if (site) {
+    site.siegeStatus = null;
+    site.siegeFaction = null;
+    site.siegeSinceH = null;
+  }
   state.playerSiege = null;
   if (site && state.player.atSiteId === site.id) {
     shoveOutOfSite(state, site);
@@ -3748,6 +3834,11 @@ function startSiege(state, site) {
       ps.stage = 'ready';
     }
     ps.stage = 'storming';
+    // 围城完成、攻城真正开始：城头状态从“围城”转成“进攻中”，
+    // 大地图和城池页都按这个标记显示；战斗结束后再统一清掉。
+    site.siegeStatus = 'assault';
+    site.siegeFaction = 'player';
+    site.siegeSinceH = gameHours(state);
   }
   const player = playerSide(state);
   player.edge = war.factionEdge(player.faction, site.ownerFaction);
@@ -4057,6 +4148,11 @@ function resolveBattle(state, battle) {
       state.playerSiege && state.playerSiege.siteId === battle.context.siteId) {
     const s = siteById(state.world, battle.context.siteId);
     state.playerSiege = null;
+    if (s) {
+      s.siegeStatus = null;
+      s.siegeFaction = null;
+      s.siegeSinceH = null;
+    }
     // 无主城一战没打下，守军就认死了你：门不再开，只能重新围、再决战
     if (s && !s.playerOwned && !s.ownerFaction && !s.playerBlocked) {
       s.playerBlocked = true;
@@ -4109,6 +4205,10 @@ function beginSelfRule(state, site) {
 function takeSite(state, site) {
   const p = state.player;
   if (state.playerSiege && state.playerSiege.siteId === site.id) state.playerSiege = null;
+  // 城头换了主人：围城/攻城的旗标一起收掉，避免地图上还挂着“进攻中”。
+  site.siegeStatus = null;
+  site.siegeFaction = null;
+  site.siegeSinceH = null;
   // 城头换了主人（玩家或 AI），旧日的“围城失败封锁”就作废
   site.playerBlocked = false;
   if (site.type === 'camp') {

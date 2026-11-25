@@ -7,7 +7,7 @@ const pixel = require('../render/pixel.js');
 const { UI_COLORS } = pixel;
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
-const { regionAt, regionDef, siteById, siteAt, terrainAt } = require('../core/world.js');
+const { regionAt, regionDef, siteById, siteAt, terrainAt, bridgeHasWater } = require('../core/world.js');
 const territory = require('../core/territory.js');
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
@@ -753,7 +753,16 @@ function drawMountainRange(ctx, line, raw, toX, toY, w, box, index, snow, app) {
 
 /** 桥：按同一处河道合并成一座宽桥，桥面从河心一直搭到两岸地面 */
 function drawBridges(ctx, world, toX, toY, w, box, app) {
-  const marks = world.bridges || [];
+  // 只画真正落在水上的桥。旧档里有些桥记号是沿河道路被误判出来的，
+  // 地形已经改成 bridge，画在草地上会像一块悬空木板；这里再按“脚下有水”筛一遍。
+  const marks = (world.bridges || []).filter(function (m) {
+    if (!m) return false;
+    if (world.tiles[m.y * world.w + m.x] !== 'bridge') return false;
+    // 用实际河岸判断桥的朝向，再查这座桥脚下是否真有水；
+    // 单格河道的桥，记号方向可能和河道横竖相反，不能只看 m.dir。
+    const dir = bridgeRenderDir(world, m.x, m.y, m.dir);
+    return bridgeHasWater(world, m.x, m.y, dir);
+  });
   if (!marks.length) return;
   const z = app.mapZoom || 1;
   const byKey = {};
@@ -1392,9 +1401,12 @@ function drawSites(ctx, app, cam, box, w) {
     if (sx < -TS * 2 || sx > w + TS || sy < box.top - TS || sy > box.top + box.h + TS) return;
     const npcSiege = st.warCampaigns && Object.keys(st.warCampaigns).some(function (k) {
       const cp = st.warCampaigns[k];
-      return cp && cp.stage === 'siege' && cp.targetId === site.id;
+      return cp && (cp.stage === 'siege' || cp.stage === 'assault') && cp.targetId === site.id;
     });
     const mySiege = !!(st.playerSiege && st.playerSiege.siteId === site.id);
+    const myAssault = !!(mySiege && (st.playerSiege.stage === 'storming' ||
+      site.siegeStatus === 'assault'));
+    const npcAssault = !!(npcSiege && site.siegeStatus === 'assault');
     const siege = npcSiege || mySiege;
     const playerColor = FACTIONS.player ? FACTIONS.player.color : '#d9a441';
     const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
@@ -1483,18 +1495,22 @@ function drawSites(ctx, app, cam, box, w) {
       ctx.fillRect(fx, fy, fw, fh);
     }
 
-    // 围城标记：城下营寨连成圈，远远就看得见
+    // 围城/攻城标记：城下营寨连成圈，远远就看得见
     if (siege) {
       const bw = 52 * uiScale;
       const bh = 30 * uiScale;
-      ctx.fillStyle = mySiege ? 'rgba(120,82,18,0.94)' : 'rgba(120,32,18,0.92)';
+      const assault = myAssault || npcAssault;
+      ctx.fillStyle = myAssault ? 'rgba(132,58,20,0.95)'
+        : assault ? 'rgba(132,34,18,0.94)'
+          : mySiege ? 'rgba(120,82,18,0.94)' : 'rgba(120,32,18,0.92)';
       ctx.fillRect(sx + 5 * uiScale, sy + 5 * uiScale, bw, bh);
-      ctx.strokeStyle = '#f0c060';
+      ctx.strokeStyle = assault ? '#e8a050' : '#f0c060';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(sx + 5 * uiScale, sy + 5 * uiScale, bw, bh);
-      text(ctx, mySiege ? '我围' : '围城', sx + 5 * uiScale + bw / 2, sy + 7 * uiScale, {
-        size: Math.round(20 * uiScale), align: 'center', color: '#ffe0a8',
-      });
+      text(ctx, myAssault ? '我攻' : assault ? '进攻中' : mySiege ? '我围' : '围城',
+        sx + 5 * uiScale + bw / 2, sy + 7 * uiScale, {
+          size: Math.round(20 * uiScale), align: 'center', color: '#ffe0a8',
+        });
     }
 
     // 名牌
@@ -2265,7 +2281,7 @@ function drawBottom(ctx, app, w, box) {
   const warTxt = (wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战') +
     (liveFields ? ' · 合战 ' + liveFields + ' 处' : '');
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
-  if (app.mapTimePaused) {
+  if (mapClockFrozen(app)) {
     drawPauseTag(ctx, w, y0);
   } else {
     const hint = (siegeNow
@@ -2277,6 +2293,13 @@ function drawBottom(ctx, app, w, box) {
     text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
   }
   drawRestPause(ctx, app, w, box);
+}
+
+/** 大地图这一帧到底有没有在走时辰：手动暂停、城下选择框、待处理军情都会冻住。 */
+function mapClockFrozen(app) {
+  const st = app && app.state;
+  if (!st) return false;
+  return !!app.mapTimePaused || !!app.siegePrompt || !!(st.events && st.events.length);
 }
 
 /** 底部中央的暂停状态条：只在不走时辰时出现，恢复流动即隐藏 */

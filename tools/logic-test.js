@@ -565,7 +565,9 @@ st4.playerSiege.startHour = stateLib.gameHours(st4) - 48;
 st4.playerSiege.readyHour = stateLib.gameHours(st4) - 1;
 const siege = stateLib.startSiege(st4, target);
 ok('时辰自然走够也能决战', !!siege && siege.b.initialCount > 40, String(siege && siege.b.initialCount));
+ok('攻城开始时城池状态为进攻中', target.siegeStatus === 'assault', String(target.siegeStatus));
 stateLib.takeSite(st4, target);
+ok('拿城后清除进攻中状态', target.siegeStatus === null, String(target.siegeStatus));
 ok('拿城后归自己', target.playerOwned === true);
 ok('拿城掉原主关系', st4.relations.lv < -50, String(st4.relations.lv));
 ok('拿城统计 +1', st4.stats.sitesTaken === 1);
@@ -1294,8 +1296,10 @@ stU.playerSiege.stage = 'ready';
 stU.playerSiege.readyHour = stateLib.gameHours(stU) - 1;
 const failBattle = stateLib.startSiege(stU, neutralTown);
 ok('围成后能开决战', !!failBattle);
+ok('玩家攻城开始即挂进攻中', neutralTown.siegeStatus === 'assault', String(neutralTown.siegeStatus));
 failBattle.finish('lose');
 const failSummary = stateLib.resolveBattle(stU, failBattle);
+ok('玩家攻城失败后清除进攻中', neutralTown.siegeStatus === null, String(neutralTown.siegeStatus));
 ok('战败后守军只留下残部，不会自动补满',
   neutralTown.garrison >= 8 &&
   neutralTown.garrison === Math.max(8, Math.round(failSummary.remainB || 0)),
@@ -1316,6 +1320,7 @@ stWin.playerSiege.readyHour = stateLib.gameHours(stWin) - 1;
 const winBattle = stateLib.startSiege(stWin, winTown);
 winBattle.finish('win');
 stateLib.resolveBattle(stWin, winBattle);
+ok('围攻胜利后清除进攻中', winTown.siegeStatus === null, String(winTown.siegeStatus));
 ok('围攻胜利后无主城归玩家', winTown.playerOwned === true && winTown.ownerFaction === 'player',
   winTown.playerOwned + '/' + winTown.ownerFaction);
 ok('夺城后清掉旧封锁', winTown.playerBlocked === false && !stateLib.isHostileSite(stWin, winTown));
@@ -1626,12 +1631,14 @@ group('领主八小时同答');
     fourth);
 }
 
-group('自己国家的领主不乱开战');
+group('各国都可自行开战');
 {
   const g = stateLib.createGame({ seed: 8130 });
   g.player.faction = 'wei';
-  ok('自己国家不会被 AI 拉着宣战', !warLib.aiCanDeclare(g, 'wei', 'shu'));
-  ok('别国也不会被 AI 拉来打自己国家', !warLib.aiCanDeclare(g, 'shu', 'wei'));
+  // n11 起不再给玩家效忠国留“AI 不替你宣战”的罩子；
+  // 统一的天下里，魏、蜀、袁都该按自己的邻国和粮草决定打谁。
+  ok('玩家效忠国也会被 AI 开战', warLib.aiCanDeclare(g, 'wei', 'shu'));
+  ok('别国也会来打玩家效忠国', warLib.aiCanDeclare(g, 'shu', 'wei'));
   ok('两家别国之间仍可自行开战', warLib.aiCanDeclare(g, 'shu', 'yuan'));
 }
 
@@ -2124,12 +2131,11 @@ group('n3 版：地图峡谷 · 巡逻路线 · 追匪 · 旗色');
   const hanzhongCanyons = (g.world.canyons || []).filter(function (c) {
     return c.x >= 40 && c.x <= 62 && c.y >= 80 && c.y <= 90;
   });
-  ok('汉中左上/右上峡谷为斜向', hanzhongCanyons.length >= 4 &&
-    hanzhongCanyons.every(function (c) { return c.dir === 'd1' || c.dir === 'd2'; }) &&
-    hanzhongCanyons.some(function (c) { return c.x < 51; }) &&
-    hanzhongCanyons.some(function (c) { return c.x > 51; }), JSON.stringify(hanzhongCanyons));
-  ok('斜峡谷的两格山口可通行', worldLib.terrainAt(g.world, 59, 85).id === 'pass' &&
-    worldLib.terrainAt(g.world, 60, 86).id === 'pass', '59,85 / 60,86');
+  // 汉中北线 n11 改接洛阳，不再绕黑山营；新路穿山会产生横/斜两种山口，
+  // 这里只验“真有山口、山口可通行、两端连得上”，不再锁死旧黑山线的斜向。
+  ok('汉中—洛阳新路经过山口', hanzhongCanyons.length >= 2, JSON.stringify(hanzhongCanyons));
+  ok('汉中到洛阳道路可通行', !!worldLib.findPath(g.world, { x: 51, y: 93 }, { x: 64, y: 70 }),
+    'hanzhong -> luoyang');
 
   function rgb(hex) {
     const n = parseInt(String(hex).slice(1), 16);
@@ -3100,6 +3106,109 @@ group('n10 版：合战节奏 · 溃逃位移 · 旗色');
     Math.pow(lv[1] - bandit[1], 2) + Math.pow(lv[2] - bandit[2], 2));
   ok('吕布与山匪旗色明显区分', gap >= 80,
     FACTIONS.lv.color + ' / ' + FACTIONS.bandit.color + ' = ' + Math.round(gap));
+}
+
+/* ---------------------------------------------------------------- n11 */
+
+group('n11 版：汉中改道 · 新野十巡 · 攻城渐进 · 统一战争');
+{
+  // 汉中不再绕黑山营，直接接洛阳；道路要连得通，且不在非桥区凭空长桥。
+  const g = stateLib.createGame({ seed: 2026112501 });
+  const hanzhong = worldLib.siteById(g.world, 'hanzhong');
+  const luoyang = worldLib.siteById(g.world, 'luoyang');
+  const heishan = worldLib.siteById(g.world, 'heishan');
+  ok('汉中到洛阳有路', !!worldLib.findPath(g.world, hanzhong, luoyang),
+    'hanzhong -> luoyang');
+  ok('汉中不再直连黑山营', !worldLib.findPath(g.world, hanzhong, heishan) ||
+    worldLib.findPath(g.world, hanzhong, heishan).length > 30,
+    'hanzhong -> heishan');
+
+  // 找一块四周没有河水的干地，桥格判定必须拒绝它。
+  let dry = null;
+  for (let y = 3; y < g.world.h - 3 && !dry; y++) {
+    for (let x = 3; x < g.world.w - 3 && !dry; x++) {
+      if (g.world.tiles[y * g.world.w + x] !== 'road') continue;
+      let water = false;
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          if (g.world.tiles[(y + dy) * g.world.w + (x + dx)] === 'river') water = true;
+        }
+      }
+      if (!water) dry = { x: x, y: y };
+    }
+  }
+  ok('非桥区不会被判成桥', !!dry && !worldLib.bridgeHasWater(g.world, dry.x, dry.y, 'h') &&
+    !worldLib.bridgeHasWater(g.world, dry.x, dry.y, 'v'), dry ? dry.x + ',' + dry.y : 'no dry tile');
+}
+{
+  // 新野十条：长短圈都有，路线互不相同，且全部落在可通行、非据点格。
+  const g = stateLib.createGame({ seed: 2026112502 });
+  const xinye = worldLib.siteById(g.world, 'xinye');
+  const routes = stateLib.patrolRoutesForSite(g, xinye);
+  ok('新野有十条巡逻路线', routes.length === 10, String(routes.length));
+  ok('新野路线互不相同', new Set(routes.map(function (r) {
+    return r.map(function (p) { return p.x + ',' + p.y; }).join('|');
+  })).size === 10, JSON.stringify(routes));
+  const farRoutes = routes.filter(function (r) {
+    return r.some(function (p) { return Math.max(Math.abs(p.x - xinye.x), Math.abs(p.y - xinye.y)) >= 3; });
+  });
+  const nearRoutes = routes.filter(function (r) {
+    return r.some(function (p) { return Math.max(Math.abs(p.x - xinye.x), Math.abs(p.y - xinye.y)) <= 2; });
+  });
+  ok('新野巡逻有远圈也有近圈', farRoutes.length >= 5 && nearRoutes.length >= 5,
+    'far=' + farRoutes.length + ' near=' + nearRoutes.length);
+  ok('新野路线都在可通行、非据点格', routes.every(function (r) {
+    return r.length > 0 && r.every(function (p) {
+      return worldLib.terrainAt(g.world, p.x, p.y).passable && !worldLib.siteAt(g.world, p.x, p.y);
+    });
+  }), '路线越界');
+}
+{
+  // NPC 围城到点后必须进入 assault Battle，不能一天内直接换旗。
+  const g = stateLib.createGame({ seed: 2026112503 });
+  const target = worldLib.siteById(g.world, 'guandu');
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  target.ownerFaction = 'yuan';
+  target.garrison = 100;
+  target.siegeStatus = null;
+  lord.inCity = null;
+  lord.prisoner = null;
+  lord.alive = true;
+  lord.x = target.x + 1;
+  lord.y = target.y;
+  lord.troops = { militia: 120 };
+  lord.defTroops = { militia: 120 };
+  Object.keys(FACTIONS).forEach(function (f) {
+    g.factionState[f] = g.factionState[f] || {};
+    g.factionState[f].dead = f !== 'wei';
+  });
+  const cp = {
+    faction: 'wei', enemy: 'yuan', targetId: target.id,
+    stage: 'siege', siegeUntil: g.clock.day, attackerIds: [lord.id],
+    defenderIds: [], arrivedIds: [],
+  };
+  g.warCampaigns = { wei: cp };
+  warLib.strategyTick(g);
+  ok('围城到点进入进攻中', cp.stage === 'assault' && target.siegeStatus === 'assault' && !!cp.siegeBattle,
+    'stage=' + cp.stage + ' status=' + target.siegeStatus);
+  const beforeOwner = target.ownerFaction;
+  warLib.siegeTick(g);
+  ok('攻城第一轮不会瞬间换旗', cp.stage === 'assault' && target.ownerFaction === beforeOwner,
+    'stage=' + cp.stage + ' owner=' + target.ownerFaction);
+  let guard = 0;
+  while (cp.stage === 'assault' && guard++ < 40) warLib.siegeTick(g);
+  ok('攻城战会打到一方倒下才收场', cp.stage !== 'assault' && target.siegeStatus === null,
+    'stage=' + cp.stage + ' status=' + target.siegeStatus);
+  ok('攻城结束只可能是夺城或退兵', cp.stage === 'hold' || cp.stage === 'done',
+    'stage=' + cp.stage + ' owner=' + target.ownerFaction);
+}
+{
+  // 不许再给 NPC 留“开局不战 / 同时最多三场 / 保护都城”的手。
+  const g = stateLib.createGame({ seed: 2026112504 });
+  ok('开局不再禁战', Object.keys(warLib.OPENING_FORBIDDEN).length === 0,
+    JSON.stringify(warLib.OPENING_FORBIDDEN));
+  ok('不再限制同时三场大战', warLib.MAX_WAR_PARTNERS >= 99, String(warLib.MAX_WAR_PARTNERS));
+  ok('aiCanDeclare 不再对玩家效忠国留手', warLib.aiCanDeclare(g, 'wei', 'shu'));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

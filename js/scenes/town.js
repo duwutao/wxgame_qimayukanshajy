@@ -731,7 +731,29 @@ function locateQuest(app, q) {
 function renderTavern(app, site) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
+  const H = app.runtime.height;
   const st = app.state;
+
+  function pauseOutOfTown() {
+    // 和大地图左下角的“暂停停靠”同一条出口：先正常离城，把人放到城郊，
+    // 再冻住天下时辰。不是把镜头直接跳到酒馆任务目标，也不是原地挂机。
+    const r = stateLib.leaveRestForMap(st);
+    if (!r.ok) { app.showToast(r.msg, 2); return; }
+    app.restView = null;
+    app.follow = null;
+    if (st.campFlow) st.campFlow = false;
+    app.mapTimePaused = true;
+    app.mapIdleRest = true;
+    if (app.top() && app.top().name === 'town') app.pop();
+    else app.replace('map');
+    app.showToast('已出城扎营，时辰暂停。', 2.4);
+  }
+
+  function pauseButton(y) {
+    app.ui.button(ctx, PAD, y, w - PAD * 2, 64, '暂停时辰 · 出城扎营', {
+      id: 'tavern_pause', size: 22, fill: '#26372a', onTap: pauseOutOfTown,
+    });
+  }
 
   text(ctx, '酒馆', PAD, 296, { size: 26, color: '#f0c060' });
   const mine = st.quests.filter(function (q) { return !q.done; });
@@ -825,11 +847,13 @@ function renderTavern(app, site) {
         app.showToast(r.msg, 3);
       },
     });
-    backButton(app, y + 168);
+    pauseButton(H - 174);
+    backButton(app, H - 92);
     return;
   }
 
-  backButton(app, y + 90);
+  pauseButton(H - 174);
+  backButton(app, H - 92);
 }
 
 /* ---------------------------------------------------------------- 村中隐者 */
@@ -1151,8 +1175,11 @@ function renderSiege(app, site) {
   const st = app.state;
   const ps = st.playerSiege;
   const active = !!ps && ps.siteId === site.id;
+  const storming = !!(active && ps.stage === 'storming');
 
-  text(ctx, '围城', PAD, 296, { size: 30, color: '#f0c060' });
+  text(ctx, storming ? '进攻中' : '围城', PAD, 296, {
+    size: 30, color: storming ? '#e08a50' : '#f0c060',
+  });
   text(ctx, site.name + ' · 守军 ' + (site.garrison || 0) + ' 人', w - PAD, 304, {
     size: 18, align: 'right', color: '#a2947a',
   });
@@ -1182,10 +1209,11 @@ function renderSiege(app, site) {
   panel(ctx, PAD, 350, w - PAD * 2, 230, { fill: '#241c14' });
   text(ctx, '围城第 ' + day + ' / ' + ps.days + ' 天', PAD + 18, 366, { size: 30, color: '#efe3c6' });
   bar(ctx, PAD + 18, 408, w - PAD * 2 - 36, 12, ring, '#c97a42');
-  text(ctx, ready ? '壕沟已推到城门下，守军开始挂白旗。' : '四面扎营，断粮道、填壕沟；城中还没开门。',
-    PAD + 18, 432, { size: 17, color: ready ? '#8fbf7a' : '#a2947a' });
-  text(ctx, ready ? '可以决战了。' : '还需 ' + Math.ceil(left) + ' 个时辰（约 ' + Math.ceil(left / 24) + ' 天）',
-    PAD + 18, 470, { size: 20, color: ready ? '#8fbf7a' : '#f0c060' });
+  text(ctx, storming ? '云梯已经架上城头，攻城正在进行；这一仗要一回合一阵打到一方倒下。'
+    : (ready ? '壕沟已推到城门下，守军开始挂白旗。' : '四面扎营，断粮道、填壕沟；城中还没开门。'),
+    PAD + 18, 432, { size: 17, color: storming ? '#e08a50' : (ready ? '#8fbf7a' : '#a2947a') });
+  text(ctx, storming ? '攻城中' : (ready ? '可以决战了。' : '还需 ' + Math.ceil(left) + ' 个时辰（约 ' + Math.ceil(left / 24) + ' 天）'),
+    PAD + 18, 470, { size: 20, color: storming ? '#e08a50' : (ready ? '#8fbf7a' : '#f0c060') });
   text(ctx, '围城期间粮草照常消耗；撤围或攻城失败，营寨就散了。', PAD + 18, 508, {
     size: 15, color: '#8a8070',
   });

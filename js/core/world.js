@@ -217,6 +217,35 @@ function bridgeDirAt(world, x, y) {
 }
 
 /**
+ * 桥格脚下必须真的有水：横向桥看上下，竖向桥看左右。
+ * 只靠“道路两侧都有别的路”会把沿河岸铺的公路误判成桥，
+ * 于是河滩、平地甚至山口上都会冒出一座木桥。
+ */
+function bridgeHasWater(world, x, y, dir) {
+  const wet = function (tx, ty) {
+    if (!inBounds(tx, ty)) return false;
+    const t = world.tiles[idx(tx, ty)];
+    return t === 'river' || t === 'bridge';
+  };
+  const horizontal = function () { return wet(x, y - 1) || wet(x, y + 1); };
+  const vertical = function () { return wet(x - 1, y) || wet(x + 1, y); };
+  if (dir === 'v') return vertical();
+  if (dir === 'h') return horizontal();
+  // 斜穿河道的桥没有严格横竖，四邻只要有一格水面就算跨水。
+  return horizontal() || vertical();
+}
+
+/** 桥格四邻里必须至少有一格真正的河水；只看 bridge 格会把整片假桥连成的路也算成水。 */
+function bridgeHasRiver(world, x, y) {
+  const river = function (tx, ty) {
+    if (!inBounds(tx, ty)) return false;
+    return world.tiles[idx(tx, ty)] === 'river';
+  };
+  return river(x - 1, y) || river(x + 1, y) || river(x, y - 1) || river(x, y + 1);
+}
+
+
+/**
  * 补齐桥梁标记：
  * - 新地图：layRoads 已经把过河的格子改成 bridge；
  * - 旧存档：河流两侧都有道路的 river 格，现场补成 bridge，避免旧档看不到桥。
@@ -232,7 +261,9 @@ function ensureWorldFeatures(world) {
         addBridgeMark(world, x, y, bridgeDirAt(world, x, y));
       } else if (t === 'river') {
         const dir = bridgeDirAt(world, x, y);
-        if (dir) {
+        // 旧档补桥也要确认脚下是水：没有水面横在道路两侧的河格，
+        // 很可能是沿河岸的道路，不能硬改成桥。
+        if (dir && bridgeHasWater(world, x, y, dir)) {
           world.tiles[idx(x, y)] = 'bridge';
           addBridgeMark(world, x, y, dir);
         }
@@ -304,7 +335,8 @@ function layRoads(world, pairs) {
       }
       if (t === 'river' || t === 'bridge') {
         world.tiles[idx(x, y)] = 'bridge';
-        addBridgeMark(world, x, y, dir);
+        // 只给真正跨水的格子留桥记号；沿河岸铺路时不要凭空长出一座桥。
+        if (bridgeHasWater(world, x, y, dir)) addBridgeMark(world, x, y, dir);
       } else if (t === 'mountain') {
         world.tiles[idx(x, y)] = 'pass';
         // 穿山口要留下方向：横着穿山和竖着穿山，画出来的峡谷不是同一条。
@@ -671,6 +703,7 @@ module.exports = {
   siteFromRow,
   layRoads,
   ensureWorldFeatures,
+  bridgeHasWater,
   findPath,
   tileHours,
   addHours,

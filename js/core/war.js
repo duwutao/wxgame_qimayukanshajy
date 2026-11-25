@@ -19,12 +19,12 @@ const ESCAPE_CAP = 0.62;
 const MIN_WAR_DAYS = 25;
 const DUEL_FLEE_RATIO = 1.65;
 const DUEL_FLEE_GAP = 10;
-const MAX_WAR_PARTNERS = 3;
+const MAX_WAR_PARTNERS = 99;
 // 刘备入川不是随机外交：天下开始动过几天，必然让刘璋与刘备翻脸。
 const LIUBEI_YI_WAR_DAY = 8;
-// 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
-const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
-const OPENING_DAYS = 30;
+// 不再给开局设“曹袁三十天不能打”的停战罩；各国从第一天起就可以互相吞并。
+const OPENING_FORBIDDEN = {};
+const OPENING_DAYS = 0;
 let destroyPartyFn = null;
 
 function key(a, b) {
@@ -341,12 +341,10 @@ function makePeace(state, a, b, quiet) {
   return true;
 }
 
-/** AI 能不能替这两家宣战：玩家所在的国不替玩家乱开战，玩家自己也不被 AI 拖下水 */
+/** AI 能不能替这两家宣战：不再把玩家效忠的国摘出去，天下该打就打。 */
 function aiCanDeclare(state, a, b) {
   if (!a || !b || a === b) return false;
   if (a === 'bandit' || b === 'bandit' || a === 'player' || b === 'player') return false;
-  const pf = state && state.player ? state.player.faction : null;
-  if (pf && pf !== 'player' && (a === pf || b === pf)) return false;
   return true;
 }
 
@@ -393,7 +391,7 @@ function diplomacyTick(state) {
     }
   }
 
-  // 议和：打得久了，两边都缺粮。一天最多一对，且只在新仇没发生时谈。
+  // 议和：玩家仍可主动谈；AI 不再随机收兵，否则天下永远打不到统一。
   if (!warPairs.length) {
     const keys = Object.keys(m);
     for (let i = 0; i < keys.length; i++) {
@@ -401,7 +399,7 @@ function diplomacyTick(state) {
       const w = m[k];
       if (!w) continue;
       const days = state.clock.day - (w.since || 1);
-      if (days > MIN_WAR_DAYS && rng.next() < 0.02) {
+      if (days > MIN_WAR_DAYS && rng.next() < 0.0) {
         const parts = k.split('|');
         if (makePeace(state, parts[0], parts[1], true)) {
           peacePairs.push(parts);
@@ -1687,17 +1685,11 @@ const RALLY_DAYS_MIN = 4;
 const RALLY_DAYS_MAX = 12;
 const SIEGE_MIN_DAYS = 3;
 const SIEGE_EXTRA_DAYS = 4;
-const SIEGE_COOLDOWN = 30;   // 攻下一城后，这一对国家一个月内不能再动兵
+const SIEGE_COOLDOWN = 7;    // 攻下一城后，这一对国家短暂整补，随后继续推进
 const HOLD_DAYS = 7;         // 攻下后留下守城
-const FAIL_COOLDOWN = 30;   // 没打下来，这一对也得一个月后重整旗鼓
+const FAIL_COOLDOWN = 10;    // 没打下来，这一对重整旗鼓再上
 
-// 主线要用的城、玩家起家的城，不参与 AI 换旗：诸侯可以打，别把剧情打穿
-const PROTECTED_SITES = {
-  chenliu: true, xuchang: true, ye: true, jianye: true, chengdu: true,
-  xiangyang: true, xiapi: true, luoyang: true, changan: true, guandu: true,
-  hanzhong: true, jiangling: true, xiakou: true, chaisang: true, wujun: true,
-  kuaiji: true, pingyuan: true, puyang: true, shouchun: true, chibi: true, yiling: true,
-};
+// 各国以统一为目标：不再把主线都城/玩家起家城列为“AI 不能碰”的保护点。
 
 function siteById(state, id) {
   return state.world.sites.filter(function (s) { return s.id === id; })[0] || null;
@@ -1783,11 +1775,9 @@ function planCampaign(state, faction, day) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
   if (!foes.length) return null;
-  // 刘备只有新野一城，若按“两城才能出征”的老条件永远按兵不动。
-  // 给蜀一条单城出征的例外；其他势力仍保持原门槛。
-  const ownMin = faction === 'shu' ? 1 : 2;
+  // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
-  if (own.length < ownMin) return null;
+  if (!own.length) return null;
   // 刘备入川后优先打益州，不把兵力浪费在北边的鲜卑或中原乱战上。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
       foes.indexOf('zhang') >= 0) {
@@ -1795,19 +1785,19 @@ function planCampaign(state, faction, day) {
   }
 
   const lords = factionLords(state, faction).filter(function (l) {
-    return army.troopCount(l.troops || {}) >= 12 && !l.defending;
+    return army.troopCount(l.troops || {}) >= 1 && !l.defending;
   });
-  if (lords.length < 2) return null;
+  if (!lords.length) return null;
 
   let target = null;
   foes.forEach(function (enemy) {
     if (pairBlocked(state, faction, enemy, day)) return;
     ownedSites(state, enemy, true).forEach(function (s) {
-      if (s.playerOwned || PROTECTED_SITES[s.id]) return;
+      // 任何有主的城都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
+      if (!s.ownerFaction) return;
       // 只打与本势力城网道路直接相连的敌城；第一座城由 canSiegeSiteFromFaction 放行。
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
       const near = nearestSiteOf(state, own, s);
-      if (near.distance > 46) return; // 隔着半个天下的远征先不打
       const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
@@ -1835,7 +1825,7 @@ function planCampaign(state, faction, day) {
       }).slice(0, 4);
     if (leader) chosen = [leader].concat(rest);
   }
-  if (chosen.length < 2) return null;
+  if (chosen.length < 1) return null;
 
   const avgDist = chosen.reduce(function (sum, l) {
     return sum + siteDistance(l, rally);
@@ -1876,11 +1866,10 @@ function attackersOf(state, cp) {
   return cp.attackerIds.map(function (id) {
     return state.lords.filter(function (l) { return l.id === id; })[0];
   }).filter(function (l) {
-    if (!l || !l.alive || l.prisoner) return false;
-    // 兵太少的不再算进集结/围城队列：先回城补人，别跟着去送
-    const now = army.troopCount(l.troops || {});
-    const full = army.troopCount(l.defTroops || {});
-    return now > Math.max(6, Math.round(full * 0.65));
+    if (!l || !l.alive || l.dead || l.prisoner) return false;
+    // 不再因为“兵只剩六成五”就把整路人马抽回城：国家要打到统一，
+    // 围城军就算残了也得留在城下，伤亡由 Battle 逐回合决定。
+    return army.troopCount(l.troops || {}) > 0;
   });
 }
 
@@ -2042,16 +2031,267 @@ function resolveSiege(state, cp, day) {
     '城下还是没破。' + FACTIONS[cp.faction].name + '收兵回营，城头守军也折了一半。', 'siege');
 }
 
-/** 每天一次：给各国诸侯做战略决策 */
+/**
+ * 攻城的守军按势力给一套兵种配比：守军人数不再只当一个大数字，
+ * 而是像玩家攻城那样进入 Battle，逐个回合消耗。
+ */
+function siegeGarrisonTroops(site) {
+  const total = Math.max(0, Math.round(site && site.garrison || 0));
+  if (total <= 0) return {};
+  let mix = { militia: 0.4, spear: 0.35, archer: 0.15, cav: 0.1 };
+  if (site.ownerFaction === 'bandit') mix = { bandit: 0.55, raider: 0.3, raider_cav: 0.15 };
+  else if (site.ownerFaction === 'wei') mix = { militia: 0.35, spear: 0.35, crossbow: 0.2, guard: 0.1 };
+  else if (site.ownerFaction === 'shu') mix = { militia: 0.35, spear: 0.3, archer: 0.25, baier: 0.1 };
+  else if (site.ownerFaction === 'wu') mix = { militia: 0.35, archer: 0.35, boat: 0.2, huochuan: 0.1 };
+  const out = {};
+  Object.keys(mix).forEach(function (id) {
+    const n = Math.round(total * mix[id]);
+    if (n > 0) out[id] = n;
+  });
+  if (!Object.keys(out).length) out.militia = total;
+  return out;
+}
+
+function siegeSiteInfo(site) {
+  return {
+    key: 'site:' + site.id,
+    kind: 'site',
+    id: site.id,
+    name: site.name + '守军',
+    faction: site.ownerFaction,
+    relationFaction: site.ownerFaction,
+    troops: siegeGarrisonTroops(site),
+    morale: site.type === 'castle' ? 62 : 68,
+    atkPct: site.type === 'castle' ? 0.12 : 0.05,
+    defPct: site.type === 'castle' ? 0.2 : 0.12,
+    isPlayer: false,
+    pos: site,
+  };
+}
+
+function siegeContingentKey(kind, id) {
+  return (kind || '') + ':' + (id || '');
+}
+
+/**
+ * 围城到点后进入“进攻中”：把攻方领主与守军组成一场真正的 Battle。
+ * 不再是 resolveSiege 里的加减法一次性换旗，而是每 3 时辰推一回合，
+ * 直到一方在战场上归零。
+ */
+function beginSiegeAssault(state, cp, site, day) {
+  if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  const attackers = attackersOf(state, cp).filter(function (l) {
+    return siteDistance(l, site) <= 2 && army.troopCount(l.troops || {}) > 0;
+  });
+  if (!attackers.length) {
+    cp.done = true;
+    logFn(state, '【' + FACTIONS[cp.faction].name + '】的围城军已经散尽，' + site.name + '城下只留下空营。', 'siege');
+    return false;
+  }
+  const attackerInfos = attackers.map(function (l) {
+    const info = fieldUnitInfo(state, { kind: 'lord', id: l.id });
+    if (info) info.name = l.name + '军';
+    return info;
+  }).filter(Boolean);
+  if (!attackerInfos.length) { cp.done = true; return false; }
+
+  const defenders = cp.defenderIds.map(function (id) {
+    return state.lords.filter(function (l) { return l.id === id; })[0];
+  }).filter(function (l) {
+    return !!l && l.alive && !l.dead && !l.prisoner && siteDistance(l, site) <= 2 &&
+      army.troopCount(l.troops || {}) > 0;
+  });
+  const defenderInfos = [];
+  const siteInfo = siegeSiteInfo(site);
+  if (army.troopCount(siteInfo.troops) > 0) defenderInfos.push(siteInfo);
+  defenders.forEach(function (l) {
+    const info = fieldUnitInfo(state, { kind: 'lord', id: l.id });
+    if (info) defenderInfos.push(info);
+  });
+
+  const aSide = buildCoalitionSide(state, attackerInfos, site.ownerFaction, {
+    name: (FACTIONS[cp.faction] ? FACTIONS[cp.faction].full : cp.faction) + '攻城军',
+  });
+  const bSide = buildCoalitionSide(state, defenderInfos, cp.faction, {
+    name: site.name + '守军',
+  });
+  const battle = new Battle({
+    rng: state.rng,
+    attacker: aSide,
+    defender: bSide,
+    context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },
+  });
+  cp.stage = 'assault';
+  cp.assaultStartDay = day;
+  cp.assaultStartH = state.clock.day * 24 + state.clock.hour;
+  cp.siegeBattle = battle;
+  cp.siegeSiteKey = siteInfo.key;
+  cp.siegeAttackerIds = attackers.map(function (l) { return l.id; });
+  cp.siegeDefenderIds = defenders.map(function (l) { return l.id; });
+  cp.assaultParticipants = [];
+  attackerInfos.forEach(function (info) {
+    cp.assaultParticipants.push({ key: info.key, side: 'a', kind: 'lord', id: info.id });
+  });
+  if (army.troopCount(siteInfo.troops) > 0) {
+    cp.assaultParticipants.push({ key: siteInfo.key, side: 'b', kind: 'site', id: site.id });
+  }
+  defenderInfos.forEach(function (info) {
+    if (info.kind !== 'lord') return;
+    cp.assaultParticipants.push({ key: info.key, side: 'b', kind: 'lord', id: info.id });
+  });
+  site.siegeStatus = 'assault';
+  site.siegeFaction = cp.faction;
+  site.siegeSinceH = cp.assaultStartH;
+  logFn(state,
+    '【' + FACTIONS[cp.faction].name + '】围城已成，云梯架上' + site.name +
+    '城头。攻城开始：' + attackers.length + ' 路攻方对 ' +
+    (defenders.length ? defenders.length + ' 路守将和 ' : '') + '城内守军，一回合一阵。', 'siege');
+  return true;
+}
+
+/** 把攻城 Battle 的伤亡按各队现有人数摊回领主与城内守军。 */
+function syncSiegeAssault(state, cp, site) {
+  const battle = cp.siegeBattle;
+  if (!battle) return;
+  const pseudo = {
+    battle: battle,
+    primaryA: { key: 'campaign:' + cp.faction, faction: cp.faction, name: cp.faction },
+    primaryB: { key: cp.siegeSiteKey, faction: site.ownerFaction, name: site.name },
+    participants: cp.assaultParticipants || [],
+  };
+  syncFieldBattle(state, pseudo, { writeBack: true });
+  const siteContingent = (battle.b.contingents || []).filter(function (c) {
+    return c.key === cp.siegeSiteKey;
+  })[0];
+  if (siteContingent) site.garrison = Math.max(0, siteContingent.count);
+}
+
+/** 攻城战里赶到的守将与后续攻方，按距离逐批加入，不凭空合兵。 */
+function reinforceSiegeBattle(state, cp, site) {
+  const battle = cp.siegeBattle;
+  if (!battle || battle.finished) return;
+  const keys = {};
+  (cp.assaultParticipants || []).forEach(function (p) { keys[p.key] = true; });
+  (cp.siegeAttackerIds || []).concat(cp.attackerIds || []).forEach(function (id) {
+    const l = state.lords.filter(function (x) { return x.id === id; })[0];
+    if (!l || !l.alive || l.dead || l.prisoner || l.inCity) return;
+    if (siteDistance(l, site) > 2 || army.troopCount(l.troops || {}) <= 0) return;
+    const key = siegeContingentKey('lord', l.id);
+    if (keys[key]) return;
+    const info = fieldUnitInfo(state, { kind: 'lord', id: l.id });
+    if (!info) return;
+    info.name = l.name + '军';
+    battle.reinforce('a', info);
+    cp.assaultParticipants.push({ key: key, side: 'a', kind: 'lord', id: l.id });
+    keys[key] = true;
+  });
+  (cp.siegeDefenderIds || []).concat(cp.defenderIds || []).forEach(function (id) {
+    const l = state.lords.filter(function (x) { return x.id === id; })[0];
+    if (!l || !l.alive || l.dead || l.prisoner || l.inCity) return;
+    if (siteDistance(l, site) > 2 || army.troopCount(l.troops || {}) <= 0) return;
+    const key = siegeContingentKey('lord', l.id);
+    if (keys[key]) return;
+    const info = fieldUnitInfo(state, { kind: 'lord', id: l.id });
+    if (!info) return;
+    battle.reinforce('b', info);
+    cp.assaultParticipants.push({ key: key, side: 'b', kind: 'lord', id: l.id });
+    keys[key] = true;
+  });
+}
+
+/** 一场攻城战打赢：只在这里换旗，和野战结算一样有明确的胜负瞬间。 */
+function captureSiegeSite(state, cp, site, day, battle) {
+  const oldOwner = site.ownerFaction;
+  const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
+  site.ownerFaction = cp.faction;
+  site.faction = cp.faction;
+  site.playerOwned = false;
+  site.lordId = null;
+  const newFiefLord = (cp.siegeAttackerIds || []).map(function (id) {
+    return state.lords.filter(function (l) { return l.id === id; })[0];
+  }).filter(function (l) { return l && l.alive && !l.prisoner; })[0]
+    || state.lords.filter(function (l) { return l.alive && l.faction === cp.faction; })[0];
+  if (newFiefLord) site.lordId = newFiefLord.id;
+  site.garrison = Math.max(28, Math.round((site.garrisonBase || 40) * 0.45));
+  site.garrisonBase = site.garrison;
+  site.color = FACTIONS[cp.faction] ? FACTIONS[cp.faction].color : site.color;
+  site.banner = FACTIONS[cp.faction] ? FACTIONS[cp.faction].banner : site.banner;
+  site.siegeStatus = null;
+  site.siegeFaction = null;
+  site.siegeSinceH = null;
+  onSiteTaken(state, site, oldOwner);
+  state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
+  cp.stage = 'hold';
+  cp.holdUntil = day + HOLD_DAYS;
+  cp.capturedSiteId = site.id;
+  cp.holdSiteId = site.id;
+  cp.siegeBattle = null;
+  (battle ? battle.a.contingents : []).forEach(function (c) {
+    if (c.kind !== 'lord') return;
+    const l = state.lords.filter(function (x) { return x.id === c.id; })[0];
+    if (!l) return;
+    giveOrder(l, 'hold', site.id, true);
+    l.order.since = day;
+  });
+  cp.defenderIds.forEach(function (id) {
+    const l = state.lords.filter(function (x) { return x.id === id; })[0];
+    if (!l) return;
+    clearOrder(l);
+    const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
+    if (home) l.home = home.id;
+  });
+  logFn(state,
+    site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
+    '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
+}
+
+/** 攻城战打崩：攻方溃退，守军惨胜；伤亡已经逐回合写回，不再追加一刀。 */
+function repulseSiege(state, cp, site, day, battle) {
+  site.siegeStatus = null;
+  site.siegeFaction = null;
+  site.siegeSinceH = null;
+  site.garrison = Math.max(8, Math.round(site.garrison || 0));
+  (battle ? battle.a.contingents : []).forEach(function (c) {
+    if (c.kind !== 'lord') return;
+    const l = state.lords.filter(function (x) { return x.id === c.id; })[0];
+    if (l) clearOrder(l);
+  });
+  state.siegeCooldown[key(cp.faction, cp.enemy)] = day + FAIL_COOLDOWN;
+  cp.done = true;
+  cp.stage = 'done';
+  cp.siegeBattle = null;
+  logFn(state,
+    '攻城打到第 ' + Math.max(1, day - cp.assaultStartDay) + ' 天，' + site.name +
+    '城下还是没破。' + FACTIONS[cp.faction].name + '收兵回营，城头守军也折了大半。', 'siege');
+}
+
+/** 每个 3 时辰推一回合攻城战；和 NPC 野战同样节奏，不再一口气算完。 */
+function tickSiegeAssault(state, cp, site) {
+  if (cp.done) return;
+  if (!cp.siegeBattle) {
+    if (!beginSiegeAssault(state, cp, site, state.clock.day)) return;
+  }
+  const battle = cp.siegeBattle;
+  if (!battle) return;
+  reinforceSiegeBattle(state, cp, site);
+  if (battle.batchDone && !battle.finished) battle.nextBatch();
+  if (!battle.finished) battle.step();
+  syncSiegeAssault(state, cp, site);
+  if (!battle.finished) return;
+  if (battle.result === 'win' || battle.remainB() <= 0) {
+    captureSiegeSite(state, cp, site, state.clock.day, battle);
+  } else {
+    repulseSiege(state, cp, site, state.clock.day, battle);
+  }
+}
+
+
 function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
-  const playerFaction = state.player && state.player.faction;
   ensureLiuBeiYiWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
-    // 玩家效忠的国不再自作主张开拔、围城；要打由玩家自己下命
-    if (playerFaction && playerFaction !== 'player' && faction === playerFaction) return;
     if ((state.factionState[faction] || {}).dead) {
       const cp = state.warCampaigns[faction];
       if (cp) {
@@ -2062,13 +2302,8 @@ function strategyTick(state) {
     }
     const cp = state.warCampaigns[faction];
     if (!cp) {
-      // 天下同时最多三场大战，其余势力仍在路上巡逻、互相寻仇
-      const active = Object.keys(state.warCampaigns).filter(function (f) {
-        return state.warCampaigns[f] && !state.warCampaigns[f].done;
-      }).length;
-      // 刘备入川是历史主线，哪怕天下已经三处开打，也给他留一路兵。
-      const liubeiEntitled = faction === 'shu' && state.flags && state.flags.liubeiYiWar;
-      if (active < 3 || liubeiEntitled) planCampaign(state, faction, day);
+      // 不再给天下设“同时只能三场大战”的上限：每个还活着的势力都该往邻国压。
+      planCampaign(state, faction, day);
       return;
     }
     if (cp.done) {
@@ -2082,16 +2317,27 @@ function strategyTick(state) {
     }
     const target = siteById(state, cp.targetId);
     if (!target) { cp.done = true; return; }
+    if (target.ownerFaction !== cp.enemy) {
+      // 城在围城期间被别人拿了：这趟作罢，别让旧攻城军继续挂在城头。
+      cp.done = true;
+      cp.stage = 'done';
+      cp.siegeBattle = null;
+      if (target.siegeStatus === 'assault' && target.siegeFaction === cp.faction) {
+        target.siegeStatus = null;
+        target.siegeFaction = null;
+      }
+      return;
+    }
     const attackers = attackersOf(state, cp);
-    if (attackers.length < 2 && cp.stage !== 'siege') { cp.done = true; return; }
+    if (attackers.length < 1 && cp.stage !== 'siege' && cp.stage !== 'assault') { cp.done = true; return; }
 
     if (cp.stage === 'rally') {
       const ready = attackers.filter(function (l) {
         return siteDistance(l, siteById(state, cp.rallyId) || target) <= 2;
       }).length;
       if (day >= cp.rallyUntil) {
-        if (ready < 2 && day < cp.rallyUntil + 4) return;
-        if (ready < 2) {
+        if (ready < 1 && day < cp.rallyUntil + 4) return;
+        if (ready < 1) {
           cp.done = true;
           logFn(state, '【' + FACTIONS[faction].name + '】的集结没凑齐人，队伍在半路散了。', 'siege');
           return;
@@ -2131,7 +2377,17 @@ function strategyTick(state) {
             '城下，守军士气振了一下。', 'siege');
         }
       });
-      if (day >= cp.siegeUntil) resolveSiege(state, cp, day);
+      if (day >= cp.siegeUntil) beginSiegeAssault(state, cp, target, day);
+      return;
+    }
+
+    if (cp.stage === 'assault') {
+      // 攻城由 siegeTick 每 3 时辰推进一回合；每日这里只守住城头状态，
+      // 不在同一天再额外结算一次，避免一天掉两轮人。
+      if (!target.siegeStatus) {
+        target.siegeStatus = 'assault';
+        target.siegeFaction = cp.faction;
+      }
       return;
     }
 
@@ -2151,13 +2407,23 @@ function siegeTick(state) {
   initAI(state);
   Object.keys(state.warCampaigns).forEach(function (faction) {
     const cp = state.warCampaigns[faction];
-    if (!cp || cp.stage !== 'march') return;
+    if (!cp || cp.done) return;
     const target = siteById(state, cp.targetId);
-    if (!target || target.ownerFaction !== cp.enemy) return;
-    const near = attackersOf(state, cp).some(function (l) {
-      return siteDistance(l, target) <= 1;
-    });
-    if (near) startSiege(state, cp, target, state.clock.day);
+    if (!target || target.ownerFaction !== cp.enemy) {
+      cp.done = true;
+      cp.stage = 'done';
+      cp.siegeBattle = null;
+      return;
+    }
+    if (cp.stage === 'march') {
+      const near = attackersOf(state, cp).some(function (l) {
+        return siteDistance(l, target) <= 1;
+      });
+      if (near) startSiege(state, cp, target, state.clock.day);
+      return;
+    }
+    // 围城完成后进入真正一回合一阵的攻城战，每 3 时辰推一轮。
+    if (cp.stage === 'assault') tickSiegeAssault(state, cp, target);
   });
 }
 
