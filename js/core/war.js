@@ -512,26 +512,62 @@ function nearPlayer(state, unit, r) {
   return Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y)) <= (r || 12);
 }
 
+/** 溃逃只走正常步速的一步，不能直接改坐标；更不能落进任何城池格。 */
 function moveAway(state, lord) {
-  // 溃逃：往野地里退两格，别站在战场上等下一轮
+  if (!lord) return false;
+  const nowH = state.clock.day * 24 + state.clock.hour;
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-  for (let i = 0; i < 8; i++) {
-    const d = dirs[state.rng.int(0, 7)];
-    const nx = lord.x + d[0] * 2;
-    const ny = lord.y + d[1] * 2;
-    if (isPassable && isPassable(state.world, nx, ny)) {
-      lord.x = nx;
-      lord.y = ny;
-      return;
+  const start = state.rng.int(0, dirs.length - 1);
+  let spot = null;
+  for (let dist = 2; dist >= 1 && !spot; dist--) {
+    for (let i = 0; i < dirs.length; i++) {
+      const d = dirs[(start + i) % dirs.length];
+      const nx = lord.x + d[0] * dist;
+      const ny = lord.y + d[1] * dist;
+      if (nx < 1 || ny < 1 || nx >= state.world.w - 1 || ny >= state.world.h - 1) continue;
+      if (isPassable && !isPassable(state.world, nx, ny)) continue;
+      if (siteAtFn && siteAtFn(state.world, nx, ny)) continue;
+      if (unitOccupiesFn && unitOccupiesFn(state, lord, nx, ny)) continue;
+      spot = { x: nx, y: ny };
+      break;
     }
   }
-  lord.x = Math.max(1, lord.x - 2);
+  if (!spot) {
+    // 被围死也不原地瞬移；先停一拍，等下一轮再找路。
+    lord.nextMoveH = Math.max(lord.nextMoveH || 0, nowH + 5);
+    return false;
+  }
+  // 溃逃与逃遁同速：5 时辰一格，带插值，不再“闪”过去。
+  const hours = 5;
+  if (unitStepFn) unitStepFn(state, lord, spot, hours);
+  else {
+    const from = { x: lord.x, y: lord.y };
+    lord.stepFrom = from;
+    lord.stepTo = spot;
+    lord.stepStartH = nowH;
+    lord.stepHours = hours;
+    lord.x = spot.x;
+    lord.y = spot.y;
+  }
+  lord.nextMoveH = nowH + hours;
+  // 退却时取消“马上进城”的待办，避免溃逃落点又触发瞬间收旗。
+  lord.enteringSiteId = null;
+  lord.cityEnterAtH = null;
+  return true;
 }
 
 let isPassable = null;
 let fleeGuard = null;
+let unitStepFn = null;
+let unitOccupiesFn = null;
+let siteAtFn = null;
 function bindPassable(fn) { isPassable = fn; }
 function bindFleeGuard(fn) { fleeGuard = fn; }
+function bindMovement(stepFn, occupyFn, siteFn) {
+  unitStepFn = stepFn || null;
+  unitOccupiesFn = occupyFn || null;
+  siteAtFn = siteFn || null;
+}
 
 /** 俘虏这位领主，押在 captor 的老家 */
 function capture(state, loser, captorFaction, captorName) {
@@ -999,7 +1035,7 @@ function createFieldBattle(state, aRef, bRef, opts) {
 }
 
 /** 把某一侧总兵力变化按各队现有人数摊回各队；Battle 只认总兵力，队伍身份保留在这里 */
-function syncFieldBattle(state, battlefield) {
+function syncFieldBattle(state, battlefield, options) {
   const bf = typeof battlefield === 'string' ? fieldBattleById(state, battlefield) : battlefield;
   if (!bf || !bf.battle) return;
   ['a', 'b'].forEach(function (sk) {
@@ -1049,6 +1085,18 @@ function syncFieldBattle(state, battlefield) {
     side.combatEdge = side.edge * side.tierFactor;
     side.defenseEdge = side.combatEdge * side.gateEdge;
   });
+  // 合战进行中也要把本阵伤亡摊回每位领主，地图上的带兵数才会逐阵下降；
+  // 结算时再写一次同样的最终值，不会二次扣兵。
+  if (options && options.writeBack) {
+    bf.participants.forEach(function (p) {
+      const unit = unitForParticipant(state, p);
+      if (!unit || p.kind === 'player') return;
+      const c = ['a', 'b'].reduce(function (found, sk) {
+        return found || (bf.battle[sk].contingents || []).filter(function (q) { return q.key === p.key; })[0];
+      }, null);
+      if (c) unit.troops = contingentTroops(c);
+    });
+  }
 }
 
 function addNearbyToFieldBattle(state, bf, options) {
@@ -1216,37 +1264,24 @@ function abandonFieldBattle(state, battlefield, reason) {
 }
 
 /** NPC 战场：每 3 时辰推进一阵；其他队伍在战中进入五格就加入 */
+/**
+ * NPC 合战：每 3 时辰推进一轮，和玩家战斗里每 0.6 秒推进一轮的节奏接近。
+ * 这样五格内援军有时间加入，各领主也按现有人数逐步、均衡分摊伤亡，
+ * 一直打到一方归零才结算；不再一口气跑完 24 轮，也不再按 72 时辰平局收场。
+ */
 function tickFieldBattles(state) {
   if (!state.fieldBattles || !state.fieldBattles.length) return 0;
   const nowH = state.clock.day * 24 + state.clock.hour;
   let processed = 0;
   state.fieldBattles.slice().forEach(function (bf) {
     if (!bf || !bf.battle || bf.playerInvolved) return;
-    if (nowH - bf.startedH > 72) {
-      bf.battle.finish('draw');
-      settleFieldBattle(state, bf, bf.battle.summary(), {});
-      processed += 1;
-      return;
-    }
     // 开战这一拍先只有最初两方入阵；下一轮（3 时辰后）起，五格内
     // 已经站着的队伍再按阵营动态加入，保证“不预先聚合”。
     if (nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
     const battle = bf.battle;
-    let batches = 0;
-    let safe = 0;
-    while (!battle.finished && batches < 2 && safe++ < 4) {
-      if (battle.batchDone) battle.nextBatch();
-      let rounds = 0;
-      while (!battle.finished && !battle.batchDone && rounds < 12) {
-        battle.step();
-        rounds += 1;
-      }
-      syncFieldBattle(state, bf);
-      if (!battle.finished && battle.batchDone) {
-        battle.nextBatch();
-        batches += 1;
-      }
-    }
+    if (battle.batchDone && !battle.finished) battle.nextBatch();
+    if (!battle.finished) battle.step();
+    syncFieldBattle(state, bf, { writeBack: true });
     if (battle.finished) {
       settleFieldBattle(state, bf, battle.summary(), {});
       processed += 1;
@@ -2166,11 +2201,12 @@ module.exports = {
   nearestFoe,
   strategyTick, siegeTick,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
-  bindFleeGuard, bindPartyDestroyer,
+  bindFleeGuard, bindPartyDestroyer, bindMovement,
   ESCAPE_BASE, ESCAPE_STEP,
   tierPower, tierForce, FIELD_BATTLE_RADIUS, FIELD_BATTLE_LIMIT,
   createFieldBattle, addNearbyToFieldBattle, syncFieldBattle, settleFieldBattle,
   abandonFieldBattle, tickFieldBattles, fieldBattleById, playerContingentOf,
   contingentTroops, scaleTroopsTo, fieldUnitInfo, fieldSideFor, collectNearbyFieldUnits,
+  moveAway,
 };
 

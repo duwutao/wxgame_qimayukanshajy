@@ -349,7 +349,7 @@ const FACTIONS = {
     lord: '袁绍', desc: '四世三公，兵多粮足。只是号令出自三门，谁也不服谁。',
   },
   lv: {
-    id: 'lv', name: '吕', full: '吕布', color: '#a8433a', banner: '吕',
+    id: 'lv', name: '吕', full: '吕布', color: '#e0503c', banner: '吕',
     lord: '吕布', desc: '人中吕布，马中赤兔。骁勇无谋，反复无常。',
   },
   yuanshu: {

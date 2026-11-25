@@ -373,6 +373,7 @@ function createGame(opts) {
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
   war.bindFleeGuard(lordMayFlee);
+  war.bindMovement(stepUnitTo, unitOccupies, siteAt);
   warmPatrolFields(state);
 
   pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
@@ -6091,6 +6092,7 @@ function deserialize(json) {
   war.bindLogger(pushLog);
   war.bindPassable(isPassable);
   war.bindFleeGuard(lordMayFlee);
+  war.bindMovement(stepUnitTo, unitOccupies, siteAt);
   syncPlayerFaction(state.player.country);
   if (state.player.country && state.player.country.name) applyPlayerCountry(state);
   warmPatrolFields(state);

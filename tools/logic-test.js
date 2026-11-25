@@ -2993,6 +2993,115 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
   ok('史册不会把生活日志当匪战', !journalScene.isBanditFight({ kind: 'life', text: '又有一伙残匪聚了起来' }));
 }
 
+/* ---------------------------------------------------------------- n10 版：合战节奏 · 溃逃位移 · 旗色 */
+
+group('n10 版：合战节奏 · 溃逃位移 · 旗色');
+{
+  function testLord(id, faction, n, x, y) {
+    return {
+      id: id, name: id, faction: faction, alive: true, dead: false, retired: false,
+      x: x, y: y, home: null, level: 3, morale: 75, troops: { militia: n },
+      defTroops: { militia: n }, inCity: null, prisoner: null, fieldBattleId: null,
+      engagedWith: null, sight: 5,
+    };
+  }
+  function tickClock(g, h) {
+    g.clock.hour += h;
+    while (g.clock.hour >= 24) { g.clock.hour -= 24; g.clock.day += 1; }
+  }
+  const g = stateLib.createGame({ seed: 2026112601 });
+  g.player.x = 10; g.player.y = 10; g.player.atSiteId = 'chenliu';
+  g.parties = []; g.fieldBattles = []; g.fieldBattleSeq = 1; g.factionWars = {};
+  const a1 = testLord('n10-a1', 'wei', 6000, 50, 50);
+  const a2 = testLord('n10-a2', 'wei', 1200, 49, 51);
+  const b1 = testLord('n10-b1', 'shu', 6000, 51, 50);
+  const b2 = testLord('n10-b2', 'shu', 1200, 52, 51);
+  g.lords = [a1, a2, b1, b2];
+  warLib.declare(g, 'wei', 'shu');
+  const bf = warLib.createFieldBattle(g,
+    { kind: 'lord', id: a1.id }, { kind: 'lord', id: b1.id },
+    { preAggregate: true, context: { kind: 'field' } });
+  ok('n10 合战开局聚合双方各队',
+    !!bf && bf.battle.a.contingents.length === 2 && bf.battle.b.contingents.length === 2,
+    bf ? 'a=' + bf.battle.a.contingents.length + ' b=' + bf.battle.b.contingents.length : 'none');
+  const battle = bf && bf.battle;
+  tickClock(g, 3);
+  warLib.tickFieldBattles(g);
+  ok('一次时辰推进只打一轮', !!battle && battle.round === 1 && !battle.finished,
+    battle ? 'round=' + battle.round + ' finished=' + battle.finished : 'none');
+  ok('一轮打完合战仍留在图上，不瞬间结算',
+    g.fieldBattles.length === 1 && battle.batchDone === false,
+    'fields=' + g.fieldBattles.length + ' batchDone=' + (battle ? battle.batchDone : 'none'));
+  tickClock(g, 3);
+  warLib.tickFieldBattles(g);
+  ok('下一拍继续推进而不是重置',
+    battle.round === 2 && !battle.finished && g.fieldBattles.length === 1,
+    'round=' + battle.round + ' fields=' + g.fieldBattles.length);
+  for (let i = 0; i < 4; i++) {
+    tickClock(g, 3);
+    warLib.tickFieldBattles(g);
+  }
+  const sideLossRatios = ['a', 'b'].map(function (sk) {
+    const cs = battle[sk].contingents;
+    return cs.map(function (c) { return (c.initialCount - c.count) / c.initialCount; });
+  });
+  const flat = sideLossRatios[0].concat(sideLossRatios[1]);
+  const gapRatio = Math.max.apply(null, flat) - Math.min.apply(null, flat);
+  ok('各领主按现有人数均衡分摊伤亡', gapRatio <= 0.02,
+    sideLossRatios[0].join(',') + ' / ' + sideLossRatios[1].join(','));
+  let ticks = 0;
+  while (g.fieldBattles.length && ticks++ < 200) {
+    tickClock(g, 3);
+    warLib.tickFieldBattles(g);
+  }
+  ok('合战一直打到一方失败才收场',
+    g.fieldBattles.length === 0 && battle.finished &&
+    (battle.result === 'win' || battle.result === 'lose'),
+    'result=' + battle.result + ' a=' + armyLib.troopCount(battle.a.troops) +
+    ' b=' + armyLib.troopCount(battle.b.troops));
+}
+{
+  // 溃逃不能直接改坐标，更不能一头扎进城池中心。
+  const gm = stateLib.createGame({ seed: 2026112602 });
+  const city = gm.world.sites.filter(function (s) {
+    return (s.type === 'town' || s.type === 'castle') &&
+      worldLib.terrainAt(gm.world, s.x - 2, s.y).passable &&
+      !worldLib.siteAt(gm.world, s.x - 2, s.y);
+  })[0];
+  ok('溃逃测试需要一座城', !!city, city ? city.id : 'none');
+  if (city) {
+    const lord = {
+      id: 'n10-retreat', name: '溃逃测试', faction: 'wei', alive: true,
+      x: city.x - 2, y: city.y, home: city.id, level: 2,
+      troops: { militia: 30 }, defTroops: { militia: 30 },
+      inCity: null, prisoner: null, engagedWith: null, sight: 5,
+      nextMoveH: stateLib.gameHours(gm),
+    };
+    gm.lords = [lord]; gm.parties = [];
+    gm.player.x = 10; gm.player.y = 10;
+    const before = stateLib.gameHours(gm);
+    const moved = warLib.moveAway(gm, lord);
+    ok('溃逃落点绝不瞬移进城池', moved && !lord.inCity &&
+      !worldLib.siteAt(gm.world, lord.x, lord.y) &&
+      !(lord.x === city.x && lord.y === city.y),
+      'moved=' + moved + ' pos=' + lord.x + ',' + lord.y + ' city=' + city.x + ',' + city.y);
+    ok('溃逃按 5 时辰一格走，不超速',
+      lord.nextMoveH - before === 5 && lord.stepHours === 5 && !!lord.stepTo,
+      'next=' + (lord.nextMoveH - before) + ' stepHours=' + lord.stepHours);
+  }
+}
+{
+  function rgb(hex) {
+    const s = String(hex || '').replace('#', '');
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+  }
+  const lv = rgb(FACTIONS.lv.color), bandit = rgb(FACTIONS.bandit.color);
+  const gap = Math.sqrt(Math.pow(lv[0] - bandit[0], 2) +
+    Math.pow(lv[1] - bandit[1], 2) + Math.pow(lv[2] - bandit[2], 2));
+  ok('吕布与山匪旗色明显区分', gap >= 80,
+    FACTIONS.lv.color + ' / ' + FACTIONS.bandit.color + ' = ' + Math.round(gap));
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
