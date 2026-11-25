@@ -1,0 +1,38 @@
+name: bw-n6-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.event.head_commit.message != 'release: 20261125n6 领主逃遁规则 [skip ci]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download patch
+        run: curl -fsSL https://aka.doubaocdn.com/s/0SFpxVna0m -o /tmp/bw-n6.patch
+      - name: Apply and test
+        run: |
+          git apply --check /tmp/bw-n6.patch
+          git apply /tmp/bw-n6.patch
+          node tools/logic-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Commit and push
+        run: |
+          git config user.name 'bw-release-bot'
+          git config user.email 'bw-release-bot@users.noreply.github.com'
+          rm -f .github/workflows/bw-n6-sync.yml .github/workflows/bw-n6-publish.yml
+          git add -A
+          git commit -m 'release: 20261125n6 领主逃遁规则 [skip ci]'
+          git push origin HEAD:main
