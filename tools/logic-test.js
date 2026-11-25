@@ -757,11 +757,11 @@ ok('孙权与刘表这时才开战', warLib.atWar(st7, 'wu', 'biao'));
 
 // 宣战 / 议和
 const wcount = Object.keys(st7.factionWars).length;
-ok('宣战能生效', warLib.declare(st7, 'shu', 'wu', true) === true || warLib.atWar(st7, 'shu', 'wu'));
-ok('重复宣战不重复记', warLib.declare(st7, 'shu', 'wu', true) === false);
+ok('宣战能生效', warLib.declare(st7, 'wei', 'shu', true) === true || warLib.atWar(st7, 'shu', 'wu'));
+ok('重复宣战不重复记', warLib.declare(st7, 'wei', 'shu', true) === false);
 ok('议和能停战', (function () {
-  warLib.makePeace(st7, 'shu', 'wu', true);
-  return !warLib.atWar(st7, 'shu', 'wu');
+  warLib.makePeace(st7, 'wei', 'shu', true);
+  return !warLib.atWar(st7, 'wei', 'shu');
 })());
 
 // 野战：两位敌对领主撞在一起，败方不会死
@@ -1993,7 +1993,7 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   warLib.declare(g, 'wei', 'shu', false);
   ok('关闭战和提醒后不弹军情', g.events.length === n0, 'events=' + (g.events.length - n0));
   g.settings.diplomacyAlerts = true;
-  warLib.declare(g, 'wu', 'shu', false);
+  warLib.declare(g, 'shu', 'zhang', false);
   ok('打开战和提醒后恢复弹窗', g.events.length > n0,
     'events=' + (g.events.length - n0));
 
@@ -2071,10 +2071,10 @@ ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
   ok('开局先放出三对战争', Object.keys(g.factionWars || {}).length === 3,
     JSON.stringify(Object.keys(g.factionWars || {})));
   warLib.declare(g, 'wei', 'shu', true);
-  warLib.declare(g, 'wei', 'ma', true);
+  warLib.declare(g, 'wei', 'han', true);
   ok('一国最多同时与三国开战', warLib.warPartners(g, 'wei').length === 3 &&
-    !warLib.declare(g, 'wei', 'han', true), JSON.stringify(warLib.warPartners(g, 'wei')));
-  ok('超过三国时宣战被拒', !warLib.canOpenWar(g, 'wei', 'han'));
+    !warLib.declare(g, 'wei', 'biao', true), JSON.stringify(warLib.warPartners(g, 'wei')));
+  ok('超过三国时宣战被拒', !warLib.canOpenWar(g, 'wei', 'biao'));
 }
 {
   const g = stateLib.createGame({ seed: 2026112523 });
@@ -2892,6 +2892,105 @@ group('n8 版：两层对碰 · 五格合战 · NPC 动态战场');
     g2.fieldBattles.length === 0 && !a.fieldBattleId && !b.fieldBattleId &&
     !c.fieldBattleId && !d.fieldBattleId,
     'fields=' + g2.fieldBattles.length);
+}
+
+/* ---------------------------------------------------------------- n9 版：道路连通 · 邻国宣战 · 战略要地 */
+
+group('n9 版：道路连通 · 邻国宣战 · 战略要地');
+{
+  const roadData = require(R + '/data/china.js');
+  ok('剑阁—新野有直连道路',
+    (roadData.ROADS || []).some(function (r) {
+      return (r[0] === 'jiange' && r[1] === 'xinye') || (r[0] === 'xinye' && r[1] === 'jiange');
+    }));
+  ok('战略要地共 11 处且半径 8、防御 1.5',
+    Object.keys(roadData.STRATEGIC_SITES).length === 11 &&
+    Object.keys(roadData.STRATEGIC_SITES).every(function (id) {
+      const c = roadData.STRATEGIC_SITES[id];
+      return c.radius === 8 && c.defense === 1.5;
+    }), Object.keys(roadData.STRATEGIC_SITES).join(','));
+  ['hulao', 'tongguan', 'jiange', 'guandu', 'hanzhong', 'xiangyang', 'hefei', 'chaisang'].forEach(function (id) {
+    const n = (roadData.ROADS || []).filter(function (r) { return r[0] === id || r[1] === id; }).length;
+    ok('要地 ' + id + ' 是多路枢纽', n >= 4, 'roads=' + n);
+  });
+}
+{
+  const gRoad = stateLib.createGame({ seed: 2026112599 });
+  ok('蜀—璋因道路接壤成为邻国', warLib.factionsAdjacent(gRoad, 'shu', 'zhang'));
+  ok('魏—马腾不接壤', !warLib.factionsAdjacent(gRoad, 'wei', 'ma'));
+  ok('不接壤的势力不能随机宣战', !warLib.canOpenWar(gRoad, 'wei', 'ma'));
+  ok('接壤的势力可以宣战', warLib.canOpenWar(gRoad, 'wei', 'shu'));
+}
+{
+  // 玩家：没有城时第一座随意；有了城后只能打道路直接相连的敌城。
+  const gp = stateLib.createGame({ seed: 2026112598 });
+  const xinye = worldLib.siteById(gp.world, 'xinye');
+  const jiange = worldLib.siteById(gp.world, 'jiange');
+  const chengdu = worldLib.siteById(gp.world, 'chengdu');
+  const firstAny = stateLib.canPlayerAttackSite(gp, chengdu);
+  ok('玩家没有城时第一座城随意打', firstAny.ok && firstAny.firstCity === true, JSON.stringify(firstAny));
+  ok('没有城时城下宣战可按第一座城放行', stateLib.canPlayerDeclareSite(gp, jiange).ok);
+  xinye.playerOwned = true;
+  xinye.ownerFaction = 'player';
+  ok('占新野后可向邻国璋宣战', stateLib.canPlayerDeclareFaction(gp, 'zhang').ok);
+  ok('占新野后不能向非邻国马腾宣战', !stateLib.canPlayerDeclareFaction(gp, 'ma').ok);
+  gp.wars = gp.wars || {};
+  gp.wars.zhang = true;
+  warLib.declare(gp, 'player', 'zhang', true, true);
+  ok('占新野后能打道路直接相连的剑阁', stateLib.canPlayerAttackSite(gp, jiange).ok);
+  const far = stateLib.canPlayerAttackSite(gp, chengdu);
+  ok('占新野后不能跨过剑阁直接打成都', far.ok === false, far.msg);
+  xinye.playerOwned = false;
+  xinye.ownerFaction = null;
+  ok('清空城后第一座城仍可随意打', stateLib.canPlayerAttackSite(gp, chengdu).firstCity === true);
+}
+{
+  // AI 刘备：第 8 天入川目标必须是剑阁，并且真的打下剑阁。
+  const gl = stateLib.createGame({ seed: 777001 });
+  warLib.init(gl);
+  warLib.startDiplomacy(gl);
+  for (let d = 0; d < 8; d++) {
+    for (let h = 0; h < 24; h++) { stateLib.advanceTime(gl, 1); stateLib.update(gl, 0, { ignoreEvents: true }); }
+  }
+  const cp0 = gl.warCampaigns.shu;
+  ok('刘备第 8 天出兵的目标是剑阁', !!cp0 && cp0.targetId === 'jiange',
+    cp0 ? cp0.targetId : 'none');
+  ok('刘备亲自在入川队伍里', !!cp0 && cp0.attackerIds.indexOf('liubei') >= 0,
+    cp0 ? cp0.attackerIds.join(',') : 'none');
+  for (let d = 0; d < 16; d++) {
+    for (let h = 0; h < 24; h++) { stateLib.advanceTime(gl, 1); stateLib.update(gl, 0, { ignoreEvents: true }); }
+  }
+  const jg = worldLib.siteById(gl.world, 'jiange');
+  ok('刘备真的从刘璋手里打下剑阁', jg.ownerFaction === 'shu', jg.ownerFaction);
+  ok('剑阁入蜀后蜀势力有两座城', warLib.ownedCities(gl, 'shu').length >= 2,
+    warLib.ownedCities(gl, 'shu').map(function (s) { return s.id; }).join(','));
+}
+{
+  // 要地八格：只有占据方吃 1.5 倍，出八格就恢复；且只加防御，不加攻击。
+  const gs = stateLib.createGame({ seed: 2026112597 });
+  const hulao = worldLib.siteById(gs.world, 'hulao');
+  ok('虎牢关属于魏', hulao.ownerFaction === 'wei', hulao.ownerFaction);
+  ok('虎牢关八格内魏军防御 1.5', warLib.strategicDefenseAt(gs, 'wei', hulao.x + 2, hulao.y + 2) === 1.5);
+  ok('虎牢关八格内蜀军没有加成', warLib.strategicDefenseAt(gs, 'shu', hulao.x + 2, hulao.y + 2) === 1);
+  ok('远离所有要地后魏军也恢复 1', warLib.strategicDefenseAt(gs, 'wei', 0, 0) === 1);
+  ok('虎牢关城下守军吃 1.5 倍', warLib.strategicDefenseForSite(gs, hulao) === 1.5);
+  const gateBattle = new Battle({
+    rng: new RNG(2026112597),
+    attacker: { name: '攻方', troops: { militia: 100 }, morale: 70 },
+    defender: { name: '守方', troops: { militia: 100 }, morale: 70, edge: 1, gateEdge: 1.5 },
+  });
+  ok('关隘只提高守方防御，不提高攻击',
+    gateBattle.b.defenseEdge > gateBattle.b.combatEdge &&
+    gateBattle.b.combatEdge === gateBattle.b.edge * gateBattle.b.tierFactor,
+    'combat=' + gateBattle.b.combatEdge + ' def=' + gateBattle.b.defenseEdge);
+  ok('攻方没有关隘加成时防御与攻击一致',
+    gateBattle.a.defenseEdge === gateBattle.a.combatEdge);
+}
+{
+  const journalScene = require(R + '/scenes/journal.js');
+  ok('史册过滤匪徒战报', journalScene.isBanditFight({ kind: 'war', text: '刘备军击溃了一伙山贼' }));
+  ok('史册保留正常国战战报', !journalScene.isBanditFight({ kind: 'war', text: '剑阁城头换了旗' }));
+  ok('史册不会把生活日志当匪战', !journalScene.isBanditFight({ kind: 'life', text: '又有一伙残匪聚了起来' }));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

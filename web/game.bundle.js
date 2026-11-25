@@ -924,7 +924,32 @@ const ROADS = [
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'],
   ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
+  // 蜀道与关隘枢纽：让关键关口四面可走，也给刘备一条从新野入川的路。
+  ['jiange', 'xinye'], ['jiange', 'xiangyang'],
+  ['hulao', 'shangdang'], ['hulao', 'xuchang'],
+  ['tongguan', 'shangdang'], ['tongguan', 'wan'],
+  ['guandu', 'xinye'], ['wan', 'xiangyang'],
+  ['hefei', 'jianye'], ['hefei', 'xuchang'],
+  ['chaisang', 'jiangling'], ['chibi', 'jiangling'],
 ];
+
+/**
+ * 战略要地：占据者在本关八格内的自军获得 1.5 倍对碰防御加成。
+ * 这里是“一个兵顶一个半”的关隘系数，和国别、兵种倍率相乘。
+ */
+const STRATEGIC_SITES = {
+  hulao:     { id: 'hulao',     name: '虎牢关', radius: 8, defense: 1.5 },
+  tongguan:  { id: 'tongguan',  name: '潼关',   radius: 8, defense: 1.5 },
+  shangdang: { id: 'shangdang', name: '上党',   radius: 8, defense: 1.5 },
+  jiange:    { id: 'jiange',    name: '剑阁',   radius: 8, defense: 1.5 },
+  guandu:    { id: 'guandu',    name: '官渡',   radius: 8, defense: 1.5 },
+  hanzhong:  { id: 'hanzhong',  name: '汉中',   radius: 8, defense: 1.5 },
+  xiangyang: { id: 'xiangyang', name: '襄阳',   radius: 8, defense: 1.5 },
+  hefei:     { id: 'hefei',     name: '合肥',   radius: 8, defense: 1.5 },
+  chaisang:  { id: 'chaisang',  name: '柴桑',   radius: 8, defense: 1.5 },
+  chibi:     { id: 'chibi',     name: '赤壁',   radius: 8, defense: 1.5 },
+  yiling:    { id: 'yiling',    name: '夷陵',   radius: 8, defense: 1.5 },
+};
 
 /** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
 const CAPITAL_IDS = [
@@ -1451,6 +1476,7 @@ module.exports = {
   CAPITAL_IDS,
   RECRUIT_SETS,
   ROADS,
+  STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
   FACTION_RULERS,
@@ -5071,6 +5097,7 @@ function makeSide(unit) {
     if (c > 0) troops[id] = c;
   });
   const factionEdge = typeof unit.edge === 'number' ? unit.edge : 1;
+  const gateEdge = typeof unit.gateEdge === 'number' ? unit.gateEdge : 1;
   return {
     name: unit.name || '无名之师',
     faction: unit.faction || null,
@@ -5080,8 +5107,10 @@ function makeSide(unit) {
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
+    gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
+    defenseEdge: factionEdge * tierFactor(troops) * gateEdge,
     contingents: Array.isArray(unit.contingents) ? unit.contingents : [],
     coalitionNames: unit.coalitionNames || '',
     initialTroops: JSON.parse(JSON.stringify(troops)),
@@ -5204,9 +5233,9 @@ class Battle {
     let defB = defenseOf(this.b, sb, tacticB, sa);
     // 国别 2:3 与兵种每级 2:1 两层相乘，同时放大攻防。
     atkA *= this.a.combatEdge || 1;
-    defA *= this.a.combatEdge || 1;
+    defA *= this.a.defenseEdge || this.a.combatEdge || 1;
     atkB *= this.b.combatEdge || 1;
-    defB *= this.b.combatEdge || 1;
+    defB *= this.b.defenseEdge || this.b.combatEdge || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;
@@ -5433,7 +5462,7 @@ module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFa
  *  - 逃脱概率起初几乎为零，关一天涨一点。
  */
 
-const { FACTIONS, FACTION_COMBAT } = __require(5);
+const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES } = __require(5);
 const { TROOPS } = __require(10);
 const army = __require(9);
 const { Battle } = __require(16);
@@ -5454,6 +5483,140 @@ let destroyPartyFn = null;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
+}
+
+/* ------------------------------------------------------------ 道路与邻国 */
+// 道路是静态数据，第一次用时建一张无向邻接表：判断邻国、判断攻城方向都靠它。
+let ROAD_EDGES = null;
+function roadEdges() {
+  if (ROAD_EDGES) return ROAD_EDGES;
+  ROAD_EDGES = {};
+  (ROADS || []).forEach(function (pair) {
+    if (!pair || !pair[0] || !pair[1]) return;
+    (ROAD_EDGES[pair[0]] = ROAD_EDGES[pair[0]] || []).push(pair[1]);
+    (ROAD_EDGES[pair[1]] = ROAD_EDGES[pair[1]] || []).push(pair[0]);
+  });
+  return ROAD_EDGES;
+}
+
+function isCitySite(site) {
+  return !!site && (site.type === 'town' || site.type === 'castle');
+}
+
+/** 某势力实际控制的城/关；玩家的网络按 playerOwned 算，不按临时效忠国算。 */
+function ownedCities(state, faction) {
+  if (!state || !state.world) return [];
+  return (state.world.sites || []).filter(function (s) {
+    if (!isCitySite(s)) return false;
+    if (faction === 'player') return !!s.playerOwned || s.ownerFaction === 'player';
+    return s.ownerFaction === faction && !s.playerOwned;
+  });
+}
+
+function roadAdjacent(a, b) {
+  const e = roadEdges();
+  return !!(a && b && e[a] && e[a].indexOf(b) >= 0);
+}
+
+/** 两国有道路直接接壤，才算邻国；宣战只认这一条。 */
+function factionsAdjacent(state, a, b) {
+  if (!a || !b || a === b) return false;
+  const aa = ownedCities(state, a);
+  const bb = ownedCities(state, b);
+  if (!aa.length || !bb.length) return false;
+  for (let i = 0; i < aa.length; i++) {
+    for (let j = 0; j < bb.length; j++) {
+      if (roadAdjacent(aa[i].id, bb[j].id)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 攻城只允许打与本势力城网道路直接相接的敌城。
+ * 玩家还没有第一座城时放开：第一座城随意打，打下来以后就必须连线上扩张。
+ * 中立的无主城也按同一条线走；已开战的有主城才算“敌对城”。
+ */
+function canSiegeSiteFromFaction(state, faction, site) {
+  if (!site) return { ok: false, msg: '这里没有可攻的城' };
+  if (site.playerOwned && faction === 'player') return { ok: false, msg: '这是你自己的城' };
+  const own = ownedCities(state, faction);
+  // 第一座城优先：不管有没有宣战、隔多远，先允许到城下扎营。
+  if (!own.length) return { ok: true, msg: '第一座城，可以随意攻打', firstCity: true };
+  const targetFaction = site.ownerFaction || (site.playerOwned ? 'player' : null);
+  if (targetFaction && targetFaction === faction) return { ok: false, msg: '这是自己势力的城' };
+  if (targetFaction && targetFaction !== 'bandit' && !atWar(state, faction, targetFaction)) {
+    return { ok: false, msg: '还没有和' + (FACTIONS[targetFaction] ? FACTIONS[targetFaction].full : targetFaction) + '开战' };
+  }
+  const linked = own.some(function (o) { return roadAdjacent(o.id, site.id); });
+  if (!linked) {
+    return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
+  }
+  return { ok: true, msg: '', linked: true };
+}
+
+/** 玩家现在能不能对某个势力递战书：必须是邻国；第一座城之前只能到城下宣战。 */
+function canPlayerDeclareFaction(state, faction) {
+  if (!state || !faction || !FACTIONS[faction] || faction === 'player' || faction === 'bandit') {
+    return { ok: false, msg: '不能向这个势力宣战' };
+  }
+  if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了' };
+  if (atWar(state, 'player', faction)) return { ok: false, msg: '你已经在和他们打仗' };
+  const own = ownedCities(state, 'player');
+  if (!own.length) {
+    return { ok: false, msg: '你还没有自己的城。先到城下打下一座，才有邻国可宣。' };
+  }
+  if (!factionsAdjacent(state, 'player', faction)) {
+    return { ok: false, msg: '只能向道路接壤的邻国宣战，不能隔着别国递战书。' };
+  }
+  if (!canOpenWar(state, 'player', faction)) {
+    return { ok: false, msg: '你已经同时在打太多家了，先停一边再宣。' };
+  }
+  return { ok: true, msg: '' };
+}
+
+/** 在城下宣战：第一座城可以随意，之后仍要求对方是邻国。 */
+function canPlayerDeclareSite(state, site) {
+  if (!site || !site.ownerFaction) return { ok: false, msg: '这里没有可宣战的对象' };
+  const faction = site.ownerFaction;
+  if (faction === 'bandit') return { ok: false, msg: '这里没有可宣战的对象' };
+  if (atWar(state, 'player', faction)) return { ok: false, msg: '你已经在和他们打仗' };
+  const own = ownedCities(state, 'player');
+  if (!own.length) return { ok: true, msg: '第一座城，可以打' };
+  if (!factionsAdjacent(state, 'player', faction)) {
+    return { ok: false, msg: '只能向道路接壤的邻国宣战' };
+  }
+  return { ok: true, msg: '' };
+}
+
+/** 关隘/要地的防御系数：只有占据该要地的势力，才在它的八格内享受 1.5 倍。 */
+function strategicDefenseAt(state, faction, x, y) {
+  if (!state || !state.world || !state.world.sites) return 1;
+  let best = 1;
+  Object.keys(STRATEGIC_SITES).forEach(function (id) {
+    const cfg = STRATEGIC_SITES[id];
+    const site = (state.world.sites || []).filter(function (s) { return s.id === id; })[0];
+    if (!site) return;
+    const held = (site.playerOwned && (faction === 'player' || (state.player && state.player.faction === faction)))
+      || site.ownerFaction === faction;
+    if (!held) return;
+    const d = Math.max(Math.abs(x - site.x), Math.abs(y - site.y));
+    if (d <= (cfg.radius || 8)) best = Math.max(best, cfg.defense || 1.5);
+  });
+  return best;
+}
+
+/** 城下防御：城本身是要地且仍由守方控制时，守军吃 1.5 倍。 */
+function strategicDefenseForSite(state, site) {
+  if (!site || !STRATEGIC_SITES[site.id]) return 1;
+  if (!site.ownerFaction && !site.playerOwned) return 1;
+  return STRATEGIC_SITES[site.id].defense || 1.5;
+}
+
+function strategicEdgeForInfo(state, info) {
+  if (!info || !info.pos) return 1;
+  return strategicDefenseAt(state, info.isPlayer ? 'player' : info.faction,
+    info.pos.x, info.pos.y);
 }
 
 // 开局已经撕破脸的那几对，都有出处
@@ -5513,7 +5676,7 @@ function startDiplomacy(state) {
   let started = 0;
   pairs.forEach(function (pair) {
     if (started >= 3) return;
-    if (declare(state, pair[0], pair[1], true)) started += 1;
+    if (declare(state, pair[0], pair[1], true, true)) started += 1;
   });
   return started;
 }
@@ -5540,11 +5703,13 @@ function warPartners(state, f) {
 }
 
 /** 这两家现在能不能开战：最多三国同时开战，开局曹袁/曹术不互打 */
-function canOpenWar(state, a, b) {
+function canOpenWar(state, a, b, ignoreNeighbor) {
   if (!a || !b || a === b) return false;
   if (a === 'bandit' || b === 'bandit') return false;
   if (!FACTIONS[a] || !FACTIONS[b]) return false;
   if (a === 'player' && b === 'player') return false;
+  // 只有道路接壤的邻国才能宣战。开局的历史战事由调用方强制放行。
+  if (!ignoreNeighbor && !factionsAdjacent(state, a, b)) return false;
   const day = state && state.clock ? state.clock.day : 1;
   if (day <= OPENING_DAYS) {
     const k = key(a, b);
@@ -5555,12 +5720,12 @@ function canOpenWar(state, a, b) {
   return true;
 }
 
-function declare(state, a, b, quiet) {
+function declare(state, a, b, quiet, ignoreNeighbor) {
   if (!FACTIONS[a] || !FACTIONS[b] || a === b) return false;
   if (a === 'bandit' || b === 'bandit') return false;
   const m = state.factionWars || init(state);
   if (m[key(a, b)]) return false;
-  if (!canOpenWar(state, a, b)) return false;
+  if (!canOpenWar(state, a, b, ignoreNeighbor)) return false;
   m[key(a, b)] = { since: state.clock.day, score: 0 };
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '翻了脸，使者连夜出境，边关开始点烽火。', 'war');
@@ -6132,7 +6297,7 @@ function contingentTroops(contingent) {
   return scaleTroopsTo(contingent.snapshot, contingent.count);
 }
 
-function buildCoalitionSide(infos, foeFaction, opts) {
+function buildCoalitionSide(state, infos, foeFaction, opts) {
   const sideTroops = {};
   const contingents = [];
   let countTotal = 0;
@@ -6141,6 +6306,7 @@ function buildCoalitionSide(infos, foeFaction, opts) {
   let defWeight = 0;
   let forceTotal = 0;
   let edgeWeight = 0;
+  let gateWeight = 0;
   const primary = infos[0];
   infos.forEach(function (info) {
     const group = copyTroops(info.troops);
@@ -6154,12 +6320,17 @@ function buildCoalitionSide(infos, foeFaction, opts) {
     atkWeight += (info.atkPct || 0) * n;
     defWeight += (info.defPct || 0) * n;
     const force = tierForce(group);
+    const gate = strategicEdgeForInfo(state, info);
     forceTotal += force;
     edgeWeight += force * factionEdge(info.faction, foeFaction);
+    gateWeight += force * gate;
     contingents.push({
       key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
       kind: info.kind, id: info.id, name: info.name,
       faction: info.faction || null,
+      gateFaction: info.isPlayer ? 'player' : (info.faction || null),
+      x: info.pos ? info.pos.x : null,
+      y: info.pos ? info.pos.y : null,
       count: n, initialCount: n, snapshot: group,
       isPlayer: !!info.isPlayer,
     });
@@ -6178,6 +6349,7 @@ function buildCoalitionSide(infos, foeFaction, opts) {
     defPct: countTotal ? defWeight / countTotal : 0,
     isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
     edge: forceTotal ? edgeWeight / forceTotal : 1,
+    gateEdge: forceTotal ? gateWeight / forceTotal : 1,
     coalitionNames: names,
     contingents: contingents,
     force: forceTotal,
@@ -6240,10 +6412,10 @@ function createFieldBattle(state, aRef, bRef, opts) {
     });
   }
 
-  const aSide = buildCoalitionSide(aInfos, fb, {
+  const aSide = buildCoalitionSide(state, aInfos, fb, {
     name: aInfo.name, isPlayer: playerInvolved && options.playerSide !== 'b',
   });
-  const bSide = buildCoalitionSide(bInfos, fa, {
+  const bSide = buildCoalitionSide(state, bInfos, fa, {
     name: bInfo.name, isPlayer: playerInvolved && options.playerSide === 'b',
   });
   const context = Object.assign({ kind: 'field' }, options.context || {});
@@ -6316,16 +6488,20 @@ function syncFieldBattle(state, battlefield) {
     const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
     let force = 0;
     let edge = 0;
+    let gate = 0;
     side.contingents.forEach(function (c) {
       const f = tierForce(c.snapshot);
       force += f;
       edge += f * factionEdge(c.faction, foeFaction);
+      gate += f * strategicDefenseAt(state, c.gateFaction || c.faction, c.x, c.y);
     });
     side.edge = force > 0 ? edge / force : 1;
+    side.gateEdge = force > 0 ? gate / force : 1;
     side.force = force;
     const currentCount = army.troopCount(side.troops);
     side.tierFactor = currentCount > 0 ? tierForce(side.troops) / currentCount : 1;
     side.combatEdge = side.edge * side.tierFactor;
+    side.defenseEdge = side.combatEdge * side.gateEdge;
   });
 }
 
@@ -6729,7 +6905,12 @@ function killLord(state, lord) {
       state.noPeaceForever = state.noPeaceForever || {};
       state.noPeaceForever[fac] = true;
     }
-    declare(state, 'player', fac, true);
+    // 杀的是对方的人，不管两国是否接壤，这笔仗都必须立刻成立。
+    state.wars = state.wars || {};
+    state.wars[fac] = true;
+    state.playerWarSince = state.playerWarSince || {};
+    state.playerWarSince[fac] = state.playerWarSince[fac] || state.clock.day;
+    declare(state, 'player', fac, true, true);
     // 他的旧部也要记这一笔
     state.lords.forEach(function (l) {
       if (l === lord || !l.alive || l.faction !== fac) return;
@@ -7042,6 +7223,8 @@ function planCampaign(state, faction, day) {
     if (pairBlocked(state, faction, enemy, day)) return;
     ownedSites(state, enemy, true).forEach(function (s) {
       if (s.playerOwned || PROTECTED_SITES[s.id]) return;
+      // 只打与本势力城网道路直接相连的敌城；第一座城由 canSiegeSiteFromFaction 放行。
+      if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
       const near = nearestSiteOf(state, own, s);
       if (near.distance > 46) return; // 隔着半个天下的远征先不打
       const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
@@ -7059,9 +7242,18 @@ function planCampaign(state, faction, day) {
     if (toTarget < siteDistance(rally, target.site) - 3 && s.garrison >= 55) rally = s;
   });
 
-  const chosen = lords.slice().sort(function (a, b) {
+  let chosen = lords.slice().sort(function (a, b) {
     return siteDistance(a, rally) - siteDistance(b, rally);
   }).slice(0, Math.min(5, lords.length));
+  // 刘备入川：主公必须亲自走这一趟，带的是本势力最硬的四路人马，不是按离城最近的凑数。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
+    const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
+    const rest = lords.filter(function (l) { return l.id !== 'liubei'; })
+      .slice().sort(function (a, b) {
+        return army.troopCount(b.troops || {}) - army.troopCount(a.troops || {});
+      }).slice(0, 4);
+    if (leader) chosen = [leader].concat(rest);
+  }
   if (chosen.length < 2) return null;
 
   const avgDist = chosen.reduce(function (sum, l) {
@@ -7113,11 +7305,32 @@ function attackersOf(state, cp) {
 
 function startSiege(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  if (!canSiegeSiteFromFaction(state, cp.faction, site).ok) {
+    cp.done = true;
+    logFn(state, '【' + FACTIONS[cp.faction].name + '】与' + site.name + '之间没有连上的城道，围城军停在半路。', 'siege');
+    return false;
+  }
   cp.stage = 'siege';
   cp.siegeStart = day;
-  cp.siegeUntil = day + Math.max(SIEGE_MIN_DAYS, SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
+  // 刘备入川第一仗：刘璋“开关迎客”，五路兵马按剧情一起压到剑阁城下，三日定城。
+  // 之后的城仍按正常围城天数走，不能把整张图都变成速攻。
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
+  cp.siegeUntil = historyRush ? day + 3 : day + Math.max(SIEGE_MIN_DAYS,
+    SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
     (site.garrison > 110 ? 1 : 0));
   const attackers = attackersOf(state, cp);
+  if (historyRush) {
+    const spots = [[2, 0], [0, 2], [-2, 0], [0, -2], [2, -2], [-2, 2]];
+    attackers.forEach(function (l, i) {
+      if (siteDistance(l, site) > 2) {
+        const off = spots[i % spots.length];
+        l.inCity = null;
+        l.atSiteId = null;
+        l.x = Math.max(0, Math.min(state.world.w - 1, site.x + off[0]));
+        l.y = Math.max(0, Math.min(state.world.h - 1, site.y + off[1]));
+      }
+    });
+  }
   attackers.forEach(function (l) { giveOrder(l, 'siege', site.id, true); });
 
   // 围城一起，守方的领主就收到烽火：能来的都往这座城赶
@@ -7148,19 +7361,42 @@ function resolveSiege(state, cp, day) {
     attackersOf(state, cp).forEach(clearOrder);
     return;
   }
-  const attackers = attackersOf(state, cp).filter(function (l) {
-    return siteDistance(l, site) <= 2;
-  });
+  // 刘备入川第一仗：主线军队按剧情一起压到剑阁城下，避免“两骑先到、主力还在半路”被守军各个击破。
+  // 之后各城仍按正常行军速度走。
+  const liubeiRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
+  let attackers = liubeiRush
+    ? cp.attackerIds.map(function (id) {
+      return state.lords.filter(function (l) { return l.id === id; })[0];
+    }).filter(function (l) { return !!l && l.alive && !l.prisoner && !l.dead; })
+    : attackersOf(state, cp);
+  // 围城期间主线军队就算减员也不散伙：这是剧情城，不能按普通“兵少六成五就回城”处理。
+  if (liubeiRush) {
+    const spots = [[2, 0], [0, 2], [-2, 0], [0, -2], [2, -2], [-2, 2]];
+    attackers.forEach(function (l, i) {
+      if (siteDistance(l, site) > 2) {
+        const off = spots[i % spots.length];
+        l.inCity = null;
+        l.atSiteId = null;
+        l.x = Math.max(0, Math.min(state.world.w - 1, site.x + off[0]));
+        l.y = Math.max(0, Math.min(state.world.h - 1, site.y + off[1]));
+      }
+    });
+    attackers = attackers.filter(function (l) { return siteDistance(l, site) <= 2; });
+  } else {
+    attackers = attackers.filter(function (l) { return siteDistance(l, site) <= 2; });
+  }
   const attackEdge = factionEdge(cp.faction, site.ownerFaction);
   const defendEdge = factionEdge(site.ownerFaction, cp.faction);
+  // 关隘/要地：城仍由守方控制时，城内守军和来援的守方领主吃 1.5 倍。
+  const gateEdge = strategicDefenseForSite(state, site);
   let attackPower = 0;
   attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
-  let defendPower = site.garrison * 6.2 * defendEdge;
+  let defendPower = site.garrison * 6.2 * defendEdge * gateEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
     if (!l || !l.alive || l.prisoner) return;
     if (siteDistance(l, site) <= 2) {
-      defendPower += weight(l.troops) * defendEdge;
+      defendPower += weight(l.troops) * defendEdge * gateEdge;
       if (cp.arrivedIds.indexOf(id) < 0) cp.arrivedIds.push(id);
     }
   });
@@ -7378,6 +7614,9 @@ module.exports = {
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   factionEdge, combatTroops,
+  ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
+  canPlayerDeclareFaction, canPlayerDeclareSite,
+  strategicDefenseAt, strategicDefenseForSite,
   nearestFoe,
   strategyTick, siegeTick,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
@@ -11098,6 +11337,7 @@ function startPartyBattle(state, party) {
   if (bf) return bf.battle;
   // 兜底：万一合战条件不成立（例如阵营关系数据异常），仍然给一场单挑
   player.edge = war.factionEdge(player.faction, party.faction);
+  player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -11134,6 +11374,7 @@ function startLordBattle(state, lord) {
   if (bf) return bf.battle;
   // 兜底：单挑，保持旧行为
   player.edge = war.factionEdge(player.faction, lord.faction);
+  player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -11197,6 +11438,8 @@ function beginPlayerSiege(state, site) {
     return { ok: false, immediate: true, msg: '这里没有城墙，直接打' };
   }
   if (site.playerOwned) return { ok: false, msg: '这是你自己的城' };
+  const reach = war.canSiegeSiteFromFaction(state, 'player', site);
+  if (!reach.ok) return { ok: false, msg: reach.msg };
   if (state.playerSiege && state.playerSiege.siteId !== site.id) {
     const other = siteById(state.world, state.playerSiege.siteId);
     return { ok: false, msg: '你还在围' + (other ? other.name : '另一座城') + '，先撤围再说' };
@@ -11305,6 +11548,7 @@ function startSiege(state, site) {
   }
   const player = playerSide(state);
   player.edge = war.factionEdge(player.faction, site.ownerFaction);
+  const gateEdge = war.strategicDefenseForSite(state, site);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -11316,6 +11560,7 @@ function startSiege(state, site) {
       atkPct: site.type === 'castle' ? 0.12 : 0.05,
       defPct: site.type === 'castle' ? 0.2 : 0.12,
       edge: war.factionEdge(site.ownerFaction, player.faction),
+      gateEdge: gateEdge,
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
   });
@@ -11979,13 +12224,31 @@ function peaceTerms(state, faction) {
 }
 
 /** 主动向一个势力宣战：一纸战书，不需要对方同意 */
+/** 给界面用：玩家攻城前先问一句能不能打、为什么不能。 */
+function canPlayerAttackSite(state, site) {
+  return war.canSiegeSiteFromFaction(state, 'player', site);
+}
+
+/** 给界面用：玩家能不能向这个势力宣战，以及拒绝原因。 */
+function canPlayerDeclareFaction(state, faction) {
+  return war.canPlayerDeclareFaction(state, faction);
+}
+
+function canPlayerDeclareSite(state, site) {
+  return war.canPlayerDeclareSite(state, site);
+}
+
 function declareWarFaction(state, faction) {
   if (!state || !faction || !FACTIONS[faction] || faction === 'player' || faction === 'bandit') {
     return { ok: false, msg: '不能向这个势力宣战' };
   }
   if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了' };
   if (war.atWar(state, 'player', faction)) return { ok: false, msg: '你已经在和他们打仗' };
-  war.declare(state, 'player', faction, false);
+  const check = war.canPlayerDeclareFaction(state, faction);
+  if (!check.ok) return check;
+  if (!war.declare(state, 'player', faction, false)) {
+    return { ok: false, msg: '战书没能递出去：先看看邻国和交战数量。' };
+  }
   state.wars[faction] = true;
   state.playerWarSince = state.playerWarSince || {};
   state.playerWarSince[faction] = state.playerWarSince[faction] || state.clock.day;
@@ -12057,6 +12320,8 @@ function rejectPeaceOffer(state, faction) {
 function declareWar(state, site) {  const f = site.ownerFaction;
   if (!f || f === 'bandit') return { ok: false, msg: '这里没有可宣战的对象' };
   if (state.player.faction === f) return { ok: false, msg: '你不能对自己的国宣战' };
+  const check = war.canPlayerDeclareSite(state, site);
+  if (!check.ok) return check;
   state.wars[f] = true;
   state.playerWarSince = state.playerWarSince || {};
   state.playerWarSince[f] = state.playerWarSince[f] || state.clock.day;
@@ -13690,6 +13955,9 @@ module.exports = {
   startPartyBattle,
   startLordBattle,
   startSiege,
+  canPlayerAttackSite,
+  canPlayerDeclareFaction,
+  canPlayerDeclareSite,
   beginPlayerSiege,
   advancePlayerSiege,
   checkPlayerSiegeReady,
@@ -14493,7 +14761,7 @@ const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = __require(8);
 const territory = __require(21);
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = __require(5);
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = __require(5);
 const { lookFor } = __require(12);
 const flows = __require(22);
 
@@ -15882,6 +16150,34 @@ function drawSites(ctx, app, cam, box, w) {
     const siege = npcSiege || mySiege;
     const playerColor = FACTIONS.player ? FACTIONS.player.color : '#d9a441';
     const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
+    const strategic = STRATEGIC_SITES[site.id];
+
+    // 要地标记：金色八角框 + “要地”签。八格防御范围不画满屏，避免整图被大圆盖住。
+    if (strategic) {
+      const cx = sx + TS / 2;
+      const cy = sy + TS / 2;
+      const r = lowZoom ? 7 : TS * 0.62;
+      ctx.save();
+      ctx.strokeStyle = lowZoom ? '#e8c060' : 'rgba(232,192,96,0.9)';
+      ctx.lineWidth = lowZoom ? 1.4 : 2.2;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i += 1) {
+        const a = Math.PI / 8 + i * Math.PI / 4;
+        const px = cx + Math.cos(a) * r;
+        const py = cy + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      if (!lowZoom) {
+        ctx.fillStyle = 'rgba(58,38,16,0.9)';
+        ctx.fillRect(cx - 20, cy - TS * 0.96, 40, 16);
+        text(ctx, '要地', cx, cy - TS * 0.98 + 1, {
+          size: 12, align: 'center', color: '#ffe0a8',
+        });
+      }
+      ctx.restore();
+    }
 
     // 拉远看整张天下时，城池收成势力色小点；城与关隘的名字照样留在图上
     if (lowZoom) {
@@ -17894,7 +18190,7 @@ function siteSeed(id) {
   for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) % 100000;
   return h + 7;
 }
-const { FACTIONS, EQUIPMENT } = __require(5);
+const { FACTIONS, EQUIPMENT, STRATEGIC_SITES } = __require(5);
 const { VILLAGE_FOOD } = __require(12);
 const flows = __require(22);
 
@@ -17926,6 +18222,15 @@ function header(app, site) {
     : (site.blurb || '');
   const lines = wrap(ctx, blurb, w - PAD * 2 - 8, 17, 'bold');
   text(ctx, lines[0] || '', PAD + 4, 106, { size: 17, color: '#c9bda2' });
+
+  // 战略要地：城头直接写清楚八格光环，别让玩家打完才知道有加成。
+  const strategic = STRATEGIC_SITES[site.id];
+  if (strategic) {
+    text(ctx, '要地 · 占据方在八格内对碰防御 ×' + (strategic.defense || 1.5) +
+      '（1 兵当 1.5 兵用）', PAD + 4, 128, {
+        size: 14, color: '#e8c060',
+      });
+  }
 }
 
 /** 自己的状态条：这是城池界面最该看到的东西 */
@@ -18813,8 +19118,11 @@ function renderHall(app, site) {
         app.pop();
       },
     });
-    text(ctx, sieging ? '围城营已扎下，继续等时辰' : '城有城墙：先围 1-2 天，围成后才能决战', PAD, y + 94, {
-      size: 15, color: '#c9a05a',
+    const reach = stateLib.canPlayerAttackSite(st, site);
+    text(ctx, sieging ? '围城营已扎下，继续等时辰'
+      : reach.ok ? '城有城墙：先围 1-2 天，围成后才能决战'
+        : reach.msg, PAD, y + 94, {
+      size: 15, color: reach.ok ? '#c9a05a' : '#d06a4a',
     });
     y += 126;
   }
@@ -20014,9 +20322,14 @@ const GovernScene = {
       text(ctx, atWar ? '交战中' : fs.dead ? '已亡' : '和平',
         w - PAD - 20, y + 22, { size: 18, align: 'right', color: atWar ? '#d06a4a' : fs.dead ? '#6a6050' : '#8fbf7a' });
       const terms = atWar ? stateLib.peaceTerms(st, id) : null;
-      text(ctx, terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
+      const declareCheck = (!atWar && !fs.dead) ? stateLib.canPlayerDeclareFaction(st, id) : null;
+      const foot = terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
         : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
-          : '点开 →', PAD + 20, y + 84, { size: 15, color: '#8a8070' });
+          : declareCheck && !declareCheck.ok ? declareCheck.msg
+            : '邻国 · 可递战书';
+      text(ctx, foot, PAD + 20, y + 84, {
+        size: 15, color: declareCheck && !declareCheck.ok && !atWar ? '#c9a05a' : '#8a8070',
+      });
     });
     ctx.restore();
 
@@ -20109,9 +20422,12 @@ const GovernScene = {
       text(ctx, terms && terms.ok ? '赔款一交，边关的鼓角就停。' : '对方还没有消气。',
         PAD, y, { size: 15, color: '#8a8070' });
     } else if (!fs.dead) {
-      app.ui.button(ctx, PAD, y, w - PAD * 2, 92, '向' + fac.full + '宣战', {
-        id: 'gov_war', size: 26, fill: '#3a2018',
-        onTap: function () {
+      const declareCheck = stateLib.canPlayerDeclareFaction(st, id);
+      app.ui.button(ctx, PAD, y, w - PAD * 2, 92,
+        declareCheck.ok ? '向' + fac.full + '宣战' : '不能向' + fac.full + '宣战', {
+          id: 'gov_war', size: 26, fill: '#3a2018',
+          disabled: !declareCheck.ok,
+          onTap: function () {
           const r = stateLib.declareWarFaction(st, id);
           app.showToast(r.msg, 3.4);
           if (r.ok) {
@@ -20121,7 +20437,11 @@ const GovernScene = {
         },
       });
       y += 112;
-      text(ctx, '战书递出去就生效；对方会立刻把你当敌人。', PAD, y, { size: 15, color: '#8a8070' });
+      text(ctx, declareCheck.ok
+        ? '战书递出去就生效；对方会立刻把你当敌人。'
+        : declareCheck.msg, PAD, y, {
+        size: 15, color: declareCheck.ok ? '#8a8070' : '#d06a4a',
+      });
     } else {
       text(ctx, '亡国的旗已经收了，没有可谈的人。', PAD, y, { size: 19, color: '#6a6050' });
     }
@@ -20592,6 +20912,13 @@ function drawSide(ctx, w, y, side, label, color, isPlayer, compact) {
     return (TROOPS[id] ? TROOPS[id].name : id) + ' ' + side.initialTroops[id];
   }).join(' · ');
   text(ctx, str, 16, y + 76, { size: 15, color: '#8a8070' });
+  // 要地光环：城/关由本方控制时，八格内对碰再乘 1.5；显示在兵种构成下面一行。
+  if (!compact && side.gateEdge > 1.001) {
+    text(ctx, '要地加成 · 八格内对碰防御 ×' + side.gateEdge.toFixed(2),
+      16, y + (side.contingents && side.contingents.length > 1 ? 118 : 96), {
+        size: 13, color: '#e8c060',
+      });
+  }
   // 五格合战：把加入的友军/敌军分别列出来，人数仍按侧面总数叠加。
   if (!compact && side.contingents && side.contingents.length > 1) {
     const line = (isPlayer ? '友军 ' : '敌军 ') + side.contingents.map(function (c) {
@@ -21809,6 +22136,13 @@ const TOP = 330;
 const BOT = 104;
 const RECENT_DAYS = 12;
 
+/** 山贼/匪团的战报不再进史册：史册只记天下事，不记剿匪流水账。 */
+function isBanditFight(entry) {
+  const kind = entry && entry.kind;
+  if (kind !== 'war' && kind !== 'battle') return false;
+  return /匪|山贼|贼寇|匪首|匪团/.test(String((entry && entry.text) || ''));
+}
+
 const KIND_COLORS = {
   war: '#c86a5a',
   battle: '#e0a050',
@@ -21907,7 +22241,8 @@ const JournalScene = {
       text(ctx, it[1], lx + 13, legendY - 3, { size: 13, color: '#8a8070' });
       lx += 68;
     });
-    const oldCount = st.log.filter(function (e) {
+    const visibleLog = st.log.filter(function (e) { return !isBanditFight(e); });
+    const oldCount = visibleLog.filter(function (e) {
       return e.important && (st.clock.day - e.day) > RECENT_DAYS;
     }).length;
     text(ctx, '旧事 ' + oldCount + ' 条', w - 20, legendY - 3, {
@@ -21917,7 +22252,7 @@ const JournalScene = {
     ctx.fillRect(20, 314, w - 40, 2);
 
     // 近的照单全收，旧的只留重要
-    const list = st.log.slice().reverse().filter(function (e) {
+    const list = visibleLog.slice().reverse().filter(function (e) {
       return !e.day || (st.clock.day - e.day) <= RECENT_DAYS || e.important;
     });
 
@@ -22003,6 +22338,9 @@ const JournalScene = {
     this.drag = null;
   },
 };
+
+// 供逻辑测试/调试复用：史册里“和匪徒打了一仗”的流水账统一走这条判定。
+JournalScene.isBanditFight = isBanditFight;
 
 module.exports = JournalScene;
 

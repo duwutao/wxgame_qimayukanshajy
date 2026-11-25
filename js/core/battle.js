@@ -67,6 +67,7 @@ function makeSide(unit) {
     if (c > 0) troops[id] = c;
   });
   const factionEdge = typeof unit.edge === 'number' ? unit.edge : 1;
+  const gateEdge = typeof unit.gateEdge === 'number' ? unit.gateEdge : 1;
   return {
     name: unit.name || '无名之师',
     faction: unit.faction || null,
@@ -76,8 +77,10 @@ function makeSide(unit) {
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
+    gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
+    defenseEdge: factionEdge * tierFactor(troops) * gateEdge,
     contingents: Array.isArray(unit.contingents) ? unit.contingents : [],
     coalitionNames: unit.coalitionNames || '',
     initialTroops: JSON.parse(JSON.stringify(troops)),
@@ -200,9 +203,9 @@ class Battle {
     let defB = defenseOf(this.b, sb, tacticB, sa);
     // 国别 2:3 与兵种每级 2:1 两层相乘，同时放大攻防。
     atkA *= this.a.combatEdge || 1;
-    defA *= this.a.combatEdge || 1;
+    defA *= this.a.defenseEdge || this.a.combatEdge || 1;
     atkB *= this.b.combatEdge || 1;
-    defB *= this.b.combatEdge || 1;
+    defB *= this.b.defenseEdge || this.b.combatEdge || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;

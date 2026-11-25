@@ -24,7 +24,7 @@ function siteSeed(id) {
   for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) % 100000;
   return h + 7;
 }
-const { FACTIONS, EQUIPMENT } = require('../data/china.js');
+const { FACTIONS, EQUIPMENT, STRATEGIC_SITES } = require('../data/china.js');
 const { VILLAGE_FOOD } = require('../data/extra.js');
 const flows = require('./flows.js');
 
@@ -56,6 +56,15 @@ function header(app, site) {
     : (site.blurb || '');
   const lines = wrap(ctx, blurb, w - PAD * 2 - 8, 17, 'bold');
   text(ctx, lines[0] || '', PAD + 4, 106, { size: 17, color: '#c9bda2' });
+
+  // 战略要地：城头直接写清楚八格光环，别让玩家打完才知道有加成。
+  const strategic = STRATEGIC_SITES[site.id];
+  if (strategic) {
+    text(ctx, '要地 · 占据方在八格内对碰防御 ×' + (strategic.defense || 1.5) +
+      '（1 兵当 1.5 兵用）', PAD + 4, 128, {
+        size: 14, color: '#e8c060',
+      });
+  }
 }
 
 /** 自己的状态条：这是城池界面最该看到的东西 */
@@ -943,8 +952,11 @@ function renderHall(app, site) {
         app.pop();
       },
     });
-    text(ctx, sieging ? '围城营已扎下，继续等时辰' : '城有城墙：先围 1-2 天，围成后才能决战', PAD, y + 94, {
-      size: 15, color: '#c9a05a',
+    const reach = stateLib.canPlayerAttackSite(st, site);
+    text(ctx, sieging ? '围城营已扎下，继续等时辰'
+      : reach.ok ? '城有城墙：先围 1-2 天，围成后才能决战'
+        : reach.msg, PAD, y + 94, {
+      size: 15, color: reach.ok ? '#c9a05a' : '#d06a4a',
     });
     y += 126;
   }

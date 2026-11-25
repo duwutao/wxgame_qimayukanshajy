@@ -9,7 +9,7 @@ const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = require('../core/world.js');
 const territory = require('../core/territory.js');
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = require('../data/china.js');
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = require('../data/china.js');
 const { lookFor } = require('../data/extra.js');
 const flows = require('./flows.js');
 
@@ -1398,6 +1398,34 @@ function drawSites(ctx, app, cam, box, w) {
     const siege = npcSiege || mySiege;
     const playerColor = FACTIONS.player ? FACTIONS.player.color : '#d9a441';
     const isCapital = CAPITAL_IDS.indexOf(site.id) >= 0;
+    const strategic = STRATEGIC_SITES[site.id];
+
+    // 要地标记：金色八角框 + “要地”签。八格防御范围不画满屏，避免整图被大圆盖住。
+    if (strategic) {
+      const cx = sx + TS / 2;
+      const cy = sy + TS / 2;
+      const r = lowZoom ? 7 : TS * 0.62;
+      ctx.save();
+      ctx.strokeStyle = lowZoom ? '#e8c060' : 'rgba(232,192,96,0.9)';
+      ctx.lineWidth = lowZoom ? 1.4 : 2.2;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i += 1) {
+        const a = Math.PI / 8 + i * Math.PI / 4;
+        const px = cx + Math.cos(a) * r;
+        const py = cy + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      if (!lowZoom) {
+        ctx.fillStyle = 'rgba(58,38,16,0.9)';
+        ctx.fillRect(cx - 20, cy - TS * 0.96, 40, 16);
+        text(ctx, '要地', cx, cy - TS * 0.98 + 1, {
+          size: 12, align: 'center', color: '#ffe0a8',
+        });
+      }
+      ctx.restore();
+    }
 
     // 拉远看整张天下时，城池收成势力色小点；城与关隘的名字照样留在图上
     if (lowZoom) {

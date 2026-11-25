@@ -14,6 +14,13 @@ const TOP = 330;
 const BOT = 104;
 const RECENT_DAYS = 12;
 
+/** 山贼/匪团的战报不再进史册：史册只记天下事，不记剿匪流水账。 */
+function isBanditFight(entry) {
+  const kind = entry && entry.kind;
+  if (kind !== 'war' && kind !== 'battle') return false;
+  return /匪|山贼|贼寇|匪首|匪团/.test(String((entry && entry.text) || ''));
+}
+
 const KIND_COLORS = {
   war: '#c86a5a',
   battle: '#e0a050',
@@ -112,7 +119,8 @@ const JournalScene = {
       text(ctx, it[1], lx + 13, legendY - 3, { size: 13, color: '#8a8070' });
       lx += 68;
     });
-    const oldCount = st.log.filter(function (e) {
+    const visibleLog = st.log.filter(function (e) { return !isBanditFight(e); });
+    const oldCount = visibleLog.filter(function (e) {
       return e.important && (st.clock.day - e.day) > RECENT_DAYS;
     }).length;
     text(ctx, '旧事 ' + oldCount + ' 条', w - 20, legendY - 3, {
@@ -122,7 +130,7 @@ const JournalScene = {
     ctx.fillRect(20, 314, w - 40, 2);
 
     // 近的照单全收，旧的只留重要
-    const list = st.log.slice().reverse().filter(function (e) {
+    const list = visibleLog.slice().reverse().filter(function (e) {
       return !e.day || (st.clock.day - e.day) <= RECENT_DAYS || e.important;
     });
 
@@ -208,5 +216,8 @@ const JournalScene = {
     this.drag = null;
   },
 };
+
+// 供逻辑测试/调试复用：史册里“和匪徒打了一仗”的流水账统一走这条判定。
+JournalScene.isBanditFight = isBanditFight;
 
 module.exports = JournalScene;

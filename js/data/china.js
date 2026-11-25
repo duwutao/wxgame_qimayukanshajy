@@ -297,7 +297,32 @@ const ROADS = [
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'],
   ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
+  // 蜀道与关隘枢纽：让关键关口四面可走，也给刘备一条从新野入川的路。
+  ['jiange', 'xinye'], ['jiange', 'xiangyang'],
+  ['hulao', 'shangdang'], ['hulao', 'xuchang'],
+  ['tongguan', 'shangdang'], ['tongguan', 'wan'],
+  ['guandu', 'xinye'], ['wan', 'xiangyang'],
+  ['hefei', 'jianye'], ['hefei', 'xuchang'],
+  ['chaisang', 'jiangling'], ['chibi', 'jiangling'],
 ];
+
+/**
+ * 战略要地：占据者在本关八格内的自军获得 1.5 倍对碰防御加成。
+ * 这里是“一个兵顶一个半”的关隘系数，和国别、兵种倍率相乘。
+ */
+const STRATEGIC_SITES = {
+  hulao:     { id: 'hulao',     name: '虎牢关', radius: 8, defense: 1.5 },
+  tongguan:  { id: 'tongguan',  name: '潼关',   radius: 8, defense: 1.5 },
+  shangdang: { id: 'shangdang', name: '上党',   radius: 8, defense: 1.5 },
+  jiange:    { id: 'jiange',    name: '剑阁',   radius: 8, defense: 1.5 },
+  guandu:    { id: 'guandu',    name: '官渡',   radius: 8, defense: 1.5 },
+  hanzhong:  { id: 'hanzhong',  name: '汉中',   radius: 8, defense: 1.5 },
+  xiangyang: { id: 'xiangyang', name: '襄阳',   radius: 8, defense: 1.5 },
+  hefei:     { id: 'hefei',     name: '合肥',   radius: 8, defense: 1.5 },
+  chaisang:  { id: 'chaisang',  name: '柴桑',   radius: 8, defense: 1.5 },
+  chibi:     { id: 'chibi',     name: '赤壁',   radius: 8, defense: 1.5 },
+  yiling:    { id: 'yiling',    name: '夷陵',   radius: 8, defense: 1.5 },
+};
 
 /** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
 const CAPITAL_IDS = [
@@ -824,6 +849,7 @@ module.exports = {
   CAPITAL_IDS,
   RECRUIT_SETS,
   ROADS,
+  STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
   FACTION_RULERS,

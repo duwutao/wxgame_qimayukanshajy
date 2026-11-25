@@ -3539,6 +3539,7 @@ function startPartyBattle(state, party) {
   if (bf) return bf.battle;
   // 兜底：万一合战条件不成立（例如阵营关系数据异常），仍然给一场单挑
   player.edge = war.factionEdge(player.faction, party.faction);
+  player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -3575,6 +3576,7 @@ function startLordBattle(state, lord) {
   if (bf) return bf.battle;
   // 兜底：单挑，保持旧行为
   player.edge = war.factionEdge(player.faction, lord.faction);
+  player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -3638,6 +3640,8 @@ function beginPlayerSiege(state, site) {
     return { ok: false, immediate: true, msg: '这里没有城墙，直接打' };
   }
   if (site.playerOwned) return { ok: false, msg: '这是你自己的城' };
+  const reach = war.canSiegeSiteFromFaction(state, 'player', site);
+  if (!reach.ok) return { ok: false, msg: reach.msg };
   if (state.playerSiege && state.playerSiege.siteId !== site.id) {
     const other = siteById(state.world, state.playerSiege.siteId);
     return { ok: false, msg: '你还在围' + (other ? other.name : '另一座城') + '，先撤围再说' };
@@ -3746,6 +3750,7 @@ function startSiege(state, site) {
   }
   const player = playerSide(state);
   player.edge = war.factionEdge(player.faction, site.ownerFaction);
+  const gateEdge = war.strategicDefenseForSite(state, site);
   const battle = new Battle({
     rng: state.rng,
     attacker: player,
@@ -3757,6 +3762,7 @@ function startSiege(state, site) {
       atkPct: site.type === 'castle' ? 0.12 : 0.05,
       defPct: site.type === 'castle' ? 0.2 : 0.12,
       edge: war.factionEdge(site.ownerFaction, player.faction),
+      gateEdge: gateEdge,
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
   });
@@ -4420,13 +4426,31 @@ function peaceTerms(state, faction) {
 }
 
 /** 主动向一个势力宣战：一纸战书，不需要对方同意 */
+/** 给界面用：玩家攻城前先问一句能不能打、为什么不能。 */
+function canPlayerAttackSite(state, site) {
+  return war.canSiegeSiteFromFaction(state, 'player', site);
+}
+
+/** 给界面用：玩家能不能向这个势力宣战，以及拒绝原因。 */
+function canPlayerDeclareFaction(state, faction) {
+  return war.canPlayerDeclareFaction(state, faction);
+}
+
+function canPlayerDeclareSite(state, site) {
+  return war.canPlayerDeclareSite(state, site);
+}
+
 function declareWarFaction(state, faction) {
   if (!state || !faction || !FACTIONS[faction] || faction === 'player' || faction === 'bandit') {
     return { ok: false, msg: '不能向这个势力宣战' };
   }
   if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了' };
   if (war.atWar(state, 'player', faction)) return { ok: false, msg: '你已经在和他们打仗' };
-  war.declare(state, 'player', faction, false);
+  const check = war.canPlayerDeclareFaction(state, faction);
+  if (!check.ok) return check;
+  if (!war.declare(state, 'player', faction, false)) {
+    return { ok: false, msg: '战书没能递出去：先看看邻国和交战数量。' };
+  }
   state.wars[faction] = true;
   state.playerWarSince = state.playerWarSince || {};
   state.playerWarSince[faction] = state.playerWarSince[faction] || state.clock.day;
@@ -4498,6 +4522,8 @@ function rejectPeaceOffer(state, faction) {
 function declareWar(state, site) {  const f = site.ownerFaction;
   if (!f || f === 'bandit') return { ok: false, msg: '这里没有可宣战的对象' };
   if (state.player.faction === f) return { ok: false, msg: '你不能对自己的国宣战' };
+  const check = war.canPlayerDeclareSite(state, site);
+  if (!check.ok) return check;
   state.wars[f] = true;
   state.playerWarSince = state.playerWarSince || {};
   state.playerWarSince[f] = state.playerWarSince[f] || state.clock.day;
@@ -6131,6 +6157,9 @@ module.exports = {
   startPartyBattle,
   startLordBattle,
   startSiege,
+  canPlayerAttackSite,
+  canPlayerDeclareFaction,
+  canPlayerDeclareSite,
   beginPlayerSiege,
   advancePlayerSiege,
   checkPlayerSiegeReady,

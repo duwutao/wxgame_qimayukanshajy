@@ -927,8 +927,9 @@ smoke('立国页：自定义国号入口', function () {
 smoke('围城时辰到点：自动弹出进攻选择并暂停时间', function () {
   const stSiege = stateLib.createGame({ seed: 9911 });
   stSiege.events.length = 0;
+  // 第一座城随意打：用无主城验证“还没开战也能在城下扎营”，不引入外交前提。
   const site = stSiege.world.sites.filter(function (x) {
-    return (x.type === 'town' || x.type === 'castle') && !x.playerOwned;
+    return (x.type === 'town' || x.type === 'castle') && !x.playerOwned && !x.ownerFaction;
   })[0];
   stSiege.player.x = site.x;
   stSiege.player.y = site.y;

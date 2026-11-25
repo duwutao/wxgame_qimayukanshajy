@@ -154,9 +154,14 @@ const GovernScene = {
       text(ctx, atWar ? '交战中' : fs.dead ? '已亡' : '和平',
         w - PAD - 20, y + 22, { size: 18, align: 'right', color: atWar ? '#d06a4a' : fs.dead ? '#6a6050' : '#8fbf7a' });
       const terms = atWar ? stateLib.peaceTerms(st, id) : null;
-      text(ctx, terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
+      const declareCheck = (!atWar && !fs.dead) ? stateLib.canPlayerDeclareFaction(st, id) : null;
+      const foot = terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
         : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
-          : '点开 →', PAD + 20, y + 84, { size: 15, color: '#8a8070' });
+          : declareCheck && !declareCheck.ok ? declareCheck.msg
+            : '邻国 · 可递战书';
+      text(ctx, foot, PAD + 20, y + 84, {
+        size: 15, color: declareCheck && !declareCheck.ok && !atWar ? '#c9a05a' : '#8a8070',
+      });
     });
     ctx.restore();
 
@@ -249,9 +254,12 @@ const GovernScene = {
       text(ctx, terms && terms.ok ? '赔款一交，边关的鼓角就停。' : '对方还没有消气。',
         PAD, y, { size: 15, color: '#8a8070' });
     } else if (!fs.dead) {
-      app.ui.button(ctx, PAD, y, w - PAD * 2, 92, '向' + fac.full + '宣战', {
-        id: 'gov_war', size: 26, fill: '#3a2018',
-        onTap: function () {
+      const declareCheck = stateLib.canPlayerDeclareFaction(st, id);
+      app.ui.button(ctx, PAD, y, w - PAD * 2, 92,
+        declareCheck.ok ? '向' + fac.full + '宣战' : '不能向' + fac.full + '宣战', {
+          id: 'gov_war', size: 26, fill: '#3a2018',
+          disabled: !declareCheck.ok,
+          onTap: function () {
           const r = stateLib.declareWarFaction(st, id);
           app.showToast(r.msg, 3.4);
           if (r.ok) {
@@ -261,7 +269,11 @@ const GovernScene = {
         },
       });
       y += 112;
-      text(ctx, '战书递出去就生效；对方会立刻把你当敌人。', PAD, y, { size: 15, color: '#8a8070' });
+      text(ctx, declareCheck.ok
+        ? '战书递出去就生效；对方会立刻把你当敌人。'
+        : declareCheck.msg, PAD, y, {
+        size: 15, color: declareCheck.ok ? '#8a8070' : '#d06a4a',
+      });
     } else {
       text(ctx, '亡国的旗已经收了，没有可谈的人。', PAD, y, { size: 19, color: '#6a6050' });
     }

@@ -322,6 +322,13 @@ function drawSide(ctx, w, y, side, label, color, isPlayer, compact) {
     return (TROOPS[id] ? TROOPS[id].name : id) + ' ' + side.initialTroops[id];
   }).join(' · ');
   text(ctx, str, 16, y + 76, { size: 15, color: '#8a8070' });
+  // 要地光环：城/关由本方控制时，八格内对碰再乘 1.5；显示在兵种构成下面一行。
+  if (!compact && side.gateEdge > 1.001) {
+    text(ctx, '要地加成 · 八格内对碰防御 ×' + side.gateEdge.toFixed(2),
+      16, y + (side.contingents && side.contingents.length > 1 ? 118 : 96), {
+        size: 13, color: '#e8c060',
+      });
+  }
   // 五格合战：把加入的友军/敌军分别列出来，人数仍按侧面总数叠加。
   if (!compact && side.contingents && side.contingents.length > 1) {
     const line = (isPlayer ? '友军 ' : '敌军 ') + side.contingents.map(function (c) {
