@@ -990,6 +990,18 @@ const FACTIONS = {
 };
 
 /**
+ * 国别战力：只在 NPC 对 NPC 的野战、攻城结算里生效。
+ * power 是“对普通势力的等效兵力倍率”，neutral 里的三国互相不享受倍率，
+ * 避免魏蜀吴一见面就互相碾压。曹操按用户要求：2 兵可当 3 兵用（1.5 倍），
+ * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
+ */
+const FACTION_COMBAT = {
+  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对非蜀吴势力 2 兵抵 3 兵' },
+  shu: { power: 1.35, neutral: ['wei', 'wu'], note: '刘备军：对非魏吴势力略占上风' },
+  wu: { power: 1.3, neutral: ['wei', 'shu'], note: '孙权军：对非魏蜀势力略占上风' },
+};
+
+/**
  * 君位继任表：君主被斩后按这张表往下传。
  * 表里有些人开局不在名册上，轮到他们时再生成；表用完了，
  * 就从本势力还活着的领主里挑一位本地、官职大的。
@@ -1197,6 +1209,25 @@ const LORDS = [
   { id: 'sufei', name: '苏飞', faction: 'biao', home: 'xiakou', soldiers: { militia: 28, archer: 24, boat: 18 }, morale: 74, sight: 6, title: '江夏都督' },
   { id: 'kuaiyue', name: '蒯越', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 25, crossbow: 15 }, morale: 76, sight: 6, title: '章陵太守' },
   { id: 'huangshe', name: '黄射', faction: 'biao', home: 'xiakou', soldiers: { archer: 30, boat: 20, militia: 20 }, morale: 72, sight: 6, title: '水军校尉' },
+  // ---- 三国鼎立补强：魏蜀吴各添一队人，其他势力不再加 ----
+  // 魏：谋主、宗亲骑军
+  { id: 'simayi', name: '司马懿', faction: 'wei', home: 'luoyang', soldiers: { militia: 35, spear: 30, crossbow: 25, cav: 15 }, morale: 90, sight: 8, title: '军司马' },
+  { id: 'xunyu', name: '荀彧', faction: 'wei', home: 'xuchang', soldiers: { militia: 20, spear: 15, crossbow: 15, guard: 6 }, morale: 72, sight: 6, title: '侍中' },
+  { id: 'guojia', name: '郭嘉', faction: 'wei', home: 'xuchang', soldiers: { militia: 18, spear: 12, crossbow: 12, cav: 8 }, morale: 84, sight: 7, title: '军师祭酒' },
+  { id: 'caochun', name: '曹纯', faction: 'wei', home: 'puyang', soldiers: { militia: 20, spear: 20, cav: 35, guard: 10 }, morale: 88, sight: 7, title: '虎豹骑督' },
+  { id: 'jiaxu', name: '贾诩', faction: 'wei', home: 'xuchang', soldiers: { militia: 25, spear: 20, crossbow: 20 }, morale: 82, sight: 7, title: '执金吾' },
+  // 蜀：卧龙、凤雏与益州旧人
+  { id: 'zhugeliang', name: '诸葛亮', faction: 'shu', home: 'xinye', soldiers: { militia: 30, spear: 20, crossbow: 25, guard: 8 }, morale: 92, sight: 8, title: '军师中郎将' },
+  { id: 'pangtong', name: '庞统', faction: 'shu', home: 'xiangyang', soldiers: { militia: 20, spear: 20, crossbow: 15, guard: 5 }, morale: 86, sight: 7, title: '军师' },
+  { id: 'fazheng', name: '法正', faction: 'shu', home: 'chengdu', soldiers: { militia: 25, spear: 20, crossbow: 15 }, morale: 82, sight: 7, title: '蜀郡太守' },
+  { id: 'maliang', name: '马良', faction: 'shu', home: 'xiangyang', soldiers: { militia: 20, spear: 15, archer: 15 }, morale: 78, sight: 6, title: '从事' },
+  { id: 'guanxing', name: '关兴', faction: 'shu', home: 'baxi', soldiers: { militia: 20, spear: 25, cav: 15 }, morale: 84, sight: 7, title: '侍中' },
+  // 吴：江东后来的都督与守将
+  { id: 'lusu', name: '鲁肃', faction: 'wu', home: 'chaisang', soldiers: { militia: 30, archer: 25, boat: 25 }, morale: 86, sight: 7, title: '赞军校尉' },
+  { id: 'zhuhuan', name: '朱桓', faction: 'wu', home: 'kuaiji', soldiers: { militia: 30, spear: 30, cav: 15 }, morale: 82, sight: 6, title: '奋武将军' },
+  { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
+  { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
+  { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
 ];
 
 /** 声望等级 */
@@ -1421,6 +1452,7 @@ module.exports = {
   RECRUIT_SETS,
   ROADS,
   FACTIONS,
+  FACTION_COMBAT,
   FACTION_RULERS,
   SUCCESSION,
   LORDS,
@@ -4263,6 +4295,21 @@ const LORD_EXTRA_BIO = {
   luzhi: '卢植，涿郡涿人。刘备、公孙瓒都叫他老师，围广宗时被宦官换了。',
   dongcheng: '董承，汉献帝的国舅。衣带诏那件事，他是领头的人。',
   yangfeng: '杨奉，白波出身。护着天子往东走。',
+  simayi: '司马懿，河内温县人。能忍，活得比对手都长。',
+  xunyu: '荀彧，颍川颍阴人。曹操的粮仓与人才库，一半是他撑起来的。',
+  guojia: '郭嘉，颍川阳翟人。算得远，死得早。',
+  caochun: '曹纯，曹仁之弟。虎豹骑在他手里，追得上任何一支败军。',
+  jiaxu: '贾诩，武威姑臧人。一句话能改写关中，也能把自己藏得很深。',
+  zhugeliang: '诸葛亮，琅琊阳都人。隆中一对，先定三分，再出祁山。',
+  pangtong: '庞统，襄阳人。凤雏，入蜀时死在雒城箭下。',
+  fazheng: '法正，扶风郿人。先事刘璋，后为刘备画取蜀之策。',
+  maliang: '马良，襄阳宜城人。眉中有白毛，乡里叫他马白眉。',
+  guanxing: '关兴，关羽之子。父亲死后，他接过了那面旗。',
+  lusu: '鲁肃，临淮东城人。江东的榻上策，是他先说的。',
+  zhuhuan: '朱桓，吴郡吴人。守濡须，几千人挡了曹仁。',
+  quancong: '全琮，吴郡钱唐人。江东的世家将，水陆都能带。',
+  panzhang: '潘璋，东郡发干人。擒关羽的那一路，有他一份。',
+  jiangqin: '蒋钦，九江寿春人。江东老将，水战最熟。',
 };
 
 /** 缺台词时的势力通用池 */
@@ -4965,7 +5012,7 @@ module.exports = {
  *  - 逃脱概率起初几乎为零，关一天涨一点。
  */
 
-const { FACTIONS } = __require(5);
+const { FACTIONS, FACTION_COMBAT } = __require(5);
 const { TROOPS } = __require(10);
 const army = __require(9);
 
@@ -4976,6 +5023,8 @@ const MIN_WAR_DAYS = 25;
 const DUEL_FLEE_RATIO = 1.65;
 const DUEL_FLEE_GAP = 10;
 const MAX_WAR_PARTNERS = 3;
+// 刘备入川不是随机外交：天下开始动过几天，必然让刘璋与刘备翻脸。
+const LIUBEI_YI_WAR_DAY = 8;
 // 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
 const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
 const OPENING_DAYS = 30;
@@ -5292,6 +5341,23 @@ function weight(troops) {
   return sum;
 }
 
+/**
+ * 国别对拼倍率：a 打 b 时 a 的等效战力。
+ * 魏蜀吴彼此（neutral）按 1 倍，对普通势力按 FACTION_COMBAT.power。
+ * 例如曹操军对刘璋：2 兵等效 3 兵，消耗结算里也按这个倍率减伤。
+ */
+function factionEdge(a, b) {
+  if (!a || !b || a === b) return 1;
+  const cfg = FACTION_COMBAT[a];
+  if (!cfg) return 1;
+  if (cfg.neutral && cfg.neutral.indexOf(b) >= 0) return 1;
+  return cfg.power || 1;
+}
+
+function combatTroops(unit, foeFaction) {
+  return weight(unit && unit.troops) * factionEdge(unit && unit.faction, foeFaction);
+}
+
 function nearPlayer(state, unit, r) {
   const p = state.player;
   return Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y)) <= (r || 12);
@@ -5405,8 +5471,10 @@ function clearEngagement(a, b) {
  * 小概率被俘。交战期间双方都停住不动。
  */
 function clash(state, a, b) {
-  const wa = weight(a.troops);
-  const wb = weight(b.troops);
+  const edgeA = factionEdge(a.faction, b.faction);
+  const edgeB = factionEdge(b.faction, a.faction);
+  const wa = weight(a.troops) * edgeA;
+  const wb = weight(b.troops) * edgeB;
   if (wa <= 0 || wb <= 0) return null;
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
@@ -5423,8 +5491,9 @@ function clash(state, a, b) {
   b.scuffle = 0;
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
-  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16)));
-  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16)));
+  // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
+  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
 
@@ -5504,7 +5573,8 @@ function fleeDisparity(state, a, b) {
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
-  const list = state.lords.filter(function (l) { return l.alive; });
+  // 进了城的领主不在地图上，也不能在城门口跟人“野战”。
+  const list = state.lords.filter(function (l) { return l.alive && !l.inCity; });
   const seen = {};
   let count = 0;
   for (let i = 0; i < list.length; i++) {
@@ -5921,14 +5991,43 @@ function pairBlocked(state, a, b, day) {
   return (state.siegeCooldown[key(a, b)] || 0) > day;
 }
 
+/**
+ * 刘备入川：天下开始后第 8 天，若双方都没灭国，强制补上“璋|蜀”这条战事。
+ * 旧档已经有这场的只打标记；被随机议和过也不会每天重宣。
+ */
+function ensureLiuBeiYiWar(state, day) {
+  if (!state || !state.diplomacyStarted || !state.flags) return false;
+  if (state.flags.liubeiYiWar) return false;
+  if (day < LIUBEI_YI_WAR_DAY) return false;
+  const fstate = state.factionState || {};
+  if ((fstate.shu || {}).dead || (fstate.zhang || {}).dead) return false;
+  if (atWar(state, 'shu', 'zhang')) {
+    state.flags.liubeiYiWar = true;
+    return false;
+  }
+  if (!canOpenWar(state, 'shu', 'zhang')) return false;
+  if (!declare(state, 'shu', 'zhang', false)) return false;
+  state.flags.liubeiYiWar = true;
+  logFn(state, '刘备以“助刘璋拒张鲁”为名自新野入川，刘璋开关迎客；蜀军沿江而上，兵锋指向剑阁、江州。', 'war');
+  return true;
+}
+
 /** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
 function planCampaign(state, faction, day) {
-  const foes = warPartners(state, faction).filter(function (id) {
+  let foes = warPartners(state, faction).filter(function (id) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
   if (!foes.length) return null;
+  // 刘备只有新野一城，若按“两城才能出征”的老条件永远按兵不动。
+  // 给蜀一条单城出征的例外；其他势力仍保持原门槛。
+  const ownMin = faction === 'shu' ? 1 : 2;
   const own = ownedSites(state, faction, true);
-  if (own.length < 2) return null;
+  if (own.length < ownMin) return null;
+  // 刘备入川后优先打益州，不把兵力浪费在北边的鲜卑或中原乱战上。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      foes.indexOf('zhang') >= 0) {
+    foes = ['zhang'];
+  }
 
   const lords = factionLords(state, faction).filter(function (l) {
     return army.troopCount(l.troops || {}) >= 12 && !l.defending;
@@ -5941,12 +6040,12 @@ function planCampaign(state, faction, day) {
     ownedSites(state, enemy, true).forEach(function (s) {
       if (s.playerOwned || PROTECTED_SITES[s.id]) return;
       const near = nearestSiteOf(state, own, s);
+      if (near.distance > 46) return; // 隔着半个天下的远征先不打
       const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
   if (!target) return null;
-  if (target.distance > 46) return null; // 隔着半个天下的远征先不打
 
   const nearestOwn = nearestSiteOf(state, own, target.site).site;
   // 集结地：既靠前线，也别把所有人从后方抽空
@@ -6049,14 +6148,16 @@ function resolveSiege(state, cp, day) {
   const attackers = attackersOf(state, cp).filter(function (l) {
     return siteDistance(l, site) <= 2;
   });
+  const attackEdge = factionEdge(cp.faction, site.ownerFaction);
+  const defendEdge = factionEdge(site.ownerFaction, cp.faction);
   let attackPower = 0;
-  attackers.forEach(function (l) { attackPower += weight(l.troops); });
-  let defendPower = site.garrison * 6.2;
+  attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
+  let defendPower = site.garrison * 6.2 * defendEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
     if (!l || !l.alive || l.prisoner) return;
     if (siteDistance(l, site) <= 2) {
-      defendPower += weight(l.troops);
+      defendPower += weight(l.troops) * defendEdge;
       if (cp.arrivedIds.indexOf(id) < 0) cp.arrivedIds.push(id);
     }
   });
@@ -6126,6 +6227,7 @@ function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
   const playerFaction = state.player && state.player.faction;
+  ensureLiuBeiYiWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
     // 玩家效忠的国不再自作主张开拔、围城；要打由玩家自己下命
@@ -6144,7 +6246,9 @@ function strategyTick(state) {
       const active = Object.keys(state.warCampaigns).filter(function (f) {
         return state.warCampaigns[f] && !state.warCampaigns[f].done;
       }).length;
-      if (active < 3) planCampaign(state, faction, day);
+      // 刘备入川是历史主线，哪怕天下已经三处开打，也给他留一路兵。
+      const liubeiEntitled = faction === 'shu' && state.flags && state.flags.liubeiYiWar;
+      if (active < 3 || liubeiEntitled) planCampaign(state, faction, day);
       return;
     }
     if (cp.done) {
@@ -6243,7 +6347,7 @@ function nearestFoe(state, lord, range) {
   let best = null;
   let bestD = r + 1;
   state.lords.forEach(function (o) {
-    if (o === lord || !o.alive || !o.troops) return;
+    if (o === lord || !o.alive || !o.troops || o.inCity) return;
     if (o.faction === lord.faction) return;
     if (o.faction === 'bandit' || lord.faction === 'bandit') return;
     if (!atWar(state, lord.faction, o.faction)) return;
@@ -6270,8 +6374,10 @@ module.exports = {
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
+  factionEdge, combatTroops,
   nearestFoe,
   strategyTick, siegeTick,
+  ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
   bindFleeGuard,
   ESCAPE_BASE, ESCAPE_STEP,
 };
@@ -7991,6 +8097,40 @@ function stopRest(state) {
   return { ok: true, msg: '收拾行装，准备上路' };
 }
 
+/**
+ * 大地图左下角的“暂停休整”：停止客栈休整、把人物放到城外一格，
+ * 并由地图层把时辰冻住。这里只负责人物状态，不负责画面暂停。
+ */
+function leaveRestForMap(state) {
+  const p = state && state.player;
+  if (!p) return { ok: false, msg: '没有可出城的人' };
+  const site = siteById(state.world, p.resting || p.atSiteId);
+  const wasResting = !!p.resting;
+  stopMoving(state);
+  if (p.resting) stopRest(state);
+  p.atSiteId = null;
+  p.stepFrom = null;
+  p.stepTo = null;
+  p.stepProgress = 0;
+  // 人物原来站在城中心：挪到城外最近的合法空地，避免模型被城池图标盖住。
+  if (site && p.x === site.x && p.y === site.y) {
+    const spot = findFreeSpotNear(state, site.x, site.y, 2, p);
+    if (spot) {
+      p.prevX = p.x;
+      p.prevY = p.y;
+      p.x = spot.x;
+      p.y = spot.y;
+    }
+  }
+  return {
+    ok: true,
+    msg: wasResting ? '已出城扎营，时辰暂停。' : '已出城，时辰暂停。',
+    siteId: site ? site.id : null,
+    x: p.x,
+    y: p.y,
+  };
+}
+
 function isResting(state) {
   return !!(state && state.player && state.player.resting);
 }
@@ -8205,6 +8345,7 @@ function dailyTick(state) {
 function update(state, dtSeconds, opts) {
   if (state.gameOver) return;
   const ignoreEvents = !!(opts && opts.ignoreEvents);
+  const idleTime = !!(opts && opts.idleTime);
   const dt = dtSeconds * (state.timeScale || 1);
   const p = state.player;
   settleUnitSteps(state);
@@ -8261,8 +8402,9 @@ function update(state, dtSeconds, opts) {
     checkPursuit(state);
   } else {
     // 跟骑砍一样：玩家站着不动，时间就停；进城修养、城下围营或在营里
-    // 让时辰自己走的时候，外面照常走。
-    if (isResting(state) || state.playerSiege || state.campFlow) {
+    // 让时辰自己走的时候，外面照常走。暂停出城后点了“继续时辰”，
+    // 人也算在城外扎着营，时辰要接着走，否则按钮看着恢复、世界却仍是死的。
+    if (isResting(state) || state.playerSiege || state.campFlow || idleTime) {
       advanceTime(state, dt / HOUR_SECONDS);
     }
     checkPursuit(state);
@@ -8640,6 +8782,7 @@ function releaseStuckBanditEngagements(state) {
     const lord = (state.lords || []).filter(function (l) { return l.id === party.engagedWith; })[0];
     const since = party.engagedSinceH || (lord && lord.engagedSinceH) || nowH;
     const bad = !lord || !lord.alive || lord.prisoner || lord.inCity ||
+      String(lord.engagedWith || '') !== 'party:' + party.id ||
       Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)) > 1 ||
       nowH - since > 18 || army.troopCount(party.troops || {}) <= 0;
     if (bad) {
@@ -8801,7 +8944,19 @@ function moveParties(state, slot) {
       }
       if (party.banditFleeTarget) {
         const step = banditPathStep(state, party, party.banditFleeTarget);
-        if (step) stepUnitTo(state, party, step, BANDIT_STEP_HOURS);
+        if (step) {
+          // 逃往邻州也不能踩地图边；宁可丢目标重新选。
+          if (step.x < BANDIT_EDGE_MARGIN || step.y < BANDIT_EDGE_MARGIN ||
+              step.x > state.world.w - 1 - BANDIT_EDGE_MARGIN ||
+              step.y > state.world.h - 1 - BANDIT_EDGE_MARGIN) {
+            party.banditFleeTarget = null;
+            party.roamTarget = null;
+            party.roamPath = null;
+            party.roamPathFor = null;
+            return;
+          }
+          stepUnitTo(state, party, step, BANDIT_STEP_HOURS);
+        }
         return;
       }
       if (threatLord && retreatFrom(state, party, threatLord)) {
@@ -9720,17 +9875,34 @@ function clearLordEngagement(state, lord, pauseHours) {
 
 /** 缠斗对象还在不在、贴不贴身；旧档里被删掉的匪团最容易留下死锁 */
 function lordEngagementValid(state, lord) {
-  if (!lord || !lord.engagedWith) return false;
+  if (!lord || !lord.engagedWith || lord.inCity) return false;
+  const nowH = gameHours(state);
   const id = String(lord.engagedWith);
   if (id.indexOf('party:') === 0) {
     const partyId = id.slice(6);
     const party = (state.parties || []).filter(function (q) { return q.id === partyId; })[0];
     if (!party || party.dead || army.troopCount(party.troops || {}) <= 0) return false;
+    if (String(party.engagedWith || '') !== lord.id) return false;
+    if (lord.engagedSinceH && nowH - lord.engagedSinceH > 18) return false;
     return Math.max(Math.abs(party.x - lord.x), Math.abs(party.y - lord.y)) <= 1;
   }
   const other = (state.lords || []).filter(function (l) { return l.id === id; })[0];
-  if (!other || !other.alive || other.prisoner) return false;
+  if (!other || !other.alive || other.prisoner || other.inCity) return false;
+  if (String(other.engagedWith || '') !== lord.id) return false;
   return Math.max(Math.abs(other.x - lord.x), Math.abs(other.y - lord.y)) <= 1;
+}
+
+/** 大地图标签用：匪团这一侧的“交战中”必须真的互指、贴身、对象活着且没进城 */
+function partyEngagementValid(state, party) {
+  if (!party || !party.engagedWith) return false;
+  const id = String(party.engagedWith);
+  if (id.indexOf('party:') === 0) return false;
+  const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+  if (!lord || !lord.alive || lord.prisoner || lord.inCity) return false;
+  if (String(lord.engagedWith || '') !== 'party:' + party.id) return false;
+  if (army.troopCount(party.troops || {}) <= 0) return false;
+  if (party.engagedSinceH && gameHours(state) - party.engagedSinceH > 18) return false;
+  return Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)) <= 1;
 }
 
 function releaseLordCityApproach(lord) {
@@ -10093,7 +10265,7 @@ function fightNeighbors(state) {
     let lord = null;
     if (party.engagedWith) {
       lord = state.lords.filter(function (l) { return l.id === party.engagedWith; })[0];
-      if (!lord || !lord.alive || lord.prisoner ||
+      if (!lord || !lord.alive || lord.prisoner || lord.inCity ||
           Math.abs(lord.x - party.x) > 1 || Math.abs(lord.y - party.y) > 1) {
         clear(party, lord, true);
         return;
@@ -10116,7 +10288,7 @@ function fightNeighbors(state) {
       }
     } else {
       lord = state.lords.filter(function (l) {
-        return l.alive && !l.prisoner && !l.engagedWith && l.faction !== 'bandit' &&
+        return l.alive && !l.prisoner && !l.inCity && !l.engagedWith && l.faction !== 'bandit' &&
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
@@ -10137,6 +10309,9 @@ function fightNeighbors(state) {
     const countA = army.troopCount(party.troops);
     const countB = army.troopCount(lord.troops);
     if (countB <= 0) { clear(party, lord, true); return; }
+    // 国别对拼倍率：曹操军 2 兵可当普通势力 3 兵；蜀吴也对普通势力略强。
+    const edgeA = war.factionEdge ? war.factionEdge(party.faction, lord.faction) : 1;
+    const edgeB = war.factionEdge ? war.factionEdge(lord.faction, party.faction) : 1;
     // 绝对碾压：领主当场把这伙匪徒打散，不拖 18 个时辰。
     if (countB >= countA * 3 && countB - countA >= 20) {
       clear(party, lord, true);
@@ -10146,10 +10321,10 @@ function fightNeighbors(state) {
       }
       return;
     }
-    const share = countA / (countA + countB || 1);
+    const share = (countA * edgeA) / ((countA * edgeA) + (countB * edgeB) || 1);
     // 大规模交战：每轮不是一两个人，而是按阵线成片掉。
-    const lossA = Math.max(1, Math.round(countA * (0.06 + (1 - share) * 0.16)));
-    const lossB = Math.max(1, Math.round(countB * (0.05 + share * 0.15)));
+    const lossA = Math.max(1, Math.round(countA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+    const lossB = Math.max(1, Math.round(countB * (0.05 + share * 0.15) / Math.max(1, edgeB)));
     army.distributeLosses(party.troops, lossA);
     army.distributeLosses(lord.troops, lossB);
 
@@ -12765,6 +12940,9 @@ module.exports = {
   stopRest,
   isResting,
   isSafeResting,
+  leaveRestForMap,
+  lordEngagementValid,
+  partyEngagementValid,
   advanceTime,
   dailyTick,
   diplomacyAlertsEnabled,
@@ -13810,6 +13988,7 @@ const MapScene = {
     app.follow = null;
     app.mapFree = false;
     app.siegePrompt = null;
+    app.mapIdleRest = false;
     if (app.questTrackCollapsed === undefined) {
       app.questTrackCollapsed = !!(app.state && app.state.settings && app.state.settings.questTrackCollapsed);
     }
@@ -13842,7 +14021,12 @@ const MapScene = {
     app.mapPhase = (app.mapPhase || 0) + dt;
     // 城下选择框开着时，时辰、行军、NPC 全部停住；先做决定，世界再走
     if (app.siegePrompt) return;
-    stateLib.update(st, dt);
+    // 左下角“暂停休整”按下去以后，整张天下的时辰都冻住。
+    if (app.mapTimePaused) {
+      ensureCam(app);
+      return;
+    }
+    stateLib.update(st, dt, { idleTime: !!app.mapIdleRest });
     // 围城时辰一到，不等人点营寨：自动把“进攻 / 离开”摆到面前
     const ps = st.playerSiege;
     if (ps && !app.siegePrompt &&
@@ -13932,6 +14116,11 @@ const MapScene = {
     if (app.lastHit) return;
     // 围城去留弹窗开着时，只认弹窗里的两个按钮；点外面不误操作地图
     if (app.siegePrompt) return;
+    // 左下角暂停着时，地图只给看，不给走；必须先点“继续时辰”。
+    if (app.mapTimePaused) {
+      app.showToast('时辰已暂停，点左下角“继续时辰”再行军。', 2);
+      return;
+    }
     const box = mapBox(app);
     if (y < TOP_H || y > TOP_H + box.h) return;
 
@@ -13963,6 +14152,9 @@ const MapScene = {
     const tx = Math.floor((x + app.mapCam.x) / TS);
     const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
     if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
+    // 继续时辰后的“城外扎营”到此结束：只要真正点了地图（行军或入城），
+    // 就回到原来的规则——人不动，时辰也停。
+    app.mapIdleRest = false;
 
     // 先看脚下是不是城：自己和城在同一格时，优先点城（不然总说"已经在这里"）
     const site = siteAt(st.world, tx, ty);
@@ -15175,7 +15367,9 @@ function drawUnits(ctx, app, cam, box, w) {
       size: Math.max(13, Math.round(19 * z)), align: 'center', color: '#fff',
     });
 
-    if (p.engagedWith) {
+    // 只有真的互指、贴身、对方还活着且没进城，才显示“交战中”。
+    // 旧档/刚结束战斗时残留的 engagedWith 不能让匪团在地图上挂一块假牌子。
+    if (stateLib.partyEngagementValid(st, p)) {
       ctx.fillStyle = 'rgba(220,80,50,0.9)';
       ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
       text(ctx, '交战中', sx, sy - 76 * z, { size: Math.round(19 * z), align: 'center', color: '#fff' });
@@ -15251,7 +15445,7 @@ function drawUnits(ctx, app, cam, box, w) {
       });
     }
 
-    if (lord.engagedWith) {
+    if (stateLib.lordEngagementValid(st, lord)) {
       ctx.fillStyle = 'rgba(220,80,50,0.9)';
       ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
       text(ctx, '交战中', sx, sy - 76 * z, {
@@ -15780,13 +15974,75 @@ function drawBottom(ctx, app, w, box) {
   const wars = stateLib.factionWars(st);
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
-  const hint = (siegeNow
-    ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
-    : (p.route && p.route.length
-      ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-      : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移')))
+  const hint = (app.mapTimePaused
+    ? '时辰暂停 · 点左下角“继续时辰”恢复流动'
+    : (siegeNow
+      ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
+      : (p.route && p.route.length
+        ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
+        : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))))
     + warTxt;
   text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
+  drawRestPause(ctx, app, w, box);
+}
+
+function drawRestPause(ctx, app, w, box) {
+  const st = app.state;
+  const p = st && st.player;
+  if (!p) return;
+  const docked = !!p.atSiteId;
+  const paused = !!app.mapTimePaused;
+  if ((!docked && !paused) || app.siegePrompt) return;
+
+  const x = 12;
+  const y = box.top + box.h - 76;
+  const bw = 132;
+  const bh = 62;
+  const label = paused ? '继续时辰' : (p.resting ? '暂停休整' : '暂停停靠');
+  app.ui.button(ctx, x, y, bw, bh, '', {
+    id: 'map_rest_pause',
+    fill: paused ? 'rgba(38,48,30,0.94)' : 'rgba(38,29,20,0.94)',
+    border: paused ? '#b8a25e' : '#8a7448',
+    onTap: function () {
+      if (app.mapTimePaused) {
+        app.mapTimePaused = false;
+        app.mapIdleRest = true;
+        app.showToast('时辰继续。', 1.8);
+        return;
+      }
+      const r = stateLib.leaveRestForMap(st);
+      if (!r.ok) return;
+      app.restView = null;
+      app.follow = null;
+      if (st.campFlow) st.campFlow = false;
+      app.mapTimePaused = true;
+      app.mapIdleRest = true;
+      ensureCam(app);
+      app.showToast(r.msg + ' 点左下角“继续时辰”恢复。', 3);
+    },
+  });
+
+  // 图标：暂停是两根竖条，继续是一个三角；避免用 emoji，保持像素风。
+  ctx.save();
+  ctx.fillStyle = paused ? '#f0c060' : '#e6dbc2';
+  if (paused) {
+    ctx.beginPath();
+    ctx.moveTo(x + 22, y + 20);
+    ctx.lineTo(x + 42, y + 31);
+    ctx.lineTo(x + 22, y + 42);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.fillRect(x + 20, y + 19, 6, 24);
+    ctx.fillRect(x + 32, y + 19, 6, 24);
+  }
+  text(ctx, label, x + 52, y + 18, {
+    size: 19, color: paused ? '#f0d28a' : '#e6dbc2',
+  });
+  text(ctx, paused ? '天下静止' : '出城扎营', x + 52, y + 40, {
+    size: 12, color: '#8a8070',
+  });
+  ctx.restore();
 }
 
 module.exports = MapScene;

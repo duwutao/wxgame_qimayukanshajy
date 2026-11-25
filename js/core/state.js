@@ -1189,6 +1189,40 @@ function stopRest(state) {
   return { ok: true, msg: '收拾行装，准备上路' };
 }
 
+/**
+ * 大地图左下角的“暂停休整”：停止客栈休整、把人物放到城外一格，
+ * 并由地图层把时辰冻住。这里只负责人物状态，不负责画面暂停。
+ */
+function leaveRestForMap(state) {
+  const p = state && state.player;
+  if (!p) return { ok: false, msg: '没有可出城的人' };
+  const site = siteById(state.world, p.resting || p.atSiteId);
+  const wasResting = !!p.resting;
+  stopMoving(state);
+  if (p.resting) stopRest(state);
+  p.atSiteId = null;
+  p.stepFrom = null;
+  p.stepTo = null;
+  p.stepProgress = 0;
+  // 人物原来站在城中心：挪到城外最近的合法空地，避免模型被城池图标盖住。
+  if (site && p.x === site.x && p.y === site.y) {
+    const spot = findFreeSpotNear(state, site.x, site.y, 2, p);
+    if (spot) {
+      p.prevX = p.x;
+      p.prevY = p.y;
+      p.x = spot.x;
+      p.y = spot.y;
+    }
+  }
+  return {
+    ok: true,
+    msg: wasResting ? '已出城扎营，时辰暂停。' : '已出城，时辰暂停。',
+    siteId: site ? site.id : null,
+    x: p.x,
+    y: p.y,
+  };
+}
+
 function isResting(state) {
   return !!(state && state.player && state.player.resting);
 }
@@ -1403,6 +1437,7 @@ function dailyTick(state) {
 function update(state, dtSeconds, opts) {
   if (state.gameOver) return;
   const ignoreEvents = !!(opts && opts.ignoreEvents);
+  const idleTime = !!(opts && opts.idleTime);
   const dt = dtSeconds * (state.timeScale || 1);
   const p = state.player;
   settleUnitSteps(state);
@@ -1459,8 +1494,9 @@ function update(state, dtSeconds, opts) {
     checkPursuit(state);
   } else {
     // 跟骑砍一样：玩家站着不动，时间就停；进城修养、城下围营或在营里
-    // 让时辰自己走的时候，外面照常走。
-    if (isResting(state) || state.playerSiege || state.campFlow) {
+    // 让时辰自己走的时候，外面照常走。暂停出城后点了“继续时辰”，
+    // 人也算在城外扎着营，时辰要接着走，否则按钮看着恢复、世界却仍是死的。
+    if (isResting(state) || state.playerSiege || state.campFlow || idleTime) {
       advanceTime(state, dt / HOUR_SECONDS);
     }
     checkPursuit(state);
@@ -1838,6 +1874,7 @@ function releaseStuckBanditEngagements(state) {
     const lord = (state.lords || []).filter(function (l) { return l.id === party.engagedWith; })[0];
     const since = party.engagedSinceH || (lord && lord.engagedSinceH) || nowH;
     const bad = !lord || !lord.alive || lord.prisoner || lord.inCity ||
+      String(lord.engagedWith || '') !== 'party:' + party.id ||
       Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)) > 1 ||
       nowH - since > 18 || army.troopCount(party.troops || {}) <= 0;
     if (bad) {
@@ -1999,7 +2036,19 @@ function moveParties(state, slot) {
       }
       if (party.banditFleeTarget) {
         const step = banditPathStep(state, party, party.banditFleeTarget);
-        if (step) stepUnitTo(state, party, step, BANDIT_STEP_HOURS);
+        if (step) {
+          // 逃往邻州也不能踩地图边；宁可丢目标重新选。
+          if (step.x < BANDIT_EDGE_MARGIN || step.y < BANDIT_EDGE_MARGIN ||
+              step.x > state.world.w - 1 - BANDIT_EDGE_MARGIN ||
+              step.y > state.world.h - 1 - BANDIT_EDGE_MARGIN) {
+            party.banditFleeTarget = null;
+            party.roamTarget = null;
+            party.roamPath = null;
+            party.roamPathFor = null;
+            return;
+          }
+          stepUnitTo(state, party, step, BANDIT_STEP_HOURS);
+        }
         return;
       }
       if (threatLord && retreatFrom(state, party, threatLord)) {
@@ -2918,17 +2967,34 @@ function clearLordEngagement(state, lord, pauseHours) {
 
 /** 缠斗对象还在不在、贴不贴身；旧档里被删掉的匪团最容易留下死锁 */
 function lordEngagementValid(state, lord) {
-  if (!lord || !lord.engagedWith) return false;
+  if (!lord || !lord.engagedWith || lord.inCity) return false;
+  const nowH = gameHours(state);
   const id = String(lord.engagedWith);
   if (id.indexOf('party:') === 0) {
     const partyId = id.slice(6);
     const party = (state.parties || []).filter(function (q) { return q.id === partyId; })[0];
     if (!party || party.dead || army.troopCount(party.troops || {}) <= 0) return false;
+    if (String(party.engagedWith || '') !== lord.id) return false;
+    if (lord.engagedSinceH && nowH - lord.engagedSinceH > 18) return false;
     return Math.max(Math.abs(party.x - lord.x), Math.abs(party.y - lord.y)) <= 1;
   }
   const other = (state.lords || []).filter(function (l) { return l.id === id; })[0];
-  if (!other || !other.alive || other.prisoner) return false;
+  if (!other || !other.alive || other.prisoner || other.inCity) return false;
+  if (String(other.engagedWith || '') !== lord.id) return false;
   return Math.max(Math.abs(other.x - lord.x), Math.abs(other.y - lord.y)) <= 1;
+}
+
+/** 大地图标签用：匪团这一侧的“交战中”必须真的互指、贴身、对象活着且没进城 */
+function partyEngagementValid(state, party) {
+  if (!party || !party.engagedWith) return false;
+  const id = String(party.engagedWith);
+  if (id.indexOf('party:') === 0) return false;
+  const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+  if (!lord || !lord.alive || lord.prisoner || lord.inCity) return false;
+  if (String(lord.engagedWith || '') !== 'party:' + party.id) return false;
+  if (army.troopCount(party.troops || {}) <= 0) return false;
+  if (party.engagedSinceH && gameHours(state) - party.engagedSinceH > 18) return false;
+  return Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)) <= 1;
 }
 
 function releaseLordCityApproach(lord) {
@@ -3291,7 +3357,7 @@ function fightNeighbors(state) {
     let lord = null;
     if (party.engagedWith) {
       lord = state.lords.filter(function (l) { return l.id === party.engagedWith; })[0];
-      if (!lord || !lord.alive || lord.prisoner ||
+      if (!lord || !lord.alive || lord.prisoner || lord.inCity ||
           Math.abs(lord.x - party.x) > 1 || Math.abs(lord.y - party.y) > 1) {
         clear(party, lord, true);
         return;
@@ -3314,7 +3380,7 @@ function fightNeighbors(state) {
       }
     } else {
       lord = state.lords.filter(function (l) {
-        return l.alive && !l.prisoner && !l.engagedWith && l.faction !== 'bandit' &&
+        return l.alive && !l.prisoner && !l.inCity && !l.engagedWith && l.faction !== 'bandit' &&
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
@@ -3335,6 +3401,9 @@ function fightNeighbors(state) {
     const countA = army.troopCount(party.troops);
     const countB = army.troopCount(lord.troops);
     if (countB <= 0) { clear(party, lord, true); return; }
+    // 国别对拼倍率：曹操军 2 兵可当普通势力 3 兵；蜀吴也对普通势力略强。
+    const edgeA = war.factionEdge ? war.factionEdge(party.faction, lord.faction) : 1;
+    const edgeB = war.factionEdge ? war.factionEdge(lord.faction, party.faction) : 1;
     // 绝对碾压：领主当场把这伙匪徒打散，不拖 18 个时辰。
     if (countB >= countA * 3 && countB - countA >= 20) {
       clear(party, lord, true);
@@ -3344,10 +3413,10 @@ function fightNeighbors(state) {
       }
       return;
     }
-    const share = countA / (countA + countB || 1);
+    const share = (countA * edgeA) / ((countA * edgeA) + (countB * edgeB) || 1);
     // 大规模交战：每轮不是一两个人，而是按阵线成片掉。
-    const lossA = Math.max(1, Math.round(countA * (0.06 + (1 - share) * 0.16)));
-    const lossB = Math.max(1, Math.round(countB * (0.05 + share * 0.15)));
+    const lossA = Math.max(1, Math.round(countA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+    const lossB = Math.max(1, Math.round(countB * (0.05 + share * 0.15) / Math.max(1, edgeB)));
     army.distributeLosses(party.troops, lossA);
     army.distributeLosses(lord.troops, lossB);
 
@@ -5963,6 +6032,9 @@ module.exports = {
   stopRest,
   isResting,
   isSafeResting,
+  leaveRestForMap,
+  lordEngagementValid,
+  partyEngagementValid,
   advanceTime,
   dailyTick,
   diplomacyAlertsEnabled,

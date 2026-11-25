@@ -363,6 +363,18 @@ const FACTIONS = {
 };
 
 /**
+ * 国别战力：只在 NPC 对 NPC 的野战、攻城结算里生效。
+ * power 是“对普通势力的等效兵力倍率”，neutral 里的三国互相不享受倍率，
+ * 避免魏蜀吴一见面就互相碾压。曹操按用户要求：2 兵可当 3 兵用（1.5 倍），
+ * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
+ */
+const FACTION_COMBAT = {
+  wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对非蜀吴势力 2 兵抵 3 兵' },
+  shu: { power: 1.35, neutral: ['wei', 'wu'], note: '刘备军：对非魏吴势力略占上风' },
+  wu: { power: 1.3, neutral: ['wei', 'shu'], note: '孙权军：对非魏蜀势力略占上风' },
+};
+
+/**
  * 君位继任表：君主被斩后按这张表往下传。
  * 表里有些人开局不在名册上，轮到他们时再生成；表用完了，
  * 就从本势力还活着的领主里挑一位本地、官职大的。
@@ -570,6 +582,25 @@ const LORDS = [
   { id: 'sufei', name: '苏飞', faction: 'biao', home: 'xiakou', soldiers: { militia: 28, archer: 24, boat: 18 }, morale: 74, sight: 6, title: '江夏都督' },
   { id: 'kuaiyue', name: '蒯越', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 25, crossbow: 15 }, morale: 76, sight: 6, title: '章陵太守' },
   { id: 'huangshe', name: '黄射', faction: 'biao', home: 'xiakou', soldiers: { archer: 30, boat: 20, militia: 20 }, morale: 72, sight: 6, title: '水军校尉' },
+  // ---- 三国鼎立补强：魏蜀吴各添一队人，其他势力不再加 ----
+  // 魏：谋主、宗亲骑军
+  { id: 'simayi', name: '司马懿', faction: 'wei', home: 'luoyang', soldiers: { militia: 35, spear: 30, crossbow: 25, cav: 15 }, morale: 90, sight: 8, title: '军司马' },
+  { id: 'xunyu', name: '荀彧', faction: 'wei', home: 'xuchang', soldiers: { militia: 20, spear: 15, crossbow: 15, guard: 6 }, morale: 72, sight: 6, title: '侍中' },
+  { id: 'guojia', name: '郭嘉', faction: 'wei', home: 'xuchang', soldiers: { militia: 18, spear: 12, crossbow: 12, cav: 8 }, morale: 84, sight: 7, title: '军师祭酒' },
+  { id: 'caochun', name: '曹纯', faction: 'wei', home: 'puyang', soldiers: { militia: 20, spear: 20, cav: 35, guard: 10 }, morale: 88, sight: 7, title: '虎豹骑督' },
+  { id: 'jiaxu', name: '贾诩', faction: 'wei', home: 'xuchang', soldiers: { militia: 25, spear: 20, crossbow: 20 }, morale: 82, sight: 7, title: '执金吾' },
+  // 蜀：卧龙、凤雏与益州旧人
+  { id: 'zhugeliang', name: '诸葛亮', faction: 'shu', home: 'xinye', soldiers: { militia: 30, spear: 20, crossbow: 25, guard: 8 }, morale: 92, sight: 8, title: '军师中郎将' },
+  { id: 'pangtong', name: '庞统', faction: 'shu', home: 'xiangyang', soldiers: { militia: 20, spear: 20, crossbow: 15, guard: 5 }, morale: 86, sight: 7, title: '军师' },
+  { id: 'fazheng', name: '法正', faction: 'shu', home: 'chengdu', soldiers: { militia: 25, spear: 20, crossbow: 15 }, morale: 82, sight: 7, title: '蜀郡太守' },
+  { id: 'maliang', name: '马良', faction: 'shu', home: 'xiangyang', soldiers: { militia: 20, spear: 15, archer: 15 }, morale: 78, sight: 6, title: '从事' },
+  { id: 'guanxing', name: '关兴', faction: 'shu', home: 'baxi', soldiers: { militia: 20, spear: 25, cav: 15 }, morale: 84, sight: 7, title: '侍中' },
+  // 吴：江东后来的都督与守将
+  { id: 'lusu', name: '鲁肃', faction: 'wu', home: 'chaisang', soldiers: { militia: 30, archer: 25, boat: 25 }, morale: 86, sight: 7, title: '赞军校尉' },
+  { id: 'zhuhuan', name: '朱桓', faction: 'wu', home: 'kuaiji', soldiers: { militia: 30, spear: 30, cav: 15 }, morale: 82, sight: 6, title: '奋武将军' },
+  { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
+  { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
+  { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
 ];
 
 /** 声望等级 */
@@ -794,6 +825,7 @@ module.exports = {
   RECRUIT_SETS,
   ROADS,
   FACTIONS,
+  FACTION_COMBAT,
   FACTION_RULERS,
   SUCCESSION,
   LORDS,

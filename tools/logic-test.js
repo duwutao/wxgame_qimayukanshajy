@@ -15,7 +15,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
+const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -2672,6 +2672,109 @@ group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
       armyLib.troopCount(weakAlly.troops) < 20,
       'troops=' + armyLib.troopCount(weakAlly.troops));
   }
+}
+
+
+/* ---------------------------------------------------------------- n7 版：城下暂停 · 假交战 · 入川 · 国别战力 */
+
+group('n7 版：城下暂停 · 假交战 · 入川 · 国别战力');
+{
+  // 停靠城池后按左下角暂停：停止休整、人物落在城外，而不是被城图标盖住。
+  const g = stateLib.createGame({ seed: 2026112551 });
+  const city = g.world.sites.filter(function (s) { return s.id === 'xinye'; })[0];
+  const p = g.player;
+  p.x = city.x; p.y = city.y;
+  stateLib.startRest(g, city);
+  const r = stateLib.leaveRestForMap(g);
+  ok('城下暂停会停止休整并清掉据点', r.ok && !p.resting && !p.atSiteId,
+    'rest=' + p.resting + ' site=' + p.atSiteId);
+  ok('城下暂停后人物出现在城外一格',
+    Math.max(Math.abs(p.x - city.x), Math.abs(p.y - city.y)) >= 1,
+    'p=' + p.x + ',' + p.y + ' city=' + city.x + ',' + city.y);
+  // 暂停后点“继续时辰”：人还在城外站着，但这一局要按“城外扎营”让天下继续走。
+  // 否则地图解冻了，state.update 仍按“人不动、时辰停”把时间冻住。
+  const idleH0 = stateLib.gameHours(g);
+  stateLib.update(g, stateLib.HOUR_SECONDS, { idleTime: true });
+  ok('暂停出城后继续时辰，城外待命也会推进天下',
+    stateLib.gameHours(g) > idleH0,
+    'before=' + idleH0 + ' after=' + stateLib.gameHours(g));
+}
+{
+  // 匪团贴着一个已经进城的领主：不能显示“交战中”，也不能继续把领主钉住。
+  const g = stateLib.createGame({ seed: 2026112552 });
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const party = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+  g.lords = [lord];
+  g.parties = [party];
+  lord.inCity = 'xuchang';
+  lord.x = party.x; lord.y = party.y;
+  lord.engagedWith = 'party:' + party.id;
+  lord.engagedSinceH = stateLib.gameHours(g);
+  party.engagedWith = lord.id;
+  party.engagedSinceH = stateLib.gameHours(g);
+  party.dead = false;
+  ok('进城领主不会被算作与匪团交战',
+    !stateLib.partyEngagementValid(g, party) && !stateLib.lordEngagementValid(g, lord));
+  stateLib.fightNeighbors(g);
+  ok('交战标记在领主进城后会被清掉', !party.engagedWith && !lord.engagedWith,
+    'party=' + party.engagedWith + ' lord=' + lord.engagedWith);
+
+  lord.inCity = null;
+  party.x = lord.x + 1; party.y = lord.y;
+  party.engagedWith = lord.id;
+  party.engagedSinceH = stateLib.gameHours(g);
+  lord.engagedWith = 'party:' + party.id;
+  lord.engagedSinceH = party.engagedSinceH;
+  ok('真正贴身的交战仍然显示', stateLib.partyEngagementValid(g, party));
+}
+{
+  // 刘备不再因为只有新野一城而永远不集结；天下开始后第 8 天入川。
+  const g = stateLib.createGame({ seed: 2026112553 });
+  g.diplomacyStarted = true;
+  g.clock.day = 8;
+  g.warCampaigns = {};
+  g.flags = {};
+  const started = warLib.ensureLiuBeiYiWar(g, 8);
+  ok('刘备与刘璋按历史节点开战', started && warLib.atWar(g, 'shu', 'zhang'));
+  warLib.strategyTick(g);
+  const cp = g.warCampaigns.shu;
+  const target = cp && g.world.sites.filter(function (s) { return s.id === cp.targetId; })[0];
+  ok('刘备单城也能发起入川战役', !!cp && cp.enemy === 'zhang' && !!target &&
+    target.ownerFaction === 'zhang', cp ? cp.stage + '/' + cp.targetId : 'none');
+}
+{
+  // 三国名单扩了，曹操对普通势力 1.5 倍，对蜀吴不享受该倍率。
+  const counts = {};
+  LORDS.forEach(function (l) { counts[l.faction] = (counts[l.faction] || 0) + 1; });
+  ok('魏蜀吴都补到至少 18 位领主', counts.wei >= 18 && counts.shu >= 18 && counts.wu >= 18,
+    JSON.stringify({ wei: counts.wei, shu: counts.shu, wu: counts.wu }));
+  ok('魏对普通势力 2 兵抵 3 兵', warLib.factionEdge('wei', 'zhang') === 1.5);
+  ok('魏对蜀吴互打回到 1 倍', warLib.factionEdge('wei', 'shu') === 1 &&
+    warLib.factionEdge('wei', 'wu') === 1);
+  ok('蜀吴对普通势力各有加成', warLib.factionEdge('shu', 'zhang') > 1 &&
+    warLib.factionEdge('wu', 'yuanshu') > 1);
+  ok('国别表明确', FACTION_COMBAT.wei.power === 1.5 && FACTION_COMBAT.shu.power === 1.35 &&
+    FACTION_COMBAT.wu.power === 1.3);
+
+  const g = stateLib.createGame({ seed: 2026112554 });
+  function clashLord(id, faction, n, x) {
+    return {
+      id: id, name: id, faction: faction, alive: true, dead: false, retired: false,
+      x: x, y: 50, level: 4, morale: 90, troops: { militia: n },
+    };
+  }
+  const wei = clashLord('n7-wei', 'wei', 100, 50);
+  const zhang = clashLord('n7-zhang', 'zhang', 150, 51);
+  g.lords = [wei, zhang];
+  g.parties = [];
+  g.factionWars = {};
+  g.factionWars['wei|zhang'] = { since: 0, score: 0 };
+  warLib.clash(g, wei, zhang);
+  warLib.clash(g, wei, zhang);
+  const lostWei = 100 - armyLib.troopCount(wei.troops);
+  const lostZhang = 150 - armyLib.troopCount(zhang.troops);
+  ok('曹操军对普通势力伤亡交换更划算', lostWei < lostZhang,
+    'lostWei=' + lostWei + ' lostZhang=' + lostZhang);
 }
 
 

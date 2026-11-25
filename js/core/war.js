@@ -8,7 +8,7 @@
  *  - 逃脱概率起初几乎为零，关一天涨一点。
  */
 
-const { FACTIONS } = require('../data/china.js');
+const { FACTIONS, FACTION_COMBAT } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const army = require('./army.js');
 
@@ -19,6 +19,8 @@ const MIN_WAR_DAYS = 25;
 const DUEL_FLEE_RATIO = 1.65;
 const DUEL_FLEE_GAP = 10;
 const MAX_WAR_PARTNERS = 3;
+// 刘备入川不是随机外交：天下开始动过几天，必然让刘璋与刘备翻脸。
+const LIUBEI_YI_WAR_DAY = 8;
 // 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
 const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
 const OPENING_DAYS = 30;
@@ -335,6 +337,23 @@ function weight(troops) {
   return sum;
 }
 
+/**
+ * 国别对拼倍率：a 打 b 时 a 的等效战力。
+ * 魏蜀吴彼此（neutral）按 1 倍，对普通势力按 FACTION_COMBAT.power。
+ * 例如曹操军对刘璋：2 兵等效 3 兵，消耗结算里也按这个倍率减伤。
+ */
+function factionEdge(a, b) {
+  if (!a || !b || a === b) return 1;
+  const cfg = FACTION_COMBAT[a];
+  if (!cfg) return 1;
+  if (cfg.neutral && cfg.neutral.indexOf(b) >= 0) return 1;
+  return cfg.power || 1;
+}
+
+function combatTroops(unit, foeFaction) {
+  return weight(unit && unit.troops) * factionEdge(unit && unit.faction, foeFaction);
+}
+
 function nearPlayer(state, unit, r) {
   const p = state.player;
   return Math.max(Math.abs(unit.x - p.x), Math.abs(unit.y - p.y)) <= (r || 12);
@@ -448,8 +467,10 @@ function clearEngagement(a, b) {
  * 小概率被俘。交战期间双方都停住不动。
  */
 function clash(state, a, b) {
-  const wa = weight(a.troops);
-  const wb = weight(b.troops);
+  const edgeA = factionEdge(a.faction, b.faction);
+  const edgeB = factionEdge(b.faction, a.faction);
+  const wa = weight(a.troops) * edgeA;
+  const wb = weight(b.troops) * edgeB;
   if (wa <= 0 || wb <= 0) return null;
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
@@ -466,8 +487,9 @@ function clash(state, a, b) {
   b.scuffle = 0;
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
-  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16)));
-  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16)));
+  // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
+  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
 
@@ -547,7 +569,8 @@ function fleeDisparity(state, a, b) {
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
-  const list = state.lords.filter(function (l) { return l.alive; });
+  // 进了城的领主不在地图上，也不能在城门口跟人“野战”。
+  const list = state.lords.filter(function (l) { return l.alive && !l.inCity; });
   const seen = {};
   let count = 0;
   for (let i = 0; i < list.length; i++) {
@@ -964,14 +987,43 @@ function pairBlocked(state, a, b, day) {
   return (state.siegeCooldown[key(a, b)] || 0) > day;
 }
 
+/**
+ * 刘备入川：天下开始后第 8 天，若双方都没灭国，强制补上“璋|蜀”这条战事。
+ * 旧档已经有这场的只打标记；被随机议和过也不会每天重宣。
+ */
+function ensureLiuBeiYiWar(state, day) {
+  if (!state || !state.diplomacyStarted || !state.flags) return false;
+  if (state.flags.liubeiYiWar) return false;
+  if (day < LIUBEI_YI_WAR_DAY) return false;
+  const fstate = state.factionState || {};
+  if ((fstate.shu || {}).dead || (fstate.zhang || {}).dead) return false;
+  if (atWar(state, 'shu', 'zhang')) {
+    state.flags.liubeiYiWar = true;
+    return false;
+  }
+  if (!canOpenWar(state, 'shu', 'zhang')) return false;
+  if (!declare(state, 'shu', 'zhang', false)) return false;
+  state.flags.liubeiYiWar = true;
+  logFn(state, '刘备以“助刘璋拒张鲁”为名自新野入川，刘璋开关迎客；蜀军沿江而上，兵锋指向剑阁、江州。', 'war');
+  return true;
+}
+
 /** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
 function planCampaign(state, faction, day) {
-  const foes = warPartners(state, faction).filter(function (id) {
+  let foes = warPartners(state, faction).filter(function (id) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
   if (!foes.length) return null;
+  // 刘备只有新野一城，若按“两城才能出征”的老条件永远按兵不动。
+  // 给蜀一条单城出征的例外；其他势力仍保持原门槛。
+  const ownMin = faction === 'shu' ? 1 : 2;
   const own = ownedSites(state, faction, true);
-  if (own.length < 2) return null;
+  if (own.length < ownMin) return null;
+  // 刘备入川后优先打益州，不把兵力浪费在北边的鲜卑或中原乱战上。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      foes.indexOf('zhang') >= 0) {
+    foes = ['zhang'];
+  }
 
   const lords = factionLords(state, faction).filter(function (l) {
     return army.troopCount(l.troops || {}) >= 12 && !l.defending;
@@ -984,12 +1036,12 @@ function planCampaign(state, faction, day) {
     ownedSites(state, enemy, true).forEach(function (s) {
       if (s.playerOwned || PROTECTED_SITES[s.id]) return;
       const near = nearestSiteOf(state, own, s);
+      if (near.distance > 46) return; // 隔着半个天下的远征先不打
       const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
   if (!target) return null;
-  if (target.distance > 46) return null; // 隔着半个天下的远征先不打
 
   const nearestOwn = nearestSiteOf(state, own, target.site).site;
   // 集结地：既靠前线，也别把所有人从后方抽空
@@ -1092,14 +1144,16 @@ function resolveSiege(state, cp, day) {
   const attackers = attackersOf(state, cp).filter(function (l) {
     return siteDistance(l, site) <= 2;
   });
+  const attackEdge = factionEdge(cp.faction, site.ownerFaction);
+  const defendEdge = factionEdge(site.ownerFaction, cp.faction);
   let attackPower = 0;
-  attackers.forEach(function (l) { attackPower += weight(l.troops); });
-  let defendPower = site.garrison * 6.2;
+  attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
+  let defendPower = site.garrison * 6.2 * defendEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
     if (!l || !l.alive || l.prisoner) return;
     if (siteDistance(l, site) <= 2) {
-      defendPower += weight(l.troops);
+      defendPower += weight(l.troops) * defendEdge;
       if (cp.arrivedIds.indexOf(id) < 0) cp.arrivedIds.push(id);
     }
   });
@@ -1169,6 +1223,7 @@ function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
   const playerFaction = state.player && state.player.faction;
+  ensureLiuBeiYiWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
     // 玩家效忠的国不再自作主张开拔、围城；要打由玩家自己下命
@@ -1187,7 +1242,9 @@ function strategyTick(state) {
       const active = Object.keys(state.warCampaigns).filter(function (f) {
         return state.warCampaigns[f] && !state.warCampaigns[f].done;
       }).length;
-      if (active < 3) planCampaign(state, faction, day);
+      // 刘备入川是历史主线，哪怕天下已经三处开打，也给他留一路兵。
+      const liubeiEntitled = faction === 'shu' && state.flags && state.flags.liubeiYiWar;
+      if (active < 3 || liubeiEntitled) planCampaign(state, faction, day);
       return;
     }
     if (cp.done) {
@@ -1286,7 +1343,7 @@ function nearestFoe(state, lord, range) {
   let best = null;
   let bestD = r + 1;
   state.lords.forEach(function (o) {
-    if (o === lord || !o.alive || !o.troops) return;
+    if (o === lord || !o.alive || !o.troops || o.inCity) return;
     if (o.faction === lord.faction) return;
     if (o.faction === 'bandit' || lord.faction === 'bandit') return;
     if (!atWar(state, lord.faction, o.faction)) return;
@@ -1313,8 +1370,10 @@ module.exports = {
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
+  factionEdge, combatTroops,
   nearestFoe,
   strategyTick, siegeTick,
+  ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
   bindFleeGuard,
   ESCAPE_BASE, ESCAPE_STEP,
 };

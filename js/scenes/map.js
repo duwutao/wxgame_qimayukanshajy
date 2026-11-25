@@ -223,6 +223,7 @@ const MapScene = {
     app.follow = null;
     app.mapFree = false;
     app.siegePrompt = null;
+    app.mapIdleRest = false;
     if (app.questTrackCollapsed === undefined) {
       app.questTrackCollapsed = !!(app.state && app.state.settings && app.state.settings.questTrackCollapsed);
     }
@@ -255,7 +256,12 @@ const MapScene = {
     app.mapPhase = (app.mapPhase || 0) + dt;
     // 城下选择框开着时，时辰、行军、NPC 全部停住；先做决定，世界再走
     if (app.siegePrompt) return;
-    stateLib.update(st, dt);
+    // 左下角“暂停休整”按下去以后，整张天下的时辰都冻住。
+    if (app.mapTimePaused) {
+      ensureCam(app);
+      return;
+    }
+    stateLib.update(st, dt, { idleTime: !!app.mapIdleRest });
     // 围城时辰一到，不等人点营寨：自动把“进攻 / 离开”摆到面前
     const ps = st.playerSiege;
     if (ps && !app.siegePrompt &&
@@ -345,6 +351,11 @@ const MapScene = {
     if (app.lastHit) return;
     // 围城去留弹窗开着时，只认弹窗里的两个按钮；点外面不误操作地图
     if (app.siegePrompt) return;
+    // 左下角暂停着时，地图只给看，不给走；必须先点“继续时辰”。
+    if (app.mapTimePaused) {
+      app.showToast('时辰已暂停，点左下角“继续时辰”再行军。', 2);
+      return;
+    }
     const box = mapBox(app);
     if (y < TOP_H || y > TOP_H + box.h) return;
 
@@ -376,6 +387,9 @@ const MapScene = {
     const tx = Math.floor((x + app.mapCam.x) / TS);
     const ty = Math.floor((y - TOP_H + app.mapCam.y) / TS);
     if (tx < 0 || ty < 0 || tx >= st.world.w || ty >= st.world.h) return;
+    // 继续时辰后的“城外扎营”到此结束：只要真正点了地图（行军或入城），
+    // 就回到原来的规则——人不动，时辰也停。
+    app.mapIdleRest = false;
 
     // 先看脚下是不是城：自己和城在同一格时，优先点城（不然总说"已经在这里"）
     const site = siteAt(st.world, tx, ty);
@@ -1588,7 +1602,9 @@ function drawUnits(ctx, app, cam, box, w) {
       size: Math.max(13, Math.round(19 * z)), align: 'center', color: '#fff',
     });
 
-    if (p.engagedWith) {
+    // 只有真的互指、贴身、对方还活着且没进城，才显示“交战中”。
+    // 旧档/刚结束战斗时残留的 engagedWith 不能让匪团在地图上挂一块假牌子。
+    if (stateLib.partyEngagementValid(st, p)) {
       ctx.fillStyle = 'rgba(220,80,50,0.9)';
       ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
       text(ctx, '交战中', sx, sy - 76 * z, { size: Math.round(19 * z), align: 'center', color: '#fff' });
@@ -1664,7 +1680,7 @@ function drawUnits(ctx, app, cam, box, w) {
       });
     }
 
-    if (lord.engagedWith) {
+    if (stateLib.lordEngagementValid(st, lord)) {
       ctx.fillStyle = 'rgba(220,80,50,0.9)';
       ctx.fillRect(sx - 42 * z, sy - 78 * z, 84 * z, 28 * z);
       text(ctx, '交战中', sx, sy - 76 * z, {
@@ -2193,13 +2209,75 @@ function drawBottom(ctx, app, w, box) {
   const wars = stateLib.factionWars(st);
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
-  const hint = (siegeNow
-    ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
-    : (p.route && p.route.length
-      ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-      : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移')))
+  const hint = (app.mapTimePaused
+    ? '时辰暂停 · 点左下角“继续时辰”恢复流动'
+    : (siegeNow
+      ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
+      : (p.route && p.route.length
+        ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
+        : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))))
     + warTxt;
   text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
+  drawRestPause(ctx, app, w, box);
+}
+
+function drawRestPause(ctx, app, w, box) {
+  const st = app.state;
+  const p = st && st.player;
+  if (!p) return;
+  const docked = !!p.atSiteId;
+  const paused = !!app.mapTimePaused;
+  if ((!docked && !paused) || app.siegePrompt) return;
+
+  const x = 12;
+  const y = box.top + box.h - 76;
+  const bw = 132;
+  const bh = 62;
+  const label = paused ? '继续时辰' : (p.resting ? '暂停休整' : '暂停停靠');
+  app.ui.button(ctx, x, y, bw, bh, '', {
+    id: 'map_rest_pause',
+    fill: paused ? 'rgba(38,48,30,0.94)' : 'rgba(38,29,20,0.94)',
+    border: paused ? '#b8a25e' : '#8a7448',
+    onTap: function () {
+      if (app.mapTimePaused) {
+        app.mapTimePaused = false;
+        app.mapIdleRest = true;
+        app.showToast('时辰继续。', 1.8);
+        return;
+      }
+      const r = stateLib.leaveRestForMap(st);
+      if (!r.ok) return;
+      app.restView = null;
+      app.follow = null;
+      if (st.campFlow) st.campFlow = false;
+      app.mapTimePaused = true;
+      app.mapIdleRest = true;
+      ensureCam(app);
+      app.showToast(r.msg + ' 点左下角“继续时辰”恢复。', 3);
+    },
+  });
+
+  // 图标：暂停是两根竖条，继续是一个三角；避免用 emoji，保持像素风。
+  ctx.save();
+  ctx.fillStyle = paused ? '#f0c060' : '#e6dbc2';
+  if (paused) {
+    ctx.beginPath();
+    ctx.moveTo(x + 22, y + 20);
+    ctx.lineTo(x + 42, y + 31);
+    ctx.lineTo(x + 22, y + 42);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.fillRect(x + 20, y + 19, 6, 24);
+    ctx.fillRect(x + 32, y + 19, 6, 24);
+  }
+  text(ctx, label, x + 52, y + 18, {
+    size: 19, color: paused ? '#f0d28a' : '#e6dbc2',
+  });
+  text(ctx, paused ? '天下静止' : '出城扎营', x + 52, y + 40, {
+    size: 12, color: '#8a8070',
+  });
+  ctx.restore();
 }
 
 module.exports = MapScene;
