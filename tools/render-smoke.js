@@ -1040,6 +1040,11 @@ smoke('任务卡：折叠、主支线与定位', function () {
   const ids = app.ui.items.map(function (b) { return b.id; });
   ok('任务卡同时有开关、主线和支线', ids.indexOf('quest_toggle') >= 0 &&
     ids.indexOf('quest_main') >= 0 && ids.indexOf('quest_side') >= 0, ids.join(','));
+  const toggle = app.ui.items.filter(function (b) { return b.id === 'quest_toggle'; })[0];
+  const mainBox = app.ui.items.filter(function (b) { return b.id === 'quest_main'; })[0];
+  ok('任务卡方框已缩小', !!toggle && !!mainBox && toggle.w <= 340 && toggle.h <= 30 &&
+    mainBox.h <= 64, (toggle ? toggle.w + 'x' + toggle.h : 'none') + ' / main=' +
+    (mainBox ? mainBox.h : 'none'));
 
   app.ui.items.filter(function (b) { return b.id === 'quest_toggle'; })[0].onTap();
   ok('点收起能缩成小条', app.questTrackCollapsed === true && st.settings.questTrackCollapsed === true);

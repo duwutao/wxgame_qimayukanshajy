@@ -1956,19 +1956,19 @@ function drawQuestCard(ctx, app, box, w) {
   const side = activeSide[0] || null;
   const collapsed = !!app.questTrackCollapsed;
 
-  const pw = Math.min(420, w - 20);
+  const pw = Math.min(340, w - 20);
   const x = 10;
   const y = box.top + 10;
 
   if (collapsed) {
-    const cw = Math.min(190, pw);
-    const ch = 38;
+    const cw = Math.min(170, pw);
+    const ch = 34;
     ctx.fillStyle = 'rgba(10,8,6,0.84)';
     ctx.fillRect(x, y, cw, ch);
     ctx.fillStyle = '#d9a441';
     ctx.fillRect(x, y, 4, ch);
-    text(ctx, '任务追踪', x + 14, y + 8, { size: 17, color: '#f0c060' });
-    text(ctx, '▸', x + cw - 22, y + 7, { size: 18, color: '#a2947a' });
+    text(ctx, '任务追踪', x + 14, y + 6, { size: 15, color: '#f0c060' });
+    text(ctx, '▸', x + cw - 20, y + 5, { size: 17, color: '#a2947a' });
     app.ui.rect('quest_toggle', x, y, cw, ch, function () {
       app.questTrackCollapsed = false;
       if (st.settings) st.settings.questTrackCollapsed = false;
@@ -1976,9 +1976,9 @@ function drawQuestCard(ctx, app, box, w) {
     return;
   }
 
-  const headerH = 34;
-  const mainH = 78;
-  const sideH = side ? 68 : 42;
+  const headerH = 30;
+  const mainH = 64;
+  const sideH = side ? 56 : 36;
   const ph = headerH + mainH + sideH + 8;
 
   ctx.fillStyle = 'rgba(10,8,6,0.84)';
@@ -1988,8 +1988,8 @@ function drawQuestCard(ctx, app, box, w) {
   ctx.fillStyle = 'rgba(217,164,65,0.12)';
   ctx.fillRect(x + 4, y, pw - 4, headerH);
 
-  text(ctx, '任务追踪', x + 14, y + 7, { size: 17, color: '#f0c060' });
-  text(ctx, '▾ 收起', x + pw - 12, y + 8, { size: 14, align: 'right', color: '#a2947a' });
+  text(ctx, '任务追踪', x + 14, y + 5, { size: 15, color: '#f0c060' });
+  text(ctx, '▾ 收起', x + pw - 12, y + 6, { size: 13, align: 'right', color: '#a2947a' });
   app.ui.rect('quest_toggle', x, y, pw, headerH, function () {
     app.questTrackCollapsed = true;
     if (st.settings) st.settings.questTrackCollapsed = true;
@@ -2003,14 +2003,14 @@ function drawQuestCard(ctx, app, box, w) {
   ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
   ctx.fillStyle = '#d9a441';
   ctx.fillRect(x + 8, ry, 3, mainH - 4);
-  text(ctx, '主线', x + 18, ry + 5, { size: 13, color: '#8a8070' });
-  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 19)[0] || mainTitle;
-  text(ctx, mainTitleLine, x + 18, ry + 20, { size: 19, color: '#f0c060' });
-  const mainLines = wrap(ctx, mainHint, pw - 52, 14).slice(0, 2);
+  text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
+  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
+  text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
+  const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
   mainLines.forEach(function (ln, i) {
-    text(ctx, ln, x + 18, ry + 46 + i * 18, { size: 14, color: '#c9bda2' });
+    text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
   });
-  text(ctx, '定位 ▸', x + pw - 18, ry + 6, { size: 12, align: 'right', color: '#8a8070' });
+  text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
   app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
     const target = stateLib.campaignTargetPos(st);
     if (target) focusTaskTarget(app, target, '主线目标');
@@ -2027,18 +2027,18 @@ function drawQuestCard(ctx, app, box, w) {
   ctx.fillRect(x + 8, ry, pw - 16, sideH - 4);
   ctx.fillStyle = '#7fa4c8';
   ctx.fillRect(x + 8, ry, 3, sideH - 4);
-  text(ctx, '支线 · 酒馆', x + 18, ry + 4, { size: 13, color: '#8a8070' });
+  text(ctx, '支线 · 酒馆', x + 18, ry + 3, { size: 12, color: '#8a8070' });
   if (side) {
-    text(ctx, side.title, x + 18, ry + 18, { size: 17, color: '#efe3c6' });
-    text(ctx, sideHint, x + 18, ry + 42, { size: 13, color: '#a2947a' });
+    text(ctx, side.title, x + 18, ry + 16, { size: 16, color: '#efe3c6' });
+    text(ctx, sideHint, x + 18, ry + 35, { size: 12, color: '#a2947a' });
   } else {
-    text(ctx, '暂无差事 · 去陈留酒馆接一桩', x + 18, ry + 18, {
-      size: 15, color: '#8a8070',
+    text(ctx, '暂无差事 · 去陈留酒馆接一桩', x + 18, ry + 16, {
+      size: 14, color: '#8a8070',
     });
   }
   if (activeSide.length > 1) {
-    text(ctx, '另有 ' + (activeSide.length - 1) + ' 件', x + pw - 18, ry + 4, {
-      size: 12, align: 'right', color: '#8a8070',
+    text(ctx, '另有 ' + (activeSide.length - 1) + ' 件', x + pw - 18, ry + 3, {
+      size: 11, align: 'right', color: '#8a8070',
     });
   }
   app.ui.rect('quest_side', x + 8, ry, pw - 16, sideH - 4, function () {

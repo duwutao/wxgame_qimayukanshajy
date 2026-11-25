@@ -517,7 +517,9 @@ function moveAway(state, lord) {
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   const start = state.rng.int(0, dirs.length - 1);
   let spot = null;
-  for (let dist = 2; dist >= 1 && !spot; dist--) {
+  // 溃逃也一次只走一格：选两格会让数据坐标一下跨两格，
+  // 虽然后面有插值，画面上仍像“闪”过去。绕路交给下一拍重算。
+  for (let dist = 1; dist >= 1 && !spot; dist--) {
     for (let i = 0; i < dirs.length; i++) {
       const d = dirs[(start + i) % dirs.length];
       const nx = lord.x + d[0] * dist;
@@ -536,6 +538,9 @@ function moveAway(state, lord) {
     return false;
   }
   // 溃逃与逃遁同速：5 时辰一格，带插值，不再“闪”过去。
+  lord.routePath = null;
+  lord.routePathFor = null;
+  lord.patrolPath = null;
   const hours = 5;
   if (unitStepFn) unitStepFn(state, lord, spot, hours);
   else {
@@ -565,6 +570,36 @@ function bindMovement(stepFn, occupyFn, siteFn) {
   unitStepFn = stepFn || null;
   unitOccupiesFn = occupyFn || null;
   siteAtFn = siteFn || null;
+}
+
+/**
+ * 野战/合战结算时也要走同一套“什么时候绝不许逃”的判断。
+ * 守城、五格内有友军、本阵营无城、敌国已把本城定为目标，超过十人时
+ * 一律不许溃逃；这里返回 false 时改成被俘/留在原地，不能再 moveAway。
+ */
+function lordMayLeaveField(state, unit, winner) {
+  if (!fleeGuard || !unit || !unit.id) return true;
+  if (unit.faction === 'bandit' || unit.kind === 'party' || !unit.troops) return true;
+  return !!fleeGuard(state, unit, winner);
+}
+
+/** 战败脱身/归降时回本城，也要一格一格走，不能直接改坐标闪回城。 */
+function placeLordAtSiteAnimated(state, lord, site, why) {
+  if (!lord || !site || !lord.alive) return;
+  lord.routePath = null;
+  lord.routePathFor = null;
+  lord.patrolPath = null;
+  const dist = Math.max(1, Math.max(Math.abs(lord.x - site.x), Math.abs(lord.y - site.y)));
+  const hours = Math.max(6, 6 * dist);
+  if (unitStepFn) unitStepFn(state, lord, { x: site.x, y: site.y }, hours);
+  else {
+    lord.x = site.x;
+    lord.y = site.y;
+  }
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  lord.nextMoveH = Math.max(lord.nextMoveH || 0, nowH + hours);
+  if (why) logFn(state, why, 'war');
+  return lord;
 }
 
 /** 俘虏这位领主，押在 captor 的老家 */
@@ -633,8 +668,8 @@ function freeLord(state, lord, why) {
   lord.scuffle = 0;
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
-  lord.x = home ? home.x : lord.x;
-  lord.y = home ? home.y : lord.y;
+  if (home) placeLordAtSiteAnimated(state, lord, home);
+  else { lord.x = lord.x; lord.y = lord.y; }
   const keep = Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.45));
   lord.troops = takeSome(lord.defTroops, keep);
   lord.respawnDay = 0;
@@ -701,8 +736,10 @@ function clash(state, a, b) {
   clearEngagement(a, b);
   const rng = state.rng;
   // 乱世里保住人比保住脸重要：打散之后大概率还能跑，极少真被捆走。
-  const flee = rng.next() < 0.82;
-  if (flee) {
+  // 但守城、结阵、无城可退时这套豁免优先：不许逃，直接按被俘处理。
+  const fleeRoll = rng.next() < 0.82;
+  const mayLeave = lordMayLeaveField(state, loser, winner);
+  if (fleeRoll && mayLeave) {
     loser.alive = true;
     loser.chasing = false;
     loser.hunting = false;
@@ -1184,6 +1221,7 @@ function settleFieldBattle(state, battlefield, summary, options) {
   // 玩家不在场：按胜负让败方溃逃或被俘；两败俱伤则各自收兵。
   if (!playerBattle) {
     const loserSide = winnerSide === null ? null : winnerSide === 'a' ? 'b' : 'a';
+    const winnerUnit = winnerSide === 'a' ? bf.primaryA : winnerSide === 'b' ? bf.primaryB : null;
     bf.participants.forEach(function (p) {
       if (p.kind === 'player') return;
       const unit = unitForParticipant(state, p);
@@ -1204,13 +1242,21 @@ function settleFieldBattle(state, battlefield, summary, options) {
           p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
         return;
       }
+      // 合战结算也必须服从“守城/结阵/无城可退不逃”的硬顶规则，
+      // 不能因为战场打崩了就在城下集体 moveAway。
+      const mayLeave = lordMayLeaveField(state, unit, winnerUnit);
       if (p.key === bf.primaryB.key || p.key === bf.primaryA.key) {
         if (draw) {
-          unit.fleeing = true;
-          unit.fleeFrom = null;
-          moveAway(state, unit);
-          unit.scuffle = Math.max(unit.scuffle || 0, 8);
-        } else if (state.rng.next() < 0.82) {
+          if (mayLeave) {
+            unit.fleeing = true;
+            unit.fleeFrom = null;
+            moveAway(state, unit);
+            unit.scuffle = Math.max(unit.scuffle || 0, 8);
+          } else {
+            unit.fleeing = false;
+            unit.fleeTargetId = null;
+          }
+        } else if (state.rng.next() < 0.82 && mayLeave) {
           unit.fleeing = true;
           unit.fleeFrom = null;
           moveAway(state, unit);
@@ -1220,10 +1266,14 @@ function settleFieldBattle(state, battlefield, summary, options) {
             p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
         }
       } else {
-        unit.fleeing = true;
-        unit.fleeFrom = null;
-        if (army.troopCount(unit.troops || {}) > 0) moveAway(state, unit);
-        unit.scuffle = Math.max(unit.scuffle || 0, 5);
+        unit.fleeing = false;
+        unit.fleeTargetId = null;
+        if (mayLeave) {
+          unit.fleeing = true;
+          unit.fleeFrom = null;
+          if (army.troopCount(unit.troops || {}) > 0) moveAway(state, unit);
+          unit.scuffle = Math.max(unit.scuffle || 0, 5);
+        }
       }
     });
   }
@@ -1630,8 +1680,7 @@ function recruitLord(state, lordId) {
   })[0] || state.world.sites.filter(function (s) { return s.playerOwned; })[0];
   if (home) {
     lord.home = home.id;
-    lord.x = home.x;
-    lord.y = home.y;
+    placeLordAtSiteAnimated(state, lord, home);
   }
   lord.troops = takeSome(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.5)));
   p.renown += 25;
@@ -1681,12 +1730,12 @@ function release(state, lordId) {
 
 /* ------------------------------------------------------------ 领主国战 AI */
 
-const RALLY_DAYS_MIN = 4;
-const RALLY_DAYS_MAX = 12;
+const RALLY_DAYS_MIN = 2;
+const RALLY_DAYS_MAX = 6;
 const SIEGE_MIN_DAYS = 3;
 const SIEGE_EXTRA_DAYS = 4;
 const SIEGE_COOLDOWN = 7;    // 攻下一城后，这一对国家短暂整补，随后继续推进
-const HOLD_DAYS = 7;         // 攻下后留下守城
+const HOLD_DAYS = 3;         // 攻下后只留新封领主短暂守城，其余转巡逻
 const FAIL_COOLDOWN = 10;    // 没打下来，这一对重整旗鼓再上
 
 // 各国以统一为目标：不再把主线都城/玩家起家城列为“AI 不能碰”的保护点。
@@ -1831,7 +1880,7 @@ function planCampaign(state, faction, day) {
     return sum + siteDistance(l, rally);
   }, 0) / chosen.length;
   const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(RALLY_DAYS_MAX,
-    RALLY_DAYS_MIN + state.rng.int(0, 3) + Math.round(avgDist / 7)));
+    RALLY_DAYS_MIN + state.rng.int(0, 2) + Math.round(avgDist / 12)));
 
   const cp = {
     faction: faction,
@@ -1850,15 +1899,26 @@ function planCampaign(state, faction, day) {
     arrivedIds: [],
     done: false,
   };
-  chosen.forEach(function (l) {
-    giveOrder(l, 'rally', rally.id, true);
-    l.order.since = day;
-    l.order.campaign = faction;
+  // 只有主帅先去集结城会合；其余人马留在各自封地继续巡逻，
+  // 等开拔令下来再一起向目标城走，避免整国军队在城边杵成一片。
+  chosen.forEach(function (l, i) {
+    if (i === 0) {
+      giveOrder(l, 'rally', rally.id, true);
+      l.order.since = day;
+      l.order.campaign = faction;
+    } else {
+      clearOrder(l);
+      l.wander = null;
+      l.patrolPath = null;
+      l.routePath = null;
+      l.routePathFor = null;
+    }
   });
   state.warCampaigns[faction] = cp;
   logFn(state,
-    '【' + FACTIONS[faction].name + '】在' + rally.name + '集结 ' + chosen.length +
-    ' 路人马，粮车向北，鼓声一路传到' + target.site.name + '。', 'muster');
+    '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
+    ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
+    target.site.name + '开拔。', 'muster');
   return cp;
 }
 
@@ -1872,6 +1932,7 @@ function attackersOf(state, cp) {
     return army.troopCount(l.troops || {}) > 0;
   });
 }
+
 
 function startSiege(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
@@ -1889,18 +1950,8 @@ function startSiege(state, cp, site, day) {
     SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
     (site.garrison > 110 ? 1 : 0));
   const attackers = attackersOf(state, cp);
-  if (historyRush) {
-    const spots = [[2, 0], [0, 2], [-2, 0], [0, -2], [2, -2], [-2, 2]];
-    attackers.forEach(function (l, i) {
-      if (siteDistance(l, site) > 2) {
-        const off = spots[i % spots.length];
-        l.inCity = null;
-        l.atSiteId = null;
-        l.x = Math.max(0, Math.min(state.world.w - 1, site.x + off[0]));
-        l.y = Math.max(0, Math.min(state.world.h - 1, site.y + off[1]));
-      }
-    });
-  }
+  // 入川剧情也不再直接把五路人马“放”到剑阁城下：他们按普通行军走到城下，
+  // 到了才围城。这样不会在玩家眼前突然瞬移，剧情城仍按三日围城天数走。
   attackers.forEach(function (l) { giveOrder(l, 'siege', site.id, true); });
 
   // 围城一起，守方的领主就收到烽火：能来的都往这座城赶
@@ -1933,28 +1984,10 @@ function resolveSiege(state, cp, day) {
   }
   // 刘备入川第一仗：主线军队按剧情一起压到剑阁城下，避免“两骑先到、主力还在半路”被守军各个击破。
   // 之后各城仍按正常行军速度走。
-  const liubeiRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
-  let attackers = liubeiRush
-    ? cp.attackerIds.map(function (id) {
-      return state.lords.filter(function (l) { return l.id === id; })[0];
-    }).filter(function (l) { return !!l && l.alive && !l.prisoner && !l.dead; })
-    : attackersOf(state, cp);
+  let attackers = attackersOf(state, cp);
   // 围城期间主线军队就算减员也不散伙：这是剧情城，不能按普通“兵少六成五就回城”处理。
-  if (liubeiRush) {
-    const spots = [[2, 0], [0, 2], [-2, 0], [0, -2], [2, -2], [-2, 2]];
-    attackers.forEach(function (l, i) {
-      if (siteDistance(l, site) > 2) {
-        const off = spots[i % spots.length];
-        l.inCity = null;
-        l.atSiteId = null;
-        l.x = Math.max(0, Math.min(state.world.w - 1, site.x + off[0]));
-        l.y = Math.max(0, Math.min(state.world.h - 1, site.y + off[1]));
-      }
-    });
-    attackers = attackers.filter(function (l) { return siteDistance(l, site) <= 2; });
-  } else {
-    attackers = attackers.filter(function (l) { return siteDistance(l, site) <= 2; });
-  }
+  // 剧情入川也不再直接落位；只把已经走到城下的队伍算进这一轮战力。
+  attackers = attackers.filter(function (l) { return siteDistance(l, site) <= 2; });
   const attackEdge = factionEdge(cp.faction, site.ownerFaction);
   const defendEdge = factionEdge(site.ownerFaction, cp.faction);
   // 关隘/要地：城仍由守方控制时，城内守军和来援的守方领主吃 1.5 倍。
@@ -1994,10 +2027,19 @@ function resolveSiege(state, cp, day) {
     cp.holdUntil = day + HOLD_DAYS;
     cp.capturedSiteId = site.id;
     cp.holdSiteId = site.id;
+    // 同样只留新封领主短守，其余军队解除围城令回巡逻。
     attackers.forEach(function (l) {
-      giveOrder(l, 'hold', site.id, true);
-      l.order.since = day;
+      if (l === newFiefLord) return;
+      clearOrder(l);
+      l.wander = null;
+      l.patrolPath = null;
+      l.routePath = null;
+      l.routePathFor = null;
     });
+    if (newFiefLord) {
+      giveOrder(newFiefLord, 'hold', site.id, true);
+      newFiefLord.order.since = day;
+    }
     // 丢了城的领主先收兵，回各自剩下的城
     cp.defenderIds.forEach(function (id) {
       const l = state.lords.filter(function (x) { return x.id === id; })[0];
@@ -2226,13 +2268,22 @@ function captureSiegeSite(state, cp, site, day, battle) {
   cp.capturedSiteId = site.id;
   cp.holdSiteId = site.id;
   cp.siegeBattle = null;
-  (battle ? battle.a.contingents : []).forEach(function (c) {
-    if (c.kind !== 'lord') return;
-    const l = state.lords.filter(function (x) { return x.id === c.id; })[0];
-    if (!l) return;
-    giveOrder(l, 'hold', site.id, true);
-    l.order.since = day;
+  // 攻下城后只留新封领主短守；其余参战军立刻解除围城令，
+  // 下一拍回到自己的巡逻路线，不再全体在城边 hold 七天。
+  const allAttackers = attackersOf(state, cp);
+  allAttackers.forEach(function (l) {
+    if (l !== newFiefLord) {
+      clearOrder(l);
+      l.wander = null;
+      l.patrolPath = null;
+      l.routePath = null;
+      l.routePathFor = null;
+    }
   });
+  if (newFiefLord) {
+    giveOrder(newFiefLord, 'hold', site.id, true);
+    newFiefLord.order.since = day;
+  }
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
     if (!l) return;

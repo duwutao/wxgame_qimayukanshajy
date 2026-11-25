@@ -628,6 +628,53 @@ function lordFromDef(state, def) {
 function spawnLords(state) {
   const { LORDS } = require('../data/china.js');
   state.lords = LORDS.map(function (def) { return lordFromDef(state, def); });
+  // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
+  unstackLords(state);
+}
+
+/**
+ * 老档/新开局兜底：同一格上只留一支队伍，其余挪到最近的可走空格。
+ * 只动真正重叠的领主，不重排正常站位；挪动只有一两格，不瞬移。
+ */
+function unstackLords(state) {
+  if (!state || !state.world || !Array.isArray(state.lords)) return;
+  const taken = {};
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.alive || lord.inCity || lord.prisoner || lord.hidden) return;
+    const key = lord.x + ',' + lord.y;
+    if (!taken[key]) {
+      taken[key] = lord.id;
+      return;
+    }
+    let spot = null;
+    for (let radius = 1; radius <= 4 && !spot; radius++) {
+      for (let dy = -radius; dy <= radius && !spot; dy++) {
+        for (let dx = -radius; dx <= radius && !spot; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+          const nx = lord.x + dx;
+          const ny = lord.y + dy;
+          if (nx < 0 || ny < 0 || nx >= state.world.w || ny >= state.world.h) continue;
+          if (!isPassable(state.world, nx, ny) || siteAt(state.world, nx, ny)) continue;
+          if (state.player && nx === state.player.x && ny === state.player.y) continue;
+          if (taken[nx + ',' + ny]) continue;
+          if ((state.parties || []).some(function (q) { return q.x === nx && q.y === ny; })) continue;
+          spot = { x: nx, y: ny };
+        }
+      }
+    }
+    if (!spot) return;
+    taken[spot.x + ',' + spot.y] = lord.id;
+    lord.stepFrom = null;
+    lord.stepTo = null;
+    lord.stepStartH = null;
+    lord.stepHours = null;
+    lord.x = spot.x;
+    lord.y = spot.y;
+    lord.routePath = null;
+    lord.routePathFor = null;
+    lord.patrolPath = null;
+    lord.wander = null;
+  });
 }
 
 /** 序章追兵：西凉步卒，披重甲、走得慢，逼你往东跑 */
@@ -1744,13 +1791,17 @@ function unitAnimPos(unit, nowH) {
 }
 
 /** 迈一步：格子上立刻算到新位置，画面上用 stepHours 个时辰走过去 */
-function stepUnitTo(state, unit, step, hours) {
+function stepUnitTo(state, unit, step, hours, fromOverride) {
   const nowH = gameHours(state);
-  const from = unitAnimPos(unit, nowH);
+  const from = fromOverride || unitAnimPos(unit, nowH);
+  const dist = Math.max(Math.abs(step.x - from.x), Math.abs(step.y - from.y));
+  // 一格六时辰；若路径缓存/剧情落位仍递来两格以上的目标，
+  // 动画时间至少按格数放大，避免“一格六时辰”却跨两格闪过去。
+  const animHours = Math.max(hours || 0.4, dist > 1 ? dist * LORD_STEP_HOURS : 0);
   unit.stepFrom = from;
   unit.stepTo = { x: step.x, y: step.y };
   unit.stepStartH = nowH;
-  unit.stepHours = Math.max(0.4, hours);
+  unit.stepHours = Math.max(0.4, animHours);
   unit.x = step.x;
   unit.y = step.y;
   // 匪团每走一步就把所在州刷新，补员/统计才不会按出生州算旧账。
@@ -2304,9 +2355,21 @@ function leaveLordCity(state, lord, reason) {
   lord.fleePathFor = null;
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
-  const spot = findFreeSpotNear(state, site.x, site.y, 3, lord);
-  lord.x = spot ? spot.x : site.x;
-  lord.y = spot ? spot.y : site.y;
+  lord.routePath = null;
+  lord.routePathFor = null;
+  lord.patrolPath = null;
+  // 出城只挪到城边一格，并按一步 6 时辰做插值；
+  // 不做“从城中心直接闪到三格外的空地”。
+  const spot = findFreeSpotNear(state, site.x, site.y, 1, lord);
+  if (!spot) {
+    lord.x = site.x;
+    lord.y = site.y;
+    lord.nextMoveH = gameHours(state) + 1;
+    return;
+  }
+  const nowH = gameHours(state);
+  stepUnitTo(state, lord, spot, LORD_STEP_HOURS, { x: site.x, y: site.y });
+  lord.nextMoveH = nowH + LORD_STEP_HOURS;
   if (reason) pushLog(state, lord.name + '从' + site.name + '里出来，重新竖起旗。');
 }
 
@@ -2902,10 +2965,45 @@ function lordGuardsBesiegedCity(state, lord) {
 }
 
 /**
+ * 敌军已经把这支领主的本城/封地写成进攻目标，哪怕还没围到城下，
+ * 守军超过十人也要先按守土处理，不能看见兵力差就弃城先跑。
+ * 只看离城十格内的敌军军令或敌国战役目标，避免远端战役把所有领主钉死在城里。
+ */
+function lordHomeCityUnderThreat(state, lord) {
+  if (!state || !lord || !lord.faction) return false;
+  const cities = (state.world.sites || []).filter(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === lord.faction;
+  });
+  if (!cities.length) return false;
+  const campaigns = state.warCampaigns || {};
+  return cities.some(function (site) {
+    const mine = lord.home === site.id || site.lordId === lord.id || lord.defending === site.id;
+    if (!mine) return false;
+    const enemyOrderNear = (state.lords || []).some(function (other) {
+      if (!other || other === lord || !other.alive || other.dead || other.retired) return false;
+      if (other.inCity || other.prisoner || !other.faction || other.faction === 'bandit') return false;
+      if (!war.atWar(state, lord.faction, other.faction)) return false;
+      if (!other.order || other.order.siteId !== site.id) return false;
+      if (other.order.type !== 'march' && other.order.type !== 'siege') return false;
+      return gridDistance(other, site) <= 10;
+    });
+    if (enemyOrderNear) return true;
+    return Object.keys(campaigns).some(function (faction) {
+      const cp = campaigns[faction];
+      if (!cp || cp.done || cp.targetId !== site.id) return false;
+      if (!war.atWar(state, lord.faction, faction)) return false;
+      if (cp.stage !== 'rally' && cp.stage !== 'march' && cp.stage !== 'siege') return false;
+      return true;
+    });
+  });
+}
+
+/**
  * 逃遁豁免：
  * - 本阵营城全丢光，无路可逃；
  * - 敌军围城且自己超过十人，守军必须硬顶；
- * - 五格内有友军且自己超过十人，群战必须硬顶。
+ * - 五格内有友军且自己超过十人，群战必须硬顶；
+ * - 敌军已把本城/封地定为进攻目标且逼近到十格内，守军超过十人也不许弃城。
  * 十人以下才重新允许按兵力差判断是否逃。
  */
 function lordMustHold(state, lord) {
@@ -2914,6 +3012,7 @@ function lordMustHold(state, lord) {
   if (own <= 10) return false;
   if (lordGuardsBesiegedCity(state, lord)) return true;
   if (lordHasBattleAllyNear(state, lord, 5)) return true;
+  if (lordHomeCityUnderThreat(state, lord)) return true;
   return false;
 }
 
@@ -2990,6 +3089,20 @@ function stopLordFlee(lord) {
   lord.fleeFrom = null;
   lord.fleePath = null;
   lord.fleePathFor = null;
+}
+
+/** 外部改过坐标/路径起点的领主要清掉缓存，否则下一次会沿旧路径跨格。 */
+function clearLordMoveCaches(lord) {
+  if (!lord) return;
+  lord.routePath = null;
+  lord.routePathFor = null;
+  lord.patrolPath = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
+}
+
+function isAdjacentStep(from, to) {
+  return !!from && !!to && Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) <= 1;
 }
 
 function markLordFlee(state, lord, site, threat) {
@@ -3129,9 +3242,11 @@ function moveLords(state, slot) {
       const city = siteById(state.world, lord.inCity);
       if (!city || !siteFriendlyToLord(state, lord, city)) {
         leaveLordCity(state, lord);
+        return;
       } else if (lord.order && lord.order.siteId && !lord.order.hold &&
           army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65))) {
         leaveLordCity(state, lord, '军令到了');
+        return;
       } else {
         return;
       }
@@ -3180,10 +3295,18 @@ function moveLords(state, slot) {
           }
         }
         // 绕不过去时再退回贪心；贪心本身也不会踩进任意据点格。
-        if (!orderStep) orderStep = greedyStep(state, lord, orderTarget);
+        // 军令路线被友军堵住时允许先横一步绕开，不能原地站着等。
+        if (!orderStep) orderStep = greedyStep(state, lord, orderTarget, { detour: true });
+        if (orderStep && !isAdjacentStep({ x: lord.x, y: lord.y }, orderStep)) {
+          clearLordMoveCaches(lord);
+          orderStep = greedyStep(state, lord, orderTarget, { detour: true });
+        }
         if (orderStep) {
           stepUnitTo(state, lord, orderStep, LORD_STEP_HOURS);
           lord.nextMoveH = nowH + LORD_STEP_HOURS;
+        } else {
+          // 四面都被占满时短等一拍再试，不要永久停在原地。
+          lord.nextMoveH = nowH + 1;
         }
         return;
       }
@@ -3331,16 +3454,32 @@ function moveLords(state, slot) {
         }
       }
     }
-    // 路线被堵时不要退化到贪心；否则会在城门口来回横跳，队伍越堆越死。
+    // 路线被堵时不能原地死等：清掉旧路线，允许先横一步绕开，
+    // 下一拍从新位置重新铺距离场，避免两支友军互相顶死。
+    if (!step && routeBlocked) {
+      lord.routePath = null;
+      lord.routePathFor = null;
+      step = greedyStep(state, lord, target, { detour: true });
+    }
     if (!step && !routeBlocked) step = greedyStep(state, lord, target);
+    // 路径缓存可能在领主被 moveAway/剧情落位/老档挪格后过期，
+    // 首格离当前位置超过一格就作废重算，绝不跨格滑过去。
+    if (step && !isAdjacentStep({ x: lord.x, y: lord.y }, step)) {
+      clearLordMoveCaches(lord);
+      step = greedyStep(state, lord, target, { detour: true });
+    }
     if (step) {
       stepUnitTo(state, lord, step, travelHours);
       lord.nextMoveH = nowH + travelHours;
-    } else if (target === lord.wander && !routeBlocked) {
+    } else if (target === lord.wander) {
       // 前面被别的队伍堵住：跳过这个巡逻落脚点，别在一格上反复撞。
       advancePatrolLeg(state, lord);
       lord.wander = patrolTargetFor(state, lord);
       lord.patrolPath = null;
+      lord.nextMoveH = nowH + 1;
+    } else {
+      // 非巡逻目标（逃遁/回城/追人）被四面堵住时短等一拍再找路。
+      lord.nextMoveH = nowH + 1;
     }
     // 走到自己/友军的城下：最后半步必须踩进城池中心，走完才收旗进城。
     if (target.siteId) {
@@ -3406,6 +3545,7 @@ function retreatFrom(state, unit, threat) {
   if (best) {
     // 匪团现在脚程慢于领主，后退也慢；领主仍按原来的 3 时辰退一步。
     const hours = unit && unit.faction === 'bandit' ? BANDIT_STEP_HOURS : NPC_STEP_HOURS;
+    clearLordMoveCaches(unit);
     stepUnitTo(state, unit, best, hours);
     return true;
   }
@@ -3552,13 +3692,17 @@ function fightNeighbors(state) {
   });
 }
 
-function greedyStep(state, unit, target) {
+function greedyStep(state, unit, target, opts) {
   const dirs = [
     [1, 0], [-1, 0], [0, 1], [0, -1],
     [1, 1], [1, -1], [-1, 1], [-1, -1],
   ];
+  const detour = !!(opts && opts.detour);
+  const startD = gridDistance(unit, target);
+  const maxD = detour ? startD + 1 : startD - 1;
+  const cameFrom = detour && unit.stepFrom ? unit.stepFrom : null;
   let best = null;
-  let bestD = gridDistance(unit, target);
+  let bestScore = Infinity;
   for (let i = 0; i < dirs.length; i++) {
     const nx = unit.x + dirs[i][0];
     const ny = unit.y + dirs[i][1];
@@ -3574,8 +3718,11 @@ function greedyStep(state, unit, target) {
     // 模型占格：除非目标就是这一格上的敌军（那会由交战逻辑接管），否则绕开。
     if (unitOccupies(state, unit, nx, ny)) continue;
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
-    if (d < bestD) {
-      bestD = d;
+    if (d > maxD) continue;
+    // 绕路时允许先横着走一格，但尽量不原路退回，避免两支部队互相顶住时来回横跳。
+    const score = d + (cameFrom && nx === cameFrom.x && ny === cameFrom.y ? 1.5 : 0);
+    if (score < bestScore) {
+      bestScore = score;
       best = { x: nx, y: ny };
     }
   }
@@ -6186,6 +6333,8 @@ function deserialize(json) {
   });
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
+  // 老档里若有两支队伍叠在同一格，进档时先挪开，避免一开局就互相堵死。
+  unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
   war.init(state);

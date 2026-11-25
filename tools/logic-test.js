@@ -3211,6 +3211,152 @@ group('n11 版：汉中改道 · 新野十巡 · 攻城渐进 · 统一战争');
   ok('aiCanDeclare 不再对玩家效忠国留手', warLib.aiCanDeclare(g, 'wei', 'shu'));
 }
 
+
+/* ---------------------------------------------------------------- n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框 */
+group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
+{
+  // 开局/老档：同一格不能叠两支队伍，否则两支都会把对方当占格，谁也走不动。
+  const g = stateLib.createGame({ seed: 8130 });
+  const active = g.lords.filter(function (l) {
+    return l.alive && !l.inCity && !l.prisoner && !l.hidden;
+  });
+  const cells = {};
+  const dup = [];
+  active.forEach(function (l) {
+    const key = l.x + ',' + l.y;
+    if (cells[key]) dup.push(key);
+    cells[key] = true;
+  });
+  ok('开局同格领主已经分开', dup.length === 0, dup.slice(0, 4).join(' / '));
+}
+{
+  // 路线首格被友军占住：必须横一步绕开并清掉旧路线，不能永久 routeBlocked 站死。
+  function routeLord(id, x, y, target, path) {
+    return {
+      id: id, name: id, faction: 'wei', home: 'luoyang', level: 3,
+      x: x, y: y, troops: { militia: 40 }, defTroops: { militia: 40 },
+      morale: 80, sight: 5, alive: true, dead: false, retired: false,
+      inCity: null, prisoner: null, fieldBattleId: null, engagedWith: null,
+      wander: target, patrolPath: null, routePath: path,
+      routePathFor: target ? target.x + ',' + target.y : null, nextMoveH: 0,
+    };
+  }
+  const g = stateLib.createGame({ seed: 2026112605 });
+  g.player.x = 150; g.player.y = 150;
+  g.parties = [];
+  g.fieldBattles = [];
+  g.clock.day = 0; g.clock.hour = 0;
+  const mover = routeLord('n12-mover', 64, 71, { x: 66, y: 76 }, [{ x: 64, y: 72 }]);
+  const blocker = routeLord('n12-blocker', 64, 72, null, null);
+  g.lords = [mover, blocker];
+  stateLib.moveLords(g);
+  ok('路线被友军堵住时会绕开而不是站死',
+    (mover.x !== 64 || mover.y !== 71) && !mover.routePath,
+    'pos=' + mover.x + ',' + mover.y + ' path=' + (mover.routePath ? mover.routePath.length : 'null'));
+}
+{
+  // 出城只走城边一格，并且从城中心插值出去；不能直接闪到三格外。
+  const g = stateLib.createGame({ seed: 2026112605 });
+  const city = worldLib.siteById(g.world, 'luoyang');
+  const other = worldLib.siteById(g.world, 'hulao');
+  const lord = {
+    id: 'n12-leaver', name: '出城测试', faction: 'wei', home: city.id,
+    level: 3, x: city.x, y: city.y, troops: { militia: 40 }, defTroops: { militia: 40 },
+    morale: 80, sight: 5, alive: true, dead: false, retired: false,
+    inCity: city.id, prisoner: null, fieldBattleId: null, engagedWith: null,
+    order: { type: 'march', siteId: other.id, hold: false, since: 1 },
+    nextMoveH: 0,
+  };
+  g.player.x = 150; g.player.y = 150;
+  g.lords = [lord];
+  g.parties = [];
+  stateLib.moveLords(g);
+  const d = lord.stepTo ? Math.max(Math.abs(lord.stepTo.x - city.x), Math.abs(lord.stepTo.y - city.y)) : 99;
+  ok('出城从城中心插值到城边一格，不瞬移',
+    !lord.inCity && !!lord.stepFrom && !!lord.stepTo &&
+    lord.stepFrom.x === city.x && lord.stepFrom.y === city.y && d === 1,
+    'from=' + JSON.stringify(lord.stepFrom) + ' to=' + JSON.stringify(lord.stepTo) + ' d=' + d);
+}
+{
+  // 敌军已把本城定为行军目标且逼近十格内：超过十人的守军不许逃。
+  const g = stateLib.createGame({ seed: 2026112607 });
+  const city = g.world.sites.find(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'wei';
+  });
+  const weak = {
+    id: 'n12-home-hold', name: '守土测试', faction: 'wei', home: city.id,
+    x: city.x + 2, y: city.y, level: 2, troops: { militia: 24 }, defTroops: { militia: 24 },
+    sight: 6, alive: true, dead: false, retired: false,
+    inCity: null, prisoner: null, engagedWith: null, defending: null, order: null,
+    fleeing: false, fleeTargetId: null,
+  };
+  const foe = {
+    id: 'n12-march-foe', name: '来犯测试', faction: 'shu', home: city.id,
+    x: city.x + 4, y: city.y, level: 3, troops: { militia: 120 }, defTroops: { militia: 120 },
+    sight: 6, alive: true, dead: false, retired: false,
+    inCity: null, prisoner: null, engagedWith: null, defending: null,
+    order: { type: 'march', siteId: city.id, hold: false },
+    fleeing: false, fleeTargetId: null,
+  };
+  g.player.x = 150; g.player.y = 150;
+  g.parties = [];
+  g.lords = [weak, foe];
+  warLib.declare(g, 'wei', 'shu');
+  const threat = stateLib.lordThreatFor(g, weak, true, false);
+  ok('敌军逼近本城时超过十人的守军不再逃',
+    !threat || threat.role !== 'flee', threat ? threat.role : 'none');
+}
+{
+  // 野战撞阵结算也不能绕过“守城/结阵不逃”的硬顶。
+  const g = stateLib.createGame({ seed: 2026112608 });
+  const city = g.world.sites.find(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'wei';
+  });
+  const weak = {
+    id: 'n12-clash-weak', name: '撞阵弱势', faction: 'wei', home: city.id,
+    x: 52, y: 52, level: 3, troops: { militia: 12 }, defTroops: { militia: 12 },
+    morale: 80, sight: 6, alive: true, dead: false, retired: false,
+    inCity: null, prisoner: null, fieldBattleId: null, engagedWith: null,
+    defending: city.id, order: { type: 'defend', siteId: city.id },
+    fleeing: false, fleeTargetId: null,
+  };
+  const strong = {
+    id: 'n12-clash-strong', name: '撞阵强势', faction: 'shu', home: city.id,
+    x: 52, y: 52, level: 3, troops: { militia: 150 }, defTroops: { militia: 150 },
+    morale: 80, sight: 6, alive: true, dead: false, retired: false,
+    inCity: null, prisoner: null, fieldBattleId: null, engagedWith: null,
+    defending: null, order: null, fleeing: false, fleeTargetId: null,
+  };
+  g.player.x = 150; g.player.y = 150;
+  g.parties = [];
+  g.lords = [weak, strong];
+  warLib.declare(g, 'wei', 'shu');
+  for (let i = 0; i < 8 && weak.alive && !weak.prisoner; i++) warLib.clash(g, weak, strong);
+  ok('守城军撞阵打崩也不准溃逃（只可被俘）',
+    weak.fleeing !== true && (!!weak.prisoner || !weak.alive),
+    'flee=' + weak.fleeing + ' prisoner=' + !!weak.prisoner + ' alive=' + weak.alive);
+}
+{
+  // 集结阶段只留主帅在集结城，其余领主不得一起在城边站成一片。
+  const g = stateLib.createGame({ seed: 2026112609 });
+  g.player.x = 150; g.player.y = 150;
+  warLib.startDiplomacy(g);
+  warLib.strategyTick(g);
+  const factions = Object.keys(g.warCampaigns || {});
+  const bad = factions.filter(function (f) {
+    const cp = g.warCampaigns[f];
+    if (!cp || cp.stage !== 'rally') return false;
+    const rally = cp.attackerIds.map(function (id) {
+      return g.lords.filter(function (l) { return l.id === id; })[0];
+    }).filter(Boolean).filter(function (l) {
+      return l.order && l.order.type === 'rally';
+    });
+    return rally.length > 1;
+  });
+  ok('集结时每个国家只留主帅在集结城',
+    factions.length > 0 && bad.length === 0,
+    'campaigns=' + factions.length + ' bad=' + bad.join(','));
+}
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
