@@ -1968,6 +1968,20 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   ok('匪团战后余惊会消退，不会永远挂交战中', party.scuffle === 1, 'scuffle=' + party.scuffle);
 }
 {
+  // 两支匪团贴住同一位领主时，后来者不能覆盖对方的 engagedWith
+  const g = stateLib.createGame({ seed: 2026112519 });
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const party = g.parties.filter(function (q) { return q.faction === 'bandit' && !q.scripted; })[0];
+  lord.inCity = null;
+  lord.engagedWith = 'party:other';
+  lord.engagedSinceH = stateLib.gameHours(g);
+  party.engagedWith = null;
+  party.x = lord.x + 1; party.y = lord.y;
+  stateLib.moveParties(g);
+  ok('匪团不会抢已经和别人交战的领主', lord.engagedWith === 'party:other' &&
+    party.engagedWith !== lord.id, 'lord=' + lord.engagedWith + ' party=' + party.engagedWith);
+}
+{
   // 外交提醒可以关，关了不弹军情；打开后恢复
   const g = stateLib.createGame({ seed: 2026112516 });
   g.campaign.stage = 2;

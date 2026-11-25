@@ -1604,6 +1604,12 @@ function moveParties(state, slot) {
     const lord = nearestLord(state, party, 4);
     const hunter = !!(lord && lord.hunting && lord.banditChasing === party.id);
     if (lord && gridDistance(party, lord) <= 1) {
+      // 这位领主已经和别的匪团缠上了：不抢别人的交战对象，先退开，避免三支队伍互相覆盖 engagedWith。
+      if (lord.engagedWith && lord.engagedWith !== 'party:' + party.id) {
+        retreatFrom(state, party, lord);
+        party.chasing = false;
+        return;
+      }
       // 已经贴上了就不跑了：停住，交给下面的大战结算。
       if (party.engagedWith !== lord.id) {
         party.engagedSinceH = nowH;
@@ -2570,7 +2576,7 @@ function fightNeighbors(state) {
       }
     } else {
       lord = state.lords.filter(function (l) {
-        return l.alive && !l.prisoner && l.faction !== 'bandit' &&
+        return l.alive && !l.prisoner && !l.engagedWith && l.faction !== 'bandit' &&
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
