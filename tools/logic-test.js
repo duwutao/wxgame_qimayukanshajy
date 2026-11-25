@@ -153,13 +153,13 @@ ok('追兵是 60 步卒', chase && armyLib.troopCount(chase.troops) === 60 &&
 const startBandits = st.parties.filter(function (p) {
   return p.faction === 'bandit' && !p.scripted;
 });
-ok('开局地图匪团翻倍到 16 支', startBandits.length === 16, String(startBandits.length));
+ok('开局地图匪团翻倍到 32 支', startBandits.length === 32, String(startBandits.length));
 ok('开局匪团不叠在同一格', new Set(startBandits.map(function (p) { return p.x + ',' + p.y; })).size === startBandits.length,
   startBandits.length + ' 支');
 ok('开局匪团分布不挤在一角', (function () {
   const left = startBandits.filter(function (p) { return p.x < st.world.w / 2; }).length;
   const top = startBandits.filter(function (p) { return p.y < st.world.h / 2; }).length;
-  return left >= 4 && left <= 12 && top >= 4 && top <= 12;
+  return left >= 8 && left <= 24 && top >= 8 && top <= 24;
 })(), startBandits.map(function (p) { return p.x + ',' + p.y; }).join('|'));
 
 /* ---------------------------------------------------------------- 行军 */
@@ -2033,7 +2033,8 @@ ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
     counts[rid] = (counts[rid] || 0) + 1;
   });
   const nums = Object.keys(counts).map(function (k) { return counts[k]; });
-  ok('开局匪团按州均匀分布', Math.max.apply(null, nums) <= 2 &&
+  ok('开局匪团按州均匀分布', Math.max.apply(null, nums) <= 4 &&
+    Math.min.apply(null, nums) >= 2 &&
     Object.keys(counts).length >= 10, JSON.stringify(counts));
   ok('匪团速度比领主慢，但仍在可追范围', (function () {
     const p = g.parties.filter(function (q) { return q.faction === 'bandit' && !q.scripted; })[0];
@@ -2250,6 +2251,136 @@ group('n3 版：地图峡谷 · 巡逻路线 · 追匪 · 旗色');
     ok('领主追上匪团后进入交战并结束追逐', false, 'setup missing');
     ok('匪团脚程慢于普通领主', false, 'missing');
   }
+}
+
+/* ---------------------------------------------------------------- n3b 版：匪团州内活动 · 四格追匪 · 三小时交战 */
+
+group('n3b 版：匪团州内活动 · 四格追匪 · 三小时交战');
+{
+  const g = stateLib.createGame({ seed: 2026112531 });
+  const start = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; });
+  function nearTown(x, y) {
+    let best = 999;
+    g.world.sites.forEach(function (s) {
+      if (s.type !== 'town' && s.type !== 'castle') return;
+      best = Math.min(best, Math.max(Math.abs(x - s.x), Math.abs(y - s.y)));
+    });
+    return best;
+  }
+  const edgeBad = [];
+  const regionBad = [];
+  const cityBad = [];
+  start.forEach(function (p) {
+    if (p.x < stateLib.BANDIT_EDGE_MARGIN || p.y < stateLib.BANDIT_EDGE_MARGIN ||
+        p.x > g.world.w - 1 - stateLib.BANDIT_EDGE_MARGIN ||
+        p.y > g.world.h - 1 - stateLib.BANDIT_EDGE_MARGIN) edgeBad.push(p.id);
+    if (worldLib.regionAt(g.world, p.x, p.y) !== p.roamRegion) regionBad.push(p.id);
+    if (nearTown(p.x, p.y) > stateLib.BANDIT_CITY_RANGE) cityBad.push(p.id + ':' + nearTown(p.x, p.y));
+  });
+  ok('全图匪团再次翻倍到 32 支', start.length === stateLib.BANDIT_START_COUNT && start.length === 32, String(start.length));
+  ok('开局匪团都在本州内活动', regionBad.length === 0, regionBad.slice(0, 5).join(','));
+  ok('开局匪团不贴地图边缘', edgeBad.length === 0, edgeBad.slice(0, 5).join(','));
+  ok('开局匪团离城镇/关隘不超过 22 格', cityBad.length === 0, cityBad.slice(0, 5).join(','));
+
+  // 领主只有身边四格内才会主动追匪。
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const party = start[0];
+  if (lord && party) {
+    g.lords = [lord];
+    g.parties = [party];
+    g.player.x = 120;
+    g.player.y = 150;
+    lord.alive = true;
+    lord.inCity = null;
+    lord.prisoner = null;
+    lord.engagedWith = null;
+    lord.faction = 'wei';
+    lord.troops = { militia: 100 };
+    lord.defTroops = { militia: 100 };
+    party.engagedWith = null;
+    party.troops = { militia: 8 };
+    party.dead = false;
+    let spot = null;
+    for (let y = 55; y < 100 && !spot; y++) {
+      for (let x = 14; x < 50; x++) {
+        if (worldLib.terrainAt(g.world, x, y).passable &&
+            worldLib.terrainAt(g.world, x + 5, y).passable &&
+            !worldLib.siteAt(g.world, x, y) && !worldLib.siteAt(g.world, x + 5, y)) {
+          spot = [x, y];
+          break;
+        }
+      }
+    }
+    if (spot) {
+      lord.x = spot[0];
+      lord.y = spot[1];
+      party.x = spot[0] + 5;
+      party.y = spot[1];
+      const distant = stateLib.lordThreatFor(g, lord, true, false);
+      ok('匪团在五格外时领主不主动追', !distant || distant.role !== 'hunt',
+        distant ? distant.role : 'none');
+      party.x = spot[0] + 4;
+      const close = stateLib.lordThreatFor(g, lord, true, false);
+      ok('匪团进四格内领主开始追', !!close && close.role === 'hunt' && close.target.unit.id === party.id,
+        close ? close.role : 'none');
+
+      // 交战至少撑满三时辰：100 打 8，也不能在头一两个时辰直接抹掉。
+      party.x = lord.x + 1;
+      party.y = lord.y;
+      party.engagedWith = lord.id;
+      party.engagedSinceH = stateLib.gameHours(g) - 1;
+      lord.engagedWith = 'party:' + party.id;
+      lord.engagedSinceH = party.engagedSinceH;
+      stateLib.fightNeighbors(g);
+      ok('交战未满三时辰不会结算', !party.dead, 'dead=' + !!party.dead);
+      party.engagedSinceH = stateLib.gameHours(g) - 3;
+      lord.engagedSinceH = party.engagedSinceH;
+      stateLib.fightNeighbors(g);
+      ok('交战满三时辰后才可能打散匪团', !!party.dead, 'dead=' + !!party.dead);
+    } else {
+      ok('匪团在五格外时领主不主动追', false, 'setup missing');
+      ok('匪团进四格内领主开始追', false, 'setup missing');
+      ok('交战未满三时辰不会结算', false, 'setup missing');
+      ok('交战满三时辰后才可能打散匪团', false, 'setup missing');
+    }
+  } else {
+    ok('匪团在五格外时领主不主动追', false, 'lord/party missing');
+    ok('匪团进四格内领主开始追', false, 'lord/party missing');
+    ok('交战未满三时辰不会结算', false, 'lord/party missing');
+    ok('交战满三时辰后才可能打散匪团', false, 'lord/party missing');
+  }
+}
+{
+  // 跑一天后，活着的匪团仍应在本州、离地图边和城镇不远。
+  const g = stateLib.createGame({ seed: 2026112532 });
+  g.player.x = 110;
+  g.player.y = 140;
+  for (let h = 0; h < 24; h++) {
+    stateLib.advanceTime(g, 1);
+    stateLib.update(g, 0, { ignoreEvents: true });
+  }
+  const alive = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted && !p.dead; });
+  function nearTown(x, y) {
+    let best = 999;
+    g.world.sites.forEach(function (s) {
+      if (s.type !== 'town' && s.type !== 'castle') return;
+      best = Math.min(best, Math.max(Math.abs(x - s.x), Math.abs(y - s.y)));
+    });
+    return best;
+  }
+  const regionBad = [];
+  const edgeBad = [];
+  const cityBad = [];
+  alive.forEach(function (p) {
+    if (worldLib.regionAt(g.world, p.x, p.y) !== p.roamRegion) regionBad.push(p.id);
+    if (p.x < stateLib.BANDIT_EDGE_MARGIN || p.y < stateLib.BANDIT_EDGE_MARGIN ||
+        p.x > g.world.w - 1 - stateLib.BANDIT_EDGE_MARGIN ||
+        p.y > g.world.h - 1 - stateLib.BANDIT_EDGE_MARGIN) edgeBad.push(p.id);
+    if (nearTown(p.x, p.y) > stateLib.BANDIT_CITY_RANGE + 1) cityBad.push(p.id + ':' + nearTown(p.x, p.y));
+  });
+  ok('巡游一天后匪团仍不越州', regionBad.length === 0, regionBad.slice(0, 5).join(','));
+  ok('巡游一天后匪团仍不贴地图边', edgeBad.length === 0, edgeBad.slice(0, 5).join(','));
+  ok('巡游一天后匪团仍离城镇不远', cityBad.length === 0, cityBad.slice(0, 5).join(','));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

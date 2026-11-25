@@ -6838,17 +6838,24 @@ const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
 const LORD_BANDIT_HUNT_RATIO = 1.25;
 const LORD_BANDIT_HUNT_GAP = 4;
+/** 领主只在身边四格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
+const LORD_BANDIT_HUNT_RANGE = 4;
+/** 匪团与领主交战至少撑满三个时辰，不能被一刀秒掉。 */
+const BANDIT_MIN_BATTLE_HOURS = 3;
 const LORD_FLEE_OWN_MAX = 30;
 const LORD_RESPAWN_DAYS = 12;
 /** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
 const CAMP_RESPAWN_DAYS = 3;
 const SAVE_VERSION = 5; // 天下放大到 128x154，旧档地图对不上，直接换新
 
-/** 全图常驻匪团目标数量（玩家附近看得见，远处也算） */
-const BANDIT_TARGET = 24;
-const BANDIT_MAX = 30;
-const BANDIT_REFILL_PER_DAY = 6;
-const BANDIT_START_COUNT = 16;
+/** 全图常驻匪团目标数量（玩家附近看得见，远处也算）——再次翻倍 */
+const BANDIT_TARGET = 48;
+const BANDIT_MAX = 60;
+const BANDIT_REFILL_PER_DAY = 12;
+const BANDIT_START_COUNT = 32;
+/** 匪团只在州内活动，不贴地图边缘，也不跑到离城太远的荒山。 */
+const BANDIT_EDGE_MARGIN = 10;
+const BANDIT_CITY_RANGE = 22;
 /** 匪团轻装但脚程不比领主快：普通领主 6 时辰一格，匪团 6.5 时辰一格。
  *  这样领主追杀时能逐步缩短距离，追上就进入交战，不会永远吊在后面。 */
 const BANDIT_STEP_HOURS = 6.5;
@@ -7476,6 +7483,67 @@ function pickBanditTier(state) {
   return best;
 }
 
+/** 匪团的归属州：老档没有 roamRegion 时按脚下州补上。 */
+function banditHomeRegion(state, party) {
+  if (!party || !state || !state.world) return 'zhongyuan';
+  if (!party.roamRegion) party.roamRegion = regionAt(state.world, party.x, party.y);
+  return party.roamRegion;
+}
+
+/** 到最近城镇/关隘的距离（村寨不算，避免匪团钻进村口）。 */
+function banditTownDistance(world, x, y) {
+  let best = 999;
+  (world.sites || []).forEach(function (s) {
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    const d = Math.max(Math.abs(x - s.x), Math.abs(y - s.y));
+    if (d < best) best = d;
+  });
+  return best;
+}
+
+/** 匪团的合法落脚点：不贴地图边、不压据点、只在本州、离城不能太远。 */
+function banditSpotAllowed(state, x, y, region, unit) {
+  if (!state || !state.world) return false;
+  const world = state.world;
+  if (x < BANDIT_EDGE_MARGIN || y < BANDIT_EDGE_MARGIN ||
+      x > world.w - 1 - BANDIT_EDGE_MARGIN || y > world.h - 1 - BANDIT_EDGE_MARGIN) return false;
+  if (!isPassable(world, x, y)) return false;
+  if (siteAt(world, x, y)) return false;
+  if (state.player && Math.max(Math.abs(x - state.player.x), Math.abs(y - state.player.y)) < 6) return false;
+  if (unit && unitOccupies(state, unit, x, y)) return false;
+  const rid = regionAt(world, x, y);
+  if (region && rid !== region) return false;
+  if (banditTownDistance(world, x, y) > BANDIT_CITY_RANGE) return false;
+  return true;
+}
+
+/** 州内找一处可落脚的空地；优先城镇附近，保证匪团不会跑到荒山边角。 */
+function banditRegionSpot(state, region, unit) {
+  const world = state.world;
+  const towns = (world.sites || []).filter(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && regionAt(world, s.x, s.y) === region;
+  });
+  const rng = state.rng;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const x = rng.int(BANDIT_EDGE_MARGIN, world.w - 1 - BANDIT_EDGE_MARGIN);
+    const y = rng.int(BANDIT_EDGE_MARGIN, world.h - 1 - BANDIT_EDGE_MARGIN);
+    if (banditSpotAllowed(state, x, y, region, unit)) return { x: x, y: y };
+    if (!towns.length) continue;
+    const town = towns[attempt % towns.length];
+    const spot = findFreeSpotNear(state, town.x, town.y, 7, unit);
+    if (spot && banditSpotAllowed(state, spot.x, spot.y, region, unit)) return spot;
+  }
+  // 最后只贴着本州城镇找；实在没有就留给调用方跳过这一支。
+  for (let i = 0; i < towns.length; i++) {
+    const town = towns[i];
+    for (let radius = 2; radius <= 8; radius += 2) {
+      const spot = findFreeSpotNear(state, town.x, town.y, radius, unit);
+      if (spot && banditSpotAllowed(state, spot.x, spot.y, region, unit)) return spot;
+    }
+  }
+  return null;
+}
+
 /**
  * 匪团落点：先按州均匀分，再在全图抽样，
  * 尽量远离已有的匪团，避免全挤在几座匪巢门口。
@@ -7505,17 +7573,10 @@ function balancedBanditSpot(state) {
 
   let best = null;
   let bestScore = -Infinity;
-  for (let attempt = 0; attempt < 150; attempt++) {
-    const x = rng.int(2, world.w - 3);
-    const y = rng.int(2, world.h - 3);
-    if (!isPassable(world, x, y)) continue;
-    if (siteAt(world, x, y)) continue;
-    if (unitOccupies(state, null, x, y)) continue;
-    if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 6) continue;
-
-    // 前 110 次只在本州找；实在找不到空地才放开全图兜底。
-    const rid = regionAt(world, x, y);
-    if (attempt < 110 && targetRegion && rid !== targetRegion) continue;
+  for (let attempt = 0; attempt < 260; attempt++) {
+    const x = rng.int(BANDIT_EDGE_MARGIN, world.w - 1 - BANDIT_EDGE_MARGIN);
+    const y = rng.int(BANDIT_EDGE_MARGIN, world.h - 1 - BANDIT_EDGE_MARGIN);
+    if (!banditSpotAllowed(state, x, y, targetRegion, null)) continue;
 
     let nearestBandit = 999;
     state.parties.forEach(function (q) {
@@ -7533,12 +7594,20 @@ function balancedBanditSpot(state) {
 
     // 离其他匪团越远越好；离城村太近要扣分，避免堵门；本州加分。
     const score = Math.min(30, nearestBandit) * 1.35 + rng.random() * 5 +
-      (nearestSite < 4 ? -7 : 0) + (rid === targetRegion ? 5 : 0);
+      (nearestSite < 4 ? -7 : 0) + (targetRegion ? 5 : 0);
     if (score > bestScore) {
       bestScore = score;
-      best = { x: x, y: y };
+      best = { x: x, y: y, region: targetRegion };
     }
   }
+  if (best) return best;
+
+  // 抽样没中：退回本州城镇附近，绝不落在地图边或别州。
+  Object.keys(REGIONS).forEach(function (id) {
+    if (best) return;
+    const spot = banditRegionSpot(state, id, null);
+    if (spot) best = { x: spot.x, y: spot.y, region: id };
+  });
   return best;
 }
 
@@ -7587,9 +7656,11 @@ function spawnBanditParties(state, count) {
     let spot = balancedBanditSpot(state);
     if (!spot && camps.length) {
       const camp = rng.pick(camps);
-      spot = findFreeSpotNear(state, camp.x, camp.y, 7);
+      const campSpot = findFreeSpotNear(state, camp.x, camp.y, 7);
+      if (campSpot && banditSpotAllowed(state, campSpot.x, campSpot.y, regionAt(state.world, campSpot.x, campSpot.y), null)) {
+        spot = campSpot;
+      }
     }
-    if (!spot) spot = findFreeSpotNear(state, rng.int(2, state.world.w - 3), rng.int(2, state.world.h - 3), 2);
     if (!spot) continue;
     state.parties.push(makeBanditParty(state, tier, spot));
   }
@@ -7663,22 +7734,20 @@ function campTierForRenown(state) {
 }
 
 /** 被攻破的山寨三日后在地图任意空地重新聚人，不再回原址 */
-function pickCampRespawnSpot(state) {
+function pickCampRespawnSpot(state, camp) {
   const world = state.world;
   const rng = state.rng;
   const p = state.player;
-  for (let attempt = 0; attempt < 220; attempt++) {
-    const x = rng.int(2, world.w - 3);
-    const y = rng.int(2, world.h - 3);
-    const tile = world.tiles[y * world.w + x];
-    if (tile === 'sea' || tile === 'river' || tile === 'mountain') continue;
-    if (!isPassable(world, x, y)) continue;
-    if (siteAt(world, x, y)) continue;
-    if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 8) continue;
+  const homeRegion = camp && camp.region ? camp.region : null;
+  // 山寨重新聚人也要守匪团的规矩：只在本州、离城不远、不贴地图边。
+  for (let attempt = 0; attempt < 240; attempt++) {
+    const x = rng.int(BANDIT_EDGE_MARGIN, world.w - 1 - BANDIT_EDGE_MARGIN);
+    const y = rng.int(BANDIT_EDGE_MARGIN, world.h - 1 - BANDIT_EDGE_MARGIN);
+    if (!banditSpotAllowed(state, x, y, homeRegion, null)) continue;
     return { x, y };
   }
-  // 极端情况下全图都挑不出空地，退回老据点附近，至少不叠到别的据点上
-  return findFreeSpotNear(state, world.w / 2, world.h / 2, 8);
+  const spot = banditRegionSpot(state, homeRegion || regionAt(world, world.w / 2, world.h / 2), null);
+  return spot || null;
 }
 
 function campRespawnTick(state) {
@@ -7688,7 +7757,7 @@ function campRespawnTick(state) {
       site.respawnDay = (site.lootedDay || state.clock.day) + CAMP_RESPAWN_DAYS;
     }
     if (state.clock.day < site.respawnDay) return;
-    const spot = pickCampRespawnSpot(state);
+    const spot = pickCampRespawnSpot(state, site);
     if (!spot) return;
 
     // 营地搬去新地方，旧坐标只剩荒地
@@ -8488,20 +8557,16 @@ function chooseBanditTarget(state, party, opts) {
   const world = state.world;
   const p = state.player;
   const o = opts || {};
-  const currentRegion = o.differentRegion ? null : (o.region || regionAt(world, party.x, party.y));
+  const homeRegion = banditHomeRegion(state, party);
   const threat = o.threat || null;
   let best = null;
   let bestScore = -Infinity;
-  for (let attempt = 0; attempt < 140; attempt++) {
-    const x = rng.int(2, world.w - 3);
-    const y = rng.int(2, world.h - 3);
-    if (!isPassable(world, x, y)) continue;
-    if (siteAt(world, x, y)) continue;
-    if (unitOccupies(state, party, x, y)) continue;
-    if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 6) continue;
+  for (let attempt = 0; attempt < 160; attempt++) {
+    const x = rng.int(BANDIT_EDGE_MARGIN, world.w - 1 - BANDIT_EDGE_MARGIN);
+    const y = rng.int(BANDIT_EDGE_MARGIN, world.h - 1 - BANDIT_EDGE_MARGIN);
+    if (!banditSpotAllowed(state, x, y, homeRegion, party)) continue;
     const rid = regionAt(world, x, y);
-    if (o.differentRegion && rid === regionAt(world, party.x, party.y)) continue;
-    if (!o.differentRegion && currentRegion && rid !== currentRegion) continue;
+    if (rid !== homeRegion) continue;
     const d = Math.max(Math.abs(x - party.x), Math.abs(y - party.y));
     if (d < BANDIT_ROAM_MIN) continue;
     if (d > (o.differentRegion ? 34 : BANDIT_ROAM_MAX)) continue;
@@ -8515,10 +8580,9 @@ function chooseBanditTarget(state, party, opts) {
 
     let score = (nearestBandit > 6 ? 7 : -5) + rng.random() * 4;
     if (o.differentRegion) {
-      // 逃到邻州时，离追兵越远越好，但也别一口气跑到天下另一头。
+      // 被领主追时，在同一个州里尽量往远处躲；不跨州。
       const td = threat ? Math.max(Math.abs(x - threat.x), Math.abs(y - threat.y)) : d;
-      score += td * 0.45 - Math.abs(d - 15) * 0.45;
-      if (rid !== currentRegion) score += 3;
+      score += td * 0.45 - Math.abs(d - 15) * 0.35;
     } else {
       score -= Math.abs(d - 15) * 0.18;
     }
@@ -8527,7 +8591,10 @@ function chooseBanditTarget(state, party, opts) {
       best = { x: x, y: y, region: rid };
     }
   }
-  return best;
+  if (best) return best;
+  // 本州实在挑不到远点：往本州城镇附近挪，绝不出州或贴地图边。
+  const spot = banditRegionSpot(state, homeRegion, party);
+  return spot ? { x: spot.x, y: spot.y, region: homeRegion } : null;
 }
 
 /** 沿缓存路径走一步；没有路径就贪心一步，至少不会原地打转 */
@@ -8641,8 +8708,13 @@ function moveParties(state, slot) {
       return;
     }
 
-    // 到邻州后就算脱身：恢复成那个州的普通巡游，不再一直挂着“逃”字。
+    // 匪团归属州：只在州内巡游，不跨州逃到地图边。
+    const homeRegion = banditHomeRegion(state, party);
     const nowRegion = regionAt(state.world, party.x, party.y);
+    if (isBandit && party.banditFleeRegion && party.banditFleeRegion !== homeRegion) {
+      party.banditFleeRegion = homeRegion;
+      party.banditFleeTarget = null;
+    }
     if (isBandit && party.banditFleeRegion && nowRegion === party.banditFleeRegion) {
       party.banditFleeFrom = null;
       party.banditFleeRegion = null;
@@ -8777,7 +8849,10 @@ function moveParties(state, slot) {
     let targetIsPlayer = false;
     if (isBandit) {
       const dist = gridDistance(party, p);
+      const playerRegion = regionAt(state.world, p.x, p.y);
+      const playerNearCity = banditTownDistance(state.world, p.x, p.y) <= BANDIT_CITY_RANGE;
       if (!isSafeResting(state) && !p.atSiteId && dist <= (party.sight || 5) &&
+          playerRegion === homeRegion && playerNearCity &&
           isHostileFaction(state, party.faction)) {
         target = { x: p.x, y: p.y };
         targetIsPlayer = true;
@@ -8785,7 +8860,7 @@ function moveParties(state, slot) {
       } else {
         if (!party.roamTarget || gridDistance(party, party.roamTarget) <= 1) {
           party.roamTarget = chooseBanditTarget(state, party, {
-            region: nowRegion,
+            region: homeRegion,
           });
           party.roamPath = null;
           party.roamPathFor = null;
@@ -8813,6 +8888,20 @@ function moveParties(state, slot) {
       step = banditPathStep(state, party, target);
     } else {
       step = greedyStep(state, party, target);
+    }
+    // 匪团不允许踩地图边缘，也不许从本州迈到别州：宁可停下重选州内目标。
+    if (step && isBandit) {
+      const edgeBad = step.x < BANDIT_EDGE_MARGIN || step.y < BANDIT_EDGE_MARGIN ||
+        step.x > state.world.w - 1 - BANDIT_EDGE_MARGIN ||
+        step.y > state.world.h - 1 - BANDIT_EDGE_MARGIN;
+      const homeNow = regionAt(state.world, party.x, party.y) === homeRegion;
+      const leavesHome = regionAt(state.world, step.x, step.y) !== homeRegion;
+      if (edgeBad || (homeNow && leavesHome)) {
+        party.roamTarget = null;
+        party.roamPath = null;
+        party.roamPathFor = null;
+        return;
+      }
     }
     if (step) {
       stepUnitTo(state, party, step, isBandit ? BANDIT_STEP_HOURS : NPC_STEP_HOURS * (party.slow || 1));
@@ -9472,7 +9561,8 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
     if (!party || party.dead || party.engagedWith) return;
     if (party.faction !== 'bandit' && !war.atWar(state, lord.faction, party.faction)) return;
     const d = gridDistance(lord, party);
-    if (d > sight) return;
+    // 匪团只有进了身边四格才被主动追；更远就当没看见。
+    if (d > LORD_BANDIT_HUNT_RANGE) return;
     candidates.push({ kind: 'party', unit: party, count: threatCount(party), d: d, name: party.name || '匪团' });
   });
 
@@ -9829,6 +9919,13 @@ function retreatFrom(state, unit, threat) {
     if (!isPassable(state.world, nx, ny)) return;
     if (siteAt(state.world, nx, ny)) return;
     if (unitOccupies(state, unit, nx, ny)) return;
+    // 匪团退开也不能踩地图边、不能溜到别的州。
+    if (unit.faction === 'bandit') {
+      if (nx < BANDIT_EDGE_MARGIN || ny < BANDIT_EDGE_MARGIN ||
+          nx > state.world.w - 1 - BANDIT_EDGE_MARGIN ||
+          ny > state.world.h - 1 - BANDIT_EDGE_MARGIN) return;
+      if (unit.roamRegion && regionAt(state.world, nx, ny) !== unit.roamRegion) return;
+    }
     const dist = Math.max(Math.abs(nx - threat.x), Math.abs(ny - threat.y));
     if (!fallback) fallback = { x: nx, y: ny };
     if (dist > bestD) {
@@ -9912,6 +10009,10 @@ function fightNeighbors(state) {
       lord.engagedSinceH = nowH;
       lord.scuffle = 0;
     }
+
+    // 刚贴上时不要立刻结算：至少打满三个时辰，再按战损/碾压判定。
+    if (!party.engagedSinceH) party.engagedSinceH = nowH;
+    if (nowH - party.engagedSinceH < BANDIT_MIN_BATTLE_HOURS) return;
 
     const countA = army.troopCount(party.troops);
     const countB = army.troopCount(lord.troops);
@@ -12520,6 +12621,13 @@ module.exports = {
   HOUR_SECONDS,
   SAVE_VERSION,
   BANDIT_STEP_HOURS,
+  BANDIT_TARGET,
+  BANDIT_MAX,
+  BANDIT_START_COUNT,
+  BANDIT_EDGE_MARGIN,
+  BANDIT_CITY_RANGE,
+  LORD_BANDIT_HUNT_RANGE,
+  BANDIT_MIN_BATTLE_HOURS,
   createGame,
   update,
   unitAnimPos,
@@ -12545,6 +12653,7 @@ module.exports = {
   patrolRoutesForSite,
   patrolRouteCount,
   patrolTargetFor,
+  lordThreatFor,
   moveLords,
   moveParties,
   fightNeighbors,
