@@ -749,7 +749,9 @@ function drawBridges(ctx, world, toX, toY, w, box, app) {
     const b = marks[i];
     const bk = b.x + ',' + b.y;
     if (used[bk]) continue;
-    // 同一处河道附近的桥格并成一座桥：同方向、两格以内连成簇。
+    // 同一处河道附近的桥格并成一座桥：只合并真正相邻的桥格。
+    // 不按 dir 分组——同一条斜穿河道可能一格记 h、一格记 v，
+    // 以前会拆成两座桥叠在一起，看起来像一块超宽木板。
     const cluster = [];
     const queue = [b];
     used[bk] = true;
@@ -759,8 +761,8 @@ function drawBridges(ctx, world, toX, toY, w, box, app) {
       for (let m = 0; m < marks.length; m++) {
         const q = marks[m];
         const qk = q.x + ',' + q.y;
-        if (used[qk] || q.dir !== b.dir) continue;
-        if (Math.abs(q.x - cur.x) > 2 || Math.abs(q.y - cur.y) > 2) continue;
+        if (used[qk]) continue;
+        if (Math.abs(q.x - cur.x) > 1 || Math.abs(q.y - cur.y) > 1) continue;
         used[qk] = true;
         queue.push(q);
       }
@@ -774,12 +776,14 @@ function drawBridges(ctx, world, toX, toY, w, box, app) {
     });
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    const sx = toX(cx + 0.5);
-    const sy = toY(cy + 0.5);
-    if (sx < -TS * 4 || sx > w + TS * 4 || sy < box.top - TS * 4 || sy > box.top + box.h + TS * 4) continue;
 
     // 桥面横跨河道：找出这一簇真正跨过的水面宽度。
-    const drawDir = bridgeRenderDir(world, Math.round(cx), Math.round(cy), b.dir);
+    // 朝向按桥簇本身的长轴决定。同一条斜穿河道的相邻桥格可能一格标 h、
+    // 一格标 v，旧逻辑会拆成横竖两座桥叠在一起；合簇后按长轴只画一座。
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
+    const drawDir = spanX > spanY ? 'h' : (spanY > spanX ? 'v' :
+      bridgeRenderDir(world, Math.round(cx), Math.round(cy), b.dir));
     const crossX = drawDir === 'h' ? 1 : 0;
     const crossY = drawDir === 'h' ? 0 : 1;
     let wetMin = 0;
@@ -798,15 +802,22 @@ function drawBridges(ctx, world, toX, toY, w, box, app) {
         }
       }
     }
-    const crossExtent = drawDir === 'h' ? maxX - minX : maxY - minY;
-    const wetSpan = Math.max(1, wetMax - wetMin + 1);
-    const runTiles = Math.max(crossExtent + 1, wetSpan);
-    // 桥面总长 = 水面 + 两侧各半格岸，保证桥头落到地面而不是断在河心。
-    const len = Math.max(TS * 1.1, (runTiles + 1.15) * TS * 0.5);
-    const perpExtent = drawDir === 'h' ? maxY - minY : maxX - minX;
-    const halfW = Math.max(TS * 0.32, Math.min(TS * 0.86, TS * 0.30 + perpExtent * TS * 0.55));
+    // 桥头不能算到“水面为止”：斜向河道常常一边宽一边窄，
+    // 桥心按水面中点重新落位，桥头再额外压过半个桥宽，保证桥面边角也落到岸上。
+    const perpExtent = drawDir === 'h' ? spanY : spanX;
+    // 普通桥约 0.68 格宽；并排两道桥面也只到 1.0 格，不再出现 1.7 格的巨桥。
+    const halfW = Math.max(TS * 0.32, Math.min(TS * 0.50, TS * 0.32 + perpExtent * TS * 0.11));
+    const pad = 0.62 + halfW / TS;
+    const startOff = wetMin - pad;
+    const endOff = wetMax + pad;
+    const midOff = (startOff + endOff) / 2;
+    const len = Math.max(TS * 1.0, (endOff - startOff) * TS * 0.5);
     const rail = Math.max(2, TS * 0.022);
     const plankLine = Math.max(1, TS * 0.01);
+    const sx = toX(cx + 0.5 + (drawDir === 'h' ? midOff : 0));
+    const sy = toY(cy + 0.5 + (drawDir === 'v' ? midOff : 0));
+    if (sx < -TS * 4 || sx > w + TS * 4 || sy < box.top - TS * 4 || sy > box.top + box.h + TS * 4) continue;
+
     ctx.save();
     ctx.translate(sx, sy);
     if (drawDir === 'v') ctx.rotate(Math.PI / 2);
@@ -860,7 +871,9 @@ function drawBridges(ctx, world, toX, toY, w, box, app) {
   }
 }
 
-/** 穿山峡谷：两壁是断续的岩层，谷底是踩出来的土路，和木桥、山口明显分开 */
+/** 穿山峡谷：两侧是不规则的岩壁，中间只有一条踩出来的土路。
+ *  这里刻意不画桥面、桥柱和成对的桥头石墩；谷口用碎石坡收边，
+ *  横穿、竖穿和斜穿都按峡谷轴旋转绘制。 */
 function drawCanyons(ctx, world, cam, box, w, toX, toY, app) {
   const z = app.mapZoom || 1;
   if (z < 0.24) return;
@@ -888,133 +901,227 @@ function drawCanyons(ctx, world, cam, box, w, toX, toY, app) {
       for (let m = 0; m < marks.length; m++) {
         const q = marks[m];
         const qk = q.x + ',' + q.y;
-        if (used[qk] || q.dir !== b.dir) continue;
-        if (Math.abs(q.x - cur.x) > 2 || Math.abs(q.y - cur.y) > 2) continue;
+        if (used[qk]) continue;
+        // 只合并真正相连的谷道格，不再把两格外的两处山口拼成长桥。
+        if (Math.abs(q.x - cur.x) > 1 || Math.abs(q.y - cur.y) > 1) continue;
         used[qk] = true;
         queue.push(q);
       }
     }
     let minX = b.x, maxX = b.x, minY = b.y, maxY = b.y;
+    let diag = null;
     cluster.forEach(function (q) {
       if (q.x < minX) minX = q.x;
       if (q.x > maxX) maxX = q.x;
       if (q.y < minY) minY = q.y;
       if (q.y > maxY) maxY = q.y;
+      if (q.dir === 'd1' || q.dir === 'd2') diag = q.dir;
     });
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     const sx = toX(cx + 0.5);
     const sy = toY(cy + 0.5);
-    if (sx < -TS * 4 || sx > w + TS * 4 || sy < box.top - TS * 4 || sy > box.top + box.h + TS * 4) continue;
+    if (sx < -TS * 5 || sx > w + TS * 5 || sy < box.top - TS * 5 || sy > box.top + box.h + TS * 5) continue;
 
-    const drawDir = b.dir === 'v' ? 'v' : 'h';
-    const alongExtent = drawDir === 'h' ? maxX - minX : maxY - minY;
-    const perpExtent = drawDir === 'h' ? maxY - minY : maxX - minX;
-    const runTiles = alongExtent + 1;
-    const halfLen = Math.max(TS * 0.92, (runTiles + 0.75) * TS * 0.5);
-    const floorW = Math.max(TS * 0.54, TS * 0.43 + perpExtent * TS * 0.22);
-    const wallW = Math.max(TS * 0.34, TS * 0.46);
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
+    const drawDir = diag || (spanY > spanX ? 'v' : 'h');
+    const isDiag = drawDir === 'd1' || drawDir === 'd2';
+    const alongExtent = isDiag ? Math.max(spanX, spanY) :
+      (drawDir === 'h' ? spanX : spanY);
+    const perpExtent = isDiag ? 0 : (drawDir === 'h' ? spanY : spanX);
+    const runTiles = Math.max(1, alongExtent + 1 + (isDiag ? 0.30 : 0.2));
+    const halfLen = Math.max(isDiag ? TS * 1.15 : TS * 0.95, (runTiles + 0.45) * TS * 0.5);
+    // 峡谷不是桥：谷底只留一条窄土路，两侧岩壁做厚、做高，
+    // 横看是山体被硬生生劈开的一道缝，而不是架在河上的木板。
+    const floorW = TS * 0.23;
+    const wallW = Math.max(TS * 0.56, TS * 0.74 - perpExtent * TS * 0.04);
     const outerHalf = floorW * 0.5 + wallW;
-    const segs = Math.max(7, Math.round((halfLen * 2) / (TS * 0.26)));
+    const segs = Math.max(11, Math.round((halfLen * 2) / (TS * 0.22)));
 
     ctx.save();
     ctx.translate(sx, sy);
     if (drawDir === 'v') ctx.rotate(Math.PI / 2);
+    else if (drawDir === 'd1') ctx.rotate(Math.PI / 4);
+    else if (drawDir === 'd2') ctx.rotate(-Math.PI / 4);
 
-    // 峡谷外缘：上下两排锯齿状岩壁，先把山带咬出一个不规则的缺口
     const topEdge = [];
     const bottomEdge = [];
     const floorTop = [];
     const floorBottom = [];
-    for (let i = 0; i <= segs; i++) {
-      const px = -halfLen + (halfLen * 2 * i) / segs;
-      const j1 = (peakHash(i, i + 3, 11) - 0.5) * TS * 0.20;
-      const j2 = (peakHash(i + 5, i, 17) - 0.5) * TS * 0.20;
-      topEdge.push({ x: px, y: -outerHalf + j1 });
-      bottomEdge.push({ x: px, y: outerHalf + j2 });
-      floorTop.push({ x: px, y: -floorW * 0.5 + (peakHash(i + 9, i, 23) - 0.5) * TS * 0.055 });
-      floorBottom.push({ x: px, y: floorW * 0.5 + (peakHash(i, i + 9, 29) - 0.5) * TS * 0.055 });
+    for (let s = 0; s <= segs; s++) {
+      const px = -halfLen + (halfLen * 2 * s) / segs;
+      // 两端岩壁收薄，谷口向外散开；中间最厚，形成“两山夹一路”。
+      const mouth = Math.min(1, Math.min(s, segs - s) / Math.max(2.4, segs * 0.16));
+      const wallHere = wallW * (0.42 + 0.58 * mouth);
+      const widen = 0.82 + peakHash(s, i, 61) * 0.26;
+      const j1 = (peakHash(s, s + 3, 11) - 0.5) * TS * 0.34;
+      const j2 = (peakHash(s + 5, s, 17) - 0.5) * TS * 0.34;
+      topEdge.push({ x: px, y: -floorW * 0.5 - wallHere + j1 });
+      bottomEdge.push({ x: px, y: floorW * 0.5 + wallHere + j2 });
+      floorTop.push({ x: px, y: -floorW * 0.5 * widen + (peakHash(s + 9, s, 23) - 0.5) * TS * 0.075 });
+      floorBottom.push({ x: px, y: floorW * 0.5 * widen + (peakHash(s, s + 9, 29) - 0.5) * TS * 0.075 });
     }
     function trace(points, reverse) {
       ctx.beginPath();
       if (!reverse) {
-        points.forEach(function (p, k) { if (k) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+        points.forEach(function (pt, k) { if (k) ctx.lineTo(pt.x, pt.y); else ctx.moveTo(pt.x, pt.y); });
       } else {
         for (let k = points.length - 1; k >= 0; k--) ctx.lineTo(points[k].x, points[k].y);
       }
     }
-    // 外圈暗岩
+
+    // 山体缺口：外缘不是平直矩形，而是一圈被山石咬开的暗色轮廓。
     ctx.beginPath();
     trace(topEdge, false);
     for (let k = bottomEdge.length - 1; k >= 0; k--) ctx.lineTo(bottomEdge[k].x, bottomEdge[k].y);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(37,30,23,0.94)';
+    ctx.fillStyle = 'rgba(37,34,29,0.94)';
     ctx.fill();
+    ctx.strokeStyle = 'rgba(23,20,16,0.32)';
+    ctx.lineWidth = Math.max(3, TS * 0.09);
+    ctx.stroke();
 
-    // 两侧石壁：外缘和谷底线各画一层，中间用竖向岩纹咬合
+    // 两侧岩壁：灰褐岩层，不用木桥的暖棕色。
     [-1, 1].forEach(function (side) {
       ctx.beginPath();
+      const outer = side < 0 ? topEdge : bottomEdge;
+      const inner = side < 0 ? floorTop : floorBottom;
       if (side < 0) {
-        trace(topEdge, false);
-        for (let k = floorTop.length - 1; k >= 0; k--) ctx.lineTo(floorTop[k].x, floorTop[k].y);
+        trace(outer, false);
+        for (let k = inner.length - 1; k >= 0; k--) ctx.lineTo(inner[k].x, inner[k].y);
       } else {
-        trace(floorBottom, false);
-        for (let k = bottomEdge.length - 1; k >= 0; k--) ctx.lineTo(bottomEdge[k].x, bottomEdge[k].y);
+        trace(inner, false);
+        for (let k = outer.length - 1; k >= 0; k--) ctx.lineTo(outer[k].x, outer[k].y);
       }
       ctx.closePath();
-      ctx.fillStyle = side < 0 ? '#574735' : '#4d3e2e';
+      ctx.fillStyle = side < 0 ? '#6b6355' : '#575145';
       ctx.fill();
-      // 岩层亮边
-      ctx.strokeStyle = side < 0 ? 'rgba(179,151,110,0.46)' : 'rgba(145,119,84,0.38)';
-      ctx.lineWidth = Math.max(1, TS * 0.028);
-      trace(side < 0 ? topEdge : bottomEdge, false);
+
+      // 岩层亮边与背光面：贴着谷底一侧亮、外侧压暗。
+      ctx.strokeStyle = side < 0 ? 'rgba(188,180,163,0.36)' : 'rgba(155,147,132,0.28)';
+      ctx.lineWidth = Math.max(1, TS * 0.024);
+      trace(outer, false);
       ctx.stroke();
-      // 岩壁上零星的凸起，远看不是一条直边
-      for (let k = 1; k < segs; k += 2) {
+
+      // 崖壁上的竖向裂纹与凸岩，避免像一条规整的木板边。
+      for (let k = 2; k < segs - 1; k += 2) {
         const px = -halfLen + (halfLen * 2 * k) / segs;
-        const y0 = side < 0 ? -outerHalf : floorW * 0.5;
-        const hh = wallW * (0.20 + peakHash(k, i, side) * 0.24);
-        ctx.fillStyle = side < 0 ? 'rgba(29,22,16,0.34)' : 'rgba(29,22,16,0.30)';
+        const outerY = side < 0 ? topEdge[k].y : bottomEdge[k].y;
+        const innerY = side < 0 ? floorTop[k].y : floorBottom[k].y;
+        const hh = Math.abs(innerY - outerY) * (0.45 + peakHash(k, i, side) * 0.38);
+        const bx = px + (peakHash(k + 6, i, side) - 0.5) * TS * 0.12;
+        ctx.fillStyle = side < 0 ? 'rgba(201,193,176,0.20)' : 'rgba(24,21,17,0.34)';
         ctx.beginPath();
-        ctx.moveTo(px, y0);
-        ctx.lineTo(px + TS * 0.10, y0 + side * hh);
-        ctx.lineTo(px - TS * 0.10, y0 + side * hh * 0.70);
+        ctx.moveTo(bx, outerY + (side < 0 ? hh * 0.10 : -hh * 0.10));
+        ctx.lineTo(bx + TS * 0.055, innerY);
+        ctx.lineTo(bx - TS * 0.040, innerY - (side < 0 ? -1 : 1) * TS * 0.04);
         ctx.closePath();
         ctx.fill();
+        if (k % 4 === 0) {
+          ctx.fillStyle = 'rgba(32,25,18,0.28)';
+          ctx.beginPath();
+          ctx.moveTo(bx - TS * 0.16, outerY + (side < 0 ? -TS * 0.02 : TS * 0.02));
+          ctx.lineTo(bx - TS * 0.03, outerY + (side < 0 ? -TS * 0.12 : TS * 0.12));
+          ctx.lineTo(bx + TS * 0.10, outerY + (side < 0 ? TS * 0.02 : -TS * 0.02));
+          ctx.closePath();
+          ctx.fill();
+        }
       }
     });
 
-    // 谷底土路：不是木板，颜色偏土黄、边缘被车辙磨亮
+    // 大块山肩与崖垛：每隔一小段向外/向内探出岩体，
+    // 把“长条木板”的直线轮廓彻底打碎。颜色压暗，远看是山，不是桥。
+    [-1, 1].forEach(function (side) {
+      const edge = side < 0 ? topEdge : bottomEdge;
+      for (let k = 0; k < 4; k++) {
+        const at = Math.min(segs - 1, Math.max(1, Math.round((k + 0.55) / 4 * segs)));
+        const base = edge[at];
+        const reach = TS * (0.20 + peakHash(k, i, side + 71) * 0.26);
+        const wide = TS * (0.22 + peakHash(k + 3, i, side + 73) * 0.18);
+        const yy = base.y + side * reach;
+        ctx.fillStyle = k % 2 ? '#4e493e' : '#625b4d';
+        ctx.beginPath();
+        ctx.moveTo(base.x - wide, base.y + side * TS * 0.03);
+        ctx.lineTo(base.x - wide * 0.32, yy);
+        ctx.lineTo(base.x + wide * 0.38, yy - side * TS * 0.05);
+        ctx.lineTo(base.x + wide, base.y - side * TS * 0.04);
+        ctx.lineTo(base.x + wide * 0.42, base.y - side * TS * 0.14);
+        ctx.lineTo(base.x - wide * 0.55, base.y - side * TS * 0.09);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(28,24,19,0.42)';
+        ctx.lineWidth = Math.max(1, TS * 0.020);
+        ctx.stroke();
+      }
+    });
+
+    // 谷底土路：深褐色的碎石土，不是桥面的暖黄木板。
     const floorGrad = ctx.createLinearGradient(0, -floorW * 0.5, 0, floorW * 0.5);
-    floorGrad.addColorStop(0, '#463927');
-    floorGrad.addColorStop(0.20, '#8f7450');
-    floorGrad.addColorStop(0.60, '#b28d5c');
-    floorGrad.addColorStop(1, '#493a29');
+    floorGrad.addColorStop(0, '#241f17');
+    floorGrad.addColorStop(0.12, '#4c3f2d');
+    floorGrad.addColorStop(0.40, '#665238');
+    floorGrad.addColorStop(0.62, '#5b4932');
+    floorGrad.addColorStop(0.88, '#3a2f22');
+    floorGrad.addColorStop(1, '#1f1a14');
     ctx.beginPath();
-    floorTop.forEach(function (p, k) { if (k) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+    floorTop.forEach(function (pt, k) { if (k) ctx.lineTo(pt.x, pt.y); else ctx.moveTo(pt.x, pt.y); });
     for (let k = floorBottom.length - 1; k >= 0; k--) ctx.lineTo(floorBottom[k].x, floorBottom[k].y);
     ctx.closePath();
     ctx.fillStyle = floorGrad;
     ctx.fill();
 
-    // 谷底中央的踩踏车辙、碎石与坎
-    ctx.strokeStyle = 'rgba(69,49,30,0.48)';
-    ctx.lineWidth = Math.max(1, TS * 0.032);
+    // 崖脚压进路面的阴影：让路“陷”在两壁之间，而不是浮在一条桥板上。
+    [-1, 1].forEach(function (side) {
+      const grad = ctx.createLinearGradient(0, side * floorW * 0.5, 0, side * floorW * 0.04);
+      grad.addColorStop(0, 'rgba(10,9,7,0.52)');
+      grad.addColorStop(1, 'rgba(10,9,7,0)');
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-halfLen, side < 0 ? -floorW * 0.5 : 0, halfLen * 2, floorW * 0.5);
+      ctx.clip();
+      ctx.fillStyle = grad;
+      ctx.fillRect(-halfLen, -floorW * 0.5, halfLen * 2, floorW);
+      ctx.restore();
+    });
+
+    // 两道被车轮压出来的浅辙；不画横贯谷底的整条横线，避免像桥板接缝。
+    ctx.strokeStyle = 'rgba(34,25,16,0.58)';
+    ctx.lineWidth = Math.max(1, TS * 0.024);
     for (let k = 0; k < 2; k++) {
       ctx.beginPath();
-      for (let i2 = 0; i2 <= segs; i2++) {
-        const px = -halfLen + (halfLen * 2 * i2) / segs;
-        const py = (k ? 1 : -1) * TS * 0.075 + (peakHash(i2, k, 31) - 0.5) * TS * 0.04;
-        if (i2) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      for (let s = 0; s <= segs; s++) {
+        const px = -halfLen + (halfLen * 2 * s) / segs;
+        const py = (k ? 1 : -1) * TS * 0.045 + (peakHash(s, k, 31) - 0.5) * TS * 0.030;
+        if (s) ctx.lineTo(px, py); else ctx.moveTo(px, py);
       }
       ctx.stroke();
     }
-    // 碎石块，别用横贯谷底的整条栏杆
-    for (let k = 0; k < 5; k++) {
+
+    // 横在谷底的岩牙：每隔一段从两壁探出半块岩体，
+    // 中间只留一条能过人的缝；这是桥面绝不会有的形态。
+    [0.30, 0.66].forEach(function (at, rib) {
+      const px = -halfLen + halfLen * 2 * at + (rib ? TS * 0.12 : 0);
+      [-1, 1].forEach(function (side) {
+        const edgeY = side * floorW * 0.5;
+        const reach = floorW * (0.36 + peakHash(rib, i, side + 81) * 0.16);
+        ctx.fillStyle = side < 0 ? '#514b40' : '#413c32';
+        ctx.beginPath();
+        ctx.moveTo(px - TS * 0.16, edgeY);
+        ctx.lineTo(px - TS * 0.03, edgeY - side * reach);
+        ctx.lineTo(px + TS * 0.13, edgeY - side * reach * 0.55);
+        ctx.lineTo(px + TS * 0.20, edgeY);
+        ctx.closePath();
+        ctx.fill();
+      });
+    });
+
+    // 谷底碎石
+    for (let k = 0; k < Math.max(5, Math.round(segs * 0.55)); k++) {
       const px = -halfLen + TS * 0.18 + (halfLen * 2 - TS * 0.36) * peakHash(k, i, 41);
-      const py = (peakHash(k + 4, i, 43) - 0.5) * floorW * 0.62;
-      const rw = TS * (0.05 + peakHash(k + 7, i, 47) * 0.05);
-      ctx.fillStyle = 'rgba(73,56,39,0.55)';
+      const py = (peakHash(k + 4, i, 43) - 0.5) * floorW * 0.68;
+      const rw = TS * (0.032 + peakHash(k + 7, i, 47) * 0.040);
+      ctx.fillStyle = 'rgba(54,45,34,0.62)';
       ctx.beginPath();
       ctx.moveTo(px - rw, py + rw * 0.5);
       ctx.lineTo(px, py - rw * 0.7);
@@ -1024,35 +1131,58 @@ function drawCanyons(ctx, world, cam, box, w, toX, toY, app) {
       ctx.fill();
     }
 
-    // 两端各立两块岩阙，提示这里能穿山而过；不是桥头石墩
+    // 贴边碎岩：从两壁塌到路上，压住过于平直的谷底边线。
     [-1, 1].forEach(function (side) {
-      const px = side < 0 ? -halfLen : halfLen - TS * 0.15;
-      [-1, 1].forEach(function (edgeSide) {
-        const py = edgeSide < 0 ? -outerHalf : floorW * 0.5;
-        ctx.fillStyle = 'rgba(74,60,43,0.92)';
+      for (let k = 0; k < 5; k++) {
+        const px = -halfLen + TS * 0.30 + (halfLen * 2 - TS * 0.60) * peakHash(k + 2, i, side + 53);
+        const py = side * (floorW * 0.50 + TS * 0.015);
+        const rw = TS * (0.055 + peakHash(k + 5, i, side + 57) * 0.070);
+        const rh = rw * (0.65 + peakHash(k + 8, i, side + 59) * 0.5);
+        ctx.fillStyle = k % 2 ? 'rgba(92,84,71,0.86)' : 'rgba(66,60,51,0.90)';
         ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(px + TS * 0.14, py + edgeSide * TS * 0.10);
-        ctx.lineTo(px + TS * 0.06, py + edgeSide * wallW * 0.70);
-        ctx.lineTo(px - TS * 0.08, py + edgeSide * wallW * 0.55);
+        ctx.moveTo(px - rw, py);
+        ctx.lineTo(px - rw * 0.2, py - side * rh);
+        ctx.lineTo(px + rw * 0.8, py - side * rh * 0.35);
+        ctx.lineTo(px + rw, py + side * rh * 0.3);
         ctx.closePath();
         ctx.fill();
-      });
+      }
     });
 
-    // 近景给谷底边缘补一道亮痕，远处也能看出是一条切穿山体的路
+    // 谷口碎石坡：两端各撒几堆大小不一的塌方岩，和桥头石墩完全不同。
+    [-1, 1].forEach(function (end) {
+      const edge = end < 0 ? -1 : 1;
+      const bx = edge * (halfLen - TS * 0.06);
+      for (let k = 0; k < 6; k++) {
+        const px = bx - edge * TS * (0.02 + peakHash(k, i, end + 7) * 0.42);
+        const py = (k % 2 ? 1 : -1) * (floorW * 0.5 + TS * 0.04) +
+          (peakHash(k + 2, i, end + 13) - 0.5) * TS * 0.16;
+        const rw = TS * (0.07 + peakHash(k + 5, i, end + 19) * 0.12);
+        const rh = rw * (0.55 + peakHash(k + 8, i, end + 23) * 0.55);
+        ctx.fillStyle = k % 3 === 0 ? 'rgba(94,76,55,0.92)' : 'rgba(61,48,35,0.92)';
+        ctx.beginPath();
+        ctx.moveTo(px - rw, py + rh * 0.4);
+        ctx.lineTo(px - rw * 0.25, py - rh);
+        ctx.lineTo(px + rw * 0.55, py - rh * 0.6);
+        ctx.lineTo(px + rw, py + rh * 0.45);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+
+    // 谷底近景补几粒浅色碎石与灰尘，保证 1x 下能看出是“路”，不是桥面。
     if (z >= 0.5) {
-      ctx.strokeStyle = 'rgba(224,190,132,0.42)';
-      ctx.lineWidth = Math.max(1, TS * 0.024);
-      trace(floorTop, false);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(224,190,132,0.34)';
-      trace(floorBottom, false);
-      ctx.stroke();
+      for (let k = 0; k < Math.max(8, Math.round(segs * 0.7)); k++) {
+        const px = -halfLen + TS * 0.12 + (halfLen * 2 - TS * 0.24) * peakHash(k + 11, i, 63);
+        const py = (peakHash(k + 17, i, 65) - 0.5) * floorW * 0.56;
+        ctx.fillStyle = k % 3 ? 'rgba(160,142,110,0.32)' : 'rgba(190,170,132,0.22)';
+        ctx.fillRect(px, py, TS * 0.018, TS * 0.012);
+      }
     }
     ctx.restore();
   }
 }
+
 
 function drawGeography(ctx, app, cam, box, w) {
   const world = app.state.world;

@@ -316,7 +316,7 @@ const FACTIONS = {
     lord: '刘备', desc: '半生寄人篱下，靠一个“义”字聚人。兵少，但肯跟你走。',
   },
   wu: {
-    id: 'wu', name: '吴', full: '孙权', color: '#b06a3c', banner: '孙',
+    id: 'wu', name: '吴', full: '孙权', color: '#2e8b8b', banner: '孙',
     lord: '孙权', desc: '据长江之险，水军天下第一。守成有余，进取不足。',
   },
   yuan: {
@@ -328,7 +328,7 @@ const FACTIONS = {
     lord: '吕布', desc: '人中吕布，马中赤兔。骁勇无谋，反复无常。',
   },
   yuanshu: {
-    id: 'yuanshu', name: '术', full: '袁术', color: '#9a6b4a', banner: '术',
+    id: 'yuanshu', name: '术', full: '袁术', color: '#b5894f', banner: '术',
     lord: '袁术', desc: '汝南袁氏，据淮南寿春。兵多粮足，却总想再往上坐一级。',
   },
   biao: {

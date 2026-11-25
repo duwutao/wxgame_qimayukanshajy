@@ -186,17 +186,21 @@ function addBridgeMark(world, x, y, dir) {
   world.bridges.push({ x, y, dir: dir === 'v' ? 'v' : 'h' });
 }
 
-/** 山口/峡谷记号：同一格只记一次，方向由道路穿过的方向决定 */
+/** 山口/峡谷记号：同一格只记一次，方向由道路穿过的方向决定。
+ *  h/v 是正横/正竖，d1/d2 是两条斜向谷道（下右 / 上右）。 */
 function addCanyonMark(world, x, y, dir) {
   world.canyons = world.canyons || [];
+  const valid = dir === 'h' || dir === 'v' || dir === 'd1' || dir === 'd2';
   for (let i = 0; i < world.canyons.length; i++) {
     const c = world.canyons[i];
     if (c.x === x && c.y === y) {
-      if (dir === 'h' || dir === 'v') c.dir = dir;
+      // 载入旧档时 ensureWorldFeatures 会用 h/v 再补一遍方向，
+      // 不能把人工排好的斜向峡谷覆盖回正方向。
+      if (valid && !(c.dir === 'd1' || c.dir === 'd2')) c.dir = dir;
       return;
     }
   }
-  world.canyons.push({ x: x, y: y, dir: dir === 'v' ? 'v' : 'h' });
+  world.canyons.push({ x: x, y: y, dir: valid ? dir : 'h' });
 }
 
 /** 河流夹在道路中间时，这一格就是桥；兼容旧档没有 bridge 格的情况 */
@@ -239,7 +243,39 @@ function ensureWorldFeatures(world) {
       }
     }
   }
+  // 汉中北面两处谷口是人工排布的地标，旧档也要保持斜向。
+  shapeHanzhongCanyons(world);
   return world;
+}
+
+/** 汉中左上、右上的斜向峡谷：
+ *  左上沿用天水和汉中之间的老谷口，右上沿山脊再切一条斜谷。
+ *  只改地形和峡谷标记，不改变城市的归属与道路连接。 */
+function shapeHanzhongCanyons(world) {
+  function carve(x, y, dir) {
+    if (!inBounds(x, y)) return;
+    if (siteAt(world, x, y)) return;
+    const t = world.tiles[idx(x, y)];
+    if (t === 'sea' || t === 'river' || t === 'bridge') return;
+    world.tiles[idx(x, y)] = 'pass';
+    addCanyonMark(world, x, y, dir);
+  }
+  // 左上：44,84 / 44,85 两格老谷口，改成从西北斜向东南的谷道
+  carve(44, 84, 'd1');
+  carve(44, 85, 'd1');
+  // 右上：把斜谷放进山脊内部（59,85 / 60,86），
+  // 避免只在山脚切半格、远看像一块横在山前的木桥。
+  carve(59, 85, 'd1');
+  carve(60, 86, 'd1');
+  // 旧测试档里曾把右上谷口切到 58,85 / 59,84，会压到农田边缘；
+  // 这两格恢复为原来的山脚，再把峡谷标记移走。
+  [[58, 85, 'mountain'], [59, 84, 'foothill']].forEach(function (row) {
+    const x = row[0], y = row[1];
+    if (inBounds(x, y) && world.tiles[idx(x, y)] === 'pass' && !siteAt(world, x, y)) {
+      world.tiles[idx(x, y)] = row[2];
+      world.canyons = (world.canyons || []).filter(function (c) { return c.x !== x || c.y !== y; });
+    }
+  });
 }
 
 /** 铺设道路；过河落桥，穿山落山口。旧档补新城时也可以只铺新增的连线。 */
@@ -255,7 +291,12 @@ function layRoads(world, pairs) {
       if (!inBounds(x, y)) return;
       if (siteAt(world, x, y)) return;
       const t = world.tiles[idx(x, y)];
-      const dir = Math.abs(x - lastX) >= Math.abs(y - lastY) ? 'h' : 'v';
+      const stepX = x - lastX;
+      const stepY = y - lastY;
+      let dir = Math.abs(stepX) >= Math.abs(stepY) ? 'h' : 'v';
+      if (stepX && stepY && Math.abs(stepX) === Math.abs(stepY)) {
+        dir = stepX * stepY > 0 ? 'd1' : 'd2';
+      }
       if (t === 'sea') {
         lastX = x;
         lastY = y;

@@ -2035,13 +2035,14 @@ ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
   const nums = Object.keys(counts).map(function (k) { return counts[k]; });
   ok('开局匪团按州均匀分布', Math.max.apply(null, nums) <= 2 &&
     Object.keys(counts).length >= 10, JSON.stringify(counts));
-  ok('匪团速度只比领主略快', (function () {
+  ok('匪团速度比领主慢，但仍在可追范围', (function () {
     const p = g.parties.filter(function (q) { return q.faction === 'bandit' && !q.scripted; })[0];
     if (!p) return false;
     const x = p.x, y = p.y;
     stateLib.moveParties(g);
     return (p.x !== x || p.y !== y) && p.nextBanditMoveH &&
-      p.nextBanditMoveH - stateLib.gameHours(g) >= 4.4;
+      p.nextBanditMoveH - stateLib.gameHours(g) >= 6.4 &&
+      p.nextBanditMoveH - stateLib.gameHours(g) <= 6.6;
   })());
   let cityBandit = 0;
   for (let day = 0; day < 8; day++) {
@@ -2086,6 +2087,169 @@ ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
   ok('领主兵力悬殊时弱者逃跑', weak.fleeing === true &&
     Math.max(Math.abs(weak.x - strong.x), Math.abs(weak.y - strong.y)) >= 2,
     'weak=' + weak.x + ',' + weak.y + ' strong=' + strong.x + ',' + strong.y);
+}
+
+/* ---------------------------------------------------------------- n3 版：桥/峡谷/巡逻/追匪/旗色 */
+
+group('n3 版：地图峡谷 · 巡逻路线 · 追匪 · 旗色');
+{
+  const g = stateLib.createGame({ seed: 2026112527 });
+  const cities = g.world.sites.filter(function (s) { return s.type === 'town' || s.type === 'castle'; });
+  const routeBad = [];
+  const uniqueBad = [];
+  cities.forEach(function (city) {
+    const routes = stateLib.patrolRoutesForSite(g, city);
+    if (routes.length < 5) routeBad.push(city.id + ':' + routes.length);
+    if ((city.garrisonBase || 0) >= 130 && routes.length < 9) routeBad.push(city.id + ':big:' + routes.length);
+    const sig = {};
+    routes.forEach(function (r) { sig[r.map(function (p) { return p.x + ',' + p.y; }).join('|')] = 1; });
+    if (Object.keys(sig).length !== routes.length) uniqueBad.push(city.id);
+    routes.forEach(function (r) {
+      if (!r.length) routeBad.push(city.id + ':empty');
+      r.forEach(function (p) {
+        if (!worldLib.terrainAt(g.world, p.x, p.y).passable) routeBad.push(city.id + ':blocked@' + p.x + ',' + p.y);
+        if (worldLib.siteAt(g.world, p.x, p.y)) routeBad.push(city.id + ':site@' + p.x + ',' + p.y);
+      });
+    });
+  });
+  ok('每座城至少 5 条巡逻路线', routeBad.length === 0, routeBad.slice(0, 5).join(' / '));
+  ok('大城至少 9 条巡逻路线', cities.filter(function (s) { return (s.garrisonBase || 0) >= 130; })
+    .every(function (s) { return stateLib.patrolRoutesForSite(g, s).length >= 9; }), '大城路线不足');
+  ok('同一座城的路线互不相同', uniqueBad.length === 0, uniqueBad.slice(0, 5).join(','));
+  ok('巡逻路线落在可通行、非据点格上', routeBad.length === 0, routeBad.slice(0, 5).join(' / '));
+
+  const hanzhongCanyons = (g.world.canyons || []).filter(function (c) {
+    return c.x >= 40 && c.x <= 62 && c.y >= 80 && c.y <= 90;
+  });
+  ok('汉中左上/右上峡谷为斜向', hanzhongCanyons.length >= 4 &&
+    hanzhongCanyons.every(function (c) { return c.dir === 'd1' || c.dir === 'd2'; }) &&
+    hanzhongCanyons.some(function (c) { return c.x < 51; }) &&
+    hanzhongCanyons.some(function (c) { return c.x > 51; }), JSON.stringify(hanzhongCanyons));
+  ok('斜峡谷的两格山口可通行', worldLib.terrainAt(g.world, 59, 85).id === 'pass' &&
+    worldLib.terrainAt(g.world, 60, 86).id === 'pass', '59,85 / 60,86');
+
+  function rgb(hex) {
+    const n = parseInt(String(hex).slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  const wu = rgb(FACTIONS.wu.color), shu = rgb(FACTIONS.yuanshu.color);
+  const colorGap = Math.sqrt(Math.pow(wu[0] - shu[0], 2) + Math.pow(wu[1] - shu[1], 2) + Math.pow(wu[2] - shu[2], 2));
+  ok('孙权与袁术旗色明显区分', colorGap >= 80, FACTIONS.wu.color + ' / ' + FACTIONS.yuanshu.color + ' = ' + Math.round(colorGap));
+}
+{
+  // 单城领主：以前 route 长度为 1 时留在城里不动；现在应能在城郊路线里巡逻。
+  const g = stateLib.createGame({ seed: 2026112528 });
+  const city = g.world.sites.filter(function (s) { return s.id === 'xinye'; })[0];
+  const lord = g.lords.filter(function (l) { return l.id === 'liubei'; })[0];
+  if (city && lord) {
+    lord.inCity = null;
+    lord.prisoner = null;
+    lord.alive = true;
+    lord.order = null;
+    lord.defending = null;
+    lord.x = city.x + 2;
+    lord.y = city.y;
+    lord.wander = null;
+    lord.patrolSiteId = city.id;
+    lord.patrolRouteIds = [city.id];
+    lord.patrolLoop = null;
+    lord.patrolVisitSeq = 0;
+    lord.troops = { militia: 80 };
+    lord.defTroops = { militia: 80 };
+    g.player.x = 110;
+    g.player.y = 140;
+    const seen = {};
+    let moved = 0;
+    for (let h = 0; h < 36; h++) {
+      stateLib.advanceTime(g, 1);
+      stateLib.update(g, 0, { ignoreEvents: true });
+      const key = lord.x + ',' + lord.y;
+      if (!seen[key]) { seen[key] = 1; moved += 1; }
+    }
+    ok('单城领主也能离开城门巡逻', moved >= 3, 'moved=' + moved + ' pos=' + lord.x + ',' + lord.y);
+  } else {
+    ok('单城领主也能离开城门巡逻', false, 'xinye/liubei missing');
+  }
+}
+{
+  // 全图巡逻领主：每座城都有路线，不能有领主在原地一站 24 小时。
+  const g = stateLib.createGame({ seed: 2026112530 });
+  g.player.x = 110;
+  g.player.y = 140;
+  const start = {};
+  g.lords.forEach(function (l) {
+    if (l.alive && !l.inCity && !l.prisoner && l.patrolRouteIds && l.patrolRouteIds.length) {
+      start[l.id] = { x: l.x, y: l.y };
+    }
+  });
+  const maxMove = {};
+  Object.keys(start).forEach(function (id) { maxMove[id] = 0; });
+  for (let h = 0; h < 24; h++) {
+    stateLib.advanceTime(g, 1);
+    stateLib.update(g, 0, { ignoreEvents: true });
+    Object.keys(start).forEach(function (id) {
+      const l = g.lords.filter(function (q) { return q.id === id; })[0];
+      if (!l) return;
+      maxMove[id] = Math.max(maxMove[id], Math.max(Math.abs(l.x - start[id].x), Math.abs(l.y - start[id].y)));
+    });
+  }
+  const stuck = Object.keys(start).filter(function (id) { return maxMove[id] < 1; });
+  ok('所有巡逻领主 24 小时内都不会卡在原地', Object.keys(start).length >= 20 && stuck.length === 0,
+    'patrol=' + Object.keys(start).length + ' stuck=' + stuck.slice(0, 8).join(','));
+}
+{
+  // 领主追匪：匪团慢于领主，贴身就开战，最终被打散；不能永远保持 1~2 格距离。
+  const g = stateLib.createGame({ seed: 2026112529 });
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const party = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+  let spot = null;
+  for (let y = 55; y < 100 && !spot; y++) {
+    for (let x = 14; x < 45; x++) {
+      if (worldLib.terrainAt(g.world, x, y).passable && worldLib.terrainAt(g.world, x + 4, y).passable &&
+          !worldLib.siteAt(g.world, x, y) && !worldLib.siteAt(g.world, x + 4, y)) {
+        spot = [x, y];
+        break;
+      }
+    }
+  }
+  if (lord && party && spot) {
+    g.parties = [party];
+    lord.alive = true;
+    lord.inCity = null;
+    lord.prisoner = null;
+    lord.faction = 'wei';
+    lord.x = spot[0];
+    lord.y = spot[1];
+    lord.troops = { militia: 100 };
+    lord.defTroops = { militia: 100 };
+    lord.hunting = true;
+    lord.banditChasing = party.id;
+    lord.wander = null;
+    party.x = spot[0] + 4;
+    party.y = spot[1];
+    party.troops = { militia: 8 };
+    party.engagedWith = null;
+    party.banditFleeFrom = null;
+    party.banditFleeTarget = null;
+    party.nextBanditMoveH = stateLib.gameHours(g) + stateLib.BANDIT_STEP_HOURS;
+    g.player.x = 100;
+    g.player.y = 140;
+    let minDistance = 99;
+    let ended = false;
+    for (let h = 0; h < 72; h++) {
+      stateLib.advanceTime(g, 1);
+      stateLib.update(g, 0, { ignoreEvents: true });
+      minDistance = Math.min(minDistance, Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)));
+      if (!g.parties.some(function (q) { return q.id === party.id; })) { ended = true; break; }
+    }
+    ok('领主追上匪团后进入交战并结束追逐', ended || minDistance <= 1,
+      'min=' + minDistance + ' ended=' + ended + ' lord=' + lord.x + ',' + lord.y);
+    ok('匪团脚程慢于普通领主', stateLib.BANDIT_STEP_HOURS > 6,
+      String(stateLib.BANDIT_STEP_HOURS));
+  } else {
+    ok('领主追上匪团后进入交战并结束追逐', false, 'setup missing');
+    ok('匪团脚程慢于普通领主', false, 'missing');
+  }
 }
 
 /* ---------------------------------------------------------------- 收尾 */
