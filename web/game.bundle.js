@@ -15974,16 +15974,37 @@ function drawBottom(ctx, app, w, box) {
   const wars = stateLib.factionWars(st);
   const warTxt = wars.length ? ' · 天下 ' + wars.length + ' 处交兵' : ' · 四境暂无大战';
   const siegeNow = st.playerSiege ? siteById(st.world, st.playerSiege.siteId) : null;
-  const hint = (app.mapTimePaused
-    ? '时辰暂停 · 点左下角“继续时辰”恢复流动'
-    : (siegeNow
+  if (app.mapTimePaused) {
+    drawPauseTag(ctx, w, y0);
+  } else {
+    const hint = (siegeNow
       ? '围城中 · ' + siegeNow.name + ' · 点城下营寨看进度 · 点别处决定去留'
       : (p.route && p.route.length
         ? '行军第 ' + (st.player.route.length - (st.player.route.length - 1)) + ' 段 · 点地图可改道'
-        : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移'))))
-    + warTxt;
-  text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
+        : (st.player.atSiteId ? '在' + (siteById(st.world, st.player.atSiteId) || {}).name + ' · 点地图出发' : '点地图行军 · 双指缩放 · 拖动平移')))
+      + warTxt;
+    text(ctx, hint, w / 2, y0 + 104, { size: 16, align: 'center', color: '#8a8070' });
+  }
   drawRestPause(ctx, app, w, box);
+}
+
+/** 底部中央的暂停状态条：只在不走时辰时出现，恢复流动即隐藏 */
+function drawPauseTag(ctx, w, y0) {
+  const bw = 148;
+  const bh = 38;
+  const x = (w - bw) / 2;
+  const y = y0 + 92;
+  ctx.save();
+  ctx.fillStyle = 'rgba(28,22,16,0.94)';
+  ctx.fillRect(x, y, bw, bh);
+  ctx.strokeStyle = '#b8a25e';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, bw - 2, bh - 2);
+  ctx.fillStyle = '#f0c060';
+  ctx.fillRect(x + 18, y + 12, 5, 14);
+  ctx.fillRect(x + 27, y + 12, 5, 14);
+  text(ctx, '已暂停', x + 46, y + 10, { size: 18, color: '#f0d28a' });
+  ctx.restore();
 }
 
 function drawRestPause(ctx, app, w, box) {
@@ -16018,7 +16039,7 @@ function drawRestPause(ctx, app, w, box) {
       app.mapTimePaused = true;
       app.mapIdleRest = true;
       ensureCam(app);
-      app.showToast(r.msg + ' 点左下角“继续时辰”恢复。', 3);
+      app.showToast('已出城扎营，时辰暂停。', 2.2);
     },
   });
 
