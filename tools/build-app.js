@@ -18,7 +18,7 @@ const icon512 = 'data:image/png;base64,' + fs.readFileSync(path.join(web, 'icon-
 const touch = 'data:image/png;base64,' + fs.readFileSync(path.join(web, 'apple-touch-icon.png')).toString('base64');
 
 const manifest = {
-  name: '征战汉末 · 骑砍大师制作',
+  name: '征战汉末',
   short_name: '征战汉末',
   start_url: '.',
   scope: '.',
@@ -45,7 +45,7 @@ const html = `<!DOCTYPE html>
   <meta name="format-detection" content="telephone=no" />
   <link rel="manifest" href="${manifestUri}" />
   <link rel="apple-touch-icon" href="${touch}" />
-  <title>征战汉末 · 骑砍大师制作</title>
+  <title>征战汉末</title>
   <style>
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;

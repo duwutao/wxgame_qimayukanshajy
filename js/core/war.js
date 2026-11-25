@@ -224,7 +224,58 @@ function startDiplomacy(state) {
     if (started >= 3) return;
     if (declare(state, pair[0], pair[1], true, true)) started += 1;
   });
+  // 曹操和吕布不是只在地图上挂一个“交战”的名分：宣战当天就让两军先锋撞上，
+  // 否则玩家在陈留看到的只是一行战报，地图上仍旧风平浪静。
+  if (state.factionWars && state.factionWars[key('wei', 'lv')] && !state.openingClashDone) {
+    state.openingClashDone = true;
+    startOpeningClash(state, 'wei', 'lv');
+  }
   return started;
+}
+
+/** 开局第一场曹吕遭遇：取两军离得最近的一对领主，直接在前线拉出一场合战。 */
+function startOpeningClash(state, factionA, factionB) {
+  const aLords = (state.lords || []).filter(function (l) {
+    return l && l.faction === factionA && l.alive && !l.dead && !l.retired &&
+      !l.inCity && !l.prisoner && !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  });
+  const bLords = (state.lords || []).filter(function (l) {
+    return l && l.faction === factionB && l.alive && !l.dead && !l.retired &&
+      !l.inCity && !l.prisoner && !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  });
+  if (!aLords.length || !bLords.length) return null;
+  let a = null;
+  let b = null;
+  let best = Infinity;
+  aLords.forEach(function (x) {
+    bLords.forEach(function (y) {
+      const d = Math.max(Math.abs(x.x - y.x), Math.abs(x.y - y.y));
+      if (d < best) { best = d; a = x; b = y; }
+    });
+  });
+  if (!a || !b) return null;
+  const bf = createFieldBattle(state,
+    { kind: 'lord', id: a.id }, { kind: 'lord', id: b.id }, {
+      preAggregate: false,
+      context: { kind: 'field', cause: 'opening' },
+    });
+  if (!bf) return null;
+  const place = nearestOpeningPlace(state, bf.center);
+  logFn(state, '曹操军的' + a.name + '与吕布军的' + b.name + '在' + place +
+    '附近撞上，两边连阵都没列完就动了手。', 'war');
+  return bf;
+}
+
+/** 给开局遭遇战找一个附近的地名，日志不至于只写“野地”。 */
+function nearestOpeningPlace(state, center) {
+  let best = null;
+  let bestD = Infinity;
+  ((state.world && state.world.sites) || []).forEach(function (s) {
+    if (!s || (s.type !== 'town' && s.type !== 'castle' && s.type !== 'village')) return;
+    const d = Math.max(Math.abs(s.x - center.x), Math.abs(s.y - center.y));
+    if (d < bestD) { bestD = d; best = s; }
+  });
+  return best ? best.name : '陈留以东';
 }
 
 function atWar(state, a, b) {

@@ -47,6 +47,11 @@ const LORD_ENTER_CITY_HOURS = 6;
 const NPC_SLOT_COUNT = 3; // NPC 按 3 个时辰槽错开走，避免整点所有队伍一起重算
 const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
+/** 国战领主主动寻敌：战线上的敌军不必等走到脸前才看见。 */
+const LORD_FOE_SIGHT = 10;
+/** 势均力敌也要敢接战；只在明显吃亏时才把目标让给逃遁判断。 */
+const LORD_FOE_ENGAGE_RATIO = 0.9;
+const LORD_FOE_ENGAGE_GAP = 0;
 const LORD_BANDIT_HUNT_RATIO = 1.25;
 const LORD_BANDIT_HUNT_GAP = 4;
 /** 领主只在身边三格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
@@ -292,6 +297,8 @@ function createGame(opts) {
     shiUsed: 0,
     adShiDay: 0,
     adShiCount: 0,
+    adRewardDay: '',
+    adRewardCount: 0,
     goods: {},
     heroes: [],
     reviveCount: 0,
@@ -3093,6 +3100,8 @@ function lordMayFlee(state, lord) {
 function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   const p = state.player;
   const sight = Math.max(3, lord.sight || 5);
+  // 敌军领主另算视野：同一条战线上的旗号，隔着十几格也该认得出。
+  const foeSight = Math.max(sight, LORD_FOE_SIGHT);
   const own = threatCount(lord);
   const candidates = [];
 
@@ -3110,7 +3119,7 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
     if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
     if (!war.atWar(state, lord.faction, other.faction)) return;
     const d = gridDistance(lord, other);
-    if (d > sight) return;
+    if (d > foeSight) return;
     candidates.push({ kind: 'lord', unit: other, count: threatCount(other), d: d, name: other.name });
   });
 
@@ -3132,8 +3141,13 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
       if (!flee || c.d < flee.d) flee = c;
     }
     // 剿匪门槛低一些：领主愿意主动清乡，不必等匪团只剩零头才动手。
-    const ratio = c.kind === 'party' ? LORD_BANDIT_HUNT_RATIO : LORD_PURSUIT_RATIO;
-    const gap = c.kind === 'party' ? LORD_BANDIT_HUNT_GAP : LORD_PURSUIT_GAP;
+    // 国战领主之间则按战线判断：兵力相当或只是略处下风，也要上去碰一碰。
+    const ratio = c.kind === 'party'
+      ? LORD_BANDIT_HUNT_RATIO
+      : c.kind === 'lord' ? LORD_FOE_ENGAGE_RATIO : LORD_PURSUIT_RATIO;
+    const gap = c.kind === 'party'
+      ? LORD_BANDIT_HUNT_GAP
+      : c.kind === 'lord' ? LORD_FOE_ENGAGE_GAP : LORD_PURSUIT_GAP;
     if (own >= c.count * ratio && own - c.count >= gap) {
       if (c.kind === 'party') {
         if (!huntParty || c.d < huntParty.d) huntParty = c;
@@ -3356,7 +3370,8 @@ function markLordHunt(state, lord, threat) {
   lord.foeChasing = threat.kind === 'lord' ? id : null;
   lord.banditChasing = threat.kind === 'party' ? id : null;
   if (changed) {
-    pushLog(state, lord.name + '兵多，盯上了' + threat.name + '的旗，追过去。', 'war');
+    pushLog(state, lord.name + (threat.kind === 'lord' ? '在战线上盯上了' : '盯上了') +
+      threat.name + '的旗，追过去。', 'war');
   }
 }
 
@@ -6081,6 +6096,81 @@ function claimAdShi(state) {
   };
 }
 
+/* ------------------------------------------------------- 商店·现实日广告奖励 */
+
+const AD_REWARD_MAX = 10;
+const AD_REWARD_GOLD = 1000;
+const AD_REWARD_FOOD = 200;
+
+/** 现实自然日 key：按设备本地时区算，过零点刷新，和游戏内天数无关。 */
+function realDayKey(date) {
+  const d = date instanceof Date ? date : new Date();
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = ('0' + (d.getMonth() + 1)).slice(-2);
+  const day = ('0' + d.getDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
+
+/** 今日广告奖励次数；遇到新的现实日会把上一次的计数清零。 */
+function adRewardInfo(state, dayKey) {
+  if (!state || !state.player) {
+    return { dayKey: dayKey || realDayKey(), max: AD_REWARD_MAX, used: 0, left: 0,
+      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD };
+  }
+  const p = state.player;
+  const key = dayKey || realDayKey();
+  if (p.adRewardDay !== key) {
+    p.adRewardDay = key;
+    p.adRewardCount = 0;
+  }
+  return {
+    dayKey: key,
+    max: AD_REWARD_MAX,
+    used: p.adRewardCount || 0,
+    left: Math.max(0, AD_REWARD_MAX - (p.adRewardCount || 0)),
+    gold: AD_REWARD_GOLD,
+    food: AD_REWARD_FOOD,
+  };
+}
+
+/**
+ * 看完一次激励视频后领取：kind = 'gold' 领 1000 金钱，'food' 领 200 粮草。
+ * 两种奖励共用每天 10 次；过现实日零点自动重置。
+ */
+function claimAdReward(state, kind, dayKey) {
+  const info = adRewardInfo(state, dayKey);
+  if (info.left <= 0) {
+    return { ok: false, msg: '今天的十次广告奖励已经领完了，明天再来。', info: info };
+  }
+  const p = state.player;
+  let actual = 0;
+  let label = '';
+  if (kind === 'gold') {
+    actual = AD_REWARD_GOLD;
+    p.gold += actual;
+    label = '金钱';
+  } else if (kind === 'food') {
+    // 广告奖励按需求给足 200 粮草；这是额外军粮，不按平时购粮的车上限截断。
+    actual = AD_REWARD_FOOD;
+    p.food = (p.food || 0) + actual;
+    label = '粮草';
+  } else {
+    return { ok: false, msg: '没有这种广告奖励。', info: info };
+  }
+  p.adRewardCount = (p.adRewardCount || 0) + 1;
+  if (actual > 0) {
+    pushLog(state, '你看完一段军情广告，从局内商店领走 ' + actual + ' ' + label + '。');
+  }
+  return {
+    ok: true,
+    amount: actual,
+    kind: kind,
+    msg: '领到 ' + actual + ' ' + label + '（今日 ' + p.adRewardCount + '/' + AD_REWARD_MAX + ' 次）',
+    info: adRewardInfo(state, dayKey),
+  };
+}
+
 /* ---------------------------------------------------------------- 天机简 */
 
 function useHistory(state, markId) {
@@ -6504,6 +6594,8 @@ function deserialize(json) {
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
   state.player.adShiDay = state.player.adShiDay || 0;
   state.player.adShiCount = state.player.adShiCount || 0;
+  state.player.adRewardDay = state.player.adRewardDay || '';
+  state.player.adRewardCount = state.player.adRewardCount || 0;
   state.player.route = [];
   state.player.stepFrom = null;
   state.player.stepTo = null;
@@ -6772,6 +6864,12 @@ module.exports = {
   claimAdShi,
   AD_SHI_MAX,
   AD_SHI_PER,
+  realDayKey,
+  adRewardInfo,
+  claimAdReward,
+  AD_REWARD_MAX,
+  AD_REWARD_GOLD,
+  AD_REWARD_FOOD,
   renownTitle,
   pushLog,
   serialize,

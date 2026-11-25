@@ -1,7 +1,7 @@
 {
-  "name": "征战汉末 · 骑砍大师制作",
+  "name": "征战汉末",
   "short_name": "征战汉末",
-  "description": "像素三国骑砍，大地图行军、遭遇战、比武大会与天下国战",
+  "description": "单机休闲模拟经营，汉末大地图行军、城池经营与轻量回合制战斗",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

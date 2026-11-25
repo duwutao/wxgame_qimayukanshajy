@@ -1,5 +1,5 @@
 /**
- * 标题：征战汉末 · 骑砍大师制作
+ * 标题：征战汉末
  */
 
 const { text, panel } = require('../render/ui.js');
@@ -53,10 +53,10 @@ const TitleScene = {
     text(ctx, '征战汉末', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
-    text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {
+    text(ctx, '单机休闲 · 汉末经营', w / 2, h * 0.285 + 112, {
       size: 25, align: 'center', color: '#d9a441',
     });
-    text(ctx, '汉末风云 · 群雄逐鹿 · 一将功成万骨枯', w / 2, h * 0.285 + 158, {
+    text(ctx, '汉末风云 · 城池经营 · 招兵买马', w / 2, h * 0.285 + 158, {
       size: 17, align: 'center', color: '#bca88a',
     });
 
@@ -99,7 +99,7 @@ const TitleScene = {
       },
     });
 
-    text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 天机改命', w / 2, h - 40, {
+    text(ctx, '点地图行军 · 城池经营 · 酒馆任务 · 天机改命', w / 2, h - 40, {
       size: 15, align: 'center', color: '#8e8068',
     });
   },

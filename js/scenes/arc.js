@@ -112,7 +112,7 @@ const ArcScene = {
           st.ending = {
             type: 'arc',
             title: '谢君一游',
-            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《征战汉末》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
+            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《征战汉末》。\n愿你在下一个乱世，仍有旧部相随。',
           };
           st.gameOver = true;
           app.replace('ending');

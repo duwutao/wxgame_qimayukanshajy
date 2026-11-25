@@ -1737,6 +1737,30 @@ stShopB.events.length = 0;
 ok('换存档后商店次数从零开始', stateLib.adShiInfo(stShopB).used === 0,
   String(stateLib.adShiInfo(stShopB).used));
 
+const adDayA = '2026-11-25';
+const adDayB = '2026-11-26';
+const stAd = stateLib.createGame({ seed: 991005 });
+stAd.events.length = 0;
+const adGold0 = stAd.player.gold;
+const goldClaim = stateLib.claimAdReward(stAd, 'gold', adDayA);
+ok('现实日广告能领 1000 金钱', goldClaim.ok && goldClaim.amount === 1000 &&
+  stAd.player.gold === adGold0 + 1000 && stateLib.adRewardInfo(stAd, adDayA).used === 1,
+  goldClaim.msg);
+const adFood0 = stAd.player.food;
+const foodClaim = stateLib.claimAdReward(stAd, 'food', adDayA);
+ok('现实日广告能领 200 粮草', foodClaim.ok && foodClaim.amount === 200 &&
+  stAd.player.food === adFood0 + 200 && stateLib.adRewardInfo(stAd, adDayA).used === 2,
+  foodClaim.msg);
+for (let i = 0; i < 8; i++) stateLib.claimAdReward(stAd, 'gold', adDayA);
+ok('两种奖励共用每日 10 次', stateLib.adRewardInfo(stAd, adDayA).used === 10 &&
+  stateLib.adRewardInfo(stAd, adDayA).left === 0,
+  JSON.stringify(stateLib.adRewardInfo(stAd, adDayA)));
+ok('第 11 次广告奖励被拒', stateLib.claimAdReward(stAd, 'gold', adDayA).ok === false,
+  'left=' + stateLib.adRewardInfo(stAd, adDayA).left);
+ok('现实日跨日自动重置', stateLib.adRewardInfo(stAd, adDayB).left === 10 &&
+  stateLib.claimAdReward(stAd, 'food', adDayB).ok === true,
+  JSON.stringify(stateLib.adRewardInfo(stAd, adDayB)));
+
 const extraLib = require(R + '/data/extra.js');
 const heroStorySample = extraLib.heroStory('liaohua') || '';
 ok('英雄自传只写本人经历、不写东家', heroStorySample.length > 20 &&
@@ -3000,6 +3024,36 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
   ok('刘备真的从刘璋手里打下剑阁', jg.ownerFaction === 'shu', jg.ownerFaction);
   ok('剑阁入蜀后蜀势力有两座城', warLib.ownedCities(gl, 'shu').length >= 2,
     warLib.ownedCities(gl, 'shu').map(function (s) { return s.id; }).join(','));
+}
+{
+  // 曹吕开局不能只挂一个交战名分：宣战当场要有一场先锋合战，领主也要主动寻敌。
+  const gw = stateLib.createGame({ seed: 2026112501 });
+  warLib.init(gw);
+  const started = warLib.startDiplomacy(gw);
+  const opening = (gw.fieldBattles || [])[0];
+  ok('曹吕宣战当天直接开打', started >= 2 && !!opening &&
+    warLib.atWar(gw, opening.primaryA.faction, opening.primaryB.faction) &&
+    [opening.primaryA.faction, opening.primaryB.faction].sort().join('|') === 'lv|wei',
+    opening ? opening.primaryA.name + ' vs ' + opening.primaryB.name : '无合战');
+
+  const gt = stateLib.createGame({ seed: 2026112502 });
+  warLib.init(gt);
+  warLib.declare(gt, 'wei', 'lv', true, true);
+  const wa = gt.lords.filter(function (l) { return l.faction === 'wei' && l.alive; })[0];
+  const wb = gt.lords.filter(function (l) { return l.faction === 'lv' && l.alive; })[0];
+  gt.lords = [wa, wb];
+  gt.parties = [];
+  gt.player.atSiteId = null;
+  gt.player.route = [];
+  gt.player.stepTo = null;
+  wa.x = 20; wa.y = 20; wb.x = 30; wb.y = 20;
+  wa.troops = { militia: 100 }; wb.troops = { militia: 100 };
+  wa.morale = 70; wb.morale = 70;
+  wa.engagedWith = null; wb.engagedWith = null;
+  const threat = stateLib.lordThreatFor(gt, wa, false, false);
+  ok('国战领主会主动寻敌，不会在十余格外各自站着',
+    !!threat && threat.role === 'hunt' && threat.target.unit === wb,
+    threat ? threat.role + ':' + (threat.target.unit && threat.target.unit.name) : '无目标');
 }
 {
   // 要地八格：只有占据方吃 1.5 倍，出八格就恢复；且只加防御，不加攻击。

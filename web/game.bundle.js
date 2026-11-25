@@ -1,4 +1,4 @@
-/* 征战汉末 · 骑砍大师制作 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
+/* 征战汉末 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
 (function () {
   var __defs = {};
   var __cache = {};
@@ -5711,7 +5711,58 @@ function startDiplomacy(state) {
     if (started >= 3) return;
     if (declare(state, pair[0], pair[1], true, true)) started += 1;
   });
+  // 曹操和吕布不是只在地图上挂一个“交战”的名分：宣战当天就让两军先锋撞上，
+  // 否则玩家在陈留看到的只是一行战报，地图上仍旧风平浪静。
+  if (state.factionWars && state.factionWars[key('wei', 'lv')] && !state.openingClashDone) {
+    state.openingClashDone = true;
+    startOpeningClash(state, 'wei', 'lv');
+  }
   return started;
+}
+
+/** 开局第一场曹吕遭遇：取两军离得最近的一对领主，直接在前线拉出一场合战。 */
+function startOpeningClash(state, factionA, factionB) {
+  const aLords = (state.lords || []).filter(function (l) {
+    return l && l.faction === factionA && l.alive && !l.dead && !l.retired &&
+      !l.inCity && !l.prisoner && !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  });
+  const bLords = (state.lords || []).filter(function (l) {
+    return l && l.faction === factionB && l.alive && !l.dead && !l.retired &&
+      !l.inCity && !l.prisoner && !l.fieldBattleId && army.troopCount(l.troops || {}) > 0;
+  });
+  if (!aLords.length || !bLords.length) return null;
+  let a = null;
+  let b = null;
+  let best = Infinity;
+  aLords.forEach(function (x) {
+    bLords.forEach(function (y) {
+      const d = Math.max(Math.abs(x.x - y.x), Math.abs(x.y - y.y));
+      if (d < best) { best = d; a = x; b = y; }
+    });
+  });
+  if (!a || !b) return null;
+  const bf = createFieldBattle(state,
+    { kind: 'lord', id: a.id }, { kind: 'lord', id: b.id }, {
+      preAggregate: false,
+      context: { kind: 'field', cause: 'opening' },
+    });
+  if (!bf) return null;
+  const place = nearestOpeningPlace(state, bf.center);
+  logFn(state, '曹操军的' + a.name + '与吕布军的' + b.name + '在' + place +
+    '附近撞上，两边连阵都没列完就动了手。', 'war');
+  return bf;
+}
+
+/** 给开局遭遇战找一个附近的地名，日志不至于只写“野地”。 */
+function nearestOpeningPlace(state, center) {
+  let best = null;
+  let bestD = Infinity;
+  ((state.world && state.world.sites) || []).forEach(function (s) {
+    if (!s || (s.type !== 'town' && s.type !== 'castle' && s.type !== 'village')) return;
+    const d = Math.max(Math.abs(s.x - center.x), Math.abs(s.y - center.y));
+    if (d < bestD) { bestD = d; best = s; }
+  });
+  return best ? best.name : '陈留以东';
 }
 
 function atWar(state, a, b) {
@@ -8232,6 +8283,11 @@ const LORD_ENTER_CITY_HOURS = 6;
 const NPC_SLOT_COUNT = 3; // NPC 按 3 个时辰槽错开走，避免整点所有队伍一起重算
 const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
+/** 国战领主主动寻敌：战线上的敌军不必等走到脸前才看见。 */
+const LORD_FOE_SIGHT = 10;
+/** 势均力敌也要敢接战；只在明显吃亏时才把目标让给逃遁判断。 */
+const LORD_FOE_ENGAGE_RATIO = 0.9;
+const LORD_FOE_ENGAGE_GAP = 0;
 const LORD_BANDIT_HUNT_RATIO = 1.25;
 const LORD_BANDIT_HUNT_GAP = 4;
 /** 领主只在身边三格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
@@ -8477,6 +8533,8 @@ function createGame(opts) {
     shiUsed: 0,
     adShiDay: 0,
     adShiCount: 0,
+    adRewardDay: '',
+    adRewardCount: 0,
     goods: {},
     heroes: [],
     reviveCount: 0,
@@ -11278,6 +11336,8 @@ function lordMayFlee(state, lord) {
 function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   const p = state.player;
   const sight = Math.max(3, lord.sight || 5);
+  // 敌军领主另算视野：同一条战线上的旗号，隔着十几格也该认得出。
+  const foeSight = Math.max(sight, LORD_FOE_SIGHT);
   const own = threatCount(lord);
   const candidates = [];
 
@@ -11295,7 +11355,7 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
     if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
     if (!war.atWar(state, lord.faction, other.faction)) return;
     const d = gridDistance(lord, other);
-    if (d > sight) return;
+    if (d > foeSight) return;
     candidates.push({ kind: 'lord', unit: other, count: threatCount(other), d: d, name: other.name });
   });
 
@@ -11317,8 +11377,13 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
       if (!flee || c.d < flee.d) flee = c;
     }
     // 剿匪门槛低一些：领主愿意主动清乡，不必等匪团只剩零头才动手。
-    const ratio = c.kind === 'party' ? LORD_BANDIT_HUNT_RATIO : LORD_PURSUIT_RATIO;
-    const gap = c.kind === 'party' ? LORD_BANDIT_HUNT_GAP : LORD_PURSUIT_GAP;
+    // 国战领主之间则按战线判断：兵力相当或只是略处下风，也要上去碰一碰。
+    const ratio = c.kind === 'party'
+      ? LORD_BANDIT_HUNT_RATIO
+      : c.kind === 'lord' ? LORD_FOE_ENGAGE_RATIO : LORD_PURSUIT_RATIO;
+    const gap = c.kind === 'party'
+      ? LORD_BANDIT_HUNT_GAP
+      : c.kind === 'lord' ? LORD_FOE_ENGAGE_GAP : LORD_PURSUIT_GAP;
     if (own >= c.count * ratio && own - c.count >= gap) {
       if (c.kind === 'party') {
         if (!huntParty || c.d < huntParty.d) huntParty = c;
@@ -11541,7 +11606,8 @@ function markLordHunt(state, lord, threat) {
   lord.foeChasing = threat.kind === 'lord' ? id : null;
   lord.banditChasing = threat.kind === 'party' ? id : null;
   if (changed) {
-    pushLog(state, lord.name + '兵多，盯上了' + threat.name + '的旗，追过去。', 'war');
+    pushLog(state, lord.name + (threat.kind === 'lord' ? '在战线上盯上了' : '盯上了') +
+      threat.name + '的旗，追过去。', 'war');
   }
 }
 
@@ -14266,6 +14332,81 @@ function claimAdShi(state) {
   };
 }
 
+/* ------------------------------------------------------- 商店·现实日广告奖励 */
+
+const AD_REWARD_MAX = 10;
+const AD_REWARD_GOLD = 1000;
+const AD_REWARD_FOOD = 200;
+
+/** 现实自然日 key：按设备本地时区算，过零点刷新，和游戏内天数无关。 */
+function realDayKey(date) {
+  const d = date instanceof Date ? date : new Date();
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = ('0' + (d.getMonth() + 1)).slice(-2);
+  const day = ('0' + d.getDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
+
+/** 今日广告奖励次数；遇到新的现实日会把上一次的计数清零。 */
+function adRewardInfo(state, dayKey) {
+  if (!state || !state.player) {
+    return { dayKey: dayKey || realDayKey(), max: AD_REWARD_MAX, used: 0, left: 0,
+      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD };
+  }
+  const p = state.player;
+  const key = dayKey || realDayKey();
+  if (p.adRewardDay !== key) {
+    p.adRewardDay = key;
+    p.adRewardCount = 0;
+  }
+  return {
+    dayKey: key,
+    max: AD_REWARD_MAX,
+    used: p.adRewardCount || 0,
+    left: Math.max(0, AD_REWARD_MAX - (p.adRewardCount || 0)),
+    gold: AD_REWARD_GOLD,
+    food: AD_REWARD_FOOD,
+  };
+}
+
+/**
+ * 看完一次激励视频后领取：kind = 'gold' 领 1000 金钱，'food' 领 200 粮草。
+ * 两种奖励共用每天 10 次；过现实日零点自动重置。
+ */
+function claimAdReward(state, kind, dayKey) {
+  const info = adRewardInfo(state, dayKey);
+  if (info.left <= 0) {
+    return { ok: false, msg: '今天的十次广告奖励已经领完了，明天再来。', info: info };
+  }
+  const p = state.player;
+  let actual = 0;
+  let label = '';
+  if (kind === 'gold') {
+    actual = AD_REWARD_GOLD;
+    p.gold += actual;
+    label = '金钱';
+  } else if (kind === 'food') {
+    // 广告奖励按需求给足 200 粮草；这是额外军粮，不按平时购粮的车上限截断。
+    actual = AD_REWARD_FOOD;
+    p.food = (p.food || 0) + actual;
+    label = '粮草';
+  } else {
+    return { ok: false, msg: '没有这种广告奖励。', info: info };
+  }
+  p.adRewardCount = (p.adRewardCount || 0) + 1;
+  if (actual > 0) {
+    pushLog(state, '你看完一段军情广告，从局内商店领走 ' + actual + ' ' + label + '。');
+  }
+  return {
+    ok: true,
+    amount: actual,
+    kind: kind,
+    msg: '领到 ' + actual + ' ' + label + '（今日 ' + p.adRewardCount + '/' + AD_REWARD_MAX + ' 次）',
+    info: adRewardInfo(state, dayKey),
+  };
+}
+
 /* ---------------------------------------------------------------- 天机简 */
 
 function useHistory(state, markId) {
@@ -14689,6 +14830,8 @@ function deserialize(json) {
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
   state.player.adShiDay = state.player.adShiDay || 0;
   state.player.adShiCount = state.player.adShiCount || 0;
+  state.player.adRewardDay = state.player.adRewardDay || '';
+  state.player.adRewardCount = state.player.adRewardCount || 0;
   state.player.route = [];
   state.player.stepFrom = null;
   state.player.stepTo = null;
@@ -14957,6 +15100,12 @@ module.exports = {
   claimAdShi,
   AD_SHI_MAX,
   AD_SHI_PER,
+  realDayKey,
+  adRewardInfo,
+  claimAdReward,
+  AD_REWARD_MAX,
+  AD_REWARD_GOLD,
+  AD_REWARD_FOOD,
   renownTitle,
   pushLog,
   serialize,
@@ -15182,7 +15331,7 @@ module.exports = {
   /* js/scenes/title.js */
   __defs[19] = function (module, exports, __require) {
 /**
- * 标题：征战汉末 · 骑砍大师制作
+ * 标题：征战汉末
  */
 
 const { text, panel } = __require(6);
@@ -15236,10 +15385,10 @@ const TitleScene = {
     text(ctx, '征战汉末', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
-    text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {
+    text(ctx, '单机休闲 · 汉末经营', w / 2, h * 0.285 + 112, {
       size: 25, align: 'center', color: '#d9a441',
     });
-    text(ctx, '汉末风云 · 群雄逐鹿 · 一将功成万骨枯', w / 2, h * 0.285 + 158, {
+    text(ctx, '汉末风云 · 城池经营 · 招兵买马', w / 2, h * 0.285 + 158, {
       size: 17, align: 'center', color: '#bca88a',
     });
 
@@ -15282,7 +15431,7 @@ const TitleScene = {
       },
     });
 
-    text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 天机改命', w / 2, h - 40, {
+    text(ctx, '点地图行军 · 城池经营 · 酒馆任务 · 天机改命', w / 2, h - 40, {
       size: 15, align: 'center', color: '#8e8068',
     });
   },
@@ -17389,10 +17538,10 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.fillRect(sx - tw / 2 - 7, sy + 20 * z, tw + 14, nsz + 6);
       text(ctx, lord.name, sx, sy + 21 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
     }
-    // 拉近了才写兵力，远望只认旗
-    if (z >= 0.9) {
+    // 拉近到半图视野就写兵力，远望只认旗
+    if (z >= 0.5) {
       text(ctx, String(army.troopCount(lord.troops || {})), sx + 24 * z, sy - 58 * z, {
-        size: Math.max(14, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
+        size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
       });
     }
 
@@ -21456,9 +21605,9 @@ module.exports = GovernScene;
   /* js/scenes/shop.js */
   __defs[30] = function (module, exports, __require) {
 /**
- * 局内商店：看一段军情广告，领两支天机简。
- * 每日上限 5 次（共 10 支），由 state.adShiInfo 记录，跨天自动重置。
- * 广告 SDK 尚未接入：runtime.showRewardedAd 已留好接口，浏览器里模拟观看。
+ * 局内商店：看一段军情广告，领取金钱或粮草。
+ * 每个现实自然日刷新，共 10 次；两种奖励共用次数，过本地零点自动重置。
+ * 浏览器里由 runtime.showRewardedAd 模拟观看，小游戏端配置广告位后走真实激励视频。
  */
 
 const { text, panel, wrap } = __require(6);
@@ -21469,7 +21618,8 @@ const PAD = 20;
 const ShopScene = {
   enter(app) {
     this.busy = false;
-    this.msg = '军情广告 · 看一段，领两支天机简。';
+    this.busyKind = null;
+    this.msg = '军情广告 · 每个现实日刷新 · 两种奖励共用 10 次。';
   },
   update() {},
 
@@ -21494,52 +21644,82 @@ const ShopScene = {
     ctx.fillRect(0, 0, w, h);
 
     text(ctx, '商店', PAD, 30, { size: 44, color: '#f0c060' });
-    text(ctx, '军情广告换天机 · 只记在当前存档 · 每天最多 5 次', PAD, 90, { size: 18, color: '#a2947a' });
-
-    panel(ctx, PAD, 140, w - PAD * 2, 250, { fill: 'rgba(36,26,18,0.94)' });
-    text(ctx, '天机简', PAD + 24, 162, { size: 28, color: '#d9a441' });
-    const p = st ? st.player : null;
-    text(ctx, p ? '军帐中现有 ' + p.shi + ' 支' : '还没有军帐：先开一局，天机简才记在你名下。',
-      PAD + 24, 208, { size: 18, color: p ? '#e6dbc2' : '#8a8070' });
-    const intro = '每一支能在战局里写下一句话：南风起、风止、名册。'
-      + '风止只压敌军的攻势，不会反过来削自己的兵。';
-    const ls = wrap(ctx, intro, w - PAD * 2 - 48, 17);
-    ls.slice(0, 3).forEach(function (l, i) {
-      text(ctx, l, PAD + 24, 244 + i * 26, { size: 16, color: '#a2947a' });
+    text(ctx, '军情广告 · 每个现实日刷新 · 每天 10 次', PAD, 90, {
+      size: 18, color: '#a2947a',
     });
-    text(ctx, '广告 SDK 尚未接入；浏览器里会模拟一次观看，先走通流程。', PAD + 24, 330, {
+
+    panel(ctx, PAD, 140, w - PAD * 2, 220, { fill: 'rgba(36,26,18,0.94)' });
+    text(ctx, '今日军情', PAD + 24, 162, { size: 28, color: '#d9a441' });
+
+    const p = st ? st.player : null;
+    const info = st
+      ? stateLib.adRewardInfo(st)
+      : { max: 10, used: 0, left: 0, gold: 1000, food: 200 };
+
+    text(ctx, p ? '军帐：金钱 ' + p.gold + ' · 粮草 ' + p.food : '还没有军帐：先开一局再来。',
+      PAD + 24, 202, { size: 18, color: p ? '#e6dbc2' : '#8a8070' });
+    text(ctx, '今日已领 ' + info.used + ' / ' + info.max + ' 次 · 还剩 ' + info.left + ' 次',
+      PAD + 24, 238, { size: 18, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
+    text(ctx, '看完一次广告，二选一：金钱 +' + info.gold + '，或粮草 +' + info.food + '。',
+      PAD + 24, 274, { size: 16, color: '#c8b478' });
+    const tip = '现实日按手机本地日期算，过零点自动重置；两种奖励共用这 10 次。';
+    const ls = wrap(ctx, tip, w - PAD * 2 - 48, 16);
+    ls.slice(0, 2).forEach(function (l, i) {
+      text(ctx, l, PAD + 24, 306 + i * 22, { size: 15, color: '#8a8070' });
+    });
+
+    text(ctx, '今日剩余 ' + info.left + ' / ' + info.max + ' 次',
+      PAD, 390, { size: 20, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
+    text(ctx, '浏览器里会模拟观看；小游戏端配置激励视频广告位后拉起真实广告。', PAD, 420, {
       size: 14, color: '#6a6050',
     });
 
-    const info = st ? stateLib.adShiInfo(st) : { max: 5, used: 0, left: 0, shiPer: 2 };
-    text(ctx, '今日可领 ' + info.left + ' / ' + info.max + ' 次 · 每次 ' + info.shiPer + ' 支',
-      PAD, 420, { size: 20, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
-    text(ctx, '当前存档已领 ' + (info.used * info.shiPer) + ' 支；明日重新计数。', PAD, 456, {
-      size: 16, color: '#8a8070',
-    });
-    text(ctx, '换一个存档，这份次数从零开始。', PAD, 482, { size: 14, color: '#6a6050' });
-
     const can = !!st && info.left > 0 && !this.busy;
-    app.ui.button(ctx, PAD, 520, w - PAD * 2, 108,
-      this.busy ? '正在拉取军情…' : (info.left > 0 ? '看军情 · 领 2 支天机简' : '今日已领完'), {
-        id: 'shop_ad', size: 27, fill: '#3a2c1e', disabled: !can, onTap: function () {
-          if (app.state !== st || !st) return;
-          app.top().scene.busy = true;
-          app.showToast('正在拉取军情广告…', 1.6);
-          app.runtime.showRewardedAd(function (ok, err) {
-            const scene = app.top() && app.top().scene;
-            if (scene) scene.busy = false;
-            if (!ok) {
-              app.showToast(err === 'web-sim' ? '广告没看完，天机简没领到。'
-                : ('广告暂时不可用：' + (err || '平台未配置广告位')), 3);
-              return;
-            }
-            const r = stateLib.claimAdShi(app.state);
-            app.showToast(r.msg, 3);
-          });
+
+    const watch = function (kind) {
+      if (app.state !== st || !st) return;
+      const scene = app.top() && app.top().scene;
+      if (scene) {
+        scene.busy = true;
+        scene.busyKind = kind;
+      }
+      app.showToast('正在拉取军情广告…', 1.6);
+      app.runtime.showRewardedAd(function (ok, err) {
+        const now = app.top() && app.top().scene;
+        if (now) {
+          now.busy = false;
+          now.busyKind = null;
+        }
+        if (!ok) {
+          app.showToast(err === 'web-sim' ? '广告没看完，奖励没领到。'
+            : ('广告暂时不可用：' + (err || '平台未配置广告位')), 3);
+          return;
+        }
+        const r = stateLib.claimAdReward(app.state, kind);
+        app.showToast(r.msg, 3);
+        if (now) now.msg = r.msg;
+      });
+    };
+
+    app.ui.button(ctx, PAD, 444, w - PAD * 2, 86,
+      this.busy && this.busyKind === 'gold' ? '正在拉取军情…' : '看广告 · 领 1000 金钱', {
+        id: 'shop_ad_gold', size: 25, fill: '#4a351d', disabled: !can, onTap: function () {
+          watch('gold');
         },
       });
-    text(ctx, this.msg, PAD, 642, { size: 15, color: '#8a8070' });
+
+    app.ui.button(ctx, PAD, 542, w - PAD * 2, 86,
+      this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 200 粮草', {
+        id: 'shop_ad_food', size: 25, fill: '#3a2c1e', disabled: !can, onTap: function () {
+          watch('food');
+        },
+      });
+
+    if (info.left <= 0) {
+      text(ctx, '今日 10 次已领完，明日零点后再来。', PAD, 646, { size: 16, color: '#d06a4a' });
+    } else {
+      text(ctx, this.msg, PAD, 646, { size: 15, color: '#8a8070' });
+    }
 
     app.ui.button(ctx, PAD, h - 96, w - PAD * 2, 68, '返回', {
       id: 'shop_back', size: 24, fill: '#241c14', onTap: function () {
@@ -24054,7 +24234,7 @@ const HelpScene = {
 
     // 标题
     text(ctx, '玩法', 20, 26, { size: 36, color: '#f0c060' });
-    text(ctx, '征战汉末 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
+    text(ctx, '征战汉末', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
 
     // 分类 tab
     const tabW = (w - 40) / TABS.length;
@@ -24574,7 +24754,7 @@ const ArcScene = {
           st.ending = {
             type: 'arc',
             title: '谢君一游',
-            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《征战汉末》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
+            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《征战汉末》。\n愿你在下一个乱世，仍有旧部相随。',
           };
           st.gameOver = true;
           app.replace('ending');

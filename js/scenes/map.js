@@ -1717,10 +1717,10 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.fillRect(sx - tw / 2 - 7, sy + 20 * z, tw + 14, nsz + 6);
       text(ctx, lord.name, sx, sy + 21 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
     }
-    // 拉近了才写兵力，远望只认旗
-    if (z >= 0.9) {
+    // 拉近到半图视野就写兵力，远望只认旗
+    if (z >= 0.5) {
       text(ctx, String(army.troopCount(lord.troops || {})), sx + 24 * z, sy - 58 * z, {
-        size: Math.max(14, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
+        size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
       });
     }
 
