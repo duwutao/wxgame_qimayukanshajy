@@ -1001,12 +1001,13 @@ function lordStatus(st, lord, site) {
     const inCity = siteById(st.world, lord.inCity);
     return inCity ? '驻' + inCity.name : '驻外城';
   }
+  if (lord.fleeing) return '逃遁中';
   if (lord.order && lord.order.siteId) {
     const target = siteById(st.world, lord.order.siteId);
     const type = lord.order.type === 'siege' ? '围' : '往';
     return type + (target ? target.name : '军令');
   }
-  if (lord.chasing) return '追击中';
+  if (lord.hunting || lord.chasing) return '追击中';
   return '在外';
 }
 

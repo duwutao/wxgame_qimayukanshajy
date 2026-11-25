@@ -591,7 +591,8 @@ smoke('大地图：点领主跟着走，点别处就松开', function () {
     for (let dy = -3; dy <= 3; dy++) {
       const x = lord.x + dx, y = lord.y + dy;
       if (x < 0 || y < 0 || x >= st.world.w || y >= st.world.h) continue;
-      if (st.world.tiles[y * st.world.w + x] !== 'plain') continue;
+      const tile = st.world.tiles[y * st.world.w + x];
+      if (tile === 'mountain' || tile === 'sea' || tile === 'river') continue;
       if (st.world.sites.some(function (s) { return s.x === x && s.y === y; })) continue;
       if (st.lords.some(function (l) { return l.x === x && l.y === y; })) continue;
       if (st.parties.some(function (q) { return q.x === x && q.y === y; })) continue;

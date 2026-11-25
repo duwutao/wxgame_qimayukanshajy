@@ -121,6 +121,73 @@ function coastX(y) {
   return SV(COAST[COAST.length - 1][1], MAP_W - 1);
 }
 
+/** 据点定义 -> 实际 site 对象；兼容新开局与旧档补新城。 */
+function siteFromRow(world, row) {
+  const def = {
+    id: row[0], name: row[1], type: row[2], faction: row[3],
+    x: S(row[4]), y: SV(row[5], MAP_H - 1),
+    priceBase: row[6], garrison: row[7], troopSet: row[8], blurb: row[9],
+  };
+  const site = {
+    id: def.id,
+    name: def.name,
+    type: def.type,
+    region: regionAt(world, def.x, def.y),
+    faction: def.faction,
+    ownerFaction: def.faction,
+    x: def.x,
+    y: def.y,
+    market: def.type !== 'camp',
+    priceBase: def.priceBase,
+    garrisonBase: def.garrison,
+    garrison: def.garrison,
+    recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
+    recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
+    recruits: {},
+    priceIndex: 1,
+    blurb: def.blurb,
+    visited: false,
+    playerOwned: false,
+    cleared: false,
+    banner: FACTIONS[def.faction] ? FACTIONS[def.faction].banner : '',
+    color: FACTIONS[def.faction] ? FACTIONS[def.faction].color : '#8f8f86',
+  };
+  // 清出场地（只清山与海，保留河流作为渡口）
+  const clearR = def.type === 'town' || def.type === 'castle' ? 2 : 1;
+  const base = REGIONS[site.region] ? REGIONS[site.region].base : 'plain';
+  for (let y = site.y - clearR; y <= site.y + clearR; y++) {
+    for (let x = site.x - clearR; x <= site.x + clearR; x++) {
+      if (!inBounds(x, y)) continue;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'mountain' || t === 'sea') {
+        world.tiles[idx(x, y)] = base;
+      }
+    }
+  }
+  return site;
+}
+
+/** 铺设道路；旧档补新城时也可以只铺新增的连线。 */
+function layRoads(world, pairs) {
+  (pairs || []).forEach(function (pair) {
+    const a = siteById(world, pair[0]);
+    const b = siteById(world, pair[1]);
+    if (!a || !b) return;
+    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
+      if (!inBounds(x, y)) return;
+      if (siteAt(world, x, y)) return;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'sea' || t === 'river') return;
+      if (t === 'mountain') {
+        world.tiles[idx(x, y)] = 'hills';
+        return;
+      }
+      world.tiles[idx(x, y)] = 'road';
+    });
+  });
+}
+
+
 function createWorld(seed) {
   const rng = new RNG(seed);
   const world = {
@@ -239,67 +306,11 @@ function createWorld(seed) {
 
   // 6. 据点
   SITE_ROWS.forEach(function (row) {
-    const def = {
-      id: row[0], name: row[1], type: row[2], faction: row[3],
-      x: S(row[4]), y: SV(row[5], MAP_H - 1),
-      priceBase: row[6], garrison: row[7], troopSet: row[8], blurb: row[9],
-    };
-    const site = {
-      id: def.id,
-      name: def.name,
-      type: def.type,
-      region: regionAt(world, def.x, def.y),
-      faction: def.faction,
-      ownerFaction: def.faction,
-      x: def.x,
-      y: def.y,
-      market: def.type !== 'camp',
-      priceBase: def.priceBase,
-      garrisonBase: def.garrison,
-      garrison: def.garrison,
-      recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
-      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
-      recruits: {},
-      priceIndex: 1,
-      blurb: def.blurb,
-      visited: false,
-      playerOwned: false,
-      cleared: false,
-      banner: FACTIONS[def.faction] ? FACTIONS[def.faction].banner : '',
-      color: FACTIONS[def.faction] ? FACTIONS[def.faction].color : '#8f8f86',
-    };
-    // 清出场地（只清山与海，保留河流作为渡口）
-    const clearR = def.type === 'town' || def.type === 'castle' ? 2 : 1;
-    const base = REGIONS[site.region] ? REGIONS[site.region].base : 'plain';
-    for (let y = site.y - clearR; y <= site.y + clearR; y++) {
-      for (let x = site.x - clearR; x <= site.x + clearR; x++) {
-        if (!inBounds(x, y)) continue;
-        const t = world.tiles[idx(x, y)];
-        if (t === 'mountain' || t === 'sea') {
-          world.tiles[idx(x, y)] = base;
-        }
-      }
-    }
-    world.sites.push(site);
+    world.sites.push(siteFromRow(world, row));
   });
 
   // 7. 道路
-  ROADS.forEach(function (pair) {
-    const a = siteById(world, pair[0]);
-    const b = siteById(world, pair[1]);
-    if (!a || !b) return;
-    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
-      if (!inBounds(x, y)) return;
-      if (siteAt(world, x, y)) return;
-      const t = world.tiles[idx(x, y)];
-      if (t === 'sea' || t === 'river') return;
-      if (t === 'mountain') {
-        world.tiles[idx(x, y)] = 'hills';
-        return;
-      }
-      world.tiles[idx(x, y)] = 'road';
-    });
-  });
+  layRoads(world, ROADS);
 
   // 8. 连通性兜底：从陈留铺路
   const start = siteById(world, 'chenliu') || world.sites[0];
@@ -490,6 +501,8 @@ module.exports = {
   siteAt,
   siteById,
   createWorld,
+  siteFromRow,
+  layRoads,
   findPath,
   tileHours,
   addHours,

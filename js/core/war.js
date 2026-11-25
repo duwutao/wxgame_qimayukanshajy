@@ -30,6 +30,8 @@ const SEED_WARS = [
   ['wu', 'biao'],     // 江夏：孙坚死于黄祖箭下
   ['wu', 'wei'],      // 赤壁前的水路
   ['yuan', 'lv'],     // 袁绍与吕布，翻脸比结盟快
+  ['wei', 'yuanshu'], // 淮南：曹操与袁术
+  ['lv', 'yuanshu'],  // 徐州与淮南的粮道
   ['yuan', 'xianbei'],// 北境
   ['ma', 'han'],      // 西凉内斗：马腾与韩遂
   ['zhang', 'shu'],   // 刘璋拒刘备入蜀
@@ -285,6 +287,10 @@ function capture(state, loser, captorFaction, captorName) {
   const siteId = homeSite ? homeSite.id : loser.home;
   loser.alive = false;
   loser.chasing = false;
+  loser.hunting = false;
+  loser.fleeing = false;
+  loser.fleeTargetId = null;
+  loser.fleePath = null;
   loser.order = null;
   loser.defending = null;
   loser.prisoner = {
@@ -322,6 +328,11 @@ function freeLord(state, lord, why) {
   lord.prisoner = null;
   lord.order = null;
   lord.defending = null;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.x = home ? home.x : lord.x;
   lord.y = home ? home.y : lord.y;
   const keep = Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.45));
@@ -386,6 +397,11 @@ function clash(state, a, b) {
   if (flee) {
     loser.alive = true;
     loser.chasing = false;
+    loser.hunting = false;
+    loser.fleeing = true;
+    loser.fleeTargetId = null;
+    loser.fleeFrom = winner ? winner.id : null;
+    loser.fleePath = null;
     moveAway(state, loser);
     loser.scuffle = 10;
     if (near) logFn(state, loser.name + '的阵线先散，带着残兵往野地里跑了，' + winner.name + '也没有死追。', 'war');
@@ -802,6 +818,10 @@ function clearOrder(lord) {
 function giveOrder(lord, type, siteId, hold) {
   lord.order = { type: type, siteId: siteId, hold: !!hold, since: (lord.order && lord.order.since) || 0 };
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.foeChasing = null;
   lord.banditChasing = null;
 }

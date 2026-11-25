@@ -170,6 +170,8 @@ const SITE_ROWS = [
   ['ye', '邺', 'town', 'yuan', 28, 13, 1.08, 160, 'yuan', '袁本初的都城。铜雀台还没修，粮仓先满了。'],
   ['nanpi', '南皮', 'castle', 'yuan', 31, 11, 1.12, 90, 'yuan', '渤海郡的壁垒，袁家的后院。'],
   ['pingyuan', '平原', 'town', 'yuan', 31, 17, 1.04, 95, 'yuan', '青州北界的粮城，麦子堆到城墙那么高。'],
+  ['beihai', '北海', 'town', 'yuan', 34, 16, 1.06, 100, 'yuan', '青州的海盐与鱼货在这里上岸，袁谭的旗插在城头。'],
+  ['liyang', '黎阳', 'town', 'yuan', 27, 15, 1.05, 105, 'yuan', '黄河渡口。袁绍的粮车从这里过河，河边常年有马嘶。'],
   ['puyang', '濮阳', 'town', 'wei', 26, 19, 1.06, 105, 'cao', '兖州的旧治，曹操在这里打赢过吕布。'],
   // ---- 关中 ----
   ['changan', '长安', 'town', 'han', 15, 20, 1.1, 140, 'han', '旧都。宫室烧了一半，百官还在。'],
@@ -184,6 +186,7 @@ const SITE_ROWS = [
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 22, 24, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
+  ['baima', '白马', 'castle', 'yuan', 23, 21, 1.14, 85, 'yuan', '白马津的旧渡口，袁军的游骑常在河堤上点火。'],
   ['xuchang', '许昌', 'town', 'wei', 25, 27, 1.08, 170, 'cao', '曹操把天子接来以后，这里就是朝廷。'],
   ['qiao', '谯', 'village', 'wei', 27, 25, 0.75, 16, 'village', '曹氏与夏侯氏的祖宅所在，村口有棵老槐树。'],
   ['runan', '汝南', 'village', 'wei', 23, 30, 0.76, 14, 'village', '袁氏的故里，如今只剩族谱和荒田。'],
@@ -191,7 +194,10 @@ const SITE_ROWS = [
   ['xiapi', '下邳', 'town', 'lv', 31, 24, 1.1, 150, 'lv', '吕布守着这座城。泗水绕着城墙流，水能灌进来。'],
   ['xiaopei', '小沛', 'castle', 'lv', 29, 23, 1.12, 80, 'lv', '刘备借住过的地方，现在插着吕字旗。'],
   ['pengcheng', '彭城', 'village', 'lv', 30, 21, 0.78, 15, 'village', '徐州旧治的残垣，集市还开在墙根下。'],
-  ['shouchun', '寿春', 'town', null, 29, 28, 1.05, 80, 'none', '淮南的粮仓，眼下没有主人，谁先到谁拿。'],
+  ['xuzhou', '徐州', 'town', 'lv', 33, 21, 1.07, 120, 'lv', '泗水与沂水在这里交汇，城头插着吕字旗，商队仍从城门下过。'],
+  ['guangling', '广陵', 'town', 'yuanshu', 32, 26, 1.06, 95, 'yuanshu', '淮南的盐粮码头，袁术的船队从这里北上。'],
+  ['hefei', '合肥', 'castle', 'yuanshu', 31, 29, 1.12, 85, 'yuanshu', '合肥新城压在江淮之间，谁占住这里，谁就能卡住寿春的北门。'],
+  ['shouchun', '寿春', 'town', 'yuanshu', 29, 28, 1.05, 130, 'yuanshu', '淮南的粮仓。袁术把这里当作自己的都城，城外的粮车排到河岸。'],
   // ---- 荆州 ----
   ['wan', '宛', 'town', 'biao', 22, 30, 1.05, 105, 'biao', '南阳郡治，铁官与作坊都在这。'],
   ['xinye', '新野', 'castle', 'shu', 22, 33, 1.08, 85, 'shu', '刘备屯兵的小城。城不大，人心很齐。'],
@@ -215,6 +221,7 @@ const SITE_ROWS = [
   // ---- 交州 ----
   ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
   ['changsha', '长沙村', 'village', null, 23, 42, 0.74, 12, 'village', '湘水边的稻村，孙刘两家都来征过粮。'],
+  ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
   ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
   // ---- 匪巢 ----
   ['heishan', '黑山营', 'camp', 'bandit', 24, 16, 0, 45, 'bandit', '太行山里的黄巾余部，张燕带着几万人钻山沟。'],
@@ -235,6 +242,7 @@ const RECRUIT_SETS = {
   wu2: ['militia', 'cav', 'qishe', 'danyang'],
   yuan: ['militia', 'spear', 'cav', 'heavy'],
   lv: ['militia', 'spear', 'cav', 'tiefu'],
+  yuanshu: ['militia', 'spear', 'cav', 'guard'],
   biao: ['militia', 'spear', 'archer', 'cav'],
   zhang: ['militia', 'spear', 'archer', 'wudang'],
   xianbei: ['militia', 'qishe', 'xianbei', 'tengri'],
@@ -251,23 +259,28 @@ const ROADS = [
   ['beiping', 'xiangping'], ['ji', 'nanpi'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['shangdang', 'jinyang'], ['jinyang', 'puyang'], ['ye', 'pingyuan'], ['pingyuan', 'puyang'],
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
+  ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
   ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['tianshui', 'hanzhong'], ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
-  ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'],
+  ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
+  ['hefei', 'guangling'], ['guangling', 'xiapi'], ['guangling', 'xuzhou'],
+  ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
   ['pengcheng', 'taishan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'heishan'],
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'],
-  ['taishan', 'pingyuan'],
+  ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
+  ['wuling', 'changsha'], ['wuling', 'guiyang'],
 ];
 
 /** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
 const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
+  'shouchun',
 ];
 
 /** 势力 */
@@ -291,6 +304,10 @@ const FACTIONS = {
   lv: {
     id: 'lv', name: '吕', full: '吕布', color: '#a8433a', banner: '吕',
     lord: '吕布', desc: '人中吕布，马中赤兔。骁勇无谋，反复无常。',
+  },
+  yuanshu: {
+    id: 'yuanshu', name: '术', full: '袁术', color: '#9a6b4a', banner: '术',
+    lord: '袁术', desc: '汝南袁氏，据淮南寿春。兵多粮足，却总想再往上坐一级。',
   },
   biao: {
     id: 'biao', name: '刘', full: '刘表', color: '#6a8f8a', banner: '表',
@@ -361,6 +378,12 @@ const SUCCESSION = {
     { id: 'gaoshun', name: '高顺', title: '中郎将' },
     { id: 'houcheng', name: '侯成', title: '骑都尉' },
   ],
+  yuanshu: [
+    { id: 'yuanyin', name: '袁胤', title: '扬州刺史' },
+    { id: 'yuanyao', name: '袁耀', title: '袁氏宗亲' },
+    { id: 'zhangxun', name: '张勋', title: '大将' },
+    { id: 'qiaorui', name: '桥蕤', title: '将军' },
+  ],
   biao: [
     { id: 'liuqi', name: '刘琦', title: '江夏太守' },
     { id: 'liucong', name: '刘琮', title: '襄阳侯' },
@@ -409,7 +432,7 @@ const FACTION_RULERS = Object.keys(FACTIONS).reduce(function (out, id) {
 const LORDS = [
   { id: 'caocao', name: '曹操', faction: 'wei', home: 'xuchang', soldiers: { militia: 60, spear: 70, crossbow: 40, cav: 30, guard: 12 }, morale: 92, sight: 7, title: '魏公' },
   { id: 'xiahou', name: '夏侯惇', faction: 'wei', home: 'luoyang', soldiers: { militia: 40, spear: 50, crossbow: 25, cav: 20 }, morale: 86, sight: 7, title: '建武将军' },
-  { id: 'zhangliao', name: '张辽', faction: 'wei', home: 'guandu', soldiers: { militia: 30, spear: 40, cav: 35, guard: 8 }, morale: 88, sight: 8, title: '中郎将' },
+  { id: 'zhangliao', name: '张辽', faction: 'lv', home: 'xiapi', soldiers: { militia: 30, spear: 40, cav: 35, guard: 8 }, morale: 88, sight: 8, title: '骑都尉' },
   { id: 'liubei', name: '刘备', faction: 'shu', home: 'xinye', soldiers: { militia: 45, spear: 35, archer: 25, baier: 8 }, morale: 95, sight: 7, title: '左将军' },
   { id: 'guanyu', name: '关羽', faction: 'shu', home: 'xinye', soldiers: { militia: 20, spear: 40, cav: 25, baier: 10 }, morale: 95, sight: 8, title: '偏将军' },
   { id: 'zhangfei', name: '张飞', faction: 'shu', home: 'xinye', soldiers: { militia: 25, spear: 45, cav: 20 }, morale: 94, sight: 6, title: '别部司马' },
@@ -460,6 +483,13 @@ const LORDS = [
   { id: 'houcheng', name: '侯成', faction: 'lv', home: 'xiaopei', soldiers: { militia: 25, cav: 20, spear: 15 }, morale: 70, sight: 6, title: '骑都尉' },
   { id: 'songxian', name: '宋宪', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 12 }, morale: 68, sight: 6, title: '校尉' },
   { id: 'weixu', name: '魏续', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 10 }, morale: 68, sight: 6, title: '校尉' },
+  // ---- 袁术：淮南集团 ----
+  { id: 'yuanshu', name: '袁术', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 80, spear: 55, cav: 30, guard: 12 }, morale: 78, sight: 7, title: '仲家公' },
+  { id: 'jiling', name: '纪灵', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 45, spear: 55, cav: 25 }, morale: 86, sight: 7, title: '大将' },
+  { id: 'zhangxun', name: '张勋', faction: 'yuanshu', home: 'hefei', soldiers: { militia: 40, spear: 45, cav: 20 }, morale: 78, sight: 6, title: '大将' },
+  { id: 'qiaorui', name: '桥蕤', faction: 'yuanshu', home: 'guangling', soldiers: { militia: 35, spear: 40, cav: 20 }, morale: 76, sight: 6, title: '将军' },
+  { id: 'yanxiang', name: '阎象', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 30, spear: 25, crossbow: 15 }, morale: 70, sight: 5, title: '主簿' },
+  { id: 'yanghong', name: '杨弘', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 35, spear: 25, archer: 15 }, morale: 72, sight: 6, title: '长史' },
   // ---- 荆：守江的人 ----
   { id: 'huangzu', name: '黄祖', faction: 'biao', home: 'xiakou', soldiers: { militia: 35, archer: 25, boat: 20 }, morale: 70, sight: 6, title: '江夏太守' },
   { id: 'wenpin', name: '文聘', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '大将' },

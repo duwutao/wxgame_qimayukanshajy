@@ -14,7 +14,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS } = require(R + '/data/china.js');
+const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS } = require(R + '/data/china.js');
 const { VILLAGE_FOOD } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -48,7 +48,7 @@ function fightToEnd(b, limit) {
 group('世界生成');
 const world = worldLib.createWorld(20260101);
 ok('地图尺寸 128x154', world.w === 128 && world.h === 154, world.w + 'x' + world.h);
-ok('据点 55 个', world.sites.length === 55, String(world.sites.length));
+ok('据点 ' + SITE_ROWS.length + ' 个', world.sites.length === SITE_ROWS.length, String(world.sites.length));
 ok('据点数组与定义一致', world.sites.length === SITE_ROWS.length);
 
 const regionSet = {};
@@ -77,10 +77,26 @@ const st = stateLib.createGame({ seed: 20260101 });
 ok('开局只有 9 个民兵', armyLib.troopCount(st.player.troops) === 9, JSON.stringify(st.player.troops));
 ok('金 460 / 粮 150（够招满 30 人）', st.player.gold === 460 && st.player.food === 150, st.player.gold + '/' + st.player.food);
 ok('史简 1 支', st.player.shi === 1, String(st.player.shi));
-ok('领主 94 位', st.lords.length === 94, String(st.lords.length));
+ok('领主 ' + LORDS.length + ' 位', st.lords.length === LORDS.length, String(st.lords.length));
 const byFaction = {};
 st.lords.forEach(function (l) { byFaction[l.faction] = (byFaction[l.faction] || 0) + 1; });
 ok('每国至少 6 位领主', Object.keys(byFaction).every(function (k) { return byFaction[k] >= 6; }), JSON.stringify(byFaction));
+ok('袁术麾下有六位领主', st.lords.filter(function (l) { return l.faction === 'yuanshu'; }).length === 6, JSON.stringify(byFaction));
+ok('徐州与淮南新增城镇已接入', ['xuzhou', 'guangling', 'hefei', 'liyang', 'baima', 'beihai', 'wuling'].every(function (id) {
+  const site = st.world.sites.filter(function (s) { return s.id === id; })[0];
+  return !!(site && (site.type === 'town' || site.type === 'castle'));
+}), st.world.sites.length + ' 个据点');
+ok('徐州属吕布、淮南三城属袁术', (function () {
+  const xz = st.world.sites.filter(function (s) { return s.id === 'xuzhou'; })[0];
+  const yh = ['guangling', 'hefei', 'shouchun'].map(function (id) {
+    return st.world.sites.filter(function (s) { return s.id === id; })[0];
+  });
+  return !!(xz && xz.ownerFaction === 'lv' && yh.every(function (s) { return s && s.ownerFaction === 'yuanshu'; }));
+})(), '势力归属');
+ok('张辽开局在吕布帐下', (function () {
+  const z = st.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
+  return !!(z && z.faction === 'lv' && z.home === 'xiapi');
+})(), '张辽');
 ok('无旗', st.player.banner === false);
 ok('开局不在城内', st.player.atSiteId === null);
 
@@ -320,7 +336,7 @@ if (doomedIron) {
   ok('只剩玩家一人则被步卒杀死剧终', last.ended === true && doomed.gameOver === true && doomed.ending && doomed.ending.title === '剧终');
 }
 
-ok('各国都城表覆盖十座', CAPITAL_IDS.length === 10 && CAPITAL_IDS.indexOf('xuchang') >= 0 && CAPITAL_IDS.indexOf('chengdu') >= 0);
+ok('各国都城表覆盖寿春等城', CAPITAL_IDS.length >= 10 && CAPITAL_IDS.indexOf('xuchang') >= 0 && CAPITAL_IDS.indexOf('chengdu') >= 0 && CAPITAL_IDS.indexOf('shouchun') >= 0, String(CAPITAL_IDS.length));
 
 /* ---------------------------------------------------------------- 史简 */
 
@@ -598,8 +614,31 @@ ok('读档保留声望', loaded && loaded.player.renown === 120);
 ok('读档保留史简', loaded && loaded.player.shi === 3);
 ok('读档保留战役进度', loaded && loaded.campaign.stage === 2);
 ok('读档保留关系', loaded && loaded.relations.wei === -40);
-ok('读档保留地主并按定义补齐', loaded && loaded.lords.length === 94, loaded ? String(loaded.lords.length) : 'null');
+ok('读档保留地主并按定义补齐', loaded && loaded.lords.length === LORDS.length, loaded ? String(loaded.lords.length) : 'null');
 ok('旧档被拒绝', stateLib.deserialize(JSON.stringify({ world: st6.world, player: st6.player })) === null);
+{
+  // 同版本旧档：没有后来加的徐州/袁术。读档时应补齐城与人，不重算玩家已经打下的地。
+  const oldRaw = JSON.parse(raw);
+  const newSiteIds = ['xuzhou', 'guangling', 'hefei', 'liyang', 'baima', 'beihai', 'wuling'];
+  oldRaw.world.sites = oldRaw.world.sites.filter(function (s) { return newSiteIds.indexOf(s.id) < 0; });
+  const oldShouchun = oldRaw.world.sites.filter(function (s) { return s.id === 'shouchun'; })[0];
+  if (oldShouchun) { oldShouchun.ownerFaction = null; oldShouchun.faction = null; }
+  oldRaw.lords = oldRaw.lords.filter(function (l) {
+    return ['yuanshu', 'jiling', 'zhangxun', 'qiaorui', 'yanxiang', 'yanghong'].indexOf(l.id) < 0;
+  });
+  delete oldRaw.relations.yuanshu;
+  delete oldRaw.wars.yuanshu;
+  oldRaw.version = 5;
+  const migrated = stateLib.deserialize(JSON.stringify(oldRaw));
+  ok('旧档读入后补齐新增城', migrated && migrated.world.sites.length === SITE_ROWS.length,
+    migrated ? String(migrated.world.sites.length) : 'null');
+  ok('旧档读入后补齐袁术与六位领主', migrated && migrated.lords.length === LORDS.length &&
+    migrated.lords.filter(function (l) { return l.faction === 'yuanshu'; }).length === 6,
+    migrated ? String(migrated.lords.length) : 'null');
+  const migratedShouchun = migrated && migrated.world.sites.filter(function (s) { return s.id === 'shouchun'; })[0];
+  ok('旧档空寿春归袁术', migratedShouchun && migratedShouchun.ownerFaction === 'yuanshu',
+    migratedShouchun ? migratedShouchun.ownerFaction : 'null');
+}
 let walkOk = false;
 if (loaded) {
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -816,6 +855,9 @@ const gaoshun = st14.lords.filter(function (l) { return l.id === 'gaoshun'; })[0
 ok('高顺改投魏', gaoshun && gaoshun.faction === 'wei' && gaoshun.alive, gaoshun ? gaoshun.faction : '无');
 const chengong = st14.lords.filter(function (l) { return l.id === 'chengong'; })[0];
 ok('陈宫不肯降，散归乡里', chengong && chengong.alive === false && chengong.retired, chengong ? String(chengong.retired) : '无');
+const zhangliaoAfterLv = st14.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
+ok('吕布灭亡后张辽固定转入魏', zhangliaoAfterLv && zhangliaoAfterLv.faction === 'wei' && zhangliaoAfterLv.alive,
+  zhangliaoAfterLv ? zhangliaoAfterLv.faction + '/' + zhangliaoAfterLv.alive : '无');
 ok('亡国弹窗有话说', st14.events.some(function (e) { return e.type === 'faction-fall' && (e.lines || []).length; }));
 
 /* ---------------------------------------------------------------- 三态与招降 */
@@ -1630,6 +1672,89 @@ group('领主巡逻路线');
   for (let i = 0; i < 20; i++) stateLib.moveLords(patrolA);
   ok('领主沿路线离开原地', moving.x !== fromX || moving.y !== fromY,
     fromX + ',' + fromY + ' → ' + moving.x + ',' + moving.y);
+}
+
+/* ---------------------------------------------------------------- 追击与逃遁 */
+
+group('领主追击与逃遁');
+{
+  const g = stateLib.createGame({ seed: 2026112504 });
+  g.player.faction = 'wei';
+  g.player.x = 5;
+  g.player.y = 140;
+  g.player.troops = { militia: 80 };
+  const strong = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const weak = g.lords.filter(function (l) { return l.id === 'jiling'; })[0];
+  const base = g.world.sites.filter(function (s) { return s.id === 'xuchang'; })[0];
+  [strong, weak].forEach(function (l) {
+    l.inCity = null;
+    l.order = null;
+    l.pauseUntil = 0;
+    l.moveTick = 0;
+    l.wander = null;
+    l.patrolRouteIds = null;
+    l.patrolPath = null;
+    l.fleeing = false;
+    l.fleeTargetId = null;
+    l.fleePath = null;
+    l.hunting = false;
+    l.chasing = false;
+    l.foeChasing = null;
+  });
+  strong.x = base.x + 2; strong.y = base.y + 1;
+  weak.x = base.x + 3; weak.y = base.y + 1;
+  strong.troops = { militia: 150 }; strong.defTroops = { militia: 150 };
+  weak.troops = { militia: 10 }; weak.defTroops = { militia: 110 };
+  stateLib.moveLords(g);
+  ok('兵多的领主会追击', strong.hunting && strong.chasing && strong.foeChasing === 'jiling',
+    'hunting=' + strong.hunting + ' foe=' + strong.foeChasing);
+  ok('兵少的领主会逃遁', weak.fleeing === true, 'fleeing=' + weak.fleeing);
+  const weakTarget = g.world.sites.filter(function (s) { return s.id === weak.fleeTargetId; })[0];
+  ok('弱者优先逃向自己势力的城', weakTarget && weakTarget.ownerFaction === 'yuanshu',
+    weakTarget ? weakTarget.id + '/' + weakTarget.ownerFaction : 'none');
+  ok('自己的城也是最近的那座', weakTarget && weakTarget.id === 'shouchun',
+    weakTarget ? weakTarget.id : 'none');
+}
+{
+  const g = stateLib.createGame({ seed: 2026112505 });
+  g.player.faction = 'wei';
+  g.player.x = 5;
+  g.player.y = 140;
+  g.player.troops = { militia: 80 };
+  const a = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const b = g.lords.filter(function (l) { return l.id === 'jiling'; })[0];
+  const base = g.world.sites.filter(function (s) { return s.id === 'xuchang'; })[0];
+  [a, b].forEach(function (l) {
+    l.inCity = null; l.order = null; l.pauseUntil = 0; l.moveTick = 0;
+    l.wander = null; l.patrolRouteIds = null; l.patrolPath = null;
+    l.fleeing = false; l.fleeTargetId = null; l.fleePath = null; l.hunting = false; l.chasing = false;
+  });
+  a.x = base.x + 2; a.y = base.y + 1; b.x = base.x + 3; b.y = base.y + 1;
+  a.troops = { militia: 100 }; a.defTroops = { militia: 100 };
+  b.troops = { militia: 100 }; b.defTroops = { militia: 100 };
+  stateLib.moveLords(g);
+  ok('势均力敌时不盲目追击或逃遁', !a.hunting && !a.chasing && !b.fleeing,
+    'a=' + a.hunting + '/' + a.chasing + ' b=' + b.fleeing);
+}
+{
+  const g = stateLib.createGame({ seed: 2026112506 });
+  g.player.faction = 'wei';
+  g.player.troops = { militia: 100 };
+  const zl = g.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
+  const farSite = g.world.sites.filter(function (s) { return s.id === 'longcheng'; })[0];
+  zl.inCity = null; zl.order = null; zl.pauseUntil = 0; zl.moveTick = 0;
+  zl.wander = null; zl.patrolRouteIds = null; zl.patrolPath = null;
+  zl.fleeing = false; zl.fleeTargetId = null; zl.fleePath = null; zl.hunting = false; zl.chasing = false;
+  zl.x = farSite.x + 1; zl.y = farSite.y;
+  zl.troops = { militia: 10 }; zl.defTroops = { militia: 100 };
+  g.player.x = farSite.x + 2; g.player.y = farSite.y;
+  stateLib.moveLords(g);
+  const target = g.world.sites.filter(function (s) { return s.id === zl.fleeTargetId; })[0];
+  ok('自己势力城太远时才改投不敌对城', zl.fleeing && target && target.ownerFaction !== 'lv',
+    target ? target.id + '/' + target.ownerFaction : 'none');
+  ok('改投的城确实是不敌对国', target && target.ownerFaction === 'xianbei' &&
+    !warLib.atWar(g, 'lv', target.ownerFaction),
+    target ? target.id : 'none');
 }
 
 /* ---------------------------------------------------------------- 收尾 */

@@ -6,6 +6,8 @@
 const { RNG } = require('../rng.js');
 const {
   createWorld,
+  siteFromRow,
+  layRoads,
   findPath,
   siteById,
   siteAt,
@@ -23,6 +25,7 @@ const war = require('./war.js');
 const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
+  SITE_ROWS, ROADS,
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
@@ -32,6 +35,9 @@ const { LORD_BIOS } = require('../data/bios.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+const LORD_PURSUIT_RATIO = 1.65;
+const LORD_PURSUIT_GAP = 10;
+const LORD_FLEE_OWN_MAX = 30;
 const LORD_RESPAWN_DAYS = 12;
 /** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
 const CAMP_RESPAWN_DAYS = 3;
@@ -42,7 +48,7 @@ const BANDIT_TARGET = 12;
 const BANDIT_MAX = 16;
 
 /** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
-const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true };
+const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true, yuanshu: true };
 
 function joinRenownReq(factionId) {
   return MAJOR_FACTIONS[factionId] ? 200 : 100;
@@ -1581,10 +1587,16 @@ function enterLordCity(state, lord, site) {
   lord.inCity = site.id;
   lord.resting = true;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
   lord.foeChasing = null;
   lord.banditChasing = null;
   lord.wander = null;
   lord.patrolPath = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
   lord.x = site.x;
   lord.y = site.y;
   pushLog(state, lord.name + '带人进了' + site.name + '，旗卷起来，歇在城里。');
@@ -1595,8 +1607,15 @@ function leaveLordCity(state, lord, reason) {
   if (!site) { lord.inCity = null; lord.resting = false; return; }
   lord.inCity = null;
   lord.resting = false;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
   lord.wander = null;
   lord.patrolPath = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
   const spot = findFreeSpotNear(state, site.x, site.y, 3, lord);
   lord.x = spot ? spot.x : site.x;
   lord.y = spot ? spot.y : site.y;
@@ -1801,7 +1820,150 @@ function patrolPathTo(state, lord, target) {
   return path;
 }
 
-/** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
+/** 最近的本势力城；领主逃命时先保这里。 */
+function nearestOwnCity(state, lord) {
+  let best = null;
+  let bestD = 99999;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    const own = lord.faction === 'player' ? !!s.playerOwned : s.ownerFaction === lord.faction;
+    if (!own) return;
+    const d = gridDistance(lord, s);
+    if (d < bestD) { bestD = d; best = { site: s, d: d }; }
+  });
+  return best;
+}
+
+/** 不敌对国家的城；本方城太远时才用。 */
+function nearestFriendlyCity(state, lord) {
+  let best = null;
+  let bestD = 99999;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    if (lord.faction === 'player' ? !!s.playerOwned : s.ownerFaction === lord.faction) return;
+    if (!siteFriendlyToLord(state, lord, s)) return;
+    const d = gridDistance(lord, s);
+    if (d < bestD) { bestD = d; best = { site: s, d: d }; }
+  });
+  return best;
+}
+
+/**
+ * 逃遁落点：自家城优先；自家城超过 30 格，才改投不敌对国家的城。
+ * 若友军城并不比自家城近，还是回自家城，别为了“友好”多跑冤枉路。
+ */
+function fleeSiteFor(state, lord) {
+  const own = nearestOwnCity(state, lord);
+  const friendly = nearestFriendlyCity(state, lord);
+  if (!own) return friendly;
+  if (!friendly || own.d <= LORD_FLEE_OWN_MAX) return own;
+  if (friendly.d < own.d) return friendly;
+  return own;
+}
+
+function threatName(unit, kind) {
+  if (kind === 'player') return '你';
+  return (unit && unit.name) || '敌军';
+}
+
+function threatCount(unit) {
+  return Math.max(1, army.troopCount((unit && unit.troops) || {}));
+}
+
+/**
+ * 找视野里值得动手/需要躲开的对象。
+ * 先算“谁明显比我多”，优先逃；再算“谁明显比我少”，追。
+ * 只有兵力差到 1.65 倍且至少差 10 人，才启动追击或逃遁。
+ */
+function lordThreatFor(state, lord, isOwnCountry, paidOff) {
+  const p = state.player;
+  const sight = Math.max(3, lord.sight || 5);
+  const own = threatCount(lord);
+  const candidates = [];
+
+  if (!isOwnCountry && !paidOff && !isSafeResting(state) &&
+      isHostileFaction(state, lord.faction)) {
+    const d = gridDistance(lord, p);
+    if (d <= sight) {
+      candidates.push({ kind: 'player', unit: p, count: threatCount(p), d: d, name: p.name || '你' });
+    }
+  }
+
+  (state.lords || []).forEach(function (other) {
+    if (!other || other === lord || !other.alive || other.dead || other.retired) return;
+    if (other.inCity || other.prisoner || other.engagedWith) return;
+    if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
+    if (!war.atWar(state, lord.faction, other.faction)) return;
+    const d = gridDistance(lord, other);
+    if (d > sight) return;
+    candidates.push({ kind: 'lord', unit: other, count: threatCount(other), d: d, name: other.name });
+  });
+
+  (state.parties || []).forEach(function (party) {
+    if (!party || party.dead || party.engagedWith) return;
+    if (party.faction !== 'bandit' && !war.atWar(state, lord.faction, party.faction)) return;
+    const d = gridDistance(lord, party);
+    if (d > sight) return;
+    candidates.push({ kind: 'party', unit: party, count: threatCount(party), d: d, name: party.name || '匪团' });
+  });
+
+  let flee = null;
+  let hunt = null;
+  candidates.forEach(function (c) {
+    if (c.count >= own * LORD_PURSUIT_RATIO && c.count - own >= LORD_PURSUIT_GAP) {
+      if (!flee || c.d < flee.d) flee = c;
+    }
+    if (own >= c.count * LORD_PURSUIT_RATIO && own - c.count >= LORD_PURSUIT_GAP) {
+      if (!hunt || c.d < hunt.d) hunt = c;
+    }
+  });
+  if (flee) return { role: 'flee', target: flee };
+  if (hunt) return { role: 'hunt', target: hunt };
+  return null;
+}
+
+function markLordFlee(state, lord, site, threat) {
+  const targetId = site ? site.id : null;
+  const changed = !lord.fleeing || lord.fleeTargetId !== targetId;
+  lord.fleeing = true;
+  lord.hunting = false;
+  lord.chasing = false;
+  lord.foeChasing = null;
+  lord.banditChasing = null;
+  lord.fleeTargetId = targetId;
+  lord.fleeFrom = threat ? threat.kind + ':' + ((threat.unit && threat.unit.id) || threat.name) : null;
+  if (changed) {
+    lord.fleePath = null;
+    lord.fleePathFor = null;
+    pushLog(state, lord.name + '见' + (threat ? threat.name : '敌军') + '兵多，带人往' +
+      (site ? site.name : '自家方向') + '撤。', 'war');
+  }
+}
+
+function markLordHunt(state, lord, threat) {
+  const id = (threat.unit && threat.unit.id) || null;
+  const changed = !lord.hunting || lord.foeChasing !== id || lord.banditChasing !== (threat.kind === 'party' ? id : null);
+  lord.hunting = true;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
+  lord.chasing = true;
+  lord.foeChasing = threat.kind === 'lord' ? id : null;
+  lord.banditChasing = threat.kind === 'party' ? id : null;
+  if (changed) {
+    pushLog(state, lord.name + '兵多，盯上了' + threat.name + '的旗，追过去。', 'war');
+  }
+}
+
+function clearLordChase(lord) {
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.foeChasing = null;
+  lord.banditChasing = null;
+}
+
+/** 领主：兵多追、兵少逃；其余情况按军令、休整和巡逻路线走。 */
 function moveLords(state) {
   const p = state.player;
   const nowH = gameHours(state);
@@ -1832,6 +1994,10 @@ function moveLords(state) {
       if (orderSite) {
         const od = gridDistance(lord, orderSite);
         lord.chasing = false;
+        lord.hunting = false;
+        lord.fleeing = false;
+        lord.fleeTargetId = null;
+        lord.fleeFrom = null;
         lord.foeChasing = null;
         lord.banditChasing = null;
         lord.resting = false;
@@ -1851,70 +2017,109 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 掉到六成五以下先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.65));
-    if (isHostileFaction(state, lord.faction) && !paidOff && !isSafeResting(state) && dist <= lord.sight && !needRest) {
-      target = { x: p.x, y: p.y };
-      lord.chasing = true;
+    const threat = lordThreatFor(state, lord, isOwnCountry, paidOff);
+
+    if (threat && threat.role === 'flee') {
+      // 兵少：向最近的本方城撤；本方城太远才投不敌对国家的城。
+      const flee = fleeSiteFor(state, lord);
+      const fleeSite = flee && flee.site;
+      if (fleeSite) {
+        target = { x: fleeSite.x, y: fleeSite.y, siteId: fleeSite.id };
+        markLordFlee(state, lord, fleeSite, threat.target);
+      } else if (home) {
+        target = { x: home.x, y: home.y };
+        markLordFlee(state, lord, null, threat.target);
+      } else {
+        target = null;
+        lord.fleeing = true;
+        lord.fleeTargetId = null;
+      }
+      lord.resting = true;
+    } else if (needRest) {
+      // 兵力掉到六成五以下：回自己的城，或就近进友军城休整、补兵
+      const rest = fleeSiteFor(state, lord);
+      const restingSite = rest && rest.site;
+      if (restingSite) {
+        target = { x: restingSite.x, y: restingSite.y, siteId: restingSite.id };
+      } else if (home) {
+        target = { x: home.x, y: home.y, siteId: home.id };
+      }
+      lord.fleeing = false;
+      lord.fleeTargetId = null;
+      lord.fleePath = null;
+      lord.fleePathFor = null;
+      clearLordChase(lord);
+      lord.resting = true;
+    } else if (threat && threat.role === 'hunt') {
+      // 兵多：追视野里最弱的一支，追到就由 fieldTick 结算。
+      target = { x: threat.target.unit.x, y: threat.target.unit.y };
+      markLordHunt(state, lord, threat.target);
       lord.resting = false;
-    } else {
-      lord.chasing = false;
-      if (needRest) {
-        // 兵力掉到六成五以下：回自己的城，或就近进友军城休整、补兵
-        const homeCity = home && (home.type === 'town' || home.type === 'castle') ? home : null;
-        const restingSite = (homeCity && siteFriendlyToLord(state, lord, homeCity))
-          ? homeCity : nearestFriendlySite(state, lord, 8);
-        if (restingSite) {
-          target = { x: restingSite.x, y: restingSite.y, siteId: restingSite.id };
-        } else {
-          target = { x: home.x, y: home.y };
-        }
-        lord.foeChasing = null;
-        lord.banditChasing = null;
+    } else if (lord.fleeing) {
+      // 已经开撤：哪怕追兵暂时不在视野里，也先把人带进最近的友城。
+      const fleeSite = siteById(state.world, lord.fleeTargetId);
+      if (fleeSite && siteFriendlyToLord(state, lord, fleeSite)) {
+        target = { x: fleeSite.x, y: fleeSite.y, siteId: fleeSite.id };
+        lord.chasing = false;
+        lord.hunting = false;
         lord.resting = true;
       } else {
-        // 国战：看见死敌的旗，先扑过去打人，老家的事放一放
-        const foe = isOwnCountry ? null : war.nearestFoe(state, lord, 5);
-        if (foe && !(lord.scuffle > 0)) {
-          target = { x: foe.x, y: foe.y };
-          lord.foeChasing = foe.id;
-          lord.banditChasing = null;
+        const flee = fleeSiteFor(state, lord);
+        if (flee && flee.site) {
+          target = { x: flee.site.x, y: flee.site.y, siteId: flee.site.id };
+          markLordFlee(state, lord, flee.site, null);
+          lord.resting = true;
         } else {
-          // 顺手清乡：看见近处的匪团就撵过去，撵不上也没关系
-          const bandit = nearestBandit(state, lord, 4);
-          if (bandit) {
-            target = { x: bandit.x, y: bandit.y };
-            lord.banditChasing = bandit.id;
-            lord.foeChasing = null;
-          } else if (home && gridDistance(lord, home) > 3 && !Array.isArray(lord.patrolRouteIds)) {
-            // 还没排巡逻路线的远行领主先回一次家；排好路线后按路线走，不再被家门吸回去。
-            lord.foeChasing = null;
-            lord.banditChasing = null;
-            target = { x: home.x, y: home.y };
-          } else {
-            lord.foeChasing = null;
-            lord.banditChasing = null;
-            // 没仗打的时候，沿自己的巡逻路线走：主城 → 另外两座本城 → 回主城。
-            // 每名领主的路线和出发段都由 id 稳定散列，不共用随机点，不会原地打转。
-            const route = patrolRouteFor(state, lord);
-            if (!lord.wander) {
-              lord.wander = patrolTargetFor(state, lord);
-              lord.patrolPath = null;
-            } else if (gridDistance(lord, lord.wander) <= 1) {
-              if (route.length > 1) lord.patrolIdx = ((lord.patrolIdx || 0) + 1) % route.length;
-              lord.wander = patrolTargetFor(state, lord);
-              lord.patrolPath = null;
-            }
-            target = lord.wander;
-          }
+          lord.fleeing = false;
+          lord.fleeTargetId = null;
+          lord.fleePath = null;
+          clearLordChase(lord);
         }
       }
+    } else {
+      clearLordChase(lord);
+      lord.fleeing = false;
+      lord.fleeTargetId = null;
+      lord.fleePath = null;
+      // 没仗打的时候，沿自己的巡逻路线走：主城 → 另外两座本城 → 回主城。
+      // 每名领主的路线和出发段都由 id 稳定散列，不共用随机点，不会原地打转。
+      const route = patrolRouteFor(state, lord);
+      if (!lord.wander) {
+        lord.wander = patrolTargetFor(state, lord);
+        lord.patrolPath = null;
+      } else if (gridDistance(lord, lord.wander) <= 1) {
+        if (route.length > 1) lord.patrolIdx = ((lord.patrolIdx || 0) + 1) % route.length;
+        lord.wander = patrolTargetFor(state, lord);
+        lord.patrolPath = null;
+      }
+      target = lord.wander;
     }
     // 辎重多，两拍才挪一格：土匪轻装跑得掉，领主追不上
     lord.moveTick = (lord.moveTick || 0) + 1;
     if (lord.moveTick % 2 !== 0) return;
     if (!target) return;
     let step = null;
+    // 逃遁也走 BFS，避免沿河岸或城角一步贪心来回打转。
+    if (lord.fleeing && target && target.siteId) {
+      const sig = target.siteId + ':' + target.x + ',' + target.y;
+      if (lord.fleePathFor !== sig || !lord.fleePath) {
+        lord.fleePath = patrolPathTo(state, lord, target);
+        lord.fleePathFor = sig;
+      }
+      if (lord.fleePath && lord.fleePath.length) {
+        const next = lord.fleePath[0];
+        if (!siteAt(state.world, next.x, next.y) &&
+            !unitOccupies(state, lord, next.x, next.y) &&
+            isPassable(state.world, next.x, next.y)) {
+          step = lord.fleePath.shift();
+        } else {
+          lord.fleePath = null;
+          lord.fleePathFor = null;
+        }
+      }
+    }
     // 巡逻目标走一次 BFS 把绕行路径缓存下来，避免在河岸/城角一步贪心来回打转。
-    if (target === lord.wander && lord.wander.patrolSite) {
+    if (!step && target === lord.wander && lord.wander.patrolSite) {
       if (!lord.patrolPath) lord.patrolPath = patrolPathTo(state, lord, target);
       if (lord.patrolPath && lord.patrolPath.length) {
         const next = lord.patrolPath[0];
@@ -3545,6 +3750,7 @@ function resolveDefeatedLord(state, action) {
 /* ---------------------------------------------------------------- 灭国 *//** 史实里的改换门庭：被灭的那家散了，这些人该跟谁走 */
 const DEFECT_TO = {
   gaoshun: 'wei', houcheng: 'wei', songxian: 'wei', weixu: 'wei',
+  zhangliao: 'wei',
   wenpin: 'wei', zhangyun: 'wei', wangwei: 'wei',
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
@@ -3658,6 +3864,10 @@ function installRuler(state, fac, lord, oldLord) {
   lord.hidden = null;
   lord.prisoner = null;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.order = null;
   lord.defending = null;
   lord.faction = fac;
@@ -3834,6 +4044,11 @@ function moveLordToFaction(state, lord, target) {
   }
   lord.alive = true;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
+  lord.fleePath = null;
   lord.resting = false;
   lord.hidden = null;
   lord.troops = takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
@@ -3881,7 +4096,10 @@ function fallFaction(state, id) {
       gone.push(l.name);
       return;
     }
-    const target = pickFactionFor(state, l, id);
+    // 史实里已经写好的去向优先：张辽从吕布旗下转入魏，不随就近掷骰。
+    const fixedTo = DEFECT_TO[l.id];
+    const target = fixedTo && factionAlive(state, fixedTo)
+      ? fixedTo : pickFactionFor(state, l, id);
     if (!target) {
       l.alive = false;
       l.retired = true;
@@ -4338,6 +4556,8 @@ function serialize(state) {
     lords: state.lords.map(function (l) {
       const copy = Object.assign({}, l);
       delete copy.patrolPath;
+      delete copy.fleePath;
+      delete copy.fleePathFor;
       return copy;
     }),
     parties: state.parties,
@@ -4402,6 +4622,8 @@ function deserialize(json) {
     lords: (data.lords || []).map(function (l) {
       const copy = Object.assign({}, l);
       copy.patrolPath = null;
+      copy.fleePath = null;
+      copy.fleePathFor = null;
       return copy;
     }),
     parties: data.parties || [],
@@ -4446,6 +4668,50 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 同版本老档补上后来新增的城与势力：
+  // 新开局由 createWorld 全量生成；读旧档时只补缺失据点，不重算玩家已经打下的城。
+  Object.keys(FACTIONS).forEach(function (id) {
+    if (state.relations[id] === undefined) state.relations[id] = id === 'bandit' ? -100 : 0;
+    if (state.wars[id] === undefined) state.wars[id] = id === 'bandit';
+  });
+  const knownSites = {};
+  state.world.sites.forEach(function (s) { knownSites[s.id] = true; });
+  let addedSites = 0;
+  SITE_ROWS.forEach(function (row) {
+    if (knownSites[row[0]]) return;
+    const site = siteFromRow(state.world, row);
+    site.recruits = {};
+    (site.recruitList || []).forEach(function (id, i) {
+      site.recruits[id] = 1 + ((row[0].charCodeAt(0) + i * 3) % 3);
+    });
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id, i) {
+      site.lordRecruits[id] = (row[0].charCodeAt(0) + i * 5) % 4;
+    });
+    site.foodStock = {};
+    if (site.type === 'village') {
+      (VILLAGE_FOOD || []).forEach(function (f) {
+        site.foodStock[f.id] = Math.max(1, f.stockMax || 3);
+      });
+    }
+    state.world.sites.push(site);
+    addedSites += 1;
+  });
+  // 旧档的寿春原本是无主城；只在这座城还空着时归袁术，已玩家占领/易主的不动。
+  const oldShouchun = siteById(state.world, 'shouchun');
+  if (oldShouchun && !oldShouchun.playerOwned && !oldShouchun.ownerFaction) {
+    oldShouchun.ownerFaction = 'yuanshu';
+    oldShouchun.faction = 'yuanshu';
+    oldShouchun.banner = FACTIONS.yuanshu.banner;
+    oldShouchun.color = FACTIONS.yuanshu.color;
+  }
+  if (addedSites) {
+    layRoads(state.world, ROADS.filter(function (pair) {
+      return !knownSites[pair[0]] || !knownSites[pair[1]];
+    }));
+    state.world.factionGrid = null;
+  }
 
   // 同版本老档补上村市口粮与领主独立兵源池
   state.world.sites.forEach(function (site) {

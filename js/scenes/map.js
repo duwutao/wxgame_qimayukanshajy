@@ -1012,7 +1012,13 @@ function drawUnits(ctx, app, cam, box, w) {
         size: Math.round(12 * z), align: 'center', color: '#fff',
       });
     }
-    if (lord.chasing) {
+    if (lord.fleeing) {
+      ctx.fillStyle = 'rgba(60,42,18,0.88)';
+      ctx.fillRect(sx - 20 * z, sy - 57 * z, 40 * z, 16 * z);
+      text(ctx, '逃遁', sx, sy - 56 * z, {
+        size: Math.round(12 * z), align: 'center', color: '#ffd18a',
+      });
+    } else if (lord.chasing) {
       text(ctx, '!', sx, sy - 44 * z, { size: Math.round(22 * z), align: 'center', color: '#e05a42' });
     }
   });

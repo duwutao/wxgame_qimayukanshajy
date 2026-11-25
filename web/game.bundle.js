@@ -785,6 +785,8 @@ const SITE_ROWS = [
   ['ye', '邺', 'town', 'yuan', 28, 13, 1.08, 160, 'yuan', '袁本初的都城。铜雀台还没修，粮仓先满了。'],
   ['nanpi', '南皮', 'castle', 'yuan', 31, 11, 1.12, 90, 'yuan', '渤海郡的壁垒，袁家的后院。'],
   ['pingyuan', '平原', 'town', 'yuan', 31, 17, 1.04, 95, 'yuan', '青州北界的粮城，麦子堆到城墙那么高。'],
+  ['beihai', '北海', 'town', 'yuan', 34, 16, 1.06, 100, 'yuan', '青州的海盐与鱼货在这里上岸，袁谭的旗插在城头。'],
+  ['liyang', '黎阳', 'town', 'yuan', 27, 15, 1.05, 105, 'yuan', '黄河渡口。袁绍的粮车从这里过河，河边常年有马嘶。'],
   ['puyang', '濮阳', 'town', 'wei', 26, 19, 1.06, 105, 'cao', '兖州的旧治，曹操在这里打赢过吕布。'],
   // ---- 关中 ----
   ['changan', '长安', 'town', 'han', 15, 20, 1.1, 140, 'han', '旧都。宫室烧了一半，百官还在。'],
@@ -799,6 +801,7 @@ const SITE_ROWS = [
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 22, 24, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
+  ['baima', '白马', 'castle', 'yuan', 23, 21, 1.14, 85, 'yuan', '白马津的旧渡口，袁军的游骑常在河堤上点火。'],
   ['xuchang', '许昌', 'town', 'wei', 25, 27, 1.08, 170, 'cao', '曹操把天子接来以后，这里就是朝廷。'],
   ['qiao', '谯', 'village', 'wei', 27, 25, 0.75, 16, 'village', '曹氏与夏侯氏的祖宅所在，村口有棵老槐树。'],
   ['runan', '汝南', 'village', 'wei', 23, 30, 0.76, 14, 'village', '袁氏的故里，如今只剩族谱和荒田。'],
@@ -806,7 +809,10 @@ const SITE_ROWS = [
   ['xiapi', '下邳', 'town', 'lv', 31, 24, 1.1, 150, 'lv', '吕布守着这座城。泗水绕着城墙流，水能灌进来。'],
   ['xiaopei', '小沛', 'castle', 'lv', 29, 23, 1.12, 80, 'lv', '刘备借住过的地方，现在插着吕字旗。'],
   ['pengcheng', '彭城', 'village', 'lv', 30, 21, 0.78, 15, 'village', '徐州旧治的残垣，集市还开在墙根下。'],
-  ['shouchun', '寿春', 'town', null, 29, 28, 1.05, 80, 'none', '淮南的粮仓，眼下没有主人，谁先到谁拿。'],
+  ['xuzhou', '徐州', 'town', 'lv', 33, 21, 1.07, 120, 'lv', '泗水与沂水在这里交汇，城头插着吕字旗，商队仍从城门下过。'],
+  ['guangling', '广陵', 'town', 'yuanshu', 32, 26, 1.06, 95, 'yuanshu', '淮南的盐粮码头，袁术的船队从这里北上。'],
+  ['hefei', '合肥', 'castle', 'yuanshu', 31, 29, 1.12, 85, 'yuanshu', '合肥新城压在江淮之间，谁占住这里，谁就能卡住寿春的北门。'],
+  ['shouchun', '寿春', 'town', 'yuanshu', 29, 28, 1.05, 130, 'yuanshu', '淮南的粮仓。袁术把这里当作自己的都城，城外的粮车排到河岸。'],
   // ---- 荆州 ----
   ['wan', '宛', 'town', 'biao', 22, 30, 1.05, 105, 'biao', '南阳郡治，铁官与作坊都在这。'],
   ['xinye', '新野', 'castle', 'shu', 22, 33, 1.08, 85, 'shu', '刘备屯兵的小城。城不大，人心很齐。'],
@@ -830,6 +836,7 @@ const SITE_ROWS = [
   // ---- 交州 ----
   ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
   ['changsha', '长沙村', 'village', null, 23, 42, 0.74, 12, 'village', '湘水边的稻村，孙刘两家都来征过粮。'],
+  ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
   ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
   // ---- 匪巢 ----
   ['heishan', '黑山营', 'camp', 'bandit', 24, 16, 0, 45, 'bandit', '太行山里的黄巾余部，张燕带着几万人钻山沟。'],
@@ -850,6 +857,7 @@ const RECRUIT_SETS = {
   wu2: ['militia', 'cav', 'qishe', 'danyang'],
   yuan: ['militia', 'spear', 'cav', 'heavy'],
   lv: ['militia', 'spear', 'cav', 'tiefu'],
+  yuanshu: ['militia', 'spear', 'cav', 'guard'],
   biao: ['militia', 'spear', 'archer', 'cav'],
   zhang: ['militia', 'spear', 'archer', 'wudang'],
   xianbei: ['militia', 'qishe', 'xianbei', 'tengri'],
@@ -866,23 +874,28 @@ const ROADS = [
   ['beiping', 'xiangping'], ['ji', 'nanpi'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['shangdang', 'jinyang'], ['jinyang', 'puyang'], ['ye', 'pingyuan'], ['pingyuan', 'puyang'],
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
+  ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
   ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['tianshui', 'hanzhong'], ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
-  ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'],
+  ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
+  ['hefei', 'guangling'], ['guangling', 'xiapi'], ['guangling', 'xuzhou'],
+  ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
   ['pengcheng', 'taishan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'heishan'],
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'],
-  ['taishan', 'pingyuan'],
+  ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
+  ['wuling', 'changsha'], ['wuling', 'guiyang'],
 ];
 
 /** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
 const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
+  'shouchun',
 ];
 
 /** 势力 */
@@ -906,6 +919,10 @@ const FACTIONS = {
   lv: {
     id: 'lv', name: '吕', full: '吕布', color: '#a8433a', banner: '吕',
     lord: '吕布', desc: '人中吕布，马中赤兔。骁勇无谋，反复无常。',
+  },
+  yuanshu: {
+    id: 'yuanshu', name: '术', full: '袁术', color: '#9a6b4a', banner: '术',
+    lord: '袁术', desc: '汝南袁氏，据淮南寿春。兵多粮足，却总想再往上坐一级。',
   },
   biao: {
     id: 'biao', name: '刘', full: '刘表', color: '#6a8f8a', banner: '表',
@@ -976,6 +993,12 @@ const SUCCESSION = {
     { id: 'gaoshun', name: '高顺', title: '中郎将' },
     { id: 'houcheng', name: '侯成', title: '骑都尉' },
   ],
+  yuanshu: [
+    { id: 'yuanyin', name: '袁胤', title: '扬州刺史' },
+    { id: 'yuanyao', name: '袁耀', title: '袁氏宗亲' },
+    { id: 'zhangxun', name: '张勋', title: '大将' },
+    { id: 'qiaorui', name: '桥蕤', title: '将军' },
+  ],
   biao: [
     { id: 'liuqi', name: '刘琦', title: '江夏太守' },
     { id: 'liucong', name: '刘琮', title: '襄阳侯' },
@@ -1024,7 +1047,7 @@ const FACTION_RULERS = Object.keys(FACTIONS).reduce(function (out, id) {
 const LORDS = [
   { id: 'caocao', name: '曹操', faction: 'wei', home: 'xuchang', soldiers: { militia: 60, spear: 70, crossbow: 40, cav: 30, guard: 12 }, morale: 92, sight: 7, title: '魏公' },
   { id: 'xiahou', name: '夏侯惇', faction: 'wei', home: 'luoyang', soldiers: { militia: 40, spear: 50, crossbow: 25, cav: 20 }, morale: 86, sight: 7, title: '建武将军' },
-  { id: 'zhangliao', name: '张辽', faction: 'wei', home: 'guandu', soldiers: { militia: 30, spear: 40, cav: 35, guard: 8 }, morale: 88, sight: 8, title: '中郎将' },
+  { id: 'zhangliao', name: '张辽', faction: 'lv', home: 'xiapi', soldiers: { militia: 30, spear: 40, cav: 35, guard: 8 }, morale: 88, sight: 8, title: '骑都尉' },
   { id: 'liubei', name: '刘备', faction: 'shu', home: 'xinye', soldiers: { militia: 45, spear: 35, archer: 25, baier: 8 }, morale: 95, sight: 7, title: '左将军' },
   { id: 'guanyu', name: '关羽', faction: 'shu', home: 'xinye', soldiers: { militia: 20, spear: 40, cav: 25, baier: 10 }, morale: 95, sight: 8, title: '偏将军' },
   { id: 'zhangfei', name: '张飞', faction: 'shu', home: 'xinye', soldiers: { militia: 25, spear: 45, cav: 20 }, morale: 94, sight: 6, title: '别部司马' },
@@ -1075,6 +1098,13 @@ const LORDS = [
   { id: 'houcheng', name: '侯成', faction: 'lv', home: 'xiaopei', soldiers: { militia: 25, cav: 20, spear: 15 }, morale: 70, sight: 6, title: '骑都尉' },
   { id: 'songxian', name: '宋宪', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 12 }, morale: 68, sight: 6, title: '校尉' },
   { id: 'weixu', name: '魏续', faction: 'lv', home: 'pengcheng', soldiers: { militia: 25, spear: 20, cav: 10 }, morale: 68, sight: 6, title: '校尉' },
+  // ---- 袁术：淮南集团 ----
+  { id: 'yuanshu', name: '袁术', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 80, spear: 55, cav: 30, guard: 12 }, morale: 78, sight: 7, title: '仲家公' },
+  { id: 'jiling', name: '纪灵', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 45, spear: 55, cav: 25 }, morale: 86, sight: 7, title: '大将' },
+  { id: 'zhangxun', name: '张勋', faction: 'yuanshu', home: 'hefei', soldiers: { militia: 40, spear: 45, cav: 20 }, morale: 78, sight: 6, title: '大将' },
+  { id: 'qiaorui', name: '桥蕤', faction: 'yuanshu', home: 'guangling', soldiers: { militia: 35, spear: 40, cav: 20 }, morale: 76, sight: 6, title: '将军' },
+  { id: 'yanxiang', name: '阎象', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 30, spear: 25, crossbow: 15 }, morale: 70, sight: 5, title: '主簿' },
+  { id: 'yanghong', name: '杨弘', faction: 'yuanshu', home: 'shouchun', soldiers: { militia: 35, spear: 25, archer: 15 }, morale: 72, sight: 6, title: '长史' },
   // ---- 荆：守江的人 ----
   { id: 'huangzu', name: '黄祖', faction: 'biao', home: 'xiakou', soldiers: { militia: 35, archer: 25, boat: 20 }, morale: 70, sight: 6, title: '江夏太守' },
   { id: 'wenpin', name: '文聘', faction: 'biao', home: 'xiangyang', soldiers: { militia: 30, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '大将' },
@@ -2676,6 +2706,73 @@ function coastX(y) {
   return SV(COAST[COAST.length - 1][1], MAP_W - 1);
 }
 
+/** 据点定义 -> 实际 site 对象；兼容新开局与旧档补新城。 */
+function siteFromRow(world, row) {
+  const def = {
+    id: row[0], name: row[1], type: row[2], faction: row[3],
+    x: S(row[4]), y: SV(row[5], MAP_H - 1),
+    priceBase: row[6], garrison: row[7], troopSet: row[8], blurb: row[9],
+  };
+  const site = {
+    id: def.id,
+    name: def.name,
+    type: def.type,
+    region: regionAt(world, def.x, def.y),
+    faction: def.faction,
+    ownerFaction: def.faction,
+    x: def.x,
+    y: def.y,
+    market: def.type !== 'camp',
+    priceBase: def.priceBase,
+    garrisonBase: def.garrison,
+    garrison: def.garrison,
+    recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
+    recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
+    recruits: {},
+    priceIndex: 1,
+    blurb: def.blurb,
+    visited: false,
+    playerOwned: false,
+    cleared: false,
+    banner: FACTIONS[def.faction] ? FACTIONS[def.faction].banner : '',
+    color: FACTIONS[def.faction] ? FACTIONS[def.faction].color : '#8f8f86',
+  };
+  // 清出场地（只清山与海，保留河流作为渡口）
+  const clearR = def.type === 'town' || def.type === 'castle' ? 2 : 1;
+  const base = REGIONS[site.region] ? REGIONS[site.region].base : 'plain';
+  for (let y = site.y - clearR; y <= site.y + clearR; y++) {
+    for (let x = site.x - clearR; x <= site.x + clearR; x++) {
+      if (!inBounds(x, y)) continue;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'mountain' || t === 'sea') {
+        world.tiles[idx(x, y)] = base;
+      }
+    }
+  }
+  return site;
+}
+
+/** 铺设道路；旧档补新城时也可以只铺新增的连线。 */
+function layRoads(world, pairs) {
+  (pairs || []).forEach(function (pair) {
+    const a = siteById(world, pair[0]);
+    const b = siteById(world, pair[1]);
+    if (!a || !b) return;
+    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
+      if (!inBounds(x, y)) return;
+      if (siteAt(world, x, y)) return;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'sea' || t === 'river') return;
+      if (t === 'mountain') {
+        world.tiles[idx(x, y)] = 'hills';
+        return;
+      }
+      world.tiles[idx(x, y)] = 'road';
+    });
+  });
+}
+
+
 function createWorld(seed) {
   const rng = new RNG(seed);
   const world = {
@@ -2794,67 +2891,11 @@ function createWorld(seed) {
 
   // 6. 据点
   SITE_ROWS.forEach(function (row) {
-    const def = {
-      id: row[0], name: row[1], type: row[2], faction: row[3],
-      x: S(row[4]), y: SV(row[5], MAP_H - 1),
-      priceBase: row[6], garrison: row[7], troopSet: row[8], blurb: row[9],
-    };
-    const site = {
-      id: def.id,
-      name: def.name,
-      type: def.type,
-      region: regionAt(world, def.x, def.y),
-      faction: def.faction,
-      ownerFaction: def.faction,
-      x: def.x,
-      y: def.y,
-      market: def.type !== 'camp',
-      priceBase: def.priceBase,
-      garrisonBase: def.garrison,
-      garrison: def.garrison,
-      recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
-      recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
-      recruits: {},
-      priceIndex: 1,
-      blurb: def.blurb,
-      visited: false,
-      playerOwned: false,
-      cleared: false,
-      banner: FACTIONS[def.faction] ? FACTIONS[def.faction].banner : '',
-      color: FACTIONS[def.faction] ? FACTIONS[def.faction].color : '#8f8f86',
-    };
-    // 清出场地（只清山与海，保留河流作为渡口）
-    const clearR = def.type === 'town' || def.type === 'castle' ? 2 : 1;
-    const base = REGIONS[site.region] ? REGIONS[site.region].base : 'plain';
-    for (let y = site.y - clearR; y <= site.y + clearR; y++) {
-      for (let x = site.x - clearR; x <= site.x + clearR; x++) {
-        if (!inBounds(x, y)) continue;
-        const t = world.tiles[idx(x, y)];
-        if (t === 'mountain' || t === 'sea') {
-          world.tiles[idx(x, y)] = base;
-        }
-      }
-    }
-    world.sites.push(site);
+    world.sites.push(siteFromRow(world, row));
   });
 
   // 7. 道路
-  ROADS.forEach(function (pair) {
-    const a = siteById(world, pair[0]);
-    const b = siteById(world, pair[1]);
-    if (!a || !b) return;
-    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
-      if (!inBounds(x, y)) return;
-      if (siteAt(world, x, y)) return;
-      const t = world.tiles[idx(x, y)];
-      if (t === 'sea' || t === 'river') return;
-      if (t === 'mountain') {
-        world.tiles[idx(x, y)] = 'hills';
-        return;
-      }
-      world.tiles[idx(x, y)] = 'road';
-    });
-  });
+  layRoads(world, ROADS);
 
   // 8. 连通性兜底：从陈留铺路
   const start = siteById(world, 'chenliu') || world.sites[0];
@@ -3045,6 +3086,8 @@ module.exports = {
   siteAt,
   siteById,
   createWorld,
+  siteFromRow,
+  layRoads,
   findPath,
   tileHours,
   addHours,
@@ -3806,6 +3849,12 @@ const LORD_EXTRA_BIO = {
   houcheng: '侯成，吕布部将。下邳城破前，是他先开的门。',
   songxian: '宋宪，吕布部将。绑了陈宫出城的人之一。',
   weixu: '魏续，与宋宪同去的那一个。',
+  yuanshu: '袁术，汝南袁氏之后。据淮南寿春，兵多粮足，得玉玺后便不再肯低头。',
+  jiling: '纪灵，袁术麾下大将。使三尖两刃刀，曾在辕门与吕布对峙，被一箭解了兵。',
+  zhangxun: '张勋，袁术部将。淮南起兵时，他领着最多的一路人马。',
+  qiaorui: '桥蕤，袁术部将。守广陵水口，粮船与战船都从他旗下过。',
+  yanxiang: '阎象，袁术主簿。寿春议称帝时，他是少数敢劝一句的人。',
+  yanghong: '杨弘，袁术长史。替袁术往来诸侯，话说得比刀还圆。',
   huangzu: '黄祖，江夏太守。守了十几年，射死过孙坚。',
   wenpin: '文聘，南阳宛人。刘表死后守江夏，曹丕说他是真将。',
   zhangyun: '张允，荆州水军副将。船比人多。',
@@ -3851,6 +3900,10 @@ const FACTION_TALK = {
   lv: {
     greet: ['徐州城下，站住。', '我奉温侯之命守这儿。'],
     idle: ['在喂马。赤兔只认一个人。', '在修城门。前天刚撞坏。', '在等并州的旧部。他们还没来。'],
+  },
+  yuanshu: {
+    greet: ['寿春的粮仓，不是谁都能看。', '来投仲家？先把名帖递上来。'],
+    idle: ['在看淮南的粮价。今年雨水太足。', '在数江淮的船。水军还得再添。', '在写一封不肯低头的信。'],
   },
   biao: {
     greet: ['荆州的规矩，先递名帖。', '江水深，话要短。'],
@@ -4523,6 +4576,8 @@ const SEED_WARS = [
   ['wu', 'biao'],     // 江夏：孙坚死于黄祖箭下
   ['wu', 'wei'],      // 赤壁前的水路
   ['yuan', 'lv'],     // 袁绍与吕布，翻脸比结盟快
+  ['wei', 'yuanshu'], // 淮南：曹操与袁术
+  ['lv', 'yuanshu'],  // 徐州与淮南的粮道
   ['yuan', 'xianbei'],// 北境
   ['ma', 'han'],      // 西凉内斗：马腾与韩遂
   ['zhang', 'shu'],   // 刘璋拒刘备入蜀
@@ -4778,6 +4833,10 @@ function capture(state, loser, captorFaction, captorName) {
   const siteId = homeSite ? homeSite.id : loser.home;
   loser.alive = false;
   loser.chasing = false;
+  loser.hunting = false;
+  loser.fleeing = false;
+  loser.fleeTargetId = null;
+  loser.fleePath = null;
   loser.order = null;
   loser.defending = null;
   loser.prisoner = {
@@ -4815,6 +4874,11 @@ function freeLord(state, lord, why) {
   lord.prisoner = null;
   lord.order = null;
   lord.defending = null;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.x = home ? home.x : lord.x;
   lord.y = home ? home.y : lord.y;
   const keep = Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.45));
@@ -4879,6 +4943,11 @@ function clash(state, a, b) {
   if (flee) {
     loser.alive = true;
     loser.chasing = false;
+    loser.hunting = false;
+    loser.fleeing = true;
+    loser.fleeTargetId = null;
+    loser.fleeFrom = winner ? winner.id : null;
+    loser.fleePath = null;
     moveAway(state, loser);
     loser.scuffle = 10;
     if (near) logFn(state, loser.name + '的阵线先散，带着残兵往野地里跑了，' + winner.name + '也没有死追。', 'war');
@@ -5295,6 +5364,10 @@ function clearOrder(lord) {
 function giveOrder(lord, type, siteId, hold) {
   lord.order = { type: type, siteId: siteId, hold: !!hold, since: (lord.order && lord.order.since) || 0 };
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.foeChasing = null;
   lord.banditChasing = null;
 }
@@ -6180,6 +6253,8 @@ module.exports = { LORD_BIOS };
 const { RNG } = __require(4);
 const {
   createWorld,
+  siteFromRow,
+  layRoads,
   findPath,
   siteById,
   siteAt,
@@ -6197,6 +6272,7 @@ const war = __require(15);
 const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
+  SITE_ROWS, ROADS,
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
@@ -6206,6 +6282,9 @@ const { LORD_BIOS } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+const LORD_PURSUIT_RATIO = 1.65;
+const LORD_PURSUIT_GAP = 10;
+const LORD_FLEE_OWN_MAX = 30;
 const LORD_RESPAWN_DAYS = 12;
 /** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
 const CAMP_RESPAWN_DAYS = 3;
@@ -6216,7 +6295,7 @@ const BANDIT_TARGET = 12;
 const BANDIT_MAX = 16;
 
 /** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
-const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true };
+const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true, yuanshu: true };
 
 function joinRenownReq(factionId) {
   return MAJOR_FACTIONS[factionId] ? 200 : 100;
@@ -7755,10 +7834,16 @@ function enterLordCity(state, lord, site) {
   lord.inCity = site.id;
   lord.resting = true;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
   lord.foeChasing = null;
   lord.banditChasing = null;
   lord.wander = null;
   lord.patrolPath = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
   lord.x = site.x;
   lord.y = site.y;
   pushLog(state, lord.name + '带人进了' + site.name + '，旗卷起来，歇在城里。');
@@ -7769,8 +7854,15 @@ function leaveLordCity(state, lord, reason) {
   if (!site) { lord.inCity = null; lord.resting = false; return; }
   lord.inCity = null;
   lord.resting = false;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
   lord.wander = null;
   lord.patrolPath = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
   const spot = findFreeSpotNear(state, site.x, site.y, 3, lord);
   lord.x = spot ? spot.x : site.x;
   lord.y = spot ? spot.y : site.y;
@@ -7975,7 +8067,150 @@ function patrolPathTo(state, lord, target) {
   return path;
 }
 
-/** 领主：敌对且玩家在视野内 → 追；否则回防驻地。兵多辎重多，走得比匪团慢一半 */
+/** 最近的本势力城；领主逃命时先保这里。 */
+function nearestOwnCity(state, lord) {
+  let best = null;
+  let bestD = 99999;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    const own = lord.faction === 'player' ? !!s.playerOwned : s.ownerFaction === lord.faction;
+    if (!own) return;
+    const d = gridDistance(lord, s);
+    if (d < bestD) { bestD = d; best = { site: s, d: d }; }
+  });
+  return best;
+}
+
+/** 不敌对国家的城；本方城太远时才用。 */
+function nearestFriendlyCity(state, lord) {
+  let best = null;
+  let bestD = 99999;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    if (lord.faction === 'player' ? !!s.playerOwned : s.ownerFaction === lord.faction) return;
+    if (!siteFriendlyToLord(state, lord, s)) return;
+    const d = gridDistance(lord, s);
+    if (d < bestD) { bestD = d; best = { site: s, d: d }; }
+  });
+  return best;
+}
+
+/**
+ * 逃遁落点：自家城优先；自家城超过 30 格，才改投不敌对国家的城。
+ * 若友军城并不比自家城近，还是回自家城，别为了“友好”多跑冤枉路。
+ */
+function fleeSiteFor(state, lord) {
+  const own = nearestOwnCity(state, lord);
+  const friendly = nearestFriendlyCity(state, lord);
+  if (!own) return friendly;
+  if (!friendly || own.d <= LORD_FLEE_OWN_MAX) return own;
+  if (friendly.d < own.d) return friendly;
+  return own;
+}
+
+function threatName(unit, kind) {
+  if (kind === 'player') return '你';
+  return (unit && unit.name) || '敌军';
+}
+
+function threatCount(unit) {
+  return Math.max(1, army.troopCount((unit && unit.troops) || {}));
+}
+
+/**
+ * 找视野里值得动手/需要躲开的对象。
+ * 先算“谁明显比我多”，优先逃；再算“谁明显比我少”，追。
+ * 只有兵力差到 1.65 倍且至少差 10 人，才启动追击或逃遁。
+ */
+function lordThreatFor(state, lord, isOwnCountry, paidOff) {
+  const p = state.player;
+  const sight = Math.max(3, lord.sight || 5);
+  const own = threatCount(lord);
+  const candidates = [];
+
+  if (!isOwnCountry && !paidOff && !isSafeResting(state) &&
+      isHostileFaction(state, lord.faction)) {
+    const d = gridDistance(lord, p);
+    if (d <= sight) {
+      candidates.push({ kind: 'player', unit: p, count: threatCount(p), d: d, name: p.name || '你' });
+    }
+  }
+
+  (state.lords || []).forEach(function (other) {
+    if (!other || other === lord || !other.alive || other.dead || other.retired) return;
+    if (other.inCity || other.prisoner || other.engagedWith) return;
+    if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
+    if (!war.atWar(state, lord.faction, other.faction)) return;
+    const d = gridDistance(lord, other);
+    if (d > sight) return;
+    candidates.push({ kind: 'lord', unit: other, count: threatCount(other), d: d, name: other.name });
+  });
+
+  (state.parties || []).forEach(function (party) {
+    if (!party || party.dead || party.engagedWith) return;
+    if (party.faction !== 'bandit' && !war.atWar(state, lord.faction, party.faction)) return;
+    const d = gridDistance(lord, party);
+    if (d > sight) return;
+    candidates.push({ kind: 'party', unit: party, count: threatCount(party), d: d, name: party.name || '匪团' });
+  });
+
+  let flee = null;
+  let hunt = null;
+  candidates.forEach(function (c) {
+    if (c.count >= own * LORD_PURSUIT_RATIO && c.count - own >= LORD_PURSUIT_GAP) {
+      if (!flee || c.d < flee.d) flee = c;
+    }
+    if (own >= c.count * LORD_PURSUIT_RATIO && own - c.count >= LORD_PURSUIT_GAP) {
+      if (!hunt || c.d < hunt.d) hunt = c;
+    }
+  });
+  if (flee) return { role: 'flee', target: flee };
+  if (hunt) return { role: 'hunt', target: hunt };
+  return null;
+}
+
+function markLordFlee(state, lord, site, threat) {
+  const targetId = site ? site.id : null;
+  const changed = !lord.fleeing || lord.fleeTargetId !== targetId;
+  lord.fleeing = true;
+  lord.hunting = false;
+  lord.chasing = false;
+  lord.foeChasing = null;
+  lord.banditChasing = null;
+  lord.fleeTargetId = targetId;
+  lord.fleeFrom = threat ? threat.kind + ':' + ((threat.unit && threat.unit.id) || threat.name) : null;
+  if (changed) {
+    lord.fleePath = null;
+    lord.fleePathFor = null;
+    pushLog(state, lord.name + '见' + (threat ? threat.name : '敌军') + '兵多，带人往' +
+      (site ? site.name : '自家方向') + '撤。', 'war');
+  }
+}
+
+function markLordHunt(state, lord, threat) {
+  const id = (threat.unit && threat.unit.id) || null;
+  const changed = !lord.hunting || lord.foeChasing !== id || lord.banditChasing !== (threat.kind === 'party' ? id : null);
+  lord.hunting = true;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
+  lord.chasing = true;
+  lord.foeChasing = threat.kind === 'lord' ? id : null;
+  lord.banditChasing = threat.kind === 'party' ? id : null;
+  if (changed) {
+    pushLog(state, lord.name + '兵多，盯上了' + threat.name + '的旗，追过去。', 'war');
+  }
+}
+
+function clearLordChase(lord) {
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.foeChasing = null;
+  lord.banditChasing = null;
+}
+
+/** 领主：兵多追、兵少逃；其余情况按军令、休整和巡逻路线走。 */
 function moveLords(state) {
   const p = state.player;
   const nowH = gameHours(state);
@@ -8006,6 +8241,10 @@ function moveLords(state) {
       if (orderSite) {
         const od = gridDistance(lord, orderSite);
         lord.chasing = false;
+        lord.hunting = false;
+        lord.fleeing = false;
+        lord.fleeTargetId = null;
+        lord.fleeFrom = null;
         lord.foeChasing = null;
         lord.banditChasing = null;
         lord.resting = false;
@@ -8025,70 +8264,109 @@ function moveLords(state) {
     const fullCount = army.troopCount(lord.defTroops || {});
     // 掉到六成五以下先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = !!home && nowCount <= Math.max(6, Math.round(fullCount * 0.65));
-    if (isHostileFaction(state, lord.faction) && !paidOff && !isSafeResting(state) && dist <= lord.sight && !needRest) {
-      target = { x: p.x, y: p.y };
-      lord.chasing = true;
+    const threat = lordThreatFor(state, lord, isOwnCountry, paidOff);
+
+    if (threat && threat.role === 'flee') {
+      // 兵少：向最近的本方城撤；本方城太远才投不敌对国家的城。
+      const flee = fleeSiteFor(state, lord);
+      const fleeSite = flee && flee.site;
+      if (fleeSite) {
+        target = { x: fleeSite.x, y: fleeSite.y, siteId: fleeSite.id };
+        markLordFlee(state, lord, fleeSite, threat.target);
+      } else if (home) {
+        target = { x: home.x, y: home.y };
+        markLordFlee(state, lord, null, threat.target);
+      } else {
+        target = null;
+        lord.fleeing = true;
+        lord.fleeTargetId = null;
+      }
+      lord.resting = true;
+    } else if (needRest) {
+      // 兵力掉到六成五以下：回自己的城，或就近进友军城休整、补兵
+      const rest = fleeSiteFor(state, lord);
+      const restingSite = rest && rest.site;
+      if (restingSite) {
+        target = { x: restingSite.x, y: restingSite.y, siteId: restingSite.id };
+      } else if (home) {
+        target = { x: home.x, y: home.y, siteId: home.id };
+      }
+      lord.fleeing = false;
+      lord.fleeTargetId = null;
+      lord.fleePath = null;
+      lord.fleePathFor = null;
+      clearLordChase(lord);
+      lord.resting = true;
+    } else if (threat && threat.role === 'hunt') {
+      // 兵多：追视野里最弱的一支，追到就由 fieldTick 结算。
+      target = { x: threat.target.unit.x, y: threat.target.unit.y };
+      markLordHunt(state, lord, threat.target);
       lord.resting = false;
-    } else {
-      lord.chasing = false;
-      if (needRest) {
-        // 兵力掉到六成五以下：回自己的城，或就近进友军城休整、补兵
-        const homeCity = home && (home.type === 'town' || home.type === 'castle') ? home : null;
-        const restingSite = (homeCity && siteFriendlyToLord(state, lord, homeCity))
-          ? homeCity : nearestFriendlySite(state, lord, 8);
-        if (restingSite) {
-          target = { x: restingSite.x, y: restingSite.y, siteId: restingSite.id };
-        } else {
-          target = { x: home.x, y: home.y };
-        }
-        lord.foeChasing = null;
-        lord.banditChasing = null;
+    } else if (lord.fleeing) {
+      // 已经开撤：哪怕追兵暂时不在视野里，也先把人带进最近的友城。
+      const fleeSite = siteById(state.world, lord.fleeTargetId);
+      if (fleeSite && siteFriendlyToLord(state, lord, fleeSite)) {
+        target = { x: fleeSite.x, y: fleeSite.y, siteId: fleeSite.id };
+        lord.chasing = false;
+        lord.hunting = false;
         lord.resting = true;
       } else {
-        // 国战：看见死敌的旗，先扑过去打人，老家的事放一放
-        const foe = isOwnCountry ? null : war.nearestFoe(state, lord, 5);
-        if (foe && !(lord.scuffle > 0)) {
-          target = { x: foe.x, y: foe.y };
-          lord.foeChasing = foe.id;
-          lord.banditChasing = null;
+        const flee = fleeSiteFor(state, lord);
+        if (flee && flee.site) {
+          target = { x: flee.site.x, y: flee.site.y, siteId: flee.site.id };
+          markLordFlee(state, lord, flee.site, null);
+          lord.resting = true;
         } else {
-          // 顺手清乡：看见近处的匪团就撵过去，撵不上也没关系
-          const bandit = nearestBandit(state, lord, 4);
-          if (bandit) {
-            target = { x: bandit.x, y: bandit.y };
-            lord.banditChasing = bandit.id;
-            lord.foeChasing = null;
-          } else if (home && gridDistance(lord, home) > 3 && !Array.isArray(lord.patrolRouteIds)) {
-            // 还没排巡逻路线的远行领主先回一次家；排好路线后按路线走，不再被家门吸回去。
-            lord.foeChasing = null;
-            lord.banditChasing = null;
-            target = { x: home.x, y: home.y };
-          } else {
-            lord.foeChasing = null;
-            lord.banditChasing = null;
-            // 没仗打的时候，沿自己的巡逻路线走：主城 → 另外两座本城 → 回主城。
-            // 每名领主的路线和出发段都由 id 稳定散列，不共用随机点，不会原地打转。
-            const route = patrolRouteFor(state, lord);
-            if (!lord.wander) {
-              lord.wander = patrolTargetFor(state, lord);
-              lord.patrolPath = null;
-            } else if (gridDistance(lord, lord.wander) <= 1) {
-              if (route.length > 1) lord.patrolIdx = ((lord.patrolIdx || 0) + 1) % route.length;
-              lord.wander = patrolTargetFor(state, lord);
-              lord.patrolPath = null;
-            }
-            target = lord.wander;
-          }
+          lord.fleeing = false;
+          lord.fleeTargetId = null;
+          lord.fleePath = null;
+          clearLordChase(lord);
         }
       }
+    } else {
+      clearLordChase(lord);
+      lord.fleeing = false;
+      lord.fleeTargetId = null;
+      lord.fleePath = null;
+      // 没仗打的时候，沿自己的巡逻路线走：主城 → 另外两座本城 → 回主城。
+      // 每名领主的路线和出发段都由 id 稳定散列，不共用随机点，不会原地打转。
+      const route = patrolRouteFor(state, lord);
+      if (!lord.wander) {
+        lord.wander = patrolTargetFor(state, lord);
+        lord.patrolPath = null;
+      } else if (gridDistance(lord, lord.wander) <= 1) {
+        if (route.length > 1) lord.patrolIdx = ((lord.patrolIdx || 0) + 1) % route.length;
+        lord.wander = patrolTargetFor(state, lord);
+        lord.patrolPath = null;
+      }
+      target = lord.wander;
     }
     // 辎重多，两拍才挪一格：土匪轻装跑得掉，领主追不上
     lord.moveTick = (lord.moveTick || 0) + 1;
     if (lord.moveTick % 2 !== 0) return;
     if (!target) return;
     let step = null;
+    // 逃遁也走 BFS，避免沿河岸或城角一步贪心来回打转。
+    if (lord.fleeing && target && target.siteId) {
+      const sig = target.siteId + ':' + target.x + ',' + target.y;
+      if (lord.fleePathFor !== sig || !lord.fleePath) {
+        lord.fleePath = patrolPathTo(state, lord, target);
+        lord.fleePathFor = sig;
+      }
+      if (lord.fleePath && lord.fleePath.length) {
+        const next = lord.fleePath[0];
+        if (!siteAt(state.world, next.x, next.y) &&
+            !unitOccupies(state, lord, next.x, next.y) &&
+            isPassable(state.world, next.x, next.y)) {
+          step = lord.fleePath.shift();
+        } else {
+          lord.fleePath = null;
+          lord.fleePathFor = null;
+        }
+      }
+    }
     // 巡逻目标走一次 BFS 把绕行路径缓存下来，避免在河岸/城角一步贪心来回打转。
-    if (target === lord.wander && lord.wander.patrolSite) {
+    if (!step && target === lord.wander && lord.wander.patrolSite) {
       if (!lord.patrolPath) lord.patrolPath = patrolPathTo(state, lord, target);
       if (lord.patrolPath && lord.patrolPath.length) {
         const next = lord.patrolPath[0];
@@ -9719,6 +9997,7 @@ function resolveDefeatedLord(state, action) {
 /* ---------------------------------------------------------------- 灭国 *//** 史实里的改换门庭：被灭的那家散了，这些人该跟谁走 */
 const DEFECT_TO = {
   gaoshun: 'wei', houcheng: 'wei', songxian: 'wei', weixu: 'wei',
+  zhangliao: 'wei',
   wenpin: 'wei', zhangyun: 'wei', wangwei: 'wei',
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
@@ -9832,6 +10111,10 @@ function installRuler(state, fac, lord, oldLord) {
   lord.hidden = null;
   lord.prisoner = null;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
   lord.order = null;
   lord.defending = null;
   lord.faction = fac;
@@ -10008,6 +10291,11 @@ function moveLordToFaction(state, lord, target) {
   }
   lord.alive = true;
   lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
+  lord.fleePath = null;
   lord.resting = false;
   lord.hidden = null;
   lord.troops = takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
@@ -10055,7 +10343,10 @@ function fallFaction(state, id) {
       gone.push(l.name);
       return;
     }
-    const target = pickFactionFor(state, l, id);
+    // 史实里已经写好的去向优先：张辽从吕布旗下转入魏，不随就近掷骰。
+    const fixedTo = DEFECT_TO[l.id];
+    const target = fixedTo && factionAlive(state, fixedTo)
+      ? fixedTo : pickFactionFor(state, l, id);
     if (!target) {
       l.alive = false;
       l.retired = true;
@@ -10512,6 +10803,8 @@ function serialize(state) {
     lords: state.lords.map(function (l) {
       const copy = Object.assign({}, l);
       delete copy.patrolPath;
+      delete copy.fleePath;
+      delete copy.fleePathFor;
       return copy;
     }),
     parties: state.parties,
@@ -10576,6 +10869,8 @@ function deserialize(json) {
     lords: (data.lords || []).map(function (l) {
       const copy = Object.assign({}, l);
       copy.patrolPath = null;
+      copy.fleePath = null;
+      copy.fleePathFor = null;
       return copy;
     }),
     parties: data.parties || [],
@@ -10620,6 +10915,50 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 同版本老档补上后来新增的城与势力：
+  // 新开局由 createWorld 全量生成；读旧档时只补缺失据点，不重算玩家已经打下的城。
+  Object.keys(FACTIONS).forEach(function (id) {
+    if (state.relations[id] === undefined) state.relations[id] = id === 'bandit' ? -100 : 0;
+    if (state.wars[id] === undefined) state.wars[id] = id === 'bandit';
+  });
+  const knownSites = {};
+  state.world.sites.forEach(function (s) { knownSites[s.id] = true; });
+  let addedSites = 0;
+  SITE_ROWS.forEach(function (row) {
+    if (knownSites[row[0]]) return;
+    const site = siteFromRow(state.world, row);
+    site.recruits = {};
+    (site.recruitList || []).forEach(function (id, i) {
+      site.recruits[id] = 1 + ((row[0].charCodeAt(0) + i * 3) % 3);
+    });
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id, i) {
+      site.lordRecruits[id] = (row[0].charCodeAt(0) + i * 5) % 4;
+    });
+    site.foodStock = {};
+    if (site.type === 'village') {
+      (VILLAGE_FOOD || []).forEach(function (f) {
+        site.foodStock[f.id] = Math.max(1, f.stockMax || 3);
+      });
+    }
+    state.world.sites.push(site);
+    addedSites += 1;
+  });
+  // 旧档的寿春原本是无主城；只在这座城还空着时归袁术，已玩家占领/易主的不动。
+  const oldShouchun = siteById(state.world, 'shouchun');
+  if (oldShouchun && !oldShouchun.playerOwned && !oldShouchun.ownerFaction) {
+    oldShouchun.ownerFaction = 'yuanshu';
+    oldShouchun.faction = 'yuanshu';
+    oldShouchun.banner = FACTIONS.yuanshu.banner;
+    oldShouchun.color = FACTIONS.yuanshu.color;
+  }
+  if (addedSites) {
+    layRoads(state.world, ROADS.filter(function (pair) {
+      return !knownSites[pair[0]] || !knownSites[pair[1]];
+    }));
+    state.world.factionGrid = null;
+  }
 
   // 同版本老档补上村市口粮与领主独立兵源池
   state.world.sites.forEach(function (site) {
@@ -12478,7 +12817,13 @@ function drawUnits(ctx, app, cam, box, w) {
         size: Math.round(12 * z), align: 'center', color: '#fff',
       });
     }
-    if (lord.chasing) {
+    if (lord.fleeing) {
+      ctx.fillStyle = 'rgba(60,42,18,0.88)';
+      ctx.fillRect(sx - 20 * z, sy - 57 * z, 40 * z, 16 * z);
+      text(ctx, '逃遁', sx, sy - 56 * z, {
+        size: Math.round(12 * z), align: 'center', color: '#ffd18a',
+      });
+    } else if (lord.chasing) {
       text(ctx, '!', sx, sy - 44 * z, { size: Math.round(22 * z), align: 'center', color: '#e05a42' });
     }
   });
@@ -14982,12 +15327,13 @@ function lordStatus(st, lord, site) {
     const inCity = siteById(st.world, lord.inCity);
     return inCity ? '驻' + inCity.name : '驻外城';
   }
+  if (lord.fleeing) return '逃遁中';
   if (lord.order && lord.order.siteId) {
     const target = siteById(st.world, lord.order.siteId);
     const type = lord.order.type === 'siege' ? '围' : '往';
     return type + (target ? target.name : '军令');
   }
-  if (lord.chasing) return '追击中';
+  if (lord.hunting || lord.chasing) return '追击中';
   return '在外';
 }
 
