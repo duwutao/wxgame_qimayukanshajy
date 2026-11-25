@@ -17,6 +17,7 @@ const {
   gridDistance,
   isPassable,
   regionAt,
+  inBanditExclusion,
 } = require('./world.js');
 const army = require('./army.js');
 const economy = require('./economy.js');
@@ -807,6 +808,7 @@ function banditSpotAllowed(state, x, y, region, unit) {
   const world = state.world;
   if (x < BANDIT_EDGE_MARGIN || y < BANDIT_EDGE_MARGIN ||
       x > world.w - 1 - BANDIT_EDGE_MARGIN || y > world.h - 1 - BANDIT_EDGE_MARGIN) return false;
+  if (inBanditExclusion(x, y)) return false;
   if (!isPassable(world, x, y)) return false;
   if (siteAt(world, x, y)) return false;
   if (state.player && Math.max(Math.abs(x - state.player.x), Math.abs(y - state.player.y)) < 6) return false;
@@ -1952,6 +1954,7 @@ function banditPathStep(state, party, target) {
     const next = party.roamPath[0];
     if (!next || !isPassable(state.world, next.x, next.y) ||
         siteAt(state.world, next.x, next.y) ||
+        inBanditExclusion(next.x, next.y) ||
         unitOccupies(state, party, next.x, next.y) ||
         (party.roamRegion && regionAt(state.world, next.x, next.y) !== party.roamRegion)) {
       party.roamPath = null;
@@ -3515,6 +3518,11 @@ function moveLords(state, slot) {
     const isOwnCountry = lord.faction === playerSide || lord.faction === 'player';
     // 收了钱 / 被人缠住：原地待着，不动也不追
     if (lord.pauseUntil && nowH < lord.pauseUntil) return;
+    // 刘备入川的剑阁军令不因减员半途散伙：这五路人要一起走到城下。
+    const yiRush = !!(state.flags && state.flags.liubeiYiWar &&
+      lord.order && lord.order.siteId === 'jiange' &&
+      state.warCampaigns && state.warCampaigns.shu &&
+      state.warCampaigns.shu.targetId === 'jiange');
     // 在城里歇脚：旗收起来，大地图上先不画他；有军令才出城
     if (lord.inCity) {
       const city = siteById(state.world, lord.inCity);
@@ -3522,7 +3530,7 @@ function moveLords(state, slot) {
         leaveLordCity(state, lord);
         return;
       } else if (lord.order && lord.order.siteId && !lord.order.hold &&
-          army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65))) {
+          (yiRush || army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65)))) {
         leaveLordCity(state, lord, '军令到了');
         return;
       } else {
@@ -3536,7 +3544,7 @@ function moveLords(state, slot) {
     // 掉到六成五以下先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = nowCount <= Math.max(6, Math.round(fullCount * 0.65));
     // 兵太少就不再执行集结/围城军令；守城令可以留着，但到城后先补兵。
-    if (needRest && lord.order && lord.order.type !== 'defend') {
+    if (needRest && lord.order && lord.order.type !== 'defend' && !yiRush) {
       lord.order = null;
       lord.defending = null;
       lord.orderDetourTarget = null;
@@ -4038,6 +4046,8 @@ function greedyStep(state, unit, target, opts) {
     // 匪团的州界是硬边界：寻路缓存可能跨州，最后一步也不能越过去。
     if (unit.faction === 'bandit' && unit.roamRegion &&
         regionAt(state.world, nx, ny) !== unit.roamRegion) continue;
+    // 成都西侧空地是死地：匪团不进去，免得在无城可抢的山坳里打转。
+    if (unit.faction === 'bandit' && inBanditExclusion(nx, ny)) continue;
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
     if (d > maxD) continue;
     // 绕路时允许先横着走一格，但尽量不原路退回，避免两支部队互相顶住时来回横跳。
@@ -6744,6 +6754,56 @@ function deserialize(json) {
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
 
+  // n19 老档：襄平转为无主城；官渡/白马换位；汉廷诸将收回长安—潼关一线。
+  const xiangpingSite = siteById(state.world, 'xiangping');
+  if (xiangpingSite && !xiangpingSite.playerOwned &&
+      (!xiangpingSite.ownerFaction || xiangpingSite.ownerFaction === 'han')) {
+    xiangpingSite.ownerFaction = null;
+    xiangpingSite.faction = null;
+    xiangpingSite.banner = '';
+    xiangpingSite.color = '#8f8f86';
+    xiangpingSite.lordId = null;
+    xiangpingSite.recruitList = (RECRUIT_SETS.none || []).slice();
+    xiangpingSite.lordRecruits = {};
+    (xiangpingSite.recruitList || []).forEach(function (id) { xiangpingSite.lordRecruits[id] = 1; });
+  }
+
+  SITE_ROWS.forEach(function (row) {
+    if (row[0] !== 'guandu' && row[0] !== 'baima') return;
+    const site = siteById(state.world, row[0]);
+    if (!site) return;
+    const scale = state.world.w / 40;
+    site.x = Math.round(row[4] * scale);
+    site.y = Math.round(row[5] * scale);
+  });
+  const HAN_HOME_MOVES = [
+    { id: 'zhujun', home: 'changan' },
+    { id: 'luzhi', home: 'changan' },
+    { id: 'yangfeng', home: 'tongguan' },
+  ];
+  HAN_HOME_MOVES.forEach(function (move) {
+    const lord = (state.lords || []).filter(function (l) { return l.id === move.id; })[0];
+    if (!lord || lord.faction !== 'han' || lord.dead || lord.retired || lord.prisoner) return;
+    const site = siteById(state.world, move.home);
+    if (!site) return;
+    lord.home = move.home;
+    lord.inCity = move.home;
+    lord.x = site.x;
+    lord.y = site.y;
+    lord.stepFrom = null;
+    lord.stepTo = null;
+    lord.routePath = null;
+    lord.order = null;
+  });
+
+  // 颜色在旧档里是 copy 到据点上的，换色后要把同势力旧据点一起刷新。
+  state.world.sites.forEach(function (site) {
+    if (site.ownerFaction === 'hansui') {
+      const f = FACTIONS.hansui;
+      if (f) { site.color = f.color; site.banner = f.banner; }
+    }
+  });
+
   // 赵云从蜀营转入公孙瓒帐下；已经阵亡/退隐的旧档不复活。
   const legacyZhaoyun = (state.lords || []).filter(function (l) { return l.id === 'zhaoyun'; })[0];
   if (legacyZhaoyun && legacyZhaoyun.faction !== 'gongsun' && !legacyZhaoyun.dead && !legacyZhaoyun.retired) {
@@ -6768,6 +6828,18 @@ function deserialize(json) {
     }));
     state.world.factionGrid = null;
   }
+  // n19 有若干“两端都是旧城”的新连线；旧档不补城，也必须补这些路。
+  const N19_ROADS = [
+    ['wuwei', 'tianshui'],
+    ['shangyong', 'jiange'], ['shangyong', 'jiangzhou'],
+    ['lujiang', 'wan'], ['lujiang', 'xiakou'],
+    ['nanpi', 'beiping'],
+    ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
+    ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
+    ['jiaozhi', 'shanyue'],
+  ];
+  layRoads(state.world, N19_ROADS);
+  state.world.factionGrid = null;
 
   // 同版本老档补上村市口粮与领主独立兵源池
   state.world.sites.forEach(function (site) {
@@ -7012,6 +7084,8 @@ module.exports = {
   arcTick,
   spawnBanditParties,
   refillBandits,
+  banditSpotAllowed,
+  banditPathStep,
   pickBanditTier,
   allowedTiers,
   garrisonTroops,

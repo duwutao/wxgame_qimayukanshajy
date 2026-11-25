@@ -811,14 +811,16 @@ const SITE_ROWS = [
   ['tanhanshan', '弹汗山', 'castle', 'xianbei', 13, 5, 1.16, 100, 'xianbei', '轲比能的老营，山后有整片的马场。'],
   ['juyan', '居延', 'town', 'xianbei', 5, 9, 1.08, 95, 'xianbei', '居延塞。弱水从城下绕过，往北是草原，往南是河西。'],
   ['ji', '蓟', 'town', 'gongsun', 26, 4, 1.05, 110, 'gongsun', '幽州治所。公孙瓒的白马义从在城外列阵，旌旗一色皆白。'],
-  ['xiangping', '襄平', 'town', 'han', 34, 4, 1.02, 90, 'han', '辽东郡治，离中原很远，离塞外很近。'],
+  ['xiangping', '襄平', 'town', null, 34, 4, 1.02, 90, 'none', '辽东郡治，离中原很远，离塞外很近。如今城中无主，只有郡吏守着旧仓。'],
   ['beiping', '北平', 'castle', 'gongsun', 31, 7, 1.1, 85, 'gongsun', '右北平的边堡。公孙家的白马常从这里出塞。'],
   ['zhuo', '涿', 'village', 'gongsun', 27, 8, 0.74, 14, 'village', '桃园结义的地方。现在归了公孙瓒，村口插着一面白旗。'],
+  ['fanyang', '范阳', 'town', 'gongsun', 27, 10, 1.05, 95, 'gongsun', '涿郡与邺城之间的驿城，北来粮车在这里换马，南来驿使在这里过夜。'],
   // ---- 并州 / 冀州 ----
   ['jinyang', '晋阳', 'town', 'yuan', 19, 11, 1.06, 115, 'yuan', '并州治所，铁器与良马都从这里过。'],
   ['yanmen', '雁门', 'castle', 'yuan', 16, 8, 1.12, 90, 'yuan', '雁门关。北出塞外，南护太原，山口的烽燧昼夜不熄。'],
   ['shangdang', '上党', 'castle', 'yuan', 23, 13, 1.14, 95, 'yuan', '太行山上的壶关，一夫当关。'],
   ['ye', '邺', 'town', 'yuan', 28, 13, 1.08, 160, 'yuan', '袁本初的都城。铜雀台还没修，粮仓先满了。'],
+  ['changshan', '常山村', 'village', 'yuan', 26, 12, 0.74, 14, 'village', '邺城西北的小村，村口一条土路通官道，常山赵家的旧宅就在坡上。'],
   ['nanpi', '南皮', 'castle', 'yuan', 31, 11, 1.12, 90, 'yuan', '渤海郡的壁垒，袁家的后院。'],
   ['pingyuan', '平原', 'town', 'yuan', 31, 17, 1.04, 95, 'yuan', '青州北界的粮城，麦子堆到城墙那么高。'],
   ['beihai', '北海', 'town', 'yuan', 34, 16, 1.06, 100, 'yuan', '青州的海盐与鱼货在这里上岸，袁谭的旗插在城头。'],
@@ -839,8 +841,8 @@ const SITE_ROWS = [
   ['wudu', '武都', 'castle', 'zhang', 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。'],
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
-  ['guandu', '官渡', 'castle', 'wei', 22, 24, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
-  ['baima', '白马', 'castle', 'yuan', 23, 21, 1.14, 85, 'yuan', '白马津的旧渡口，袁军的游骑常在河堤上点火。'],
+  ['guandu', '官渡', 'castle', 'wei', 23, 21, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
+  ['baima', '白马', 'castle', 'yuan', 25, 18, 1.14, 85, 'yuan', '白马津的旧渡口，袁军的游骑常在河堤上点火。'],
   ['xuchang', '许昌', 'town', 'wei', 25, 27, 1.08, 170, 'cao', '曹操把天子接来以后，这里就是朝廷。'],
   ['qiao', '谯', 'village', 'wei', 27, 25, 0.75, 16, 'village', '曹氏与夏侯氏的祖宅所在，村口有棵老槐树。'],
   ['runan', '汝南', 'village', 'wei', 23, 30, 0.76, 14, 'village', '袁氏的故里，如今只剩族谱和荒田。'],
@@ -863,6 +865,7 @@ const SITE_ROWS = [
   ['jiangling', '江陵', 'town', 'biao', 23, 39, 1.06, 110, 'biao', '荆州的粮仓与船坞，南郡的命门。'],
   ['xiakou', '夏口', 'castle', 'wu', 27, 36, 1.14, 90, 'wu', '汉水入江处。谁在这里扎营，谁就卡住了荆州。'],
   ['chaisang', '柴桑', 'town', 'wu', 28, 38, 1.06, 95, 'wu', '江东的水军基地，船比房子多。'],
+  ['yushan', '玉山', 'town', 'wu', 32, 39, 1.04, 85, 'wu', '柴桑与会稽之间的山城，浙赣山道从城下过，往西还能转进夷陵。'],
   ['chibi', '赤壁', 'castle', null, 26, 38, 1.16, 70, 'none', '江边的石壁。风从东南来，火能烧到对岸。'],
   ['yiling', '夷陵', 'castle', null, 24, 41, 1.12, 75, 'none', '三峡的出口。连营七百里，说的就是这一线。'],
   // ---- 益州 ----
@@ -884,6 +887,7 @@ const SITE_ROWS = [
   ['danyang', '丹阳村', 'village', 'wu', 31, 33, 0.76, 15, 'village', '出精兵的地方。山越与汉人混着住。'],
   // ---- 交州 ----
   ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
+  ['shanyue', '山越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的山越王城。铜鼓藏在洞里，山路比城墙更难走。'],
   ['changsha', '长沙村', 'village', null, 23, 42, 0.74, 12, 'village', '湘水边的稻村，孙刘两家都来征过粮。'],
   ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
   ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
@@ -898,6 +902,7 @@ const SITE_ROWS = [
 
 /** 兵种组 */
 const RECRUIT_SETS = {
+  shanyue: ['militia', 'spear', 'archer', 'danyang'],
   cao: ['militia', 'spear', 'crossbow', 'guard'],
   cao2: ['militia', 'crossbow', 'cav', 'heavy'],
   shu: ['militia', 'spear', 'archer', 'baier'],
@@ -924,14 +929,15 @@ const RECRUIT_SETS = {
 const ROADS = [
   ['longcheng', 'tanhanshan'], ['longcheng', 'juyan'], ['juyan', 'wuwei'],
   ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
-  ['beiping', 'xiangping'], ['ji', 'nanpi'], ['nanpi', 'ye'], ['ye', 'shangdang'],
+  ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
+  ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
   ['shangdang', 'jinyang'], ['jinyang', 'yanmen'], ['yanmen', 'tanhanshan'], ['jinyang', 'puyang'],
   ['ye', 'pingyuan'], ['pingyuan', 'puyang'],
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
   ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
   ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['wuwei', 'xiping'], ['xiping', 'fuhan'], ['fuhan', 'jincheng'],
-  ['tianshui', 'wudu'], ['wudu', 'hanzhong'],
+  ['wuwei', 'tianshui'], ['tianshui', 'wudu'], ['wudu', 'hanzhong'],
   ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['jiangzhou', 'zhuti'], ['zhuti', 'jianning'], ['jianning', 'yunnan'], ['yunnan', 'yongchang'],
@@ -939,17 +945,18 @@ const ROADS = [
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
   // 陈留—小沛驿道：曹吕前线不能只隔着一片农田对望，有路才走得过去、攻得起来。
   ['chenliu', 'xiaopei'],
-  ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xinye', 'shangyong'], ['shangyong', 'xiangyang'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
+  ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xinye', 'shangyong'], ['shangyong', 'xiangyang'], ['shangyong', 'jiange'], ['shangyong', 'jiangzhou'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
   ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
-  ['shouchun', 'lujiang'], ['lujiang', 'liyang2'], ['liyang2', 'ruxu'], ['ruxu', 'jianye'],
+  ['shouchun', 'lujiang'], ['lujiang', 'liyang2'], ['lujiang', 'wan'], ['lujiang', 'xiakou'], ['liyang2', 'ruxu'], ['ruxu', 'jianye'],
   ['hefei', 'ruxu'], ['ruxu', 'danyang'],
   ['hefei', 'guangling'], ['guangling', 'xiapi'], ['guangling', 'xuzhou'],
   ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
   ['pengcheng', 'taishan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
+  ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'shangluo'], ['shangluo', 'luoyang'],
-  ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'],
+  ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'], ['jiaozhi', 'shanyue'],
   ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
   // 蜀道与关隘枢纽：让关键关口四面可走，也给刘备一条从新野入川的路。
@@ -959,6 +966,14 @@ const ROADS = [
   ['guandu', 'xinye'], ['wan', 'xiangyang'],
   ['hefei', 'jianye'], ['hefei', 'xuchang'],
   ['chaisang', 'jiangling'], ['chibi', 'jiangling'],
+];
+
+/**
+ * 匪团禁入区：成都西侧这块空地没有城村可抢，也没有巡逻意义，
+ * 只作为益州腹地的缓冲地形。坐标用设计稿 40×48，世界生成时按比例放大。
+ */
+const BANDIT_EXCLUDE_ZONES = [
+  [5, 31, 10, 40],
 ];
 
 /**
@@ -982,7 +997,7 @@ const STRATEGIC_SITES = {
 /** 各国都城与旧都：地图与天下大势无论缩到多小都要留名字 */
 const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
-  'shouchun', 'ji', 'jincheng', 'jianning',
+  'shouchun', 'ji', 'jincheng', 'jianning', 'shanyue',
 ];
 
 /** 势力 */
@@ -1028,7 +1043,7 @@ const FACTIONS = {
     lord: '马腾', desc: '西凉重步，天下精锐。粮少，人心散。',
   },
   hansui: {
-    id: 'hansui', name: '韩', full: '韩遂', color: '#b07a52', banner: '韩',
+    id: 'hansui', name: '韩', full: '韩遂', color: '#5d6f8f', banner: '韩',
     lord: '韩遂', desc: '金城起家，联结羌胡。与马腾同饮过酒，也同动过刀。',
   },
   gongsun: {
@@ -1038,6 +1053,10 @@ const FACTIONS = {
   nanman: {
     id: 'nanman', name: '蛮', full: '孟获', color: '#a8673d', banner: '蛮',
     lord: '孟获', desc: '南中诸部，藤甲铜鼓。山高林密，外人进来先迷路。',
+  },
+  shanyue: {
+    id: 'shanyue', name: '越', full: '山越诸部', color: '#4f6f5f', banner: '越',
+    lord: '潘临', desc: '交州山中的越人诸洞。不守平川，只守山口，弩箭从林子里射出来。',
   },
   han: {
     id: 'han', name: '汉', full: '汉廷', color: '#8f8f86', banner: '汉',
@@ -1155,6 +1174,13 @@ const SUCCESSION = {
     { id: 'duosi', name: '朵思大王', title: '秃龙洞主' },
     { id: 'wutugu', name: '兀突骨', title: '藤甲洞主' },
     { id: 'mulu', name: '木鹿大王', title: '八纳洞主' },
+  ],
+  shanyue: [
+    { id: 'youtu', name: '尤突', title: '越帅' },
+    { id: 'feizhan', name: '费栈', title: '丹阳越帅' },
+    { id: 'pengqi', name: '彭绮', title: '鄱阳越帅' },
+    { id: 'pengshi', name: '彭式', title: '山越渠帅' },
+    { id: 'huangluan', name: '黄乱', title: '越中渠帅' },
   ],
   han: [
     { id: 'liuxie', name: '刘协', title: '天子' },
@@ -1285,11 +1311,18 @@ const LORDS = [
   { id: 'mulu', name: '木鹿大王', faction: 'nanman', home: 'zangke', soldiers: { militia: 35, spear: 25, archer: 15 }, morale: 78, sight: 7, title: '八纳洞主' },
   { id: 'dailai', name: '带来洞主', faction: 'nanman', home: 'yunnan', soldiers: { militia: 25, spear: 20, archer: 12 }, morale: 72, sight: 6, title: '洞主' },
   // ---- 汉：关中残军 ----
-  { id: 'zhujun', name: '朱儁', faction: 'han', home: 'luoyang', soldiers: { militia: 35, spear: 30, crossbow: 15, jinjun: 5 }, morale: 78, sight: 6, title: '右中郎将' },
-  { id: 'luzhi', name: '卢植', faction: 'han', home: 'zhuo', soldiers: { militia: 30, spear: 30, crossbow: 20 }, morale: 80, sight: 6, title: '北中郎将' },
+  { id: 'zhujun', name: '朱儁', faction: 'han', home: 'changan', soldiers: { militia: 35, spear: 30, crossbow: 15, jinjun: 5 }, morale: 78, sight: 6, title: '右中郎将' },
+  { id: 'luzhi', name: '卢植', faction: 'han', home: 'changan', soldiers: { militia: 30, spear: 30, crossbow: 20 }, morale: 80, sight: 6, title: '北中郎将' },
   { id: 'dongcheng', name: '董承', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 10 }, morale: 72, sight: 5, title: '车骑将军' },
-  { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'hulao', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
+  { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'tongguan', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
   { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
+  // ---- 山越：交州诸洞 ----
+  { id: 'panlin', name: '潘临', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 40, spear: 25, archer: 25, danyang: 8 }, morale: 82, sight: 7, title: '山越帅' },
+  { id: 'youtu', name: '尤突', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 25 }, morale: 80, sight: 7, title: '越帅' },
+  { id: 'feizhan', name: '费栈', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 20, danyang: 6 }, morale: 78, sight: 6, title: '丹阳越帅' },
+  { id: 'pengqi', name: '彭绮', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 18 }, morale: 76, sight: 7, title: '鄱阳越帅' },
+  { id: 'pengshi', name: '彭式', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '山越渠帅' },
+  { id: 'huangluan', name: '黄乱', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 20, archer: 15, danyang: 5 }, morale: 72, sight: 6, title: '越中渠帅' },
 
   // ---- 放大天下以后补的领主：魏蜀吴袁刘各添一队人 ----
   // 魏：宗亲、五子、宿卫
@@ -1563,6 +1596,7 @@ module.exports = {
   CAPITAL_IDS,
   RECRUIT_SETS,
   ROADS,
+  BANDIT_EXCLUDE_ZONES,
   STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
@@ -2968,6 +3002,7 @@ const {
   SITE_ROWS,
   RECRUIT_SETS,
   ROADS,
+  BANDIT_EXCLUDE_ZONES,
   FACTIONS,
 } = __require(5);
 
@@ -3013,6 +3048,19 @@ function regionAt(world, x, y) {
 
 function regionDef(id) {
   return REGIONS[id] || REGIONS.zhongyuan;
+}
+
+/** 匪团禁入区（设计稿坐标转成实际格坐标后判断）。 */
+function inBanditExclusion(x, y) {
+  for (let i = 0; i < BANDIT_EXCLUDE_ZONES.length; i++) {
+    const z = BANDIT_EXCLUDE_ZONES[i];
+    const x0 = S(z[0]);
+    const y0 = S(z[1]);
+    const x1 = S(z[2]);
+    const y1 = S(z[3]);
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return true;
+  }
+  return false;
 }
 
 function siteAt(world, x, y) {
@@ -3644,6 +3692,7 @@ module.exports = {
   terrainAt,
   isPassable,
   regionAt,
+  inBanditExclusion,
   regionDef,
   siteAt,
   siteById,
@@ -7533,6 +7582,16 @@ function ensureLiuBeiYiWar(state, day) {
   if (!canOpenWar(state, 'shu', 'zhang')) return false;
   if (!declare(state, 'shu', 'zhang', false)) return false;
   state.flags.liubeiYiWar = true;
+  // 刘璋“开关迎客”后就该守剑阁，不该同时从上庸/江州方向反攻。
+  // 这里撤掉璋方在宣战前的旧战役，避免新路一开就把蜀军后路咬住。
+  const oldZhangCp = state.warCampaigns && state.warCampaigns.zhang;
+  if (oldZhangCp) {
+    (oldZhangCp.attackerIds || []).forEach(function (id) {
+      const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+      if (lord) clearOrder(lord);
+    });
+    delete state.warCampaigns.zhang;
+  }
   // 入川旗号一立，刘备就不再沿旧路线去啃淮南/荆州：撤掉此前非张鲁方向的战役，
   // 让下一拍战略重新把兵锋指向剑阁。否则会保留旧目标，入川名号成了空话。
   const oldShuCp = state.warCampaigns && state.warCampaigns.shu;
@@ -7556,6 +7615,11 @@ function planCampaign(state, faction, day) {
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
   if (!own.length) return null;
+  // 刘备入川期间，刘璋先守剑阁；等剑阁换旗后再恢复正常的扩张战役。
+  if (faction === 'zhang' && state.flags && state.flags.liubeiYiWar) {
+    const jiange = siteById(state, 'jiange');
+    if (jiange && jiange.ownerFaction === 'zhang') return null;
+  }
   // 刘备入川后优先打益州，不把兵力浪费在北边的鲜卑或中原乱战上。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
       foes.indexOf('zhang') >= 0) {
@@ -7568,7 +7632,17 @@ function planCampaign(state, faction, day) {
   if (!lords.length) return null;
 
   let target = null;
-  foes.forEach(function (enemy) {
+  // 入川第一仗必须落在剑阁：上庸—江州的新路会把“最近敌城”算成江州，
+  // 但刘备入川的叙事和测试都以剑阁为首攻，这里直接锁首攻目标。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      foes.indexOf('zhang') >= 0 && !pairBlocked(state, 'shu', 'zhang', day)) {
+    const jiange = ownedSites(state, 'zhang', true).filter(function (s) { return s.id === 'jiange'; })[0];
+    if (jiange && canSiegeSiteFromFaction(state, 'shu', jiange).ok) {
+      const near = nearestSiteOf(state, own, jiange);
+      target = { site: jiange, score: -1, distance: near.distance };
+    }
+  }
+  if (!target) foes.forEach(function (enemy) {
     if (pairBlocked(state, faction, enemy, day)) return;
     ownedSites(state, enemy, true).forEach(function (s) {
       // 任何有主的城都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
@@ -7684,8 +7758,14 @@ function startSiege(state, cp, site, day) {
   attackers.forEach(function (l) { giveOrder(l, 'siege', site.id, true); });
 
   // 围城一起，守方的领主就收到烽火：能来的都往这座城赶
+  // 但正在执行本国战役（尤其刘备入川）的攻方领主不能被另一场守城令抽走。
+  const ownCampaign = state.warCampaigns[site.ownerFaction];
+  const busyAttackers = ownCampaign && ownCampaign.attackerIds ? ownCampaign.attackerIds : [];
   const defenders = factionLords(state, site.ownerFaction)
-    .filter(function (l) { return army.troopCount(l.troops || {}) >= 8; })
+    .filter(function (l) {
+      return army.troopCount(l.troops || {}) >= 8 &&
+        busyAttackers.indexOf(l.id) < 0 && !l.defending;
+    })
     .sort(function (a, b) { return siteDistance(a, site) - siteDistance(b, site); })
     .slice(0, 4);
   cp.defenderIds = defenders.map(function (l) { return l.id; });
@@ -7851,8 +7931,12 @@ function siegeContingentKey(kind, id) {
  */
 function beginSiegeAssault(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
+  // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+    site.id === 'jiange';
   const attackers = attackersOf(state, cp).filter(function (l) {
-    return siteDistance(l, site) <= 2 && army.troopCount(l.troops || {}) > 0;
+    return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
   if (!attackers.length) {
     cp.done = true;
@@ -8444,6 +8528,7 @@ const {
   gridDistance,
   isPassable,
   regionAt,
+  inBanditExclusion,
 } = __require(8);
 const army = __require(9);
 const economy = __require(11);
@@ -9234,6 +9319,7 @@ function banditSpotAllowed(state, x, y, region, unit) {
   const world = state.world;
   if (x < BANDIT_EDGE_MARGIN || y < BANDIT_EDGE_MARGIN ||
       x > world.w - 1 - BANDIT_EDGE_MARGIN || y > world.h - 1 - BANDIT_EDGE_MARGIN) return false;
+  if (inBanditExclusion(x, y)) return false;
   if (!isPassable(world, x, y)) return false;
   if (siteAt(world, x, y)) return false;
   if (state.player && Math.max(Math.abs(x - state.player.x), Math.abs(y - state.player.y)) < 6) return false;
@@ -10379,6 +10465,7 @@ function banditPathStep(state, party, target) {
     const next = party.roamPath[0];
     if (!next || !isPassable(state.world, next.x, next.y) ||
         siteAt(state.world, next.x, next.y) ||
+        inBanditExclusion(next.x, next.y) ||
         unitOccupies(state, party, next.x, next.y) ||
         (party.roamRegion && regionAt(state.world, next.x, next.y) !== party.roamRegion)) {
       party.roamPath = null;
@@ -11942,6 +12029,11 @@ function moveLords(state, slot) {
     const isOwnCountry = lord.faction === playerSide || lord.faction === 'player';
     // 收了钱 / 被人缠住：原地待着，不动也不追
     if (lord.pauseUntil && nowH < lord.pauseUntil) return;
+    // 刘备入川的剑阁军令不因减员半途散伙：这五路人要一起走到城下。
+    const yiRush = !!(state.flags && state.flags.liubeiYiWar &&
+      lord.order && lord.order.siteId === 'jiange' &&
+      state.warCampaigns && state.warCampaigns.shu &&
+      state.warCampaigns.shu.targetId === 'jiange');
     // 在城里歇脚：旗收起来，大地图上先不画他；有军令才出城
     if (lord.inCity) {
       const city = siteById(state.world, lord.inCity);
@@ -11949,7 +12041,7 @@ function moveLords(state, slot) {
         leaveLordCity(state, lord);
         return;
       } else if (lord.order && lord.order.siteId && !lord.order.hold &&
-          army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65))) {
+          (yiRush || army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65)))) {
         leaveLordCity(state, lord, '军令到了');
         return;
       } else {
@@ -11963,7 +12055,7 @@ function moveLords(state, slot) {
     // 掉到六成五以下先回城补人：不然开局玩家能把名将一个个捡走
     const needRest = nowCount <= Math.max(6, Math.round(fullCount * 0.65));
     // 兵太少就不再执行集结/围城军令；守城令可以留着，但到城后先补兵。
-    if (needRest && lord.order && lord.order.type !== 'defend') {
+    if (needRest && lord.order && lord.order.type !== 'defend' && !yiRush) {
       lord.order = null;
       lord.defending = null;
       lord.orderDetourTarget = null;
@@ -12465,6 +12557,8 @@ function greedyStep(state, unit, target, opts) {
     // 匪团的州界是硬边界：寻路缓存可能跨州，最后一步也不能越过去。
     if (unit.faction === 'bandit' && unit.roamRegion &&
         regionAt(state.world, nx, ny) !== unit.roamRegion) continue;
+    // 成都西侧空地是死地：匪团不进去，免得在无城可抢的山坳里打转。
+    if (unit.faction === 'bandit' && inBanditExclusion(nx, ny)) continue;
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
     if (d > maxD) continue;
     // 绕路时允许先横着走一格，但尽量不原路退回，避免两支部队互相顶住时来回横跳。
@@ -15171,6 +15265,56 @@ function deserialize(json) {
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
 
+  // n19 老档：襄平转为无主城；官渡/白马换位；汉廷诸将收回长安—潼关一线。
+  const xiangpingSite = siteById(state.world, 'xiangping');
+  if (xiangpingSite && !xiangpingSite.playerOwned &&
+      (!xiangpingSite.ownerFaction || xiangpingSite.ownerFaction === 'han')) {
+    xiangpingSite.ownerFaction = null;
+    xiangpingSite.faction = null;
+    xiangpingSite.banner = '';
+    xiangpingSite.color = '#8f8f86';
+    xiangpingSite.lordId = null;
+    xiangpingSite.recruitList = (RECRUIT_SETS.none || []).slice();
+    xiangpingSite.lordRecruits = {};
+    (xiangpingSite.recruitList || []).forEach(function (id) { xiangpingSite.lordRecruits[id] = 1; });
+  }
+
+  SITE_ROWS.forEach(function (row) {
+    if (row[0] !== 'guandu' && row[0] !== 'baima') return;
+    const site = siteById(state.world, row[0]);
+    if (!site) return;
+    const scale = state.world.w / 40;
+    site.x = Math.round(row[4] * scale);
+    site.y = Math.round(row[5] * scale);
+  });
+  const HAN_HOME_MOVES = [
+    { id: 'zhujun', home: 'changan' },
+    { id: 'luzhi', home: 'changan' },
+    { id: 'yangfeng', home: 'tongguan' },
+  ];
+  HAN_HOME_MOVES.forEach(function (move) {
+    const lord = (state.lords || []).filter(function (l) { return l.id === move.id; })[0];
+    if (!lord || lord.faction !== 'han' || lord.dead || lord.retired || lord.prisoner) return;
+    const site = siteById(state.world, move.home);
+    if (!site) return;
+    lord.home = move.home;
+    lord.inCity = move.home;
+    lord.x = site.x;
+    lord.y = site.y;
+    lord.stepFrom = null;
+    lord.stepTo = null;
+    lord.routePath = null;
+    lord.order = null;
+  });
+
+  // 颜色在旧档里是 copy 到据点上的，换色后要把同势力旧据点一起刷新。
+  state.world.sites.forEach(function (site) {
+    if (site.ownerFaction === 'hansui') {
+      const f = FACTIONS.hansui;
+      if (f) { site.color = f.color; site.banner = f.banner; }
+    }
+  });
+
   // 赵云从蜀营转入公孙瓒帐下；已经阵亡/退隐的旧档不复活。
   const legacyZhaoyun = (state.lords || []).filter(function (l) { return l.id === 'zhaoyun'; })[0];
   if (legacyZhaoyun && legacyZhaoyun.faction !== 'gongsun' && !legacyZhaoyun.dead && !legacyZhaoyun.retired) {
@@ -15195,6 +15339,18 @@ function deserialize(json) {
     }));
     state.world.factionGrid = null;
   }
+  // n19 有若干“两端都是旧城”的新连线；旧档不补城，也必须补这些路。
+  const N19_ROADS = [
+    ['wuwei', 'tianshui'],
+    ['shangyong', 'jiange'], ['shangyong', 'jiangzhou'],
+    ['lujiang', 'wan'], ['lujiang', 'xiakou'],
+    ['nanpi', 'beiping'],
+    ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
+    ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
+    ['jiaozhi', 'shanyue'],
+  ];
+  layRoads(state.world, N19_ROADS);
+  state.world.factionGrid = null;
 
   // 同版本老档补上村市口粮与领主独立兵源池
   state.world.sites.forEach(function (site) {
@@ -15439,6 +15595,8 @@ module.exports = {
   arcTick,
   spawnBanditParties,
   refillBandits,
+  banditSpotAllowed,
+  banditPathStep,
   pickBanditTier,
   allowedTiers,
   garrisonTroops,

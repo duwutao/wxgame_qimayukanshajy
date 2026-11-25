@@ -1959,6 +1959,16 @@ function ensureLiuBeiYiWar(state, day) {
   if (!canOpenWar(state, 'shu', 'zhang')) return false;
   if (!declare(state, 'shu', 'zhang', false)) return false;
   state.flags.liubeiYiWar = true;
+  // 刘璋“开关迎客”后就该守剑阁，不该同时从上庸/江州方向反攻。
+  // 这里撤掉璋方在宣战前的旧战役，避免新路一开就把蜀军后路咬住。
+  const oldZhangCp = state.warCampaigns && state.warCampaigns.zhang;
+  if (oldZhangCp) {
+    (oldZhangCp.attackerIds || []).forEach(function (id) {
+      const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+      if (lord) clearOrder(lord);
+    });
+    delete state.warCampaigns.zhang;
+  }
   // 入川旗号一立，刘备就不再沿旧路线去啃淮南/荆州：撤掉此前非张鲁方向的战役，
   // 让下一拍战略重新把兵锋指向剑阁。否则会保留旧目标，入川名号成了空话。
   const oldShuCp = state.warCampaigns && state.warCampaigns.shu;
@@ -1982,6 +1992,11 @@ function planCampaign(state, faction, day) {
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
   if (!own.length) return null;
+  // 刘备入川期间，刘璋先守剑阁；等剑阁换旗后再恢复正常的扩张战役。
+  if (faction === 'zhang' && state.flags && state.flags.liubeiYiWar) {
+    const jiange = siteById(state, 'jiange');
+    if (jiange && jiange.ownerFaction === 'zhang') return null;
+  }
   // 刘备入川后优先打益州，不把兵力浪费在北边的鲜卑或中原乱战上。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
       foes.indexOf('zhang') >= 0) {
@@ -1994,7 +2009,17 @@ function planCampaign(state, faction, day) {
   if (!lords.length) return null;
 
   let target = null;
-  foes.forEach(function (enemy) {
+  // 入川第一仗必须落在剑阁：上庸—江州的新路会把“最近敌城”算成江州，
+  // 但刘备入川的叙事和测试都以剑阁为首攻，这里直接锁首攻目标。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      foes.indexOf('zhang') >= 0 && !pairBlocked(state, 'shu', 'zhang', day)) {
+    const jiange = ownedSites(state, 'zhang', true).filter(function (s) { return s.id === 'jiange'; })[0];
+    if (jiange && canSiegeSiteFromFaction(state, 'shu', jiange).ok) {
+      const near = nearestSiteOf(state, own, jiange);
+      target = { site: jiange, score: -1, distance: near.distance };
+    }
+  }
+  if (!target) foes.forEach(function (enemy) {
     if (pairBlocked(state, faction, enemy, day)) return;
     ownedSites(state, enemy, true).forEach(function (s) {
       // 任何有主的城都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
@@ -2110,8 +2135,14 @@ function startSiege(state, cp, site, day) {
   attackers.forEach(function (l) { giveOrder(l, 'siege', site.id, true); });
 
   // 围城一起，守方的领主就收到烽火：能来的都往这座城赶
+  // 但正在执行本国战役（尤其刘备入川）的攻方领主不能被另一场守城令抽走。
+  const ownCampaign = state.warCampaigns[site.ownerFaction];
+  const busyAttackers = ownCampaign && ownCampaign.attackerIds ? ownCampaign.attackerIds : [];
   const defenders = factionLords(state, site.ownerFaction)
-    .filter(function (l) { return army.troopCount(l.troops || {}) >= 8; })
+    .filter(function (l) {
+      return army.troopCount(l.troops || {}) >= 8 &&
+        busyAttackers.indexOf(l.id) < 0 && !l.defending;
+    })
     .sort(function (a, b) { return siteDistance(a, site) - siteDistance(b, site); })
     .slice(0, 4);
   cp.defenderIds = defenders.map(function (l) { return l.id; });
@@ -2277,8 +2308,12 @@ function siegeContingentKey(kind, id) {
  */
 function beginSiegeAssault(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
+  // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+    site.id === 'jiange';
   const attackers = attackersOf(state, cp).filter(function (l) {
-    return siteDistance(l, site) <= 2 && army.troopCount(l.troops || {}) > 0;
+    return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
   if (!attackers.length) {
     cp.done = true;

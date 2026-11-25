@@ -20,6 +20,7 @@ const {
   SITE_ROWS,
   RECRUIT_SETS,
   ROADS,
+  BANDIT_EXCLUDE_ZONES,
   FACTIONS,
 } = require('../data/china.js');
 
@@ -65,6 +66,19 @@ function regionAt(world, x, y) {
 
 function regionDef(id) {
   return REGIONS[id] || REGIONS.zhongyuan;
+}
+
+/** 匪团禁入区（设计稿坐标转成实际格坐标后判断）。 */
+function inBanditExclusion(x, y) {
+  for (let i = 0; i < BANDIT_EXCLUDE_ZONES.length; i++) {
+    const z = BANDIT_EXCLUDE_ZONES[i];
+    const x0 = S(z[0]);
+    const y0 = S(z[1]);
+    const x1 = S(z[2]);
+    const y1 = S(z[3]);
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return true;
+  }
+  return false;
 }
 
 function siteAt(world, x, y) {
@@ -696,6 +710,7 @@ module.exports = {
   terrainAt,
   isPassable,
   regionAt,
+  inBanditExclusion,
   regionDef,
   siteAt,
   siteById,

@@ -2158,9 +2158,9 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
 /* ---------------------------------------------------------------- n 版：峡谷/州分布/三国上限 */
 
 group('n 版：峡谷 · 州分布 · 三国上限');
-ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
+ok('穿山峡谷有横向与斜向山口', (world.canyons || []).length >= 8 &&
   (world.canyons || []).some(function (c) { return c.dir === 'h'; }) &&
-  (world.canyons || []).some(function (c) { return c.dir === 'v'; }),
+  (world.canyons || []).some(function (c) { return c.dir !== 'h'; }),
   JSON.stringify((world.canyons || []).slice(0, 3)));
 {
   const g = stateLib.createGame({ seed: 2026112520 });
@@ -3718,6 +3718,114 @@ group('n18 版：扩图 · 三新势力 · 打散三天');
   ok('进城后锁定在城并清掉地图跟随/围城提示', g.player.atSiteId === 'luoyang' &&
     !app.mapDrag && !app.follow && !app.siegePrompt && app.mapIdleRest === false);
 }
+/* ---------------------------------------------------------------- n19 版：换位 · 连线 · 山越 · 匪团禁区 */
+
+group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
+{
+  const g = stateLib.createGame({ seed: 2026112619 });
+  const newIds = ['fanyang', 'changshan', 'yushan', 'shanyue'];
+  const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
+  ok('n19 新城全部生成', missing.length === 0, missing.join(','));
+  ok('总据点扩到 81', g.world.sites.length === 81, String(g.world.sites.length));
+
+  function hasRoad(a, b) {
+    return ROADS.some(function (p) {
+      return (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a);
+    });
+  }
+  ok('武威—天水直连', hasRoad('wuwei', 'tianshui'));
+  ok('上庸—剑阁—江州成链', hasRoad('shangyong', 'jiange') && hasRoad('shangyong', 'jiangzhou'));
+  ok('庐江—宛—夏口成链', hasRoad('lujiang', 'wan') && hasRoad('lujiang', 'xiakou'));
+  ok('柴桑—玉山—会稽—夷陵成链',
+    hasRoad('chaisang', 'yushan') && hasRoad('yushan', 'kuaiji') && hasRoad('yushan', 'yiling'));
+  ok('邺城—范阳—涿成链', hasRoad('zhuo', 'fanyang') && hasRoad('fanyang', 'ye'));
+  ok('邺城—常山村相连', hasRoad('ye', 'changshan'));
+  ok('南皮—北平成链且南皮—蓟断开',
+    hasRoad('nanpi', 'beiping') && !hasRoad('ji', 'nanpi'));
+  ok('交趾—山越相连', hasRoad('jiaozhi', 'shanyue'));
+
+  ok('襄平无主', (function () {
+    const s = worldLib.siteById(g.world, 'xiangping');
+    return s && s.ownerFaction === null && s.faction === null && !s.banner;
+  })());
+  ok('范阳归公孙瓒、常山归袁、玉山归吴', ['fanyang', 'changshan', 'yushan'].every(function (id) {
+    const s = worldLib.siteById(g.world, id);
+    return s && s.ownerFaction === (id === 'fanyang' ? 'gongsun' : id === 'changshan' ? 'yuan' : 'wu');
+  }));
+  ok('山越势力六位领主', g.lords.filter(function (l) { return l.faction === 'shanyue'; }).length >= 6,
+    String(g.lords.filter(function (l) { return l.faction === 'shanyue'; }).length));
+  ok('山越城进入都城表', CAPITAL_IDS.indexOf('shanyue') >= 0);
+  ok('汉廷诸将收在长安—潼关',
+    g.lords.filter(function (l) { return l.faction === 'han'; }).every(function (l) {
+      return l.home === 'changan' || l.home === 'tongguan';
+    }));
+
+  const guandu = worldLib.siteById(g.world, 'guandu');
+  const baima = worldLib.siteById(g.world, 'baima');
+  ok('官渡移到原白马位置', guandu.x === Math.round(23 * g.world.w / 40) && guandu.y === Math.round(21 * g.world.w / 40),
+    guandu.x + ',' + guandu.y);
+  ok('白马移到黎阳与原白马中间',
+    baima.x === Math.round(25 * g.world.w / 40) && baima.y === Math.round(18 * g.world.w / 40),
+    baima.x + ',' + baima.y);
+
+  const patrolBad = newIds.filter(function (id) {
+    const s = worldLib.siteById(g.world, id);
+    return stateLib.patrolRoutesForSite(g, s).length < 5;
+  });
+  ok('n19 新城都有至少五条巡逻线', patrolBad.length === 0, patrolBad.join(','));
+
+  const zoneX = Math.round(8 * g.world.w / 40);
+  const zoneY = Math.round(35 * g.world.w / 40);
+  ok('成都西侧空地被标为匪团禁区', worldLib.inBanditExclusion(zoneX, zoneY) === true);
+  ok('匪团不能落进成都西侧空地', stateLib.banditSpotAllowed(g, zoneX, zoneY, 'yizhou', null) === false);
+  const party = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.dead; })[0];
+  party.roamRegion = 'yizhou';
+  party.x = zoneX - 4;
+  party.y = zoneY;
+  party.roamPath = null;
+  party.roamPathFor = null;
+  const step = stateLib.banditPathStep(g, party, { x: zoneX, y: zoneY });
+  ok('匪团走一步也不会踏进禁区', !step || !worldLib.inBanditExclusion(step.x, step.y),
+    step ? step.x + ',' + step.y : 'null');
+
+  // 旧档：n19 新城补回、襄平转无主、官渡/白马换位、汉将收回长安。
+  const old = JSON.parse(stateLib.serialize(g));
+  old.world.sites = old.world.sites.filter(function (s) { return newIds.indexOf(s.id) < 0; });
+  const oldXiangping = old.world.sites.filter(function (s) { return s.id === 'xiangping'; })[0];
+  if (oldXiangping) {
+    oldXiangping.ownerFaction = 'han';
+    oldXiangping.faction = 'han';
+    oldXiangping.banner = '汉';
+  }
+  const oldGuandu = old.world.sites.filter(function (s) { return s.id === 'guandu'; })[0];
+  const oldBaima = old.world.sites.filter(function (s) { return s.id === 'baima'; })[0];
+  if (oldGuandu) { oldGuandu.x = Math.round(22 * g.world.w / 40); oldGuandu.y = Math.round(24 * g.world.w / 40); }
+  if (oldBaima) { oldBaima.x = Math.round(23 * g.world.w / 40); oldBaima.y = Math.round(21 * g.world.w / 40); }
+  old.lords = old.lords.filter(function (l) { return l.faction !== 'shanyue'; });
+  ['zhujun', 'luzhi', 'yangfeng'].forEach(function (id) {
+    const l = old.lords.filter(function (x) { return x.id === id; })[0];
+    if (l) l.home = id === 'yangfeng' ? 'hulao' : (id === 'luzhi' ? 'zhuo' : 'luoyang');
+    if (l) l.inCity = null;
+  });
+  const migrated = stateLib.deserialize(old);
+  ok('旧档补齐 n19 四座新城', !!migrated && migrated.world.sites.length === 81,
+    migrated ? String(migrated.world.sites.length) : 'null');
+  ok('旧档襄平转无主', !!migrated && (function () {
+    const s = worldLib.siteById(migrated.world, 'xiangping');
+    return s && s.ownerFaction === null && s.faction === null;
+  })());
+  const migGuandu = migrated && worldLib.siteById(migrated.world, 'guandu');
+  const migBaima = migrated && worldLib.siteById(migrated.world, 'baima');
+  ok('旧档官渡/白马换位', !!migGuandu && !!migBaima &&
+    migGuandu.x === guandu.x && migGuandu.y === guandu.y &&
+    migBaima.x === baima.x && migBaima.y === baima.y);
+  ok('旧档汉将迁回长安—潼关', !!migrated && migrated.lords.filter(function (l) {
+    return l.faction === 'han' && l.id !== 'liuxie';
+  }).every(function (l) { return l.home === 'changan' || l.home === 'tongguan'; }));
+  ok('旧档补入山越六位领主', !!migrated &&
+    migrated.lords.filter(function (l) { return l.faction === 'shanyue'; }).length >= 6);
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
