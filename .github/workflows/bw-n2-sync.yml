@@ -1,0 +1,36 @@
+name: bw-n2-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download patch
+        run: curl -fsSL https://aka.doubaocdn.com/s/zpYifgVtNI -o /tmp/bw-n2.patch
+      - name: Apply and test
+        run: |
+          git apply --check /tmp/bw-n2.patch
+          git apply /tmp/bw-n2.patch
+          node tools/logic-test.js
+          node tools/render-smoke.js
+      - name: Commit and push
+        run: |
+          git config user.name 'bw-release-bot'
+          git config user.email 'bw-release-bot@users.noreply.github.com'
+          rm -f .github/workflows/bw-n2-sync.yml
+          git add -A
+          git commit -m 'release: 20261125n2 休息后点地图提示改为上路 [skip ci]'
+          git push origin HEAD:main
