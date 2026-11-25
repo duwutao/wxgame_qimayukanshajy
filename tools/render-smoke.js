@@ -107,6 +107,10 @@ smoke('App 构造 + 资源生成', function () {
   app = new App(rt);
   ok('assets 有玩家贴图', !!app.assets.player && app.assets.player.width === 32);
   ok('地形贴图懒生成', !!app.assets.terrainFor('zhongyuan', 'farm'));
+  ok('新地形贴图能生成', ['bridge', 'foothill', 'pass', 'oasis'].every(function (t) {
+    return !!app.assets.terrainFor('zhongyuan', t);
+  }));
+  ok('城池图标升级到 32x32', app.assets.site.town.width === 32 && app.assets.site.town.height === 32);
 });
 
 /* ---------------------------------------------------------------- 标题 */
@@ -640,6 +644,13 @@ smoke('双指缩放：大地图与天下图', function () {
   const worldHpx = st.world.h * 64 * app.mapZoom;
   ok('缩到底能看见整个天下', worldWpx <= app.runtime.width + 1 && worldHpx <= app.runtime.height - 132 - 176 + 1,
     Math.round(worldWpx) + 'x' + Math.round(worldHpx));
+  app.mapZoom = 1;
+  mapScene.onPinchStart(app, cx, cy);
+  mapScene.onPinch(app, 10, cx, cy);
+  ok('近景可放到 2.4 倍', app.mapZoom > 2.2, app.mapZoom);
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('2.4 倍近景能完整绘制', app.ui.items.length > 0);
   mapScene.onPinchEnd(app);
 
   app.replace('atlas');

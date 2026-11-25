@@ -14,6 +14,8 @@ const {
   RIVER_HUANG,
   RIVER_YANG,
   RIVER_HUAI,
+  RIVER_WEI,
+  RIVER_HAN,
   MOUNTAINS,
   SITE_ROWS,
   RECRUIT_SETS,
@@ -167,22 +169,90 @@ function siteFromRow(world, row) {
   return site;
 }
 
-/** 铺设道路；旧档补新城时也可以只铺新增的连线。 */
+function isRoadTile(t) {
+  return t === 'road' || t === 'bridge' || t === 'pass';
+}
+
+/** 给桥梁记号去重；同一格被多条道路穿过时只画一次 */
+function addBridgeMark(world, x, y, dir) {
+  world.bridges = world.bridges || [];
+  for (let i = 0; i < world.bridges.length; i++) {
+    const b = world.bridges[i];
+    if (b.x === x && b.y === y) {
+      if (dir === 'h' || dir === 'v') b.dir = dir;
+      return;
+    }
+  }
+  world.bridges.push({ x, y, dir: dir === 'v' ? 'v' : 'h' });
+}
+
+/** 河流夹在道路中间时，这一格就是桥；兼容旧档没有 bridge 格的情况 */
+function bridgeDirAt(world, x, y) {
+  const L = isRoadTile(world.tiles[idx(x - 1, y)]);
+  const R = isRoadTile(world.tiles[idx(x + 1, y)]);
+  const U = isRoadTile(world.tiles[idx(x, y - 1)]);
+  const D = isRoadTile(world.tiles[idx(x, y + 1)]);
+  if (L && R && !U && !D) return 'h';
+  if (U && D && !L && !R) return 'v';
+  if (L && R) return 'h';
+  if (U && D) return 'v';
+  return null;
+}
+
+/**
+ * 补齐桥梁标记：
+ * - 新地图：layRoads 已经把过河的格子改成 bridge；
+ * - 旧存档：河流两侧都有道路的 river 格，现场补成 bridge，避免旧档看不到桥。
+ */
+function ensureWorldFeatures(world) {
+  if (!world || !world.tiles) return world;
+  world.bridges = Array.isArray(world.bridges) ? world.bridges : [];
+  for (let y = 0; y < world.h; y++) {
+    for (let x = 0; x < world.w; x++) {
+      const t = world.tiles[idx(x, y)];
+      if (t === 'bridge') {
+        addBridgeMark(world, x, y, bridgeDirAt(world, x, y));
+      } else if (t === 'river') {
+        const dir = bridgeDirAt(world, x, y);
+        if (dir) {
+          world.tiles[idx(x, y)] = 'bridge';
+          addBridgeMark(world, x, y, dir);
+        }
+      }
+    }
+  }
+  return world;
+}
+
+/** 铺设道路；过河落桥，穿山落山口。旧档补新城时也可以只铺新增的连线。 */
 function layRoads(world, pairs) {
+  world.bridges = world.bridges || [];
   (pairs || []).forEach(function (pair) {
     const a = siteById(world, pair[0]);
     const b = siteById(world, pair[1]);
     if (!a || !b) return;
+    let lastX = a.x;
+    let lastY = a.y;
     bresenham(a.x, a.y, b.x, b.y, function (x, y) {
       if (!inBounds(x, y)) return;
       if (siteAt(world, x, y)) return;
       const t = world.tiles[idx(x, y)];
-      if (t === 'sea' || t === 'river') return;
-      if (t === 'mountain') {
-        world.tiles[idx(x, y)] = 'hills';
+      const dir = Math.abs(x - lastX) >= Math.abs(y - lastY) ? 'h' : 'v';
+      if (t === 'sea') {
+        lastX = x;
+        lastY = y;
         return;
       }
-      world.tiles[idx(x, y)] = 'road';
+      if (t === 'river' || t === 'bridge') {
+        world.tiles[idx(x, y)] = 'bridge';
+        addBridgeMark(world, x, y, dir);
+      } else if (t === 'mountain') {
+        world.tiles[idx(x, y)] = 'pass';
+      } else {
+        world.tiles[idx(x, y)] = 'road';
+      }
+      lastX = x;
+      lastY = y;
     });
   });
 }
@@ -252,18 +322,35 @@ function createWorld(seed) {
     }
   }
 
-  // 3. 山脉（折线加粗；放大后按比例补宽，保持视觉厚度）
-  MOUNTAINS.forEach(function (line) {
+  // 3. 山脉：沿折线刷出有宽度的山体；外缘铺山麓，不再是细细一条线
+  MOUNTAINS.forEach(function (line, lineIndex) {
     for (let i = 0; i < line.length - 1; i++) {
       const a = [S(line[i][0]), SV(line[i][1], MAP_H - 1)];
       const b = [S(line[i + 1][0]), SV(line[i + 1][1], MAP_H - 1)];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const nx = -dy / len;
+      const ny = dx / len;
       bresenham(a[0], a[1], b[0], b[1], function (x, y) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
-        world.tiles[idx(x, y)] = 'mountain';
-        if (rng.chance(0.62)) setTile(world, x + 1, y, 'mountain');
-        if (rng.chance(0.5)) setTile(world, x, y + 1, 'mountain');
-        if (rng.chance(0.2)) setTile(world, x + 1, y + 1, 'mountain');
+        // 山体宽 3～5 格，边缘随机落山麓；每段有一点起伏，避免复制粘贴感
+        const half = 1 + (rng.chance(0.42) ? 1 : 0);
+        for (let o = -half; o <= half; o++) {
+          if (o === 0 && rng.chance(0.18)) continue;
+          const ox = Math.round(x + nx * o);
+          const oy = Math.round(y + ny * o);
+          if (!inBounds(ox, oy)) continue;
+          if (world.tiles[idx(ox, oy)] === 'sea') continue;
+          if (Math.abs(o) === half) {
+            if (rng.chance(0.62)) world.tiles[idx(ox, oy)] = 'foothill';
+          } else {
+            world.tiles[idx(ox, oy)] = 'mountain';
+          }
+        }
+        // 山脊线上偶尔再垫一格，拉出连绵的肩部
+        if (rng.chance(0.34)) setTile(world, x, y + (rng.chance(0.5) ? 1 : -1), 'foothill');
       });
     }
   });
@@ -277,13 +364,22 @@ function createWorld(seed) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
         world.tiles[idx(x, y)] = 'river';
-        if (wide && rng.chance(0.5)) setTile(world, x, y + 1, 'river');
+        if (wide && rng.chance(0.55)) setTile(world, x, y + 1, 'river');
+        // 河岸：靠水的一圈偶尔落成湿地，视觉过渡更软
+        if (rng.chance(0.18)) {
+          const ex = x + (rng.chance(0.5) ? 1 : -1);
+          if (inBounds(ex, y) && world.tiles[idx(ex, y)] !== 'river' && world.tiles[idx(ex, y)] !== 'sea') {
+            world.tiles[idx(ex, y)] = 'marsh';
+          }
+        }
       });
     }
   }
   drawRiver(RIVER_HUANG, true);
   drawRiver(RIVER_YANG, true);
   drawRiver(RIVER_HUAI, false);
+  drawRiver(RIVER_WEI, false);
+  drawRiver(RIVER_HAN, false);
 
   // 5. 森林 / 丘陵 / 沼泽斑块
   function blob(cx, cy, radius, terrainId, density) {
@@ -299,10 +395,14 @@ function createWorld(seed) {
       }
     }
   }
-  for (let i = 0; i < 12; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 3), 'forest', 0.6);
-  for (let i = 0; i < 9; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 2), 'hills', 0.55);
-  for (let i = 0; i < 8; i++) blob(rng.int(20, MAP_W - 4), rng.int(26, MAP_H - 3), rng.int(1, 2), 'marsh', 0.5);
-  for (let i = 0; i < 5; i++) blob(rng.int(1, 12), rng.int(10, 26), rng.int(1, 2), 'desert', 0.55);
+  for (let i = 0; i < 22; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(2, 4), 'forest', 0.6);
+  for (let i = 0; i < 15; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 3), 'hills', 0.55);
+  for (let i = 0; i < 11; i++) blob(rng.int(20, MAP_W - 4), rng.int(26, MAP_H - 3), rng.int(1, 3), 'marsh', 0.5);
+  for (let i = 0; i < 7; i++) blob(rng.int(1, 12), rng.int(10, 26), rng.int(1, 3), 'desert', 0.55);
+  // 凉州绿洲：小水面加棕榈，走过戈壁时能一眼认出来
+  for (let i = 0; i < 6; i++) {
+    blob(S(rng.int(3, 11)), SV(rng.int(11, 25), MAP_H - 2), rng.int(1, 2), 'oasis', 0.52);
+  }
 
   // 6. 据点
   SITE_ROWS.forEach(function (row) {
@@ -312,7 +412,7 @@ function createWorld(seed) {
   // 7. 道路
   layRoads(world, ROADS);
 
-  // 8. 连通性兜底：从陈留铺路
+  // 8. 连通性兜底：从陈留铺路。山搭山口、水搭桥，别让据点被地形锁死
   const start = siteById(world, 'chenliu') || world.sites[0];
   const reach = reachableTiles(world, start.x, start.y);
   world.sites.forEach(function (s) {
@@ -320,12 +420,15 @@ function createWorld(seed) {
     bresenham(start.x, start.y, s.x, s.y, function (x, y) {
       if (!inBounds(x, y)) return;
       if (siteAt(world, x, y)) return;
-      if (world.tiles[idx(x, y)] === 'sea' || world.tiles[idx(x, y)] === 'river') {
-        world.tiles[idx(x, y)] = 'road';
-      }
+      const t = world.tiles[idx(x, y)];
+      if (t === 'sea') return;
+      if (t === 'river') world.tiles[idx(x, y)] = 'bridge';
+      else if (t === 'mountain') world.tiles[idx(x, y)] = 'pass';
+      else world.tiles[idx(x, y)] = 'road';
     });
   });
 
+  ensureWorldFeatures(world);
   return world;
 }
 
@@ -503,6 +606,7 @@ module.exports = {
   createWorld,
   siteFromRow,
   layRoads,
+  ensureWorldFeatures,
   findPath,
   tileHours,
   addHours,

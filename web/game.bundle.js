@@ -637,9 +637,13 @@ const TERRAIN = {
   forest: { id: 'forest', name: '林地', cost: 1.5, passable: true, hours: 2.9 },
   marsh: { id: 'marsh', name: '沼泽', cost: 2.2, passable: true, hours: 4.3 },
   hills: { id: 'hills', name: '丘陵', cost: 1.8, passable: true, hours: 3.4 },
+  foothill: { id: 'foothill', name: '山麓', cost: 1.7, passable: true, hours: 3.2 },
   mountain: { id: 'mountain', name: '山地', cost: 99, passable: false, hours: 99 },
+  pass: { id: 'pass', name: '山口', cost: 1.9, passable: true, hours: 3.5 },
   river: { id: 'river', name: '涉水', cost: 2.4, passable: true, hours: 4.6 },
+  bridge: { id: 'bridge', name: '桥梁', cost: 0.55, passable: true, hours: 1.1 },
   desert: { id: 'desert', name: '戈壁', cost: 1.55, passable: true, hours: 3.1 },
+  oasis: { id: 'oasis', name: '绿洲', cost: 1.0, passable: true, hours: 1.8 },
   sea: { id: 'sea', name: '海', cost: 99, passable: false, hours: 99 },
 };
 
@@ -745,10 +749,24 @@ const RIVER_HUAI = [
   [24, 28], [26, 28], [28, 27], [30, 27], [32, 26], [34, 26], [35, 26],
 ];
 
-/** 山脉折线，每段会加粗 1 格 */
+/** 渭水：关中 -> 黄河 */
+const RIVER_WEI = [
+  [10, 20], [12, 20], [14, 20], [16, 21], [18, 21], [20, 22], [22, 22],
+];
+
+/** 汉水：汉中 -> 江汉 */
+const RIVER_HAN = [
+  [13, 31], [15, 32], [17, 33], [19, 34], [22, 35], [25, 36], [27, 36], [29, 37],
+];
+
+/** 山脉折线，每段会按宽度刷出连绵山体 */
 const MOUNTAINS = [
   // 阴山（塞北）
   [[2, 4], [6, 3], [10, 4], [14, 3], [18, 4]],
+  // 贺兰山
+  [[5, 8], [6, 11], [7, 15]],
+  // 祁连山
+  [[2, 12], [4, 15], [6, 18], [8, 19]],
   // 太行
   [[23, 9], [24, 12], [25, 15], [24, 18], [23, 21]],
   // 吕梁
@@ -761,8 +779,12 @@ const MOUNTAINS = [
   [[18, 33], [19, 35], [19, 37]],
   // 南岭
   [[20, 43], [23, 42], [26, 43], [29, 42]],
+  // 衡山
+  [[24, 39], [26, 41], [28, 40]],
   // 武夷
   [[31, 39], [32, 41], [31, 44]],
+  // 会稽山
+  [[31, 36], [33, 38], [35, 39]],
   // 燕山
   [[26, 6], [30, 5], [34, 6]],
 ];
@@ -1379,6 +1401,8 @@ module.exports = {
   RIVER_HUANG,
   RIVER_YANG,
   RIVER_HUAI,
+  RIVER_WEI,
+  RIVER_HAN,
   MOUNTAINS,
   SITE_ROWS,
   CAPITAL_IDS,
@@ -1425,11 +1449,13 @@ const UI_COLORS = {
   ink: '#0d0b08',
 };
 
-/** 水系 / 山体固定色（不随区域变，避免绿色河流） */
+/** 水系 / 山体 / 桥固定色（不随区域变，避免绿色河流） */
 const FIXED = {
   river: { base: '#33608a', dark: '#28506f', light: '#457a9e', detail: '#8ab6d2' },
   sea: { base: '#22476b', dark: '#1a3752', light: '#2e5b82', detail: '#5f92b4' },
   mountain: { base: '#7c756b', dark: '#635d55', light: '#969085', detail: '#c8c1b4' },
+  bridge: { base: '#936f45', dark: '#654b2d', light: '#c39a64', detail: '#d9be8d' },
+  pass: { base: '#8c8171', dark: '#665d51', light: '#b0a593', detail: '#d6cbb6' },
 };
 
 function newCanvas(runtime, w, h) {
@@ -1447,7 +1473,7 @@ function px(g, x, y, color, w, h) {
 /** 取某区域某地形的配色 */
 function paletteFor(regionId, terrain) {
   const reg = REGIONS[regionId] || REGIONS.zhongyuan;
-  if (terrain === 'river' || terrain === 'sea' || terrain === 'mountain') {
+  if (FIXED[terrain]) {
     const base = FIXED[terrain];
     return {
       base: base.base, dark: base.dark, light: base.light,
@@ -1458,17 +1484,27 @@ function paletteFor(regionId, terrain) {
   if (terrain === 'road') {
     return { base: '#a89068', dark: '#8a7550', light: '#c3a97e', detail: '#6d5a3c' };
   }
+  if (terrain === 'foothill') {
+    const p = reg.palette;
+    return {
+      base: p.dark, dark: p.dark, light: p.light,
+      detail: p.deco,
+    };
+  }
+  if (terrain === 'oasis') {
+    return { base: '#7fa47c', dark: '#587a55', light: '#a8c79a', detail: '#d8e4b0' };
+  }
   const p = reg.palette;
   return { base: p.ground, dark: p.dark, light: p.light, detail: p.deco };
 }
 
 /**
- * 生成一格地形（16x16）
- * 底纹只做很轻的颗粒，山脊 / 河道 / 道路的形状交给大地图折线层统一绘制，
- * 这样整片山地不会变成一排排重复的小山，水面也不会是一格一格的方块。
+ * 生成一格地形（32x32）
+ * 底纹做很轻的颗粒；山、河、道路的连续形状由大地图折线层统一绘制。
+ * 在山麓、山口、桥面和绿洲上补可辨认的小结构，让缩放到近景时不至于只是色块。
  */
 function makeTerrainSprite(runtime, terrain, pal, seed) {
-  const size = 16;
+  const size = 32;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
@@ -1477,73 +1513,151 @@ function makeTerrainSprite(runtime, terrain, pal, seed) {
   px(g, 0, 0, pal.base, size, size);
 
   // 统一颗粒：只为破掉纯色，不制造噪点
-  for (let i = 0; i < 6; i++) {
-    px(g, rng.int(0, 15), rng.int(0, 15), rng.chance(0.5) ? pal.dark : pal.light);
+  for (let i = 0; i < 18; i++) {
+    px(g, rng.int(0, 31), rng.int(0, 31), rng.chance(0.5) ? pal.dark : pal.light);
   }
 
   if (terrain === 'plain') {
-    for (let i = 0; i < 3; i++) {
-      const x = rng.int(2, 13);
-      const y = rng.int(3, 14);
-      px(g, x, y, pal.detail, 1, 2);
-      px(g, x + 1, y + 1, pal.dark);
+    for (let i = 0; i < 5; i++) {
+      const x = rng.int(3, 27);
+      const y = rng.int(5, 28);
+      px(g, x, y, pal.detail, 1, 4);
+      px(g, x + 2, y + 2, pal.dark, 1, 3);
+      px(g, x - 1, y + 4, pal.light, 3, 1);
     }
   } else if (terrain === 'farm') {
-    // 田块：只撒作物点，不画垄线，免得整片地图出现规律条纹
-    for (let i = 0; i < 6; i++) {
-      const x = rng.int(1, 14);
-      const y = rng.int(1, 14);
-      px(g, x, y, pal.detail);
-      if (i % 2 === 0) px(g, x + 1, y, pal.dark);
+    // 田块：短垄 + 稀疏作物点，不画贯穿全格的条纹
+    for (let i = 0; i < 4; i++) {
+      const y = 7 + i * 6;
+      px(g, 5, y, pal.dark, 22, 1);
+      px(g, 7, y - 1, pal.detail, 3, 1);
+      px(g, 18, y - 1, pal.detail, 4, 1);
+      if (rng.chance(0.5)) px(g, 12, y + 1, pal.light, 2, 1);
     }
   } else if (terrain === 'forest') {
-    const trees = [[3, 5], [9, 9], [12, 4]];
-    trees.forEach(function (t) {
-      px(g, t[0], t[1], '#4a3a24', 1, 3);
-      px(g, t[0] - 1, t[1] - 2, pal.dark, 3, 3);
-      px(g, t[0], t[1] - 3, pal.dark, 1, 1);
-      px(g, t[0] - 1, t[1] - 2, pal.light);
+    const trees = [[9, 18], [19, 23], [25, 14]];
+    trees.forEach(function (t, i) {
+      px(g, t[0], t[1], '#4a3a24', 2, 5);
+      px(g, t[0] - 3, t[1] - 5, pal.dark, 7, 6);
+      px(g, t[0] - 2, t[1] - 7, pal.dark, 5, 3);
+      px(g, t[0] - 1, t[1] - 6, pal.light, 3, 2);
+      if (i === 0) px(g, t[0] + 4, t[1] + 1, pal.detail, 2, 2);
     });
   } else if (terrain === 'marsh') {
-    for (let i = 0; i < 2; i++) {
-      const x = rng.int(1, 10);
-      const y = rng.int(3, 12);
-      px(g, x, y, '#3d6672', 4, 2);
-      px(g, x + 1, y, '#5f8b93', 2, 1);
+    for (let i = 0; i < 3; i++) {
+      const x = rng.int(3, 20);
+      const y = rng.int(8, 24);
+      px(g, x, y, '#3d6672', 8, 3);
+      px(g, x + 2, y, '#5f8b93', 4, 1);
+      px(g, x + 1, y + 3, '#2e5060', 6, 1);
     }
-    for (let i = 0; i < 2; i++) px(g, rng.int(2, 13), 4, '#b6a165', 1, 3);
+    for (let i = 0; i < 3; i++) px(g, rng.int(4, 26), rng.int(7, 24), '#b6a165', 1, 5);
   } else if (terrain === 'hills') {
-    for (let i = 0; i < 2; i++) {
-      const y = 5 + i * 6;
-      px(g, 1, y, pal.dark, 14, 1);
-      px(g, 3, y - 1, pal.light, 10, 1);
+    for (let i = 0; i < 3; i++) {
+      const y = 8 + i * 8;
+      px(g, 2, y + 3, pal.dark, 28, 2);
+      px(g, 5, y, pal.light, 18, 1);
+      px(g, 10, y - 2, pal.light, 10, 1);
+      px(g, 16, y + 1, pal.base, 8, 1);
+    }
+  } else if (terrain === 'foothill') {
+    // 山麓：草坡压着碎石带，和山地接壤
+    px(g, 0, 22, pal.dark, 32, 10);
+    px(g, 3, 17, pal.light, 26, 1);
+    px(g, 7, 14, pal.light, 16, 1);
+    for (let i = 0; i < 6; i++) {
+      px(g, rng.int(4, 26), rng.int(18, 28), '#8f8777', 2, 2);
+      px(g, rng.int(7, 25), rng.int(5, 16), pal.detail, 2, 1);
     }
   } else if (terrain === 'mountain') {
-    px(g, 3, 6, pal.light, 6, 1);
-    px(g, 0, 10, pal.light, 5, 1);
-    px(g, 9, 12, pal.light, 5, 1);
-    px(g, 4, 7, pal.dark, 3, 1);
+    // 两三层山脊，带雪线和背光面；不是孤零零一条横线
+    px(g, 1, 25, pal.dark, 30, 4);
+    px(g, 4, 20, pal.light, 8, 2);
+    px(g, 12, 17, pal.light, 10, 2);
+    px(g, 22, 21, pal.light, 7, 2);
+    for (let i = 0; i < 3; i++) {
+      const x = 4 + i * 9;
+      const h = 7 + (i === 1 ? 5 : 0);
+      ctxTri(g, x, 27, x + 7, 27 - h, x + 14, 27, pal.dark);
+      ctxTri(g, x + 2, 27, x + 7, 27 - h, x + 8, 27, pal.light);
+      if (h >= 10) {
+        ctxTri(g, x + 5, 27 - h + 4, x + 7, 27 - h, x + 9, 27 - h + 4, '#ded8cc');
+      }
+    }
+    px(g, 0, 23, pal.base, 32, 2);
+  } else if (terrain === 'pass') {
+    // 山口：两侧岩壁夹一条浅色通道，道路会从这里穿过去
+    px(g, 0, 0, pal.dark, 10, 32);
+    px(g, 22, 0, pal.dark, 10, 32);
+    px(g, 10, 0, pal.base, 12, 32);
+    px(g, 12, 4, pal.light, 8, 24);
+    for (let i = 0; i < 4; i++) {
+      const y = 6 + i * 6;
+      px(g, 5, y, pal.light, 4, 2);
+      px(g, 23, y + 1, pal.light, 4, 2);
+    }
+    px(g, 14, 14, '#d6cbb6', 4, 4);
   } else if (terrain === 'river') {
-    px(g, 3, 5, pal.detail, 5, 1);
-    px(g, 8, 11, pal.detail, 4, 1);
+    px(g, 0, 10, '#28506f', 32, 18);
+    px(g, 0, 12, '#33608a', 32, 14);
+    px(g, 3, 14, '#457a9e', 13, 1);
+    px(g, 18, 20, '#457a9e', 11, 1);
+    px(g, 8, 25, '#8ab6d2', 8, 1);
+    px(g, 0, 27, '#28506f', 32, 2);
+  } else if (terrain === 'bridge') {
+    // 桥面木板 + 两侧栏杆；方向由大地图层按道路走向再补一道
+    px(g, 0, 11, '#3a2b1d', 32, 14);
+    px(g, 2, 9, '#936f45', 28, 13);
+    px(g, 2, 9, '#c39a64', 28, 2);
+    for (let i = 0; i < 5; i++) px(g, 5 + i * 6, 11, '#654b2d', 1, 11);
+    px(g, 2, 7, '#5a432b', 28, 2);
+    px(g, 2, 20, '#5a432b', 28, 2);
+    px(g, 8, 5, '#8a6a44', 2, 5);
+    px(g, 22, 5, '#8a6a44', 2, 5);
   } else if (terrain === 'sea') {
-    px(g, 2, 4, pal.detail, 4, 1);
-    px(g, 9, 9, pal.detail, 4, 1);
-    px(g, 4, 13, pal.light, 5, 1);
+    for (let i = 0; i < 5; i++) {
+      const y = 6 + i * 6;
+      px(g, 3 + (i % 2) * 8, y, pal.detail, 10, 1);
+      px(g, 16 - (i % 2) * 3, y + 3, pal.light, 7, 1);
+    }
   } else if (terrain === 'desert') {
-    px(g, 1, 5, pal.light, 7, 1);
-    px(g, 8, 10, pal.light, 6, 1);
-    px(g, 3, 13, pal.dark, 4, 1);
+    px(g, 2, 9, pal.light, 13, 1);
+    px(g, 16, 17, pal.light, 12, 1);
+    px(g, 5, 24, pal.dark, 9, 1);
+    px(g, 9, 11, pal.dark, 6, 1);
+  } else if (terrain === 'oasis') {
+    px(g, 4, 16, '#3f6f78', 20, 8);
+    px(g, 6, 15, '#5b9294', 16, 1);
+    px(g, 8, 23, '#2f5a60', 12, 2);
+    // 棕榈
+    px(g, 23, 9, '#8a6a44', 2, 8);
+    px(g, 18, 7, '#5c8a48', 5, 2);
+    px(g, 24, 5, '#6d9a52', 6, 2);
+    px(g, 21, 4, '#4c783d', 4, 2);
+    px(g, 11, 12, '#b7a15f', 1, 5);
   } else if (terrain === 'road') {
-    for (let i = 0; i < 4; i++) px(g, rng.int(0, 15), rng.int(0, 15), pal.dark, 2, 1);
+    for (let i = 0; i < 6; i++) px(g, rng.int(0, 30), rng.int(0, 30), pal.dark, 3, 1);
+    px(g, 8, 8, pal.light, 10, 1);
+    px(g, 16, 20, pal.light, 9, 1);
   }
 
   return c;
 }
 
-/** 城池贴图：石墙/木屋，不带势力色（势力旗另外画） */
+/** 简易三角填充，用于山脊 */
+function ctxTri(g, x1, y1, x2, y2, x3, y3, color) {
+  g.fillStyle = color;
+  g.beginPath();
+  g.moveTo(x1, y1);
+  g.lineTo(x2, y2);
+  g.lineTo(x3, y3);
+  g.closePath();
+  g.fill();
+}
+
+/** 城池贴图：32x32 的石墙/木屋/营帐，近景能看见城门与瓦檐 */
 function makeSiteSprite(runtime, type, seed) {
-  const size = 16;
+  const size = 32;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   const rng = new RNG(seed);
@@ -1551,69 +1665,118 @@ function makeSiteSprite(runtime, type, seed) {
 
   const stone = '#8f8b82';
   const stoneDark = '#66625b';
-  const roof = '#9c4a3c';
+  const stoneLight = '#b8b1a3';
+  const roof = '#a34d3d';
   const roofDark = '#70342a';
   const wood = '#8a6a44';
   const woodDark = '#5f4830';
-  const tileRoof = '#5a5750';
+  const ink = '#241b12';
+
+  function shadow(y) {
+    g.fillStyle = 'rgba(0,0,0,0.34)';
+    g.beginPath();
+    g.ellipse(16, y, 15, 3, 0, 0, Math.PI * 2);
+    g.fill();
+  }
 
   if (type === 'town') {
-    // 墙基与墙体
-    px(g, 0, 9, '#332e26', 16, 7);
-    px(g, 1, 6, '#9c9589', 14, 8);
-    px(g, 1, 6, '#b4ada0', 14, 1);
-    // 城垛
-    for (let i = 1; i < 15; i += 3) px(g, i, 4, '#a49d90', 2, 2);
-    // 双塔
-    px(g, 0, 2, '#7a7468', 4, 13);
-    px(g, 12, 2, '#7a7468', 4, 13);
-    px(g, 1, 3, '#a49d90', 2, 11);
-    px(g, 13, 3, '#a49d90', 2, 11);
-    px(g, 1, 1, roof, 2, 2);
-    px(g, 13, 1, roof, 2, 2);
-    // 城门
-    px(g, 6, 9, '#211a12', 4, 6);
-    px(g, 6, 8, '#4a3826', 4, 2);
-    px(g, 7, 11, '#e8b45a', 2, 2);
+    shadow(28);
+    // 城基
+    px(g, 1, 18, '#332e26', 30, 11);
+    px(g, 2, 14, stoneDark, 28, 11);
+    px(g, 3, 12, stone, 26, 10);
+    px(g, 3, 12, stoneLight, 26, 2);
+    // 城垛：一排小缺口
+    for (let i = 3; i < 29; i += 4) {
+      px(g, i, 9, stoneDark, 3, 3);
+      px(g, i + 1, 9, stoneLight, 1, 2);
+    }
+    // 角楼
+    px(g, 1, 8, stoneDark, 7, 18);
+    px(g, 24, 8, stoneDark, 7, 18);
+    px(g, 2, 9, stone, 5, 16);
+    px(g, 25, 9, stone, 5, 16);
+    px(g, 2, 6, roof, 5, 3);
+    px(g, 25, 6, roof, 5, 3);
+    px(g, 3, 5, roofDark, 3, 1);
+    px(g, 26, 5, roofDark, 3, 1);
+    // 城门与门洞
+    px(g, 12, 18, ink, 9, 12);
+    px(g, 13, 21, '#1a130d', 7, 9);
+    px(g, 12, 17, '#4a3826', 9, 2);
+    px(g, 14, 22, '#e8b45a', 5, 2);
+    px(g, 15, 24, '#b07b35', 3, 2);
+    // 墙面石缝
+    for (let i = 0; i < 7; i++) {
+      const x = 4 + (i % 3) * 8;
+      const y = 15 + Math.floor(i / 3) * 4;
+      px(g, x, y, stoneDark, 5, 1);
+    }
     // 城头旗
-    px(g, 8, 2, '#6b5136', 1, 5);
-    px(g, 9, 2, '#b8342a', 3, 2);
+    px(g, 17, 3, '#6b5136', 1, 9);
+    px(g, 18, 3, '#b8342a', 5, 4);
+    px(g, 20, 4, '#f0c060', 1, 2);
   } else if (type === 'castle') {
+    shadow(28);
     // 关隘：两座墩台夹一座主塔
-    px(g, 1, 7, '#332e26', 14, 9);
-    px(g, 1, 6, '#9c9589', 14, 2);
-    px(g, 0, 3, '#7a7468', 4, 12);
-    px(g, 12, 3, '#7a7468', 4, 12);
-    px(g, 1, 4, '#a49d90', 2, 10);
-    px(g, 13, 4, '#a49d90', 2, 10);
-    px(g, 6, 2, '#a49d90', 4, 12);
-    px(g, 6, 2, '#b4ada0', 4, 1);
-    px(g, 7, 4, '#211a12', 2, 3);
-    px(g, 7, 11, '#211a12', 2, 5);
-    px(g, 2, 1, roof, 2, 2);
-    px(g, 13, 1, roof, 2, 2);
+    px(g, 1, 16, '#332e26', 30, 12);
+    px(g, 2, 14, stoneDark, 28, 4);
+    px(g, 3, 13, stone, 26, 3);
+    px(g, 1, 8, stoneDark, 7, 20);
+    px(g, 24, 8, stoneDark, 7, 20);
+    px(g, 2, 9, stone, 5, 17);
+    px(g, 25, 9, stone, 5, 17);
+    px(g, 3, 5, roof, 5, 3);
+    px(g, 26, 5, roof, 5, 3);
+    px(g, 12, 7, stoneDark, 7, 22);
+    px(g, 13, 8, stone, 5, 20);
+    px(g, 14, 3, roof, 4, 4);
+    px(g, 12, 12, ink, 7, 4);
+    px(g, 13, 13, '#d0a457', 5, 2);
+    px(g, 12, 18, ink, 7, 12);
+    px(g, 13, 20, '#1a130d', 5, 10);
+    for (let i = 0; i < 4; i++) px(g, 3, 13 + i * 4, stoneLight, 4, 1);
+    for (let i = 0; i < 4; i++) px(g, 26, 12 + i * 4, stoneLight, 4, 1);
   } else if (type === 'village') {
-    px(g, 2, 9, wood, 6, 5);
-    px(g, 2, 9, woodDark, 6, 1);
-    px(g, 1, 7, roofDark, 8, 2);
-    px(g, 2, 6, roof, 6, 1);
-    px(g, 8, 11, '#231a12', 2, 3);
-    px(g, 9, 10, wood, 5, 4);
-    px(g, 9, 10, woodDark, 5, 1);
-    px(g, 8, 8, roof, 7, 2);
-    px(g, 11, 12, '#231a12', 2, 2);
-    // 草垛 / 井
-    px(g, 3, 13, '#b0954a', 2, 2);
-    px(g, 13, 13, '#4a3826', 2, 2);
+    shadow(28);
+    // 木屋一
+    px(g, 4, 17, wood, 11, 10);
+    px(g, 4, 17, woodDark, 11, 2);
+    px(g, 2, 13, roofDark, 15, 4);
+    px(g, 4, 11, roof, 12, 3);
+    px(g, 5, 12, '#c06a53', 8, 1);
+    px(g, 13, 20, ink, 3, 6);
+    px(g, 8, 21, '#d9be8d', 3, 3);
+    // 木屋二
+    px(g, 18, 20, wood, 10, 7);
+    px(g, 17, 17, roof, 12, 3);
+    px(g, 19, 18, roofDark, 8, 1);
+    px(g, 24, 23, ink, 3, 4);
+    px(g, 20, 25, '#d9be8d', 3, 2);
+    // 草垛、井、栅栏
+    px(g, 8, 27, '#b0954a', 4, 3);
+    px(g, 9, 26, '#d0b56a', 2, 1);
+    px(g, 26, 26, '#3d6672', 4, 3);
+    px(g, 27, 25, '#6d5137', 2, 1);
+    for (let i = 0; i < 4; i++) px(g, 6 + i * 6, 30, '#6d5137', 1, 2);
   } else if (type === 'camp') {
-    px(g, 3, 8, '#8d4a3c', 7, 6);
-    px(g, 2, 7, '#6d3427', 9, 2);
-    px(g, 2, 14, '#3f2c20', 9, 1);
-    px(g, 5, 10, '#1e1610', 2, 4);
-    px(g, 11, 11, '#e0b34a', 2, 2);
-    px(g, 10, 13, '#7a5230', 4, 1);
-    px(g, 12, 4, wood, 1, 6);
-    px(g, 12, 3, stone, 1, 1);
+    shadow(28);
+    // 主帐
+    px(g, 7, 18, '#8d4a3c', 14, 10);
+    px(g, 5, 16, '#6d3427', 18, 4);
+    px(g, 8, 12, '#b85a48', 12, 5);
+    px(g, 10, 11, '#6d3427', 8, 2);
+    px(g, 12, 23, ink, 4, 6);
+    px(g, 13, 22, '#d9a441', 2, 3);
+    // 帐绳与火堆
+    px(g, 2, 28, '#3f2c20', 26, 1);
+    px(g, 22, 24, '#e0b34a', 4, 4);
+    px(g, 23, 22, '#f6d77f', 2, 2);
+    px(g, 25, 27, '#7a5230', 3, 1);
+    // 枪架
+    px(g, 27, 10, wood, 1, 16);
+    px(g, 25, 8, stone, 2, 2);
+    px(g, 29, 12, '#9aa0a8', 1, 13);
   }
   return c;
 }
@@ -2602,6 +2765,8 @@ const {
   RIVER_HUANG,
   RIVER_YANG,
   RIVER_HUAI,
+  RIVER_WEI,
+  RIVER_HAN,
   MOUNTAINS,
   SITE_ROWS,
   RECRUIT_SETS,
@@ -2755,22 +2920,90 @@ function siteFromRow(world, row) {
   return site;
 }
 
-/** 铺设道路；旧档补新城时也可以只铺新增的连线。 */
+function isRoadTile(t) {
+  return t === 'road' || t === 'bridge' || t === 'pass';
+}
+
+/** 给桥梁记号去重；同一格被多条道路穿过时只画一次 */
+function addBridgeMark(world, x, y, dir) {
+  world.bridges = world.bridges || [];
+  for (let i = 0; i < world.bridges.length; i++) {
+    const b = world.bridges[i];
+    if (b.x === x && b.y === y) {
+      if (dir === 'h' || dir === 'v') b.dir = dir;
+      return;
+    }
+  }
+  world.bridges.push({ x, y, dir: dir === 'v' ? 'v' : 'h' });
+}
+
+/** 河流夹在道路中间时，这一格就是桥；兼容旧档没有 bridge 格的情况 */
+function bridgeDirAt(world, x, y) {
+  const L = isRoadTile(world.tiles[idx(x - 1, y)]);
+  const R = isRoadTile(world.tiles[idx(x + 1, y)]);
+  const U = isRoadTile(world.tiles[idx(x, y - 1)]);
+  const D = isRoadTile(world.tiles[idx(x, y + 1)]);
+  if (L && R && !U && !D) return 'h';
+  if (U && D && !L && !R) return 'v';
+  if (L && R) return 'h';
+  if (U && D) return 'v';
+  return null;
+}
+
+/**
+ * 补齐桥梁标记：
+ * - 新地图：layRoads 已经把过河的格子改成 bridge；
+ * - 旧存档：河流两侧都有道路的 river 格，现场补成 bridge，避免旧档看不到桥。
+ */
+function ensureWorldFeatures(world) {
+  if (!world || !world.tiles) return world;
+  world.bridges = Array.isArray(world.bridges) ? world.bridges : [];
+  for (let y = 0; y < world.h; y++) {
+    for (let x = 0; x < world.w; x++) {
+      const t = world.tiles[idx(x, y)];
+      if (t === 'bridge') {
+        addBridgeMark(world, x, y, bridgeDirAt(world, x, y));
+      } else if (t === 'river') {
+        const dir = bridgeDirAt(world, x, y);
+        if (dir) {
+          world.tiles[idx(x, y)] = 'bridge';
+          addBridgeMark(world, x, y, dir);
+        }
+      }
+    }
+  }
+  return world;
+}
+
+/** 铺设道路；过河落桥，穿山落山口。旧档补新城时也可以只铺新增的连线。 */
 function layRoads(world, pairs) {
+  world.bridges = world.bridges || [];
   (pairs || []).forEach(function (pair) {
     const a = siteById(world, pair[0]);
     const b = siteById(world, pair[1]);
     if (!a || !b) return;
+    let lastX = a.x;
+    let lastY = a.y;
     bresenham(a.x, a.y, b.x, b.y, function (x, y) {
       if (!inBounds(x, y)) return;
       if (siteAt(world, x, y)) return;
       const t = world.tiles[idx(x, y)];
-      if (t === 'sea' || t === 'river') return;
-      if (t === 'mountain') {
-        world.tiles[idx(x, y)] = 'hills';
+      const dir = Math.abs(x - lastX) >= Math.abs(y - lastY) ? 'h' : 'v';
+      if (t === 'sea') {
+        lastX = x;
+        lastY = y;
         return;
       }
-      world.tiles[idx(x, y)] = 'road';
+      if (t === 'river' || t === 'bridge') {
+        world.tiles[idx(x, y)] = 'bridge';
+        addBridgeMark(world, x, y, dir);
+      } else if (t === 'mountain') {
+        world.tiles[idx(x, y)] = 'pass';
+      } else {
+        world.tiles[idx(x, y)] = 'road';
+      }
+      lastX = x;
+      lastY = y;
     });
   });
 }
@@ -2840,18 +3073,35 @@ function createWorld(seed) {
     }
   }
 
-  // 3. 山脉（折线加粗；放大后按比例补宽，保持视觉厚度）
-  MOUNTAINS.forEach(function (line) {
+  // 3. 山脉：沿折线刷出有宽度的山体；外缘铺山麓，不再是细细一条线
+  MOUNTAINS.forEach(function (line, lineIndex) {
     for (let i = 0; i < line.length - 1; i++) {
       const a = [S(line[i][0]), SV(line[i][1], MAP_H - 1)];
       const b = [S(line[i + 1][0]), SV(line[i + 1][1], MAP_H - 1)];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const nx = -dy / len;
+      const ny = dx / len;
       bresenham(a[0], a[1], b[0], b[1], function (x, y) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
-        world.tiles[idx(x, y)] = 'mountain';
-        if (rng.chance(0.62)) setTile(world, x + 1, y, 'mountain');
-        if (rng.chance(0.5)) setTile(world, x, y + 1, 'mountain');
-        if (rng.chance(0.2)) setTile(world, x + 1, y + 1, 'mountain');
+        // 山体宽 3～5 格，边缘随机落山麓；每段有一点起伏，避免复制粘贴感
+        const half = 1 + (rng.chance(0.42) ? 1 : 0);
+        for (let o = -half; o <= half; o++) {
+          if (o === 0 && rng.chance(0.18)) continue;
+          const ox = Math.round(x + nx * o);
+          const oy = Math.round(y + ny * o);
+          if (!inBounds(ox, oy)) continue;
+          if (world.tiles[idx(ox, oy)] === 'sea') continue;
+          if (Math.abs(o) === half) {
+            if (rng.chance(0.62)) world.tiles[idx(ox, oy)] = 'foothill';
+          } else {
+            world.tiles[idx(ox, oy)] = 'mountain';
+          }
+        }
+        // 山脊线上偶尔再垫一格，拉出连绵的肩部
+        if (rng.chance(0.34)) setTile(world, x, y + (rng.chance(0.5) ? 1 : -1), 'foothill');
       });
     }
   });
@@ -2865,13 +3115,22 @@ function createWorld(seed) {
         if (!inBounds(x, y)) return;
         if (world.tiles[idx(x, y)] === 'sea') return;
         world.tiles[idx(x, y)] = 'river';
-        if (wide && rng.chance(0.5)) setTile(world, x, y + 1, 'river');
+        if (wide && rng.chance(0.55)) setTile(world, x, y + 1, 'river');
+        // 河岸：靠水的一圈偶尔落成湿地，视觉过渡更软
+        if (rng.chance(0.18)) {
+          const ex = x + (rng.chance(0.5) ? 1 : -1);
+          if (inBounds(ex, y) && world.tiles[idx(ex, y)] !== 'river' && world.tiles[idx(ex, y)] !== 'sea') {
+            world.tiles[idx(ex, y)] = 'marsh';
+          }
+        }
       });
     }
   }
   drawRiver(RIVER_HUANG, true);
   drawRiver(RIVER_YANG, true);
   drawRiver(RIVER_HUAI, false);
+  drawRiver(RIVER_WEI, false);
+  drawRiver(RIVER_HAN, false);
 
   // 5. 森林 / 丘陵 / 沼泽斑块
   function blob(cx, cy, radius, terrainId, density) {
@@ -2887,10 +3146,14 @@ function createWorld(seed) {
       }
     }
   }
-  for (let i = 0; i < 12; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 3), 'forest', 0.6);
-  for (let i = 0; i < 9; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 2), 'hills', 0.55);
-  for (let i = 0; i < 8; i++) blob(rng.int(20, MAP_W - 4), rng.int(26, MAP_H - 3), rng.int(1, 2), 'marsh', 0.5);
-  for (let i = 0; i < 5; i++) blob(rng.int(1, 12), rng.int(10, 26), rng.int(1, 2), 'desert', 0.55);
+  for (let i = 0; i < 22; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(2, 4), 'forest', 0.6);
+  for (let i = 0; i < 15; i++) blob(rng.int(1, MAP_W - 2), rng.int(2, MAP_H - 2), rng.int(1, 3), 'hills', 0.55);
+  for (let i = 0; i < 11; i++) blob(rng.int(20, MAP_W - 4), rng.int(26, MAP_H - 3), rng.int(1, 3), 'marsh', 0.5);
+  for (let i = 0; i < 7; i++) blob(rng.int(1, 12), rng.int(10, 26), rng.int(1, 3), 'desert', 0.55);
+  // 凉州绿洲：小水面加棕榈，走过戈壁时能一眼认出来
+  for (let i = 0; i < 6; i++) {
+    blob(S(rng.int(3, 11)), SV(rng.int(11, 25), MAP_H - 2), rng.int(1, 2), 'oasis', 0.52);
+  }
 
   // 6. 据点
   SITE_ROWS.forEach(function (row) {
@@ -2900,7 +3163,7 @@ function createWorld(seed) {
   // 7. 道路
   layRoads(world, ROADS);
 
-  // 8. 连通性兜底：从陈留铺路
+  // 8. 连通性兜底：从陈留铺路。山搭山口、水搭桥，别让据点被地形锁死
   const start = siteById(world, 'chenliu') || world.sites[0];
   const reach = reachableTiles(world, start.x, start.y);
   world.sites.forEach(function (s) {
@@ -2908,12 +3171,15 @@ function createWorld(seed) {
     bresenham(start.x, start.y, s.x, s.y, function (x, y) {
       if (!inBounds(x, y)) return;
       if (siteAt(world, x, y)) return;
-      if (world.tiles[idx(x, y)] === 'sea' || world.tiles[idx(x, y)] === 'river') {
-        world.tiles[idx(x, y)] = 'road';
-      }
+      const t = world.tiles[idx(x, y)];
+      if (t === 'sea') return;
+      if (t === 'river') world.tiles[idx(x, y)] = 'bridge';
+      else if (t === 'mountain') world.tiles[idx(x, y)] = 'pass';
+      else world.tiles[idx(x, y)] = 'road';
     });
   });
 
+  ensureWorldFeatures(world);
   return world;
 }
 
@@ -3091,6 +3357,7 @@ module.exports = {
   createWorld,
   siteFromRow,
   layRoads,
+  ensureWorldFeatures,
   findPath,
   tileHours,
   addHours,
@@ -6286,6 +6553,7 @@ const {
   createWorld,
   siteFromRow,
   layRoads,
+  ensureWorldFeatures,
   findPath,
   siteById,
   siteAt,
@@ -11113,6 +11381,8 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  ensureWorldFeatures(state.world);
+  state.world.factionGrid = null;
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
   war.init(state);
@@ -11910,7 +12180,7 @@ const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt } = __require(8);
 const territory = __require(21);
-const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = __require(5);
+const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS } = __require(5);
 const { lookFor } = __require(12);
 const flows = __require(22);
 
@@ -11952,9 +12222,9 @@ function ensureCam(app) {
   else app.mapCam.y = clamp(app.mapCam.y, 0, maxY);
 }
 
-/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人；双指可以一直缩到整张天下 */
-const ZOOM_MAX = 1.8;
-const ZOOM_NAMES = ['远望', '常规', '近看'];
+/** 缩放档位：拉远看天下 / 常规 / 贴脸看一队人 / 贴地看城门；双指可以一直缩到整张天下 */
+const ZOOM_MAX = 2.4;
+const ZOOM_NAMES = ['远望', '常规', '近看', '贴地'];
 
 function fitZoom(app) {
   const st = app.state;
@@ -11972,7 +12242,8 @@ function minZoom(app) {
 function zoomName(z) {
   if (z < 0.86) return ZOOM_NAMES[0];
   if (z < 1.22) return ZOOM_NAMES[1];
-  return ZOOM_NAMES[2];
+  if (z < 2.18) return ZOOM_NAMES[2];
+  return ZOOM_NAMES[3];
 }
 
 function setZoom(app) {
@@ -12432,8 +12703,323 @@ function siteOf(world, id) {
   return null;
 }
 
+/** 山峰高度用坐标散列，逐帧绘制也不会闪 */
+function peakHash(a, b, c) {
+  const v = Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/**
+ * 桥面朝向：看河道往哪边流，桥就该横着跨过去。
+ * 河左右是水 -> 桥竖着；河上下是水 -> 桥横着。
+ */
+function bridgeRenderDir(world, x, y, fallback) {
+  function wet(tx, ty) {
+    if (tx < 0 || ty < 0 || tx >= world.w || ty >= world.h) return false;
+    const t = world.tiles[ty * world.w + tx];
+    return t === 'river' || t === 'bridge';
+  }
+  const L = wet(x - 1, y);
+  const R = wet(x + 1, y);
+  const U = wet(x, y - 1);
+  const D = wet(x, y + 1);
+  if (L && R && !U && !D) return 'v';
+  if (U && D && !L && !R) return 'h';
+  if (L && R) return 'v';
+  if (U && D) return 'h';
+  return fallback || 'h';
+}
+
+/**
+ * 连绵山脉：一条折线刷成有厚度的山带，再沿脊线补一排错落的峰尖。
+ * 远看是一条山系，近看能看见背光面、亮脊和北线的雪帽。
+ */
+function drawMountainRange(ctx, line, raw, toX, toY, w, box, index, snow, app) {
+  const baseW = Math.max(TS * 2.35, 20);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // 极淡的山麓底带：只负责把山脚和草地过渡开，不再用一条实心灰带盖住地表
+  ctx.strokeStyle = 'rgba(62,57,47,0.08)';
+  ctx.lineWidth = baseW * 1.30;
+  strokePolyline(ctx, line, toX, toY);
+
+  ctx.strokeStyle = 'rgba(99,91,75,0.14)';
+  ctx.lineWidth = baseW * 1.02;
+  strokePolyline(ctx, line, toX, toY);
+
+  ctx.strokeStyle = 'rgba(85,79,66,0.20)';
+  ctx.lineWidth = baseW * 0.70;
+  strokePolyline(ctx, line, toX, toY);
+
+  // 背光面：往下错开一点，做出厚度
+  ctx.save();
+  ctx.translate(0, TS * 0.22);
+  ctx.strokeStyle = 'rgba(47,42,35,0.18)';
+  ctx.lineWidth = baseW * 0.52;
+  strokePolyline(ctx, line, toX, toY);
+  ctx.restore();
+
+  // 亮脊：往上错开一点，和背光面形成坡面
+  ctx.save();
+  ctx.translate(0, -TS * 0.16);
+  ctx.strokeStyle = 'rgba(151,141,121,0.22)';
+  ctx.lineWidth = baseW * 0.13;
+  strokePolyline(ctx, line, toX, toY);
+  ctx.restore();
+
+  // 大山块：沿山带错落铺开，撑出参差不齐的山体轮廓，而不是一条均匀的带子
+  for (let i = 0; i < line.length - 1; i++) {
+    const ax = toX(line[i][0]);
+    const ay = toY(line[i][1]);
+    const bx = toX(line[i + 1][0]);
+    const by = toY(line[i + 1][1]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const segPx = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / segPx;
+    const ny = dx / segPx;
+    const step = Math.max(18, TS * 0.95);
+    const count = Math.max(1, Math.floor(segPx / step));
+    for (let k = 0; k <= count; k++) {
+      const t = count ? k / count : 0.5;
+      const px0 = ax + dx * t;
+      const py0 = ay + dy * t;
+      for (let lane = -1; lane <= 1; lane++) {
+        const h1 = peakHash(i + 31, k + lane * 7, index + lane);
+        const h2 = peakHash(k, i + lane * 11, index + 9);
+        const side = lane * TS * (0.56 + h1 * 0.16);
+        const bx0 = px0 + nx * side + (h1 - 0.5) * TS * 0.32;
+        const by0 = py0 + ny * side + TS * 0.30;
+        const hw = TS * (0.34 + h1 * 0.22);
+        const hh = TS * (0.56 + h2 * 0.58);
+        // 暗面山体
+        ctx.fillStyle = 'rgba(53,48,40,0.64)';
+        ctx.beginPath();
+        ctx.moveTo(bx0 - hw, by0);
+        ctx.lineTo(bx0 - hw * 0.22, by0 - hh);
+        ctx.lineTo(bx0 + hw * 0.35, by0);
+        ctx.closePath();
+        ctx.fill();
+        // 受光坡面
+        ctx.fillStyle = 'rgba(125,116,98,0.62)';
+        ctx.beginPath();
+        ctx.moveTo(bx0 - hw * 0.22, by0 - hh);
+        ctx.lineTo(bx0 + hw, by0);
+        ctx.lineTo(bx0 + hw * 0.35, by0);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  // 锯齿岭线：沿折线插值出一排高低错落的脊点，远看也有连绵的轮廓
+  function ridgePath(yOff, amp, seed) {
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < line.length - 1; i++) {
+      const ax = toX(line[i][0]);
+      const ay = toY(line[i][1]);
+      const bx = toX(line[i + 1][0]);
+      const by = toY(line[i + 1][1]);
+      const segPx = Math.max(1, Math.hypot(bx - ax, by - ay));
+      const count = Math.max(2, Math.min(34, Math.floor(segPx / Math.max(8, TS * 0.38))));
+      for (let k = 0; k <= count; k++) {
+        const t = k / count;
+        const px0 = ax + (bx - ax) * t;
+        const py0 = ay + (by - ay) * t + yOff;
+        const h = peakHash(i + seed, k, seed + 3);
+        const yy = py0 - (k === 0 || k === count ? amp * 0.55 : amp * (0.32 + h * 0.9));
+        if (!started) {
+          ctx.moveTo(px0, yy);
+          started = true;
+        } else {
+          ctx.lineTo(px0, yy);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.lineWidth = Math.max(2, TS * 0.13);
+  ctx.strokeStyle = 'rgba(42,37,31,0.64)';
+  ridgePath(-TS * 0.18, TS * 0.62, index);
+  ctx.lineWidth = Math.max(1, TS * 0.055);
+  ctx.strokeStyle = 'rgba(173,162,140,0.52)';
+  ridgePath(-TS * 0.24, TS * 0.56, index + 11);
+
+  // 沿山脊撒峰尖：中心脊线 + 左右两条副脊，让山带内部也有层层叠叠的峰
+  for (let i = 0; i < line.length - 1; i++) {
+    const ax = toX(line[i][0]);
+    const ay = toY(line[i][1]);
+    const bx = toX(line[i + 1][0]);
+    const by = toY(line[i + 1][1]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const segPx = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / segPx;
+    const ny = dx / segPx;
+    const count = Math.max(2, Math.min(12, Math.floor(segPx / Math.max(9, TS * 0.68))));
+    for (let k = 0; k < count; k++) {
+      const t = (k + 0.5) / count;
+      const px0 = ax + dx * t;
+      const py0 = ay + dy * t;
+      if (px0 < -TS * 3 || px0 > w + TS * 3 || py0 < box.top - TS * 3 || py0 > box.top + box.h + TS * 3) continue;
+      for (let lane = -1; lane <= 1; lane++) {
+        const h1 = peakHash(i + lane * 3, k, index);
+        const h2 = peakHash(k, index, i + 7 + lane * 5);
+        const side = lane * TS * (0.38 + h1 * 0.12);
+        const hw = TS * (0.13 + h1 * 0.11);
+        const hh = TS * (0.36 + h2 * 0.58) * (lane === 0 ? 1.15 : 0.9);
+        const bx0 = px0 + nx * side + (h1 - 0.5) * TS * 0.16;
+        const by0 = py0 + ny * side + TS * 0.20;
+        // 暗面
+        ctx.fillStyle = 'rgba(68,62,51,0.84)';
+        ctx.beginPath();
+        ctx.moveTo(bx0 - hw, by0);
+        ctx.lineTo(bx0, by0 - hh);
+        ctx.lineTo(bx0 + hw, by0);
+        ctx.closePath();
+        ctx.fill();
+        // 亮面
+        ctx.fillStyle = 'rgba(139,128,108,0.76)';
+        ctx.beginPath();
+        ctx.moveTo(bx0, by0 - hh);
+        ctx.lineTo(bx0 + hw, by0);
+        ctx.lineTo(bx0 + hw * 0.18, by0);
+        ctx.closePath();
+        ctx.fill();
+        // 北线雪帽
+        if (snow && hh > TS * 0.52) {
+          ctx.fillStyle = 'rgba(229,225,213,0.72)';
+          ctx.beginPath();
+          ctx.moveTo(bx0 - hw * 0.34, by0 - hh + TS * 0.12);
+          ctx.lineTo(bx0, by0 - hh);
+          ctx.lineTo(bx0 + hw * 0.34, by0 - hh + TS * 0.12);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+  }
+}
+
+/** 桥：木面、石墩、栏杆；横跨河道，和道路走向对齐 */
+function drawBridges(ctx, world, toX, toY, w, box, app) {
+  const marks = world.bridges || [];
+  const z = app.mapZoom || 1;
+  for (let i = 0; i < marks.length; i++) {
+    const b = marks[i];
+    const stepX = b.dir === 'h' ? 1 : 0;
+    const stepY = b.dir === 'h' ? 0 : 1;
+    function markAt(wx, wy) {
+      for (let m = 0; m < marks.length; m++) {
+        if (marks[m].x === wx && marks[m].y === wy) return marks[m];
+      }
+      return null;
+    }
+    // 连续桥格只画一座桥，避免一格一块木板叠成一大片
+    if (markAt(b.x - stepX, b.y - stepY)) continue;
+    let runLen = 1;
+    while (runLen < 7) {
+      const nx = b.x + stepX * runLen;
+      const ny = b.y + stepY * runLen;
+      if (nx < 0 || ny < 0 || nx >= world.w || ny >= world.h) break;
+      if (world.tiles[ny * world.w + nx] !== 'bridge') break;
+      if (!markAt(nx, ny)) break;
+      runLen++;
+    }
+    const cx = b.x + stepX * (runLen - 1) * 0.5;
+    const cy = b.y + stepY * (runLen - 1) * 0.5;
+    const sx = toX(cx + 0.5);
+    const sy = toY(cy + 0.5);
+    if (sx < -TS * 3 || sx > w + TS * 3 || sy < box.top - TS * 3 || sy > box.top + box.h + TS * 3) continue;
+    // 桥面要横跨河道，不能顺着河道铺成一条长木板
+    const drawDir = bridgeRenderDir(world, Math.round(cx), Math.round(cy), b.dir);
+    const crossX = drawDir === 'h' ? 1 : 0;
+    const crossY = drawDir === 'h' ? 0 : 1;
+    let span = 1;
+    for (let side = -1; side <= 1; side += 2) {
+      for (let n = 1; n <= 8; n++) {
+        const tx = Math.round(cx) + crossX * n * side;
+        const ty = Math.round(cy) + crossY * n * side;
+        if (tx < 0 || ty < 0 || tx >= world.w || ty >= world.h) break;
+        const t = world.tiles[ty * world.w + tx];
+        if (t === 'river' || t === 'bridge') span++;
+        else break;
+      }
+    }
+    span = Math.min(span, 8);
+    const len = Math.max(TS * 0.92, span * TS * 0.5 + TS * 0.18);
+    const halfW = Math.max(3, TS * 0.22);
+    const rail = Math.max(2, TS * 0.018);
+    ctx.save();
+    ctx.translate(sx, sy);
+    if (drawDir === 'v') ctx.rotate(Math.PI / 2);
+    // 桥下阴影
+    ctx.fillStyle = 'rgba(12,10,8,0.34)';
+    ctx.fillRect(-len - 4, halfW - 2, len * 2 + 8, Math.max(6, TS * 0.10));
+    // 桥面
+    ctx.fillStyle = '#9a7448';
+    ctx.fillRect(-len, -halfW, len * 2, halfW * 2);
+    ctx.fillStyle = '#c49a63';
+    ctx.fillRect(-len, -halfW, len * 2, Math.max(2, TS * 0.025));
+    ctx.fillStyle = '#644a2e';
+    ctx.fillRect(-len, halfW - Math.max(2, TS * 0.025), len * 2, Math.max(2, TS * 0.025));
+    // 木板
+    const planks = Math.max(4, Math.round(len / Math.max(5, TS * 0.13)));
+    for (let p = 1; p < planks; p++) {
+      const x = -len + (len * 2 * p) / planks;
+      ctx.fillStyle = 'rgba(72,51,32,0.55)';
+      ctx.fillRect(x, -halfW, Math.max(1, TS * 0.008), halfW * 2);
+    }
+    // 栏杆
+    ctx.fillStyle = '#5b4329';
+    ctx.fillRect(-len, -halfW - rail * 1.6, len * 2, rail);
+    ctx.fillRect(-len, halfW + rail * 0.6, len * 2, rail);
+    for (let p = 0; p <= 4; p++) {
+      const x = -len + (len * 2 * p) / 4;
+      ctx.fillRect(x, -halfW - rail * 2, Math.max(1.5, rail), halfW + rail * 2.5);
+    }
+    // 两岸石墩
+    ctx.fillStyle = 'rgba(118,108,92,0.92)';
+    ctx.fillRect(-len - 5, -halfW - rail * 2, Math.max(4, TS * 0.06), halfW * 2 + rail * 4);
+    ctx.fillRect(len + 1, -halfW - rail * 2, Math.max(4, TS * 0.06), halfW * 2 + rail * 4);
+    ctx.restore();
+  }
+}
+
+/** 山口：在宽山带上开一道浅色缺口，并立一座石门，让人一眼看出能走 */
+function drawPassMarks(ctx, world, cam, box, w, toX, toY, app) {
+  const z = app.mapZoom || 1;
+  if (z < 0.32) return;
+  const startX = Math.max(0, Math.floor(cam.x / TS));
+  const startY = Math.max(0, Math.floor(cam.y / TS));
+  const endX = Math.min(world.w - 1, Math.ceil((cam.x + w) / TS));
+  const endY = Math.min(world.h - 1, Math.ceil((cam.y + box.h) / TS));
+  for (let y = startY; y <= endY; y++) {
+    for (let x = startX; x <= endX; x++) {
+      if (world.tiles[y * world.w + x] !== 'pass') continue;
+      const sx = toX(x + 0.5);
+      const sy = toY(y + 0.5);
+      const rw = TS * 0.34;
+      const rh = TS * 0.52;
+      // 缺口：用偏暖的土色把山带压掉，形成垭口
+      ctx.fillStyle = 'rgba(181,169,145,0.70)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, rw * 1.25, rh * 0.78, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(109,90,66,0.78)';
+      ctx.fillRect(sx - rw * 0.85, sy - rh * 0.2, rw * 0.28, rh * 1.6);
+      ctx.fillRect(sx + rw * 0.58, sy - rh * 0.2, rw * 0.28, rh * 1.6);
+      ctx.fillRect(sx - rw * 0.95, sy - rh * 0.48, rw * 1.9, rh * 0.16);
+    }
+  }
+}
+
 function drawGeography(ctx, app, cam, box, w) {
   const world = app.state.world;
+  const phase = app.mapPhase || 0;
+  const z = app.mapZoom || 1;
   // 设计稿坐标 → 实图坐标（地图放大后折线层跟着一起放大，否则和据点错位）
   const gs = world.w / BASE_W;
   const toX = function (gx) { return gx * TS - cam.x; };
@@ -12454,58 +13040,49 @@ function drawGeography(ctx, app, cam, box, w) {
   // 海岸：沙滩带 + 浪线
   const coast = sc(coastPoints());
   ctx.strokeStyle = 'rgba(233,216,180,0.42)';
-  ctx.lineWidth = 13;
+  ctx.lineWidth = Math.max(7, TS * 0.18);
   strokePolyline(ctx, coast, toX, toY);
   ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = Math.max(2, TS * 0.045);
   strokePolyline(ctx, coast, toX, toY);
 
-  // 河流：暗岸 + 水体 + 高光
-  [[sc(RIVER_HUANG), 0.72], [sc(RIVER_YANG), 0.85], [sc(RIVER_HUAI), 0.55]].forEach(function (r) {
+  // 山脉先铺厚，再让河流从山里切出谷地
+  MOUNTAINS.forEach(function (raw, index) {
+    const line = sc(raw);
+    const snow = raw[0][1] < 12 || raw[raw.length - 1][1] < 12;
+    drawMountainRange(ctx, line, raw, toX, toY, w, box, index, snow, app);
+  });
+
+  // 山口压在山上，给道路留出可读的通道
+  drawPassMarks(ctx, world, cam, box, w, toX, toY, app);
+
+  // 河流：暗岸 + 水体 + 高光 + 流动的水纹
+  [[sc(RIVER_HUANG), 0.72], [sc(RIVER_YANG), 0.85], [sc(RIVER_HUAI), 0.55],
+    [sc(RIVER_WEI), 0.46], [sc(RIVER_HAN), 0.52]].forEach(function (r) {
     const width = TS * r[1];
     ctx.strokeStyle = 'rgba(30,58,84,0.38)';
-    ctx.lineWidth = width + 4;
+    ctx.lineWidth = width + Math.max(3, TS * 0.06);
     strokePolyline(ctx, r[0], toX, toY);
     ctx.strokeStyle = '#3d6f97';
     ctx.lineWidth = width;
     strokePolyline(ctx, r[0], toX, toY);
-    ctx.strokeStyle = 'rgba(160,204,228,0.5)';
-    ctx.lineWidth = Math.max(2, width * 0.3);
+    // 缓慢往东流的水纹：虚线偏移动画
+    ctx.save();
+    ctx.setLineDash([Math.max(3, width * 0.22), Math.max(6, width * 0.48)]);
+    ctx.lineDashOffset = -phase * Math.max(4, width * 0.28);
+    ctx.strokeStyle = 'rgba(168,211,235,0.44)';
+    ctx.lineWidth = Math.max(1.6, width * 0.10);
+    strokePolyline(ctx, r[0], toX, toY);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(190,226,244,0.38)';
+    ctx.lineWidth = Math.max(1.5, width * 0.12);
     strokePolyline(ctx, r[0], toX, toY);
   });
 
-  // 山脉：暗带 + 亮脊 + 峰尖
-  MOUNTAINS.forEach(function (raw) {
-    const line = sc(raw);
-    ctx.strokeStyle = 'rgba(86,80,70,0.35)';
-    ctx.lineWidth = TS * 1.3;
-    strokePolyline(ctx, line, toX, toY);
-    ctx.strokeStyle = 'rgba(152,145,132,0.58)';
-    ctx.lineWidth = TS * 0.56;
-    strokePolyline(ctx, line, toX, toY);
+  // 桥架在河上，随后道路从桥面穿过去
+  drawBridges(ctx, world, toX, toY, w, box, app);
 
-    for (let i = 0; i < line.length; i++) {
-      const px0 = toX(line[i][0]);
-      const py0 = toY(line[i][1]);
-      if (px0 < -50 || px0 > w + 50 || py0 < box.top - 70 || py0 > box.top + box.h + 70) continue;
-      ctx.fillStyle = 'rgba(212,206,192,0.75)';
-      ctx.beginPath();
-      ctx.moveTo(px0 - 12, py0 + 8);
-      ctx.lineTo(px0, py0 - 17);
-      ctx.lineTo(px0 + 12, py0 + 8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = 'rgba(104,97,86,0.45)';
-      ctx.beginPath();
-      ctx.moveTo(px0, py0 - 17);
-      ctx.lineTo(px0 + 12, py0 + 8);
-      ctx.lineTo(px0 + 2, py0 + 8);
-      ctx.closePath();
-      ctx.fill();
-    }
-  });
-
-  // 道路：深色描边压暗地形，再上一道浅土黄
+  // 道路：深色描边压暗地形，再上一道浅土黄；近景时跟着缩放加宽
   function roadSeg(pair) {
     const a = siteOf(world, pair[0]);
     const b = siteOf(world, pair[1]);
@@ -12520,13 +13097,13 @@ function drawGeography(ctx, app, cam, box, w) {
     ctx.stroke();
   }
   ctx.strokeStyle = 'rgba(58,46,32,0.45)';
-  ctx.lineWidth = 8;
+  ctx.lineWidth = Math.max(7, 8 * Math.min(2, z));
   ROADS.forEach(roadSeg);
   ctx.strokeStyle = '#b39a72';
-  ctx.lineWidth = 5;
+  ctx.lineWidth = Math.max(4, 5 * Math.min(2, z));
   ROADS.forEach(roadSeg);
   ctx.strokeStyle = 'rgba(214,196,158,0.5)';
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = Math.max(1.6, 1.6 * Math.min(2, z));
   ROADS.forEach(roadSeg);
 
   ctx.restore();
@@ -12581,7 +13158,7 @@ function drawTerrainView(ctx, app, cam, box, w) {
  * 缩放 0.2 左右正是看“三国乱战”的档位；城池一换旗，territory 的签名缓存就失效。
  */
 function drawFactionTint(ctx, app, cam, box, w) {
-  if ((app.mapZoom || 1) > 0.34) return;
+  if ((app.mapZoom || 1) > 0.27) return;
   const st = app.state;
   const world = st.world;
   const grid = territory.buildFactionGrid(world);
@@ -12617,7 +13194,9 @@ function drawFactionTint(ctx, app, cam, box, w) {
 function drawSites(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
-  const lowZoom = (app.mapZoom || 1) < 0.45;
+  const z = app.mapZoom || 1;
+  const uiScale = Math.min(2.2, Math.max(1, z));
+  const lowZoom = z < 0.45;
   const lowZoomLabels = [];
 
   ctx.save();
@@ -12669,38 +13248,42 @@ function drawSites(ctx, app, cam, box, w) {
     const sprite = assets.site[site.type] || assets.site.village;
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
+    const fw = 12 * uiScale;
+    const fh = 14 * uiScale;
+    const fx = sx + TS - fw - 4;
+    const fy = sy + 4;
     // 势力旗：无主城围攻失败后，城头插一面“仇”字赤旗，和敌对城一个待遇
     if (site.playerBlocked && !site.ownerFaction) {
       ctx.fillStyle = '#b4463c';
-      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
+      ctx.fillRect(fx, fy, fw, fh);
       ctx.fillStyle = 'rgba(255,235,210,0.8)';
-      ctx.fillRect(sx + TS - 16, sy + 4, 12, 2);
-      text(ctx, '仇', sx + TS - 10, sy + 6, { size: 13, align: 'center', color: '#fff' });
+      ctx.fillRect(fx, fy, fw, 2);
+      text(ctx, '仇', fx + fw / 2, fy + 2, { size: Math.round(13 * uiScale), align: 'center', color: '#fff' });
     } else if (site.ownerFaction) {
       const col = FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].color : '#8f8f86';
       ctx.fillStyle = col;
-      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
+      ctx.fillRect(fx, fy, fw, fh);
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(sx + TS - 16, sy + 4, 12, 2);
-      text(ctx, FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].banner : '?', sx + TS - 10, sy + 6, {
-        size: 13, align: 'center', color: '#fff',
+      ctx.fillRect(fx, fy, fw, 2);
+      text(ctx, FACTIONS[site.ownerFaction] ? FACTIONS[site.ownerFaction].banner : '?', fx + fw / 2, fy + 2, {
+        size: Math.round(13 * uiScale), align: 'center', color: '#fff',
       });
     } else {
       ctx.fillStyle = '#6a655c';
-      ctx.fillRect(sx + TS - 16, sy + 4, 12, 14);
+      ctx.fillRect(fx, fy, fw, fh);
     }
 
     // 围城标记：城下营寨连成圈，远远就看得见
     if (siege) {
       ctx.fillStyle = mySiege ? 'rgba(120,82,18,0.94)' : 'rgba(120,32,18,0.92)';
-      ctx.fillRect(sx + 4, sy + 4, 30, 20);
-      text(ctx, mySiege ? '我围' : '围城', sx + 19, sy + 6, { size: 13, align: 'center', color: '#ffe0a8' });
+      ctx.fillRect(sx + 4, sy + 4, 30 * uiScale, 20 * uiScale);
+      text(ctx, mySiege ? '我围' : '围城', sx + 19 * uiScale, sy + 6, { size: Math.round(13 * uiScale), align: 'center', color: '#ffe0a8' });
     }
 
     // 名牌
     const isTown = site.type === 'town';
     const isCastle = site.type === 'castle';
-    const size = isCapital ? 27 : isTown ? 22 : isCastle ? 19 : 16;
+    const size = (isCapital ? 27 : isTown ? 22 : isCastle ? 19 : 16) * Math.min(1.85, uiScale);
     const label = site.name;
     ctx.font = 'bold ' + size + 'px "PingFang SC","Microsoft YaHei",sans-serif';
     const tw = ctx.measureText(label).width;

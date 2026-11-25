@@ -8,6 +8,7 @@ const {
   createWorld,
   siteFromRow,
   layRoads,
+  ensureWorldFeatures,
   findPath,
   siteById,
   siteAt,
@@ -4835,6 +4836,8 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  ensureWorldFeatures(state.world);
+  state.world.factionGrid = null;
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
   war.init(state);

@@ -22,9 +22,13 @@ const TERRAIN = {
   forest: { id: 'forest', name: '林地', cost: 1.5, passable: true, hours: 2.9 },
   marsh: { id: 'marsh', name: '沼泽', cost: 2.2, passable: true, hours: 4.3 },
   hills: { id: 'hills', name: '丘陵', cost: 1.8, passable: true, hours: 3.4 },
+  foothill: { id: 'foothill', name: '山麓', cost: 1.7, passable: true, hours: 3.2 },
   mountain: { id: 'mountain', name: '山地', cost: 99, passable: false, hours: 99 },
+  pass: { id: 'pass', name: '山口', cost: 1.9, passable: true, hours: 3.5 },
   river: { id: 'river', name: '涉水', cost: 2.4, passable: true, hours: 4.6 },
+  bridge: { id: 'bridge', name: '桥梁', cost: 0.55, passable: true, hours: 1.1 },
   desert: { id: 'desert', name: '戈壁', cost: 1.55, passable: true, hours: 3.1 },
+  oasis: { id: 'oasis', name: '绿洲', cost: 1.0, passable: true, hours: 1.8 },
   sea: { id: 'sea', name: '海', cost: 99, passable: false, hours: 99 },
 };
 
@@ -130,10 +134,24 @@ const RIVER_HUAI = [
   [24, 28], [26, 28], [28, 27], [30, 27], [32, 26], [34, 26], [35, 26],
 ];
 
-/** 山脉折线，每段会加粗 1 格 */
+/** 渭水：关中 -> 黄河 */
+const RIVER_WEI = [
+  [10, 20], [12, 20], [14, 20], [16, 21], [18, 21], [20, 22], [22, 22],
+];
+
+/** 汉水：汉中 -> 江汉 */
+const RIVER_HAN = [
+  [13, 31], [15, 32], [17, 33], [19, 34], [22, 35], [25, 36], [27, 36], [29, 37],
+];
+
+/** 山脉折线，每段会按宽度刷出连绵山体 */
 const MOUNTAINS = [
   // 阴山（塞北）
   [[2, 4], [6, 3], [10, 4], [14, 3], [18, 4]],
+  // 贺兰山
+  [[5, 8], [6, 11], [7, 15]],
+  // 祁连山
+  [[2, 12], [4, 15], [6, 18], [8, 19]],
   // 太行
   [[23, 9], [24, 12], [25, 15], [24, 18], [23, 21]],
   // 吕梁
@@ -146,8 +164,12 @@ const MOUNTAINS = [
   [[18, 33], [19, 35], [19, 37]],
   // 南岭
   [[20, 43], [23, 42], [26, 43], [29, 42]],
+  // 衡山
+  [[24, 39], [26, 41], [28, 40]],
   // 武夷
   [[31, 39], [32, 41], [31, 44]],
+  // 会稽山
+  [[31, 36], [33, 38], [35, 39]],
   // 燕山
   [[26, 6], [30, 5], [34, 6]],
 ];
@@ -764,6 +786,8 @@ module.exports = {
   RIVER_HUANG,
   RIVER_YANG,
   RIVER_HUAI,
+  RIVER_WEI,
+  RIVER_HAN,
   MOUNTAINS,
   SITE_ROWS,
   CAPITAL_IDS,

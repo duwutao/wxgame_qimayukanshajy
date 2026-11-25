@@ -15,7 +15,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS } = require(R + '/data/china.js');
+const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -62,6 +62,48 @@ ok('地形 ≥ 8 种', Object.keys(tileSet).length >= 8, JSON.stringify(tileSet)
 ok('山地 > 60 格', (tileSet.mountain || 0) > 60, String(tileSet.mountain || 0));
 ok('河流 > 40 格', (tileSet.river || 0) > 40, String(tileSet.river || 0));
 ok('有海', (tileSet.sea || 0) > 100, String(tileSet.sea || 0));
+ok('新增地形齐全（山麓/山口/桥/绿洲）', ['foothill', 'pass', 'bridge', 'oasis'].every(function (t) {
+  return (tileSet[t] || 0) > 0;
+}), JSON.stringify(tileSet));
+ok('河流可涉水、桥更省时', TERRAIN.river.passable && TERRAIN.bridge.passable &&
+  TERRAIN.bridge.cost < TERRAIN.river.cost, TERRAIN.bridge.cost + '/' + TERRAIN.river.cost);
+
+// 山脉不再是单格细线：至少有一段横向连续 4 格以上的山体
+let widestMountainRow = 0;
+for (let y = 0; y < world.h; y++) {
+  let run = 0;
+  for (let x = 0; x < world.w; x++) {
+    if (world.tiles[y * world.w + x] === 'mountain') {
+      run++;
+      if (run > widestMountainRow) widestMountainRow = run;
+    } else run = 0;
+  }
+}
+ok('山脉连续宽度 ≥ 4 格', widestMountainRow >= 4, String(widestMountainRow));
+
+const bridgeMarks = world.bridges || [];
+ok('地图上已架起多座桥', bridgeMarks.length >= 8, String(bridgeMarks.length));
+ok('桥格本身可通行', bridgeMarks.length > 0 && bridgeMarks.every(function (b) {
+  return worldLib.terrainAt(world, b.x, b.y).id === 'bridge';
+}), bridgeMarks.length + ' 座');
+
+let crossBridge = null;
+bridgeMarks.some(function (b) {
+  const road = function (t) { return t === 'road' || t === 'pass' || t === 'bridge'; };
+  const L = world.tiles[b.y * world.w + b.x - 1];
+  const R = world.tiles[b.y * world.w + b.x + 1];
+  if (road(L) && road(R)) {
+    crossBridge = b;
+    return true;
+  }
+  return false;
+});
+const bridgePath = crossBridge ? worldLib.findPath(world,
+  { x: crossBridge.x - 2, y: crossBridge.y },
+  { x: crossBridge.x + 2, y: crossBridge.y }) : null;
+ok('行军路径能走桥过河', !!(bridgePath && bridgePath.some(function (p) {
+  return crossBridge && p.x === crossBridge.x && p.y === crossBridge.y;
+})), bridgePath ? bridgePath.length + ' 步' : '无桥可测');
 
 const start = worldLib.siteById(world, 'chenliu');
 const reach = worldLib.reachableTiles(world, start.x, start.y);

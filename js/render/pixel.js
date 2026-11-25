@@ -23,11 +23,13 @@ const UI_COLORS = {
   ink: '#0d0b08',
 };
 
-/** 水系 / 山体固定色（不随区域变，避免绿色河流） */
+/** 水系 / 山体 / 桥固定色（不随区域变，避免绿色河流） */
 const FIXED = {
   river: { base: '#33608a', dark: '#28506f', light: '#457a9e', detail: '#8ab6d2' },
   sea: { base: '#22476b', dark: '#1a3752', light: '#2e5b82', detail: '#5f92b4' },
   mountain: { base: '#7c756b', dark: '#635d55', light: '#969085', detail: '#c8c1b4' },
+  bridge: { base: '#936f45', dark: '#654b2d', light: '#c39a64', detail: '#d9be8d' },
+  pass: { base: '#8c8171', dark: '#665d51', light: '#b0a593', detail: '#d6cbb6' },
 };
 
 function newCanvas(runtime, w, h) {
@@ -45,7 +47,7 @@ function px(g, x, y, color, w, h) {
 /** 取某区域某地形的配色 */
 function paletteFor(regionId, terrain) {
   const reg = REGIONS[regionId] || REGIONS.zhongyuan;
-  if (terrain === 'river' || terrain === 'sea' || terrain === 'mountain') {
+  if (FIXED[terrain]) {
     const base = FIXED[terrain];
     return {
       base: base.base, dark: base.dark, light: base.light,
@@ -56,17 +58,27 @@ function paletteFor(regionId, terrain) {
   if (terrain === 'road') {
     return { base: '#a89068', dark: '#8a7550', light: '#c3a97e', detail: '#6d5a3c' };
   }
+  if (terrain === 'foothill') {
+    const p = reg.palette;
+    return {
+      base: p.dark, dark: p.dark, light: p.light,
+      detail: p.deco,
+    };
+  }
+  if (terrain === 'oasis') {
+    return { base: '#7fa47c', dark: '#587a55', light: '#a8c79a', detail: '#d8e4b0' };
+  }
   const p = reg.palette;
   return { base: p.ground, dark: p.dark, light: p.light, detail: p.deco };
 }
 
 /**
- * 生成一格地形（16x16）
- * 底纹只做很轻的颗粒，山脊 / 河道 / 道路的形状交给大地图折线层统一绘制，
- * 这样整片山地不会变成一排排重复的小山，水面也不会是一格一格的方块。
+ * 生成一格地形（32x32）
+ * 底纹做很轻的颗粒；山、河、道路的连续形状由大地图折线层统一绘制。
+ * 在山麓、山口、桥面和绿洲上补可辨认的小结构，让缩放到近景时不至于只是色块。
  */
 function makeTerrainSprite(runtime, terrain, pal, seed) {
-  const size = 16;
+  const size = 32;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
@@ -75,73 +87,151 @@ function makeTerrainSprite(runtime, terrain, pal, seed) {
   px(g, 0, 0, pal.base, size, size);
 
   // 统一颗粒：只为破掉纯色，不制造噪点
-  for (let i = 0; i < 6; i++) {
-    px(g, rng.int(0, 15), rng.int(0, 15), rng.chance(0.5) ? pal.dark : pal.light);
+  for (let i = 0; i < 18; i++) {
+    px(g, rng.int(0, 31), rng.int(0, 31), rng.chance(0.5) ? pal.dark : pal.light);
   }
 
   if (terrain === 'plain') {
-    for (let i = 0; i < 3; i++) {
-      const x = rng.int(2, 13);
-      const y = rng.int(3, 14);
-      px(g, x, y, pal.detail, 1, 2);
-      px(g, x + 1, y + 1, pal.dark);
+    for (let i = 0; i < 5; i++) {
+      const x = rng.int(3, 27);
+      const y = rng.int(5, 28);
+      px(g, x, y, pal.detail, 1, 4);
+      px(g, x + 2, y + 2, pal.dark, 1, 3);
+      px(g, x - 1, y + 4, pal.light, 3, 1);
     }
   } else if (terrain === 'farm') {
-    // 田块：只撒作物点，不画垄线，免得整片地图出现规律条纹
-    for (let i = 0; i < 6; i++) {
-      const x = rng.int(1, 14);
-      const y = rng.int(1, 14);
-      px(g, x, y, pal.detail);
-      if (i % 2 === 0) px(g, x + 1, y, pal.dark);
+    // 田块：短垄 + 稀疏作物点，不画贯穿全格的条纹
+    for (let i = 0; i < 4; i++) {
+      const y = 7 + i * 6;
+      px(g, 5, y, pal.dark, 22, 1);
+      px(g, 7, y - 1, pal.detail, 3, 1);
+      px(g, 18, y - 1, pal.detail, 4, 1);
+      if (rng.chance(0.5)) px(g, 12, y + 1, pal.light, 2, 1);
     }
   } else if (terrain === 'forest') {
-    const trees = [[3, 5], [9, 9], [12, 4]];
-    trees.forEach(function (t) {
-      px(g, t[0], t[1], '#4a3a24', 1, 3);
-      px(g, t[0] - 1, t[1] - 2, pal.dark, 3, 3);
-      px(g, t[0], t[1] - 3, pal.dark, 1, 1);
-      px(g, t[0] - 1, t[1] - 2, pal.light);
+    const trees = [[9, 18], [19, 23], [25, 14]];
+    trees.forEach(function (t, i) {
+      px(g, t[0], t[1], '#4a3a24', 2, 5);
+      px(g, t[0] - 3, t[1] - 5, pal.dark, 7, 6);
+      px(g, t[0] - 2, t[1] - 7, pal.dark, 5, 3);
+      px(g, t[0] - 1, t[1] - 6, pal.light, 3, 2);
+      if (i === 0) px(g, t[0] + 4, t[1] + 1, pal.detail, 2, 2);
     });
   } else if (terrain === 'marsh') {
-    for (let i = 0; i < 2; i++) {
-      const x = rng.int(1, 10);
-      const y = rng.int(3, 12);
-      px(g, x, y, '#3d6672', 4, 2);
-      px(g, x + 1, y, '#5f8b93', 2, 1);
+    for (let i = 0; i < 3; i++) {
+      const x = rng.int(3, 20);
+      const y = rng.int(8, 24);
+      px(g, x, y, '#3d6672', 8, 3);
+      px(g, x + 2, y, '#5f8b93', 4, 1);
+      px(g, x + 1, y + 3, '#2e5060', 6, 1);
     }
-    for (let i = 0; i < 2; i++) px(g, rng.int(2, 13), 4, '#b6a165', 1, 3);
+    for (let i = 0; i < 3; i++) px(g, rng.int(4, 26), rng.int(7, 24), '#b6a165', 1, 5);
   } else if (terrain === 'hills') {
-    for (let i = 0; i < 2; i++) {
-      const y = 5 + i * 6;
-      px(g, 1, y, pal.dark, 14, 1);
-      px(g, 3, y - 1, pal.light, 10, 1);
+    for (let i = 0; i < 3; i++) {
+      const y = 8 + i * 8;
+      px(g, 2, y + 3, pal.dark, 28, 2);
+      px(g, 5, y, pal.light, 18, 1);
+      px(g, 10, y - 2, pal.light, 10, 1);
+      px(g, 16, y + 1, pal.base, 8, 1);
+    }
+  } else if (terrain === 'foothill') {
+    // 山麓：草坡压着碎石带，和山地接壤
+    px(g, 0, 22, pal.dark, 32, 10);
+    px(g, 3, 17, pal.light, 26, 1);
+    px(g, 7, 14, pal.light, 16, 1);
+    for (let i = 0; i < 6; i++) {
+      px(g, rng.int(4, 26), rng.int(18, 28), '#8f8777', 2, 2);
+      px(g, rng.int(7, 25), rng.int(5, 16), pal.detail, 2, 1);
     }
   } else if (terrain === 'mountain') {
-    px(g, 3, 6, pal.light, 6, 1);
-    px(g, 0, 10, pal.light, 5, 1);
-    px(g, 9, 12, pal.light, 5, 1);
-    px(g, 4, 7, pal.dark, 3, 1);
+    // 两三层山脊，带雪线和背光面；不是孤零零一条横线
+    px(g, 1, 25, pal.dark, 30, 4);
+    px(g, 4, 20, pal.light, 8, 2);
+    px(g, 12, 17, pal.light, 10, 2);
+    px(g, 22, 21, pal.light, 7, 2);
+    for (let i = 0; i < 3; i++) {
+      const x = 4 + i * 9;
+      const h = 7 + (i === 1 ? 5 : 0);
+      ctxTri(g, x, 27, x + 7, 27 - h, x + 14, 27, pal.dark);
+      ctxTri(g, x + 2, 27, x + 7, 27 - h, x + 8, 27, pal.light);
+      if (h >= 10) {
+        ctxTri(g, x + 5, 27 - h + 4, x + 7, 27 - h, x + 9, 27 - h + 4, '#ded8cc');
+      }
+    }
+    px(g, 0, 23, pal.base, 32, 2);
+  } else if (terrain === 'pass') {
+    // 山口：两侧岩壁夹一条浅色通道，道路会从这里穿过去
+    px(g, 0, 0, pal.dark, 10, 32);
+    px(g, 22, 0, pal.dark, 10, 32);
+    px(g, 10, 0, pal.base, 12, 32);
+    px(g, 12, 4, pal.light, 8, 24);
+    for (let i = 0; i < 4; i++) {
+      const y = 6 + i * 6;
+      px(g, 5, y, pal.light, 4, 2);
+      px(g, 23, y + 1, pal.light, 4, 2);
+    }
+    px(g, 14, 14, '#d6cbb6', 4, 4);
   } else if (terrain === 'river') {
-    px(g, 3, 5, pal.detail, 5, 1);
-    px(g, 8, 11, pal.detail, 4, 1);
+    px(g, 0, 10, '#28506f', 32, 18);
+    px(g, 0, 12, '#33608a', 32, 14);
+    px(g, 3, 14, '#457a9e', 13, 1);
+    px(g, 18, 20, '#457a9e', 11, 1);
+    px(g, 8, 25, '#8ab6d2', 8, 1);
+    px(g, 0, 27, '#28506f', 32, 2);
+  } else if (terrain === 'bridge') {
+    // 桥面木板 + 两侧栏杆；方向由大地图层按道路走向再补一道
+    px(g, 0, 11, '#3a2b1d', 32, 14);
+    px(g, 2, 9, '#936f45', 28, 13);
+    px(g, 2, 9, '#c39a64', 28, 2);
+    for (let i = 0; i < 5; i++) px(g, 5 + i * 6, 11, '#654b2d', 1, 11);
+    px(g, 2, 7, '#5a432b', 28, 2);
+    px(g, 2, 20, '#5a432b', 28, 2);
+    px(g, 8, 5, '#8a6a44', 2, 5);
+    px(g, 22, 5, '#8a6a44', 2, 5);
   } else if (terrain === 'sea') {
-    px(g, 2, 4, pal.detail, 4, 1);
-    px(g, 9, 9, pal.detail, 4, 1);
-    px(g, 4, 13, pal.light, 5, 1);
+    for (let i = 0; i < 5; i++) {
+      const y = 6 + i * 6;
+      px(g, 3 + (i % 2) * 8, y, pal.detail, 10, 1);
+      px(g, 16 - (i % 2) * 3, y + 3, pal.light, 7, 1);
+    }
   } else if (terrain === 'desert') {
-    px(g, 1, 5, pal.light, 7, 1);
-    px(g, 8, 10, pal.light, 6, 1);
-    px(g, 3, 13, pal.dark, 4, 1);
+    px(g, 2, 9, pal.light, 13, 1);
+    px(g, 16, 17, pal.light, 12, 1);
+    px(g, 5, 24, pal.dark, 9, 1);
+    px(g, 9, 11, pal.dark, 6, 1);
+  } else if (terrain === 'oasis') {
+    px(g, 4, 16, '#3f6f78', 20, 8);
+    px(g, 6, 15, '#5b9294', 16, 1);
+    px(g, 8, 23, '#2f5a60', 12, 2);
+    // 棕榈
+    px(g, 23, 9, '#8a6a44', 2, 8);
+    px(g, 18, 7, '#5c8a48', 5, 2);
+    px(g, 24, 5, '#6d9a52', 6, 2);
+    px(g, 21, 4, '#4c783d', 4, 2);
+    px(g, 11, 12, '#b7a15f', 1, 5);
   } else if (terrain === 'road') {
-    for (let i = 0; i < 4; i++) px(g, rng.int(0, 15), rng.int(0, 15), pal.dark, 2, 1);
+    for (let i = 0; i < 6; i++) px(g, rng.int(0, 30), rng.int(0, 30), pal.dark, 3, 1);
+    px(g, 8, 8, pal.light, 10, 1);
+    px(g, 16, 20, pal.light, 9, 1);
   }
 
   return c;
 }
 
-/** 城池贴图：石墙/木屋，不带势力色（势力旗另外画） */
+/** 简易三角填充，用于山脊 */
+function ctxTri(g, x1, y1, x2, y2, x3, y3, color) {
+  g.fillStyle = color;
+  g.beginPath();
+  g.moveTo(x1, y1);
+  g.lineTo(x2, y2);
+  g.lineTo(x3, y3);
+  g.closePath();
+  g.fill();
+}
+
+/** 城池贴图：32x32 的石墙/木屋/营帐，近景能看见城门与瓦檐 */
 function makeSiteSprite(runtime, type, seed) {
-  const size = 16;
+  const size = 32;
   const c = newCanvas(runtime, size, size);
   const g = c.getContext('2d');
   const rng = new RNG(seed);
@@ -149,69 +239,118 @@ function makeSiteSprite(runtime, type, seed) {
 
   const stone = '#8f8b82';
   const stoneDark = '#66625b';
-  const roof = '#9c4a3c';
+  const stoneLight = '#b8b1a3';
+  const roof = '#a34d3d';
   const roofDark = '#70342a';
   const wood = '#8a6a44';
   const woodDark = '#5f4830';
-  const tileRoof = '#5a5750';
+  const ink = '#241b12';
+
+  function shadow(y) {
+    g.fillStyle = 'rgba(0,0,0,0.34)';
+    g.beginPath();
+    g.ellipse(16, y, 15, 3, 0, 0, Math.PI * 2);
+    g.fill();
+  }
 
   if (type === 'town') {
-    // 墙基与墙体
-    px(g, 0, 9, '#332e26', 16, 7);
-    px(g, 1, 6, '#9c9589', 14, 8);
-    px(g, 1, 6, '#b4ada0', 14, 1);
-    // 城垛
-    for (let i = 1; i < 15; i += 3) px(g, i, 4, '#a49d90', 2, 2);
-    // 双塔
-    px(g, 0, 2, '#7a7468', 4, 13);
-    px(g, 12, 2, '#7a7468', 4, 13);
-    px(g, 1, 3, '#a49d90', 2, 11);
-    px(g, 13, 3, '#a49d90', 2, 11);
-    px(g, 1, 1, roof, 2, 2);
-    px(g, 13, 1, roof, 2, 2);
-    // 城门
-    px(g, 6, 9, '#211a12', 4, 6);
-    px(g, 6, 8, '#4a3826', 4, 2);
-    px(g, 7, 11, '#e8b45a', 2, 2);
+    shadow(28);
+    // 城基
+    px(g, 1, 18, '#332e26', 30, 11);
+    px(g, 2, 14, stoneDark, 28, 11);
+    px(g, 3, 12, stone, 26, 10);
+    px(g, 3, 12, stoneLight, 26, 2);
+    // 城垛：一排小缺口
+    for (let i = 3; i < 29; i += 4) {
+      px(g, i, 9, stoneDark, 3, 3);
+      px(g, i + 1, 9, stoneLight, 1, 2);
+    }
+    // 角楼
+    px(g, 1, 8, stoneDark, 7, 18);
+    px(g, 24, 8, stoneDark, 7, 18);
+    px(g, 2, 9, stone, 5, 16);
+    px(g, 25, 9, stone, 5, 16);
+    px(g, 2, 6, roof, 5, 3);
+    px(g, 25, 6, roof, 5, 3);
+    px(g, 3, 5, roofDark, 3, 1);
+    px(g, 26, 5, roofDark, 3, 1);
+    // 城门与门洞
+    px(g, 12, 18, ink, 9, 12);
+    px(g, 13, 21, '#1a130d', 7, 9);
+    px(g, 12, 17, '#4a3826', 9, 2);
+    px(g, 14, 22, '#e8b45a', 5, 2);
+    px(g, 15, 24, '#b07b35', 3, 2);
+    // 墙面石缝
+    for (let i = 0; i < 7; i++) {
+      const x = 4 + (i % 3) * 8;
+      const y = 15 + Math.floor(i / 3) * 4;
+      px(g, x, y, stoneDark, 5, 1);
+    }
     // 城头旗
-    px(g, 8, 2, '#6b5136', 1, 5);
-    px(g, 9, 2, '#b8342a', 3, 2);
+    px(g, 17, 3, '#6b5136', 1, 9);
+    px(g, 18, 3, '#b8342a', 5, 4);
+    px(g, 20, 4, '#f0c060', 1, 2);
   } else if (type === 'castle') {
+    shadow(28);
     // 关隘：两座墩台夹一座主塔
-    px(g, 1, 7, '#332e26', 14, 9);
-    px(g, 1, 6, '#9c9589', 14, 2);
-    px(g, 0, 3, '#7a7468', 4, 12);
-    px(g, 12, 3, '#7a7468', 4, 12);
-    px(g, 1, 4, '#a49d90', 2, 10);
-    px(g, 13, 4, '#a49d90', 2, 10);
-    px(g, 6, 2, '#a49d90', 4, 12);
-    px(g, 6, 2, '#b4ada0', 4, 1);
-    px(g, 7, 4, '#211a12', 2, 3);
-    px(g, 7, 11, '#211a12', 2, 5);
-    px(g, 2, 1, roof, 2, 2);
-    px(g, 13, 1, roof, 2, 2);
+    px(g, 1, 16, '#332e26', 30, 12);
+    px(g, 2, 14, stoneDark, 28, 4);
+    px(g, 3, 13, stone, 26, 3);
+    px(g, 1, 8, stoneDark, 7, 20);
+    px(g, 24, 8, stoneDark, 7, 20);
+    px(g, 2, 9, stone, 5, 17);
+    px(g, 25, 9, stone, 5, 17);
+    px(g, 3, 5, roof, 5, 3);
+    px(g, 26, 5, roof, 5, 3);
+    px(g, 12, 7, stoneDark, 7, 22);
+    px(g, 13, 8, stone, 5, 20);
+    px(g, 14, 3, roof, 4, 4);
+    px(g, 12, 12, ink, 7, 4);
+    px(g, 13, 13, '#d0a457', 5, 2);
+    px(g, 12, 18, ink, 7, 12);
+    px(g, 13, 20, '#1a130d', 5, 10);
+    for (let i = 0; i < 4; i++) px(g, 3, 13 + i * 4, stoneLight, 4, 1);
+    for (let i = 0; i < 4; i++) px(g, 26, 12 + i * 4, stoneLight, 4, 1);
   } else if (type === 'village') {
-    px(g, 2, 9, wood, 6, 5);
-    px(g, 2, 9, woodDark, 6, 1);
-    px(g, 1, 7, roofDark, 8, 2);
-    px(g, 2, 6, roof, 6, 1);
-    px(g, 8, 11, '#231a12', 2, 3);
-    px(g, 9, 10, wood, 5, 4);
-    px(g, 9, 10, woodDark, 5, 1);
-    px(g, 8, 8, roof, 7, 2);
-    px(g, 11, 12, '#231a12', 2, 2);
-    // 草垛 / 井
-    px(g, 3, 13, '#b0954a', 2, 2);
-    px(g, 13, 13, '#4a3826', 2, 2);
+    shadow(28);
+    // 木屋一
+    px(g, 4, 17, wood, 11, 10);
+    px(g, 4, 17, woodDark, 11, 2);
+    px(g, 2, 13, roofDark, 15, 4);
+    px(g, 4, 11, roof, 12, 3);
+    px(g, 5, 12, '#c06a53', 8, 1);
+    px(g, 13, 20, ink, 3, 6);
+    px(g, 8, 21, '#d9be8d', 3, 3);
+    // 木屋二
+    px(g, 18, 20, wood, 10, 7);
+    px(g, 17, 17, roof, 12, 3);
+    px(g, 19, 18, roofDark, 8, 1);
+    px(g, 24, 23, ink, 3, 4);
+    px(g, 20, 25, '#d9be8d', 3, 2);
+    // 草垛、井、栅栏
+    px(g, 8, 27, '#b0954a', 4, 3);
+    px(g, 9, 26, '#d0b56a', 2, 1);
+    px(g, 26, 26, '#3d6672', 4, 3);
+    px(g, 27, 25, '#6d5137', 2, 1);
+    for (let i = 0; i < 4; i++) px(g, 6 + i * 6, 30, '#6d5137', 1, 2);
   } else if (type === 'camp') {
-    px(g, 3, 8, '#8d4a3c', 7, 6);
-    px(g, 2, 7, '#6d3427', 9, 2);
-    px(g, 2, 14, '#3f2c20', 9, 1);
-    px(g, 5, 10, '#1e1610', 2, 4);
-    px(g, 11, 11, '#e0b34a', 2, 2);
-    px(g, 10, 13, '#7a5230', 4, 1);
-    px(g, 12, 4, wood, 1, 6);
-    px(g, 12, 3, stone, 1, 1);
+    shadow(28);
+    // 主帐
+    px(g, 7, 18, '#8d4a3c', 14, 10);
+    px(g, 5, 16, '#6d3427', 18, 4);
+    px(g, 8, 12, '#b85a48', 12, 5);
+    px(g, 10, 11, '#6d3427', 8, 2);
+    px(g, 12, 23, ink, 4, 6);
+    px(g, 13, 22, '#d9a441', 2, 3);
+    // 帐绳与火堆
+    px(g, 2, 28, '#3f2c20', 26, 1);
+    px(g, 22, 24, '#e0b34a', 4, 4);
+    px(g, 23, 22, '#f6d77f', 2, 2);
+    px(g, 25, 27, '#7a5230', 3, 1);
+    // 枪架
+    px(g, 27, 10, wood, 1, 16);
+    px(g, 25, 8, stone, 2, 2);
+    px(g, 29, 12, '#9aa0a8', 1, 13);
   }
   return c;
 }
