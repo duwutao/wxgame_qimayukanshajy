@@ -704,7 +704,7 @@ smoke('新增幕间章节卡', function () {
   app.pop();
 });
 
-smoke('修养直接出城看地图，点一下回城，离城能走', function () {
+smoke('修养直接出城看地图，点一下上路，离城能走', function () {
   const st = app.state = stateLib.createGame({ seed: 4326 });
   st.events.length = 0;
   st.player.atSiteId = 'chenliu';
@@ -720,8 +720,8 @@ smoke('修养直接出城看地图，点一下回城，离城能走', function (
   ok('地图记住在城里歇着', app.restView === 'chenliu' && !!st.player.resting);
   app.ui.begin();
   app.top().scene.render(app);
-  ok('地图上有回城提示', true);
-  // 点一下地图 → 回城界面
+  ok('地图上有离城提示', true);
+  // 点一下地图 → 自动离城并直接行军
   app.onStart(200, 620);
   app.onEnd(200, 620);
   ok('休息后点地图自动离城', app.stack[app.stack.length - 1].name === 'map' &&

@@ -1585,7 +1585,7 @@ function drawRoute(ctx, app, cam, box) {
   ctx.restore();
 }
 
-/** 自由视野提示：人跑出画面时给个"跳回原处"；城里歇息时给条回城提示 */
+/** 自由视野提示：人跑出画面时给个"跳回原处"；城里歇息时给条离城提示 */
 function drawFreeHint(ctx, app, box, w) {
   const st = app.state;
   const p = st.player;
@@ -1598,7 +1598,7 @@ function drawFreeHint(ctx, app, box, w) {
     const site = siteById(st.world, p.resting);
     ctx.fillStyle = 'rgba(16,20,14,0.78)';
     ctx.fillRect(0, box.top, w, 30);
-    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰照走 · 点一下地图就回城',
+    text(ctx, '在' + (site ? site.name : '城里') + '歇息 · 粮耗减半 · 时辰照走 · 点一下地图就上路',
       w / 2, box.top + 6, { size: 15, align: 'center', color: '#9fc08a' });
   }
 
