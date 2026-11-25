@@ -665,6 +665,8 @@ function capture(state, loser, captorFaction, captorName) {
   loser.chasing = false;
   loser.hunting = false;
   loser.fleeing = false;
+  loser.scattered = false;
+  loser.scatterUntilH = 0;
   loser.fleeTargetId = null;
   loser.fleePath = null;
   loser.order = null;
@@ -706,6 +708,8 @@ function freeLord(state, lord, why) {
   const home = state.world.sites.filter(function (s) { return s.id === lord.home; })[0];
   lord.alive = true;
   lord.prisoner = null;
+  lord.scattered = false;
+  lord.scatterUntilH = 0;
   lord.order = null;
   lord.defending = null;
   lord.chasing = false;
@@ -735,6 +739,44 @@ function clearEngagement(a, b) {
 }
 
 /**
+ * 兵被打光的领主：不是俘虏，也不是“还剩残兵的逃窜”，而是队伍被打散。
+ * 需要回城收拢旧部，三天（72 个游戏时辰）内不能招募；三天后进城就能重新集结。
+ * 这里只写状态，不改坐标：moveLords 会因为兵少自动把他带回最近的友城。
+ */
+function markLordScattered(state, lord, source) {
+  if (!lord) return null;
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  lord.alive = true;
+  lord.prisoner = null;
+  lord.scattered = true;
+  lord.scatterUntilH = Math.max(lord.scatterUntilH || 0, nowH + 72);
+  lord.scatterFrom = source || 'battle';
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleePath = null;
+  lord.fleePathFor = null;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.banditChasing = null;
+  lord.foeChasing = null;
+  lord.order = null;
+  lord.defending = null;
+  lord.engagedWith = null;
+  lord.engagedSinceH = null;
+  lord.scuffle = Math.max(lord.scuffle || 0, 8);
+  lord.routePath = null;
+  lord.routePathFor = null;
+  lord.orderPath = null;
+  lord.orderDetourTarget = null;
+  lord.patrolPath = null;
+  lord.stuckEscape = null;
+  // 不冻结移动：0 兵的领主会被 needRest 自动带回最近的友城，在路上等这三天。
+  lord.nextMoveH = Math.min(lord.nextMoveH || nowH, nowH);
+  lord.resting = true;
+  return lord;
+}
+
+/**
  * 两位领主在路上撞上：不是碰一下就散，而是原地列阵打一场大的。
  * 每 3 小时结算一轮，双方都成片掉人；打崩之后败方大概率溃逃，
  * 小概率被俘。交战期间双方都停住不动。
@@ -744,7 +786,22 @@ function clash(state, a, b) {
   const edgeB = factionEdge(b.faction, a.faction);
   const wa = weight(a.troops) * edgeA;
   const wb = weight(b.troops) * edgeB;
-  if (wa <= 0 || wb <= 0) return null;
+  if (wa <= 0 || wb <= 0) {
+    // 已经有一方是空架子：不要再返回 null 让幽灵部队挂在原地。
+    // 还有兵的一方算胜者；零兵一方能走就“打散”，走不了就按俘虏处理。
+    const empty = wa <= 0 ? a : b;
+    const other = wa <= 0 ? b : a;
+    if (empty && !empty.prisoner && empty.faction !== 'bandit') {
+      const emptyHasTroops = army.troopCount(empty.troops || {}) > 0;
+      if (!emptyHasTroops) {
+        const mayLeave = lordMayLeaveField(state, empty, other);
+        if (mayLeave) markLordScattered(state, empty, other ? other.name : 'battle');
+        else capture(state, empty, other ? other.faction : 'bandit', other ? other.name : '乱军');
+      }
+    }
+    clearEngagement(a, b);
+    return { scattered: true };
+  }
   const share = wa / (wa + wb);
   const totalA = army.troopCount(a.troops);
   const totalB = army.troopCount(b.troops);
@@ -788,8 +845,24 @@ function clash(state, a, b) {
   const rng = state.rng;
   // 乱世里保住人比保住脸重要：打散之后大概率还能跑，极少真被捆走。
   // 但守城、结阵、无城可退时这套豁免优先：不许逃，直接按被俘处理。
-  const fleeRoll = rng.next() < 0.82;
   const mayLeave = lordMayLeaveField(state, loser, winner);
+  // 打空 = 被打散，不是“带残兵逃窜”。给三天收拢旧部的时间；守城军打空仍只可被俘。
+  if (loserRemain <= 0) {
+    if (loser.defending) {
+      capture(state, loser, winner.faction, winner.name);
+      if (near) logFn(state, loser.name + '被' + winner.name + '的部曲围住，当场捆了。', 'war');
+      return { capture: true };
+    }
+    if (mayLeave) {
+      markLordScattered(state, loser, winner ? winner.name : 'battle');
+      if (near) logFn(state, loser.name + '的部曲被打空，残旗四散，三天内无法重新集结。', 'war');
+      return { scattered: true };
+    }
+    capture(state, loser, winner.faction, winner.name);
+    if (near) logFn(state, loser.name + '被' + winner.name + '的部曲围住，当场捆了。', 'war');
+    return { capture: true };
+  }
+  const fleeRoll = rng.next() < 0.82;
   if (fleeRoll && mayLeave) {
     loser.alive = true;
     loser.chasing = false;
@@ -1288,14 +1361,23 @@ function settleFieldBattle(state, battlefield, summary, options) {
         return;
       }
       if (!unit.alive || unit.prisoner || unit.inCity) return;
-      if (winnerSide !== null && army.troopCount(unit.troops || {}) <= 0) {
-        capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
-          p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+      const mayLeave = lordMayLeaveField(state, unit, winnerUnit);
+      // 合战把兵打光且没有被围死：同样按“打散”处理，先回城收拢，三天内不能招募。
+      // 守城军打空仍只可被俘，不能变成可再招募的打散状态。
+      if (army.troopCount(unit.troops || {}) <= 0) {
+        if (unit.defending && winnerSide !== null) {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        } else if (mayLeave || winnerSide === null) {
+          markLordScattered(state, unit, winnerUnit ? winnerUnit.name : 'field');
+        } else {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        }
         return;
       }
       // 合战结算也必须服从“守城/结阵/无城可退不逃”的硬顶规则，
       // 不能因为战场打崩了就在城下集体 moveAway。
-      const mayLeave = lordMayLeaveField(state, unit, winnerUnit);
       if (p.key === bf.primaryB.key || p.key === bf.primaryA.key) {
         if (draw) {
           if (mayLeave) {
@@ -1861,11 +1943,32 @@ function ensureLiuBeiYiWar(state, day) {
   if ((fstate.shu || {}).dead || (fstate.zhang || {}).dead) return false;
   if (atWar(state, 'shu', 'zhang')) {
     state.flags.liubeiYiWar = true;
+    // 如果开战是此前冲突自动触发的，旧战役里可能没有刘备本人。
+    // 入川旗号一立，就重排一次蜀国战役，保证主公亲自挂帅。
+    const cp = state.warCampaigns && state.warCampaigns.shu;
+    if (cp && (cp.attackerIds || []).indexOf('liubei') < 0) {
+      (cp.attackerIds || []).forEach(function (id) {
+        const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+        if (lord) clearOrder(lord);
+      });
+      delete state.warCampaigns.shu;
+      planCampaign(state, 'shu', day);
+    }
     return false;
   }
   if (!canOpenWar(state, 'shu', 'zhang')) return false;
   if (!declare(state, 'shu', 'zhang', false)) return false;
   state.flags.liubeiYiWar = true;
+  // 入川旗号一立，刘备就不再沿旧路线去啃淮南/荆州：撤掉此前非张鲁方向的战役，
+  // 让下一拍战略重新把兵锋指向剑阁。否则会保留旧目标，入川名号成了空话。
+  const oldShuCp = state.warCampaigns && state.warCampaigns.shu;
+  if (oldShuCp && oldShuCp.enemy !== 'zhang') {
+    (oldShuCp.attackerIds || []).forEach(function (id) {
+      const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+      if (lord) clearOrder(lord);
+    });
+    delete state.warCampaigns.shu;
+  }
   logFn(state, '刘备以“助刘璋拒张鲁”为名自新野入川，刘璋开关迎客；蜀军沿江而上，兵锋指向剑阁、江州。', 'war');
   return true;
 }
@@ -2561,6 +2664,7 @@ module.exports = {
   init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick, startDiplomacy, alertsEnabled,
   aiCanDeclare, canOpenWar, MAX_WAR_PARTNERS, OPENING_FORBIDDEN,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
+  markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
   factionEdge, combatTroops,

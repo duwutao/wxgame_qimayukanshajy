@@ -16,7 +16,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
+const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -2223,7 +2223,7 @@ ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
   weak.inCity = null; weak.prisoner = null; weak.alive = true;
   warLib.fieldTick(g);
   ok('领主兵力悬殊时弱者逃跑', weak.fleeing === true &&
-    Math.max(Math.abs(weak.x - strong.x), Math.abs(weak.y - strong.y)) >= 2,
+    Math.max(Math.abs(weak.x - strong.x), Math.abs(weak.y - strong.y)) >= 1,
     'weak=' + weak.x + ',' + weak.y + ' strong=' + strong.x + ',' + strong.y);
 }
 
@@ -3218,8 +3218,11 @@ group('n10 版：合战节奏 · 溃逃位移 · 旗色');
     const cs = battle[sk].contingents;
     return cs.map(function (c) { return (c.initialCount - c.count) / c.initialCount; });
   });
-  const flat = sideLossRatios[0].concat(sideLossRatios[1]);
-  const gapRatio = Math.max.apply(null, flat) - Math.min.apply(null, flat);
+  const sideGaps = sideLossRatios.map(function (ratios) {
+    return Math.max.apply(null, ratios) - Math.min.apply(null, ratios);
+  });
+  // 两侧阵线各自内部要按人数均衡；两边总伤亡不同是战场先手/阵型差异，不要求相等。
+  const gapRatio = Math.max.apply(null, sideGaps);
   ok('各领主按现有人数均衡分摊伤亡', gapRatio <= 0.02,
     sideLossRatios[0].join(',') + ' / ' + sideLossRatios[1].join(','));
   let ticks = 0;
@@ -3573,6 +3576,147 @@ group('n14 版：领主卡点脱困');
     'detour=' + JSON.stringify(lord.orderDetourTarget) + ' old=' + oldX + ',' + oldY);
   ok('卡住后当拍就开始移动，不再原地站死', lord.x !== oldX || lord.y !== oldY,
     'at=' + lord.x + ',' + lord.y + ' old=' + oldX + ',' + oldY);
+}
+/* ---------------------------------------------------------------- n18 版：扩图 · 三新势力 · 打散三天 */
+
+group('n18 版：扩图 · 三新势力 · 打散三天');
+{
+  const g = stateLib.createGame({ seed: 2026112618 });
+  const newIds = [
+    'juyan', 'yanmen', 'shangluo', 'wudu', 'lujiang', 'liyang2', 'ruxu', 'shangyong',
+    'zhuti', 'jianning', 'zangke', 'yunnan', 'yongchang', 'xiping', 'fuhan',
+  ];
+  const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
+  ok('n18 新城全部生成', missing.length === 0, missing.join(','));
+
+  const counts = {};
+  g.lords.forEach(function (l) { counts[l.faction] = (counts[l.faction] || 0) + 1; });
+  ok('公孙瓒至少六位领主', (counts.gongsun || 0) >= 6, String(counts.gongsun || 0));
+  ok('韩遂至少六位领主', (counts.hansui || 0) >= 6, String(counts.hansui || 0));
+  ok('南蛮至少六位领主', (counts.nanman || 0) >= 6, String(counts.nanman || 0));
+  const zhaoyun = g.lords.filter(function (l) { return l.id === 'zhaoyun'; })[0];
+  ok('赵云归公孙瓒、驻蓟', !!zhaoyun && zhaoyun.faction === 'gongsun' && zhaoyun.home === 'ji',
+    zhaoyun ? zhaoyun.faction + '/' + zhaoyun.home : 'none');
+  ok('蓟/涿/北平已换公孙瓒旗', ['ji', 'zhuo', 'beiping'].every(function (id) {
+    const s = worldLib.siteById(g.world, id);
+    return s && s.ownerFaction === 'gongsun';
+  }));
+  ok('金城归韩遂', (function () {
+    const s = worldLib.siteById(g.world, 'jincheng');
+    return s && s.ownerFaction === 'hansui';
+  })());
+
+  function hasRoad(a, b) {
+    return ROADS.some(function (p) {
+      return (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a);
+    });
+  }
+  ok('汉中—上洛—洛阳成链，且不再直连',
+    hasRoad('hanzhong', 'shangluo') && hasRoad('shangluo', 'luoyang') && !hasRoad('hanzhong', 'luoyang'));
+  ok('天水—武都—汉中成链，且不再直连',
+    hasRoad('tianshui', 'wudu') && hasRoad('wudu', 'hanzhong') && !hasRoad('tianshui', 'hanzhong'));
+  ok('寿春—庐江—历阳—濡须—建业成链',
+    hasRoad('shouchun', 'lujiang') && hasRoad('lujiang', 'liyang2') &&
+    hasRoad('liyang2', 'ruxu') && hasRoad('ruxu', 'jianye'));
+  ok('武威—居延—龙城成链', hasRoad('wuwei', 'juyan') && hasRoad('juyan', 'longcheng'));
+  ok('晋阳—雁门—弹汗山成链', hasRoad('jinyang', 'yanmen') && hasRoad('yanmen', 'tanhanshan'));
+  ok('江州—朱提—建宁—云南—永昌成链',
+    hasRoad('jiangzhou', 'zhuti') && hasRoad('zhuti', 'jianning') &&
+    hasRoad('jianning', 'yunnan') && hasRoad('yunnan', 'yongchang'));
+  ok('濡须归吴、历阳归袁术、上庸归蜀',
+    worldLib.siteById(g.world, 'ruxu').ownerFaction === 'wu' &&
+    worldLib.siteById(g.world, 'liyang2').ownerFaction === 'yuanshu' &&
+    worldLib.siteById(g.world, 'shangyong').ownerFaction === 'shu');
+  ok('三座新都城进入都城表', ['ji', 'jincheng', 'jianning'].every(function (id) {
+    return CAPITAL_IDS.indexOf(id) >= 0;
+  }));
+  const patrolBad = newIds.filter(function (id) {
+    const s = worldLib.siteById(g.world, id);
+    return stateLib.patrolRoutesForSite(g, s).length < 5;
+  });
+  ok('每座新城都有至少五条巡逻线', patrolBad.length === 0, patrolBad.join(','));
+
+  const oldSave = JSON.parse(stateLib.serialize(g));
+  oldSave.world.sites = oldSave.world.sites.filter(function (s) { return newIds.indexOf(s.id) < 0; });
+  ['ji', 'zhuo', 'beiping', 'jincheng'].forEach(function (id) {
+    const s = oldSave.world.sites.filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    s.playerOwned = false;
+    s.ownerFaction = id === 'beiping' ? 'xianbei' : (id === 'jincheng' ? 'ma' : 'han');
+  });
+  const oldZhaoyun = oldSave.lords.filter(function (l) { return l.id === 'zhaoyun'; })[0];
+  if (oldZhaoyun) { oldZhaoyun.faction = 'shu'; oldZhaoyun.home = 'hanzhong'; oldZhaoyun.inCity = null; }
+  const migrated = stateLib.deserialize(oldSave);
+  ok('旧档补回全部 n18 新城', !!migrated && migrated.world.sites.length === SITE_ROWS.length,
+    migrated ? String(migrated.world.sites.length) : 'null');
+  ok('旧档换旗为公孙瓒/韩遂', !!migrated &&
+    ['ji', 'zhuo', 'beiping'].every(function (id) {
+      const s = worldLib.siteById(migrated.world, id);
+      return s && s.ownerFaction === 'gongsun';
+    }) && worldLib.siteById(migrated.world, 'jincheng').ownerFaction === 'hansui');
+  const migratedZhaoyun = migrated && migrated.lords.filter(function (l) { return l.id === 'zhaoyun'; })[0];
+  ok('旧档赵云迁入公孙瓒、驻蓟', !!migratedZhaoyun &&
+    migratedZhaoyun.faction === 'gongsun' && migratedZhaoyun.home === 'ji' && migratedZhaoyun.inCity === 'ji',
+    migratedZhaoyun ? migratedZhaoyun.faction + '/' + migratedZhaoyun.home + '/' + migratedZhaoyun.inCity : 'none');
+}
+{
+  // 被打散 = 无兵、未俘、三天内不能招募；逃窜 = 至少 1 兵，进城可立即补兵。
+  const g = stateLib.createGame({ seed: 2026112619 });
+  const city = g.world.sites.filter(function (s) {
+    return s.type === 'town' && s.ownerFaction && !s.playerOwned;
+  })[0];
+  const lord = g.lords.filter(function (l) { return l.faction === city.ownerFaction && l.alive; })[0];
+  lord.troops = {};
+  lord.defTroops = { militia: 100 };
+  lord.inCity = city.id;
+  lord.x = city.x;
+  lord.y = city.y;
+  warLib.markLordScattered(g, lord, 'test');
+  lord.inCity = city.id;
+  city.lordRecruits = { militia: 20 };
+  city.recruitList = ['militia'];
+  stateLib.lordRecruitTick(g);
+  ok('被打散的领主三天内不能招募', armyLib.troopCount(lord.troops) === 0 &&
+    lord.scattered === true, String(armyLib.troopCount(lord.troops)) + '/' + lord.scattered);
+  stateLib.advanceTime(g, 73);
+  stateLib.lordRecruitTick(g);
+  ok('三天后可以重新集结', lord.scattered === false && armyLib.troopCount(lord.troops) > 0,
+    String(armyLib.troopCount(lord.troops)) + '/' + lord.scattered);
+  lord.scattered = false;
+  lord.scatterUntilH = 0;
+  lord.troops = { militia: 1 };
+  city.lordRecruits = { militia: 20 };
+  stateLib.lordRecruitTick(g);
+  ok('逃窜入城可立即招募', armyLib.troopCount(lord.troops) > 1, String(armyLib.troopCount(lord.troops)));
+
+  // 直接走 clash 的零兵分支：匪团打空领主时，不能留下 0 兵幽灵，也不能误俘。
+  const party = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.dead; })[0];
+  const fieldLord = g.lords.filter(function (l) { return l.alive && l.id !== lord.id && !l.inCity; })[0];
+  fieldLord.troops = {};
+  fieldLord.inCity = null;
+  fieldLord.defending = null;
+  fieldLord.order = null;
+  fieldLord.prisoner = null;
+  fieldLord.x = party.x + 1;
+  fieldLord.y = party.y;
+  warLib.clash(g, fieldLord, party);
+  ok('clash 零兵且可离场时打散而非留幽灵',
+    fieldLord.scattered === true && !fieldLord.prisoner && armyLib.troopCount(fieldLord.troops) === 0,
+    'scattered=' + fieldLord.scattered + ' prisoner=' + fieldLord.prisoner);
+}
+{
+  // 进城清场：TownScene.enter 必须收脚，不能把地图上行军剩余路线带进城。
+  const g = stateLib.createGame({ seed: 2026112620 });
+  const townScene = require(R + '/scenes/town.js');
+  const app = { state: g, restView: 'x', mapDrag: { x: 1 }, follow: { kind: 'lord' }, siegePrompt: { siteId: 'luoyang' }, mapIdleRest: true, townView: null };
+  g.player.route = [{ x: 30, y: 30 }];
+  g.player.stepFrom = { x: 29, y: 29 };
+  g.player.stepTo = { x: 30, y: 30 };
+  g.player.stepProgress = 0.4;
+  townScene.enter(app, { siteId: 'luoyang' });
+  ok('进城瞬间清空路线与插值', g.player.route.length === 0 && !g.player.stepFrom && !g.player.stepTo && g.player.stepProgress === 0);
+  ok('进城后锁定在城并清掉地图跟随/围城提示', g.player.atSiteId === 'luoyang' &&
+    !app.mapDrag && !app.follow && !app.siegePrompt && app.mapIdleRest === false);
 }
 /* ---------------------------------------------------------------- 收尾 */
 

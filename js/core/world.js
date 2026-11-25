@@ -382,7 +382,7 @@ function createWorld(seed) {
     guanzhong: [13, 15, 21, 27],
     zhongyuan: [22, 17, 31, 30],
     xuzhou: [29, 19, 37, 27],
-    yizhou: [8, 27, 18, 41],
+    yizhou: [8, 27, 18, 47],
     jingzhou: [19, 28, 30, 41],
     jiangdong: [30, 29, 38, 42],
     jiaozhou: [18, 42, 30, 47],

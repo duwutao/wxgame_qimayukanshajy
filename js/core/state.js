@@ -26,7 +26,7 @@ const war = require('./war.js');
 const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
-  SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS,
+  SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
@@ -631,6 +631,8 @@ function lordFromDef(state, def) {
     prisoner: null,
     hidden: null,
     resting: false,
+    scattered: false,
+    scatterUntilH: 0,
   };
 }
 
@@ -1950,7 +1952,8 @@ function banditPathStep(state, party, target) {
     const next = party.roamPath[0];
     if (!next || !isPassable(state.world, next.x, next.y) ||
         siteAt(state.world, next.x, next.y) ||
-        unitOccupies(state, party, next.x, next.y)) {
+        unitOccupies(state, party, next.x, next.y) ||
+        (party.roamRegion && regionAt(state.world, next.x, next.y) !== party.roamRegion)) {
       party.roamPath = null;
       party.roamPathFor = null;
       break;
@@ -2446,8 +2449,16 @@ function leaveLordCity(state, lord, reason) {
 
 /** 每天让停在城里、城下等候或村口歇脚的领主补一点兵；兵源与玩家分开 */
 function lordRecruitTick(state) {
+  const nowH = gameHours(state);
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner) return;
+    // 被打散的队伍要先收拢残部：三天（72 时辰）内不能招募。
+    // 逃窜（还有至少 1 兵）不受这条限制，进城即可补兵。
+    if (lord.scattered) {
+      if (nowH < (lord.scatterUntilH || 0)) return;
+      lord.scattered = false;
+      lord.scatterUntilH = 0;
+    }
     let site = lord.inCity ? siteById(state.world, lord.inCity) : null;
     if (!site) {
       // 城外等候、村口歇脚也能招兵：只要模型贴着自家/友军的据点。
@@ -3080,6 +3091,11 @@ function lordHomeCityUnderThreat(state, lord) {
 function lordMustHold(state, lord) {
   if (!factionHasCity(state, lord.faction)) return true;
   const own = threatCount(lord);
+  const defOwn = army.troopCount(lord.defTroops || {});
+  // 守城令按满编兵力算“够不够守”，不能因为这一阵掉到十人以下就弃城；
+  // 但本来就只有十人的守军仍允许按兵力差撤退。
+  const holdPower = lord.defending ? Math.max(own, defOwn) : own;
+  if (lord.defending && holdPower > 10) return true;
   if (own <= 10) return false;
   if (lordGuardsBesiegedCity(state, lord)) return true;
   if (lordHasBattleAllyNear(state, lord, 5)) return true;
@@ -3906,7 +3922,15 @@ function fightNeighbors(state) {
 
     const countA = army.troopCount(party.troops);
     const countB = army.troopCount(lord.troops);
-    if (countB <= 0) { clear(party, lord, true); return; }
+    if (countB <= 0) {
+      clear(party, lord, true);
+      if (lord.defending) {
+        war.capture(state, lord, 'bandit', party.name);
+      } else if (!lord.scattered && !lord.prisoner) {
+        war.markLordScattered(state, lord, party.name);
+      }
+      return;
+    }
     // 国别对拼倍率：曹操军 2 兵可当普通势力 3 兵；蜀吴也对普通势力略强。
     const edgeA = war.factionEdge ? war.factionEdge(party.faction, lord.faction) : 1;
     const edgeB = war.factionEdge ? war.factionEdge(lord.faction, party.faction) : 1;
@@ -3941,6 +3965,10 @@ function fightNeighbors(state) {
       clear(party, lord, true);
       const partyOut = retreatFrom(state, party, lord);
       retreatFrom(state, lord, party);
+      if (remainB <= 0 && !lord.prisoner) {
+        if (lord.defending) war.capture(state, lord, 'bandit', party.name);
+        else war.markLordScattered(state, lord, party.name);
+      }
       if (!partyOut) destroyBanditParty(state, party, 'mutual');
       if (near) pushLog(state, party.name + '和' + lord.name + '打到两败俱伤，各自收拢残兵退开。', 'war');
       return;
@@ -3964,9 +3992,17 @@ function fightNeighbors(state) {
 
     // 领主败了：大概率带残兵逃回城，小概率被匪团抓住，但不会被 NPC 杀掉。
     clear(party, lord, true);
+    if (remainB <= 0 && lord.defending) {
+      war.capture(state, lord, 'bandit', party.name);
+      if (near) pushLog(state, lord.name + '在乱军里被' + party.name + '的人按住捆了。', 'war');
+      return;
+    }
     if (rng.next() < 0.84 && retreatFrom(state, lord, party)) {
       lord.scuffle = 6;
-      if (near) pushLog(state, lord.name + '的阵线被冲散，带着残兵往后退了。', 'war');
+      if (remainB <= 0 && !lord.prisoner) {
+        war.markLordScattered(state, lord, party.name);
+        if (near) pushLog(state, lord.name + '的部曲被' + party.name + '打空，残旗四散，三天内无法重新集结。', 'war');
+      } else if (near) pushLog(state, lord.name + '的阵线被冲散，带着残兵往后退了。', 'war');
     } else {
       war.capture(state, lord, 'bandit', party.name);
       if (near) pushLog(state, lord.name + '在乱军里被' + party.name + '的人按住捆了。', 'war');
@@ -3999,6 +4035,9 @@ function greedyStep(state, unit, target, opts) {
     }
     // 模型占格：除非目标就是这一格上的敌军（那会由交战逻辑接管），否则绕开。
     if (unitOccupies(state, unit, nx, ny)) continue;
+    // 匪团的州界是硬边界：寻路缓存可能跨州，最后一步也不能越过去。
+    if (unit.faction === 'bandit' && unit.roamRegion &&
+        regionAt(state.world, nx, ny) !== unit.roamRegion) continue;
     const d = Math.max(Math.abs(nx - target.x), Math.abs(ny - target.y));
     if (d > maxD) continue;
     // 绕路时允许先横着走一格，但尽量不原路退回，避免两支部队互相顶住时来回横跳。
@@ -6682,6 +6721,47 @@ function deserialize(json) {
     oldShouchun.banner = FACTIONS.yuanshu.banner;
     oldShouchun.color = FACTIONS.yuanshu.color;
   }
+
+  // n18 老档换旗：只在城池仍是旧主且没有被玩家占下时迁移，避免覆盖玩家的战果。
+  const LEGACY_OWNER_MOVES = [
+    { id: 'ji', from: ['han'], to: 'gongsun' },
+    { id: 'zhuo', from: ['han'], to: 'gongsun' },
+    { id: 'beiping', from: ['han', 'xianbei'], to: 'gongsun' },
+    { id: 'jincheng', from: ['ma'], to: 'hansui' },
+  ];
+  LEGACY_OWNER_MOVES.forEach(function (move) {
+    const site = siteById(state.world, move.id);
+    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
+    if (move.from.indexOf(site.ownerFaction) < 0) return;
+    const faction = FACTIONS[move.to];
+    if (!faction) return;
+    site.ownerFaction = move.to;
+    site.faction = move.to;
+    site.banner = faction.banner;
+    site.color = faction.color;
+    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+  });
+
+  // 赵云从蜀营转入公孙瓒帐下；已经阵亡/退隐的旧档不复活。
+  const legacyZhaoyun = (state.lords || []).filter(function (l) { return l.id === 'zhaoyun'; })[0];
+  if (legacyZhaoyun && legacyZhaoyun.faction !== 'gongsun' && !legacyZhaoyun.dead && !legacyZhaoyun.retired) {
+    legacyZhaoyun.faction = 'gongsun';
+    legacyZhaoyun.home = 'ji';
+    legacyZhaoyun.inCity = 'ji';
+    const jiSite = siteById(state.world, 'ji');
+    if (jiSite) {
+      legacyZhaoyun.x = jiSite.x;
+      legacyZhaoyun.y = jiSite.y;
+    }
+    legacyZhaoyun.stepFrom = null;
+    legacyZhaoyun.stepTo = null;
+    legacyZhaoyun.stepProgress = 0;
+    legacyZhaoyun.routePath = null;
+    legacyZhaoyun.order = null;
+  }
+
   if (addedSites) {
     layRoads(state.world, ROADS.filter(function (pair) {
       return !knownSites[pair[0]] || !knownSites[pair[1]];
@@ -6731,6 +6811,8 @@ function deserialize(json) {
     if (l.recruitCoolDay === undefined) l.recruitCoolDay = 0;
     if (l.inCity === undefined) l.inCity = null;
     if (l.restSite === undefined) l.restSite = null;
+    if (l.scattered === undefined) l.scattered = false;
+    if (l.scatterUntilH === undefined) l.scatterUntilH = 0;
     if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
   const known = {};

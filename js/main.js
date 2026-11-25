@@ -53,6 +53,7 @@ class App {
     delete this.scenes.nested;
     this.saveTimer = 10;
     this.last = runtime.now();
+    this.skipNextDt = false;
     this.toast = null;
     this.lastHit = null;
 
@@ -110,6 +111,9 @@ class App {
     this.stack.push(entry);
     if (scene.enter) scene.enter(this, entry.params);
     this.applyMusic(name);
+    // 切场景后的第一帧不继承上一帧的 dt：进城/出城不能让时间和镜头“补跳”一下。
+    this.last = this.runtime.now();
+    this.skipNextDt = true;
     // 开打之前留一份快照：打输了、想反悔，都能退回来
     if (name === 'battle' && this.state && !this.state.gameOver) {
       try {
@@ -132,6 +136,8 @@ class App {
     this.lastHit = null;
     const nowTop = this.top();
     if (nowTop) this.applyMusic(nowTop.name);
+    this.last = this.runtime.now();
+    this.skipNextDt = true;
   }
 
   replace(name, params) {
@@ -205,6 +211,11 @@ class App {
     const now = this.runtime.now();
     let dt = (now - this.last) / 1000;
     this.last = now;
+    // 刚切过场景：这一帧只画，不推进任何时间/插值，避免进城或回地图时补跳一大步。
+    if (this.skipNextDt) {
+      this.skipNextDt = false;
+      dt = 0;
+    }
     if (!isFinite(dt) || dt < 0) dt = 0;
     const rawDt = dt;
     if (dt > 0.06) dt = 0.06;
@@ -215,19 +226,31 @@ class App {
     }
 
     const r = this.runtime;
-    // 先按物理像素铺满整块画布：顶部让开胶囊的那条区域不能被上一帧残留
-    r.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    r.ctx.fillStyle = '#0f0c09';
-    r.ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
-    r.ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
+    const ctx = r.ctx;
+    // 先回到默认画布状态再清屏：上一场景若留下 clip / globalAlpha / 变换，
+    // 只 fillRect 会清不干净，画面边缘就会偶尔残留一层旧图。
+    if (ctx && typeof ctx.reset === 'function') {
+      ctx.reset();
+    } else if (ctx) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      if ('filter' in ctx) ctx.filter = 'none';
+      if (ctx.setLineDash) ctx.setLineDash([]);
+    }
+    // 按物理像素铺满整块画布：顶部让开胶囊的那条区域不能被上一帧残留
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0f0c09';
+    ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+    ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
     audio.update(dt);
 
     const top = this.top();
     if (top && top.scene.update) top.scene.update(this, dt);
 
     this.ui.begin();
-    r.ctx.fillStyle = '#0f0c09';
-    r.ctx.fillRect(0, 0, r.width, r.height);
+    ctx.fillStyle = '#0f0c09';
+    ctx.fillRect(0, 0, r.width, r.height);
 
     const current = this.top();
     if (current && current.scene.render) current.scene.render(this);

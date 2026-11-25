@@ -1257,6 +1257,20 @@ const TownScene = {
   enter(app, params) {
     app.restView = null;
     const st = app.state;
+    // 进城先收脚：把地图上的行军插值、跟随和围城提示一起清掉，
+    // 不把“还差半步”的进度带进城，也不让出城后沿着旧路线继续滑。
+    if (st) {
+      stateLib.stopMoving(st);
+      if (params && params.siteId) {
+        st.player.atSiteId = params.siteId;
+        const site = siteById(st.world, params.siteId);
+        if (site) site.visited = true;
+      }
+    }
+    app.mapDrag = null;
+    app.follow = null;
+    app.siegePrompt = null;
+    app.mapIdleRest = false;
     const autoSiege = st && st.playerSiege && st.playerSiege.siteId === params.siteId;
     app.townView = {
       siteId: params.siteId,
