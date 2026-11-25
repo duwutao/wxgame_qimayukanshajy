@@ -1741,24 +1741,67 @@ const adDayA = '2026-11-25';
 const adDayB = '2026-11-26';
 const stAd = stateLib.createGame({ seed: 991005 });
 stAd.events.length = 0;
+const adInfo0 = stateLib.adRewardInfo(stAd, adDayA);
+ok('三类广告各自从 0 开始', adInfo0.used.gold === 0 && adInfo0.used.food === 0 &&
+  adInfo0.used.shi === 0 && adInfo0.left.gold === 10 && adInfo0.left.food === 10 &&
+  adInfo0.left.shi === 10,
+  JSON.stringify(adInfo0));
 const adGold0 = stAd.player.gold;
 const goldClaim = stateLib.claimAdReward(stAd, 'gold', adDayA);
-ok('现实日广告能领 1000 金钱', goldClaim.ok && goldClaim.amount === 1000 &&
-  stAd.player.gold === adGold0 + 1000 && stateLib.adRewardInfo(stAd, adDayA).used === 1,
+const adAfterGold = stateLib.adRewardInfo(stAd, adDayA);
+ok('金钱广告能领 1000 金钱', goldClaim.ok && goldClaim.amount === 1000 &&
+  stAd.player.gold === adGold0 + 1000 && adAfterGold.used.gold === 1 &&
+  adAfterGold.used.food === 0 && adAfterGold.used.shi === 0,
   goldClaim.msg);
 const adFood0 = stAd.player.food;
 const foodClaim = stateLib.claimAdReward(stAd, 'food', adDayA);
-ok('现实日广告能领 200 粮草', foodClaim.ok && foodClaim.amount === 200 &&
-  stAd.player.food === adFood0 + 200 && stateLib.adRewardInfo(stAd, adDayA).used === 2,
+const adAfterFood = stateLib.adRewardInfo(stAd, adDayA);
+ok('粮草广告能领 200 粮草', foodClaim.ok && foodClaim.amount === 200 &&
+  stAd.player.food === adFood0 + 200 && adAfterFood.used.gold === 1 &&
+  adAfterFood.used.food === 1 && adAfterFood.used.shi === 0,
   foodClaim.msg);
-for (let i = 0; i < 8; i++) stateLib.claimAdReward(stAd, 'gold', adDayA);
-ok('两种奖励共用每日 10 次', stateLib.adRewardInfo(stAd, adDayA).used === 10 &&
-  stateLib.adRewardInfo(stAd, adDayA).left === 0,
+const adShi0 = stAd.player.shi;
+const shiClaim = stateLib.claimAdReward(stAd, 'shi', adDayA);
+const adAfterShi = stateLib.adRewardInfo(stAd, adDayA);
+ok('天机简广告能领 2 支天机简', shiClaim.ok && shiClaim.amount === 2 &&
+  stAd.player.shi === adShi0 + 2 && adAfterShi.used.gold === 1 &&
+  adAfterShi.used.food === 1 && adAfterShi.used.shi === 1,
+  shiClaim.msg);
+
+for (let i = 0; i < 9; i++) stateLib.claimAdReward(stAd, 'gold', adDayA);
+const adGoldFull = stateLib.adRewardInfo(stAd, adDayA);
+ok('金钱广告独立算 10 次', adGoldFull.used.gold === 10 && adGoldFull.left.gold === 0 &&
+  adGoldFull.left.food === 9 && adGoldFull.left.shi === 9,
+  JSON.stringify(adGoldFull));
+ok('金钱第 11 次被拒，且不占粮草/天机简次数',
+  stateLib.claimAdReward(stAd, 'gold', adDayA).ok === false &&
+  stateLib.adRewardInfo(stAd, adDayA).left.food === 9 &&
+  stateLib.adRewardInfo(stAd, adDayA).left.shi === 9,
   JSON.stringify(stateLib.adRewardInfo(stAd, adDayA)));
-ok('第 11 次广告奖励被拒', stateLib.claimAdReward(stAd, 'gold', adDayA).ok === false,
-  'left=' + stateLib.adRewardInfo(stAd, adDayA).left);
-ok('现实日跨日自动重置', stateLib.adRewardInfo(stAd, adDayB).left === 10 &&
-  stateLib.claimAdReward(stAd, 'food', adDayB).ok === true,
+
+for (let i = 0; i < 9; i++) stateLib.claimAdReward(stAd, 'food', adDayA);
+const adFoodFull = stateLib.adRewardInfo(stAd, adDayA);
+ok('粮草广告独立算 10 次', adFoodFull.used.food === 10 && adFoodFull.left.food === 0 &&
+  adFoodFull.left.gold === 0 && adFoodFull.left.shi === 9,
+  JSON.stringify(adFoodFull));
+
+for (let i = 0; i < 9; i++) stateLib.claimAdReward(stAd, 'shi', adDayA);
+const adShiFull = stateLib.adRewardInfo(stAd, adDayA);
+ok('天机简广告独立算 10 次', adShiFull.used.shi === 10 && adShiFull.left.shi === 0 &&
+  stAd.player.shi === adShi0 + 20 && adShiFull.left.gold === 0 && adShiFull.left.food === 0,
+  JSON.stringify(adShiFull));
+ok('三类全部领完后都拒绝',
+  stateLib.claimAdReward(stAd, 'gold', adDayA).ok === false &&
+  stateLib.claimAdReward(stAd, 'food', adDayA).ok === false &&
+  stateLib.claimAdReward(stAd, 'shi', adDayA).ok === false,
+  JSON.stringify(stateLib.adRewardInfo(stAd, adDayA)));
+
+const adNextDay = stateLib.adRewardInfo(stAd, adDayB);
+ok('现实日跨日三类次数全部重置', adNextDay.used.gold === 0 && adNextDay.used.food === 0 &&
+  adNextDay.used.shi === 0 && adNextDay.left.gold === 10 && adNextDay.left.food === 10 &&
+  adNextDay.left.shi === 10,
+  JSON.stringify(adNextDay));
+ok('跨日后粮草广告可以继续领', stateLib.claimAdReward(stAd, 'food', adDayB).ok === true,
   JSON.stringify(stateLib.adRewardInfo(stAd, adDayB)));
 
 const extraLib = require(R + '/data/extra.js');

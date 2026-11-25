@@ -8534,7 +8534,7 @@ function createGame(opts) {
     adShiDay: 0,
     adShiCount: 0,
     adRewardDay: '',
-    adRewardCount: 0,
+    adRewardUsed: { gold: 0, food: 0, shi: 0 },
     goods: {},
     heroes: [],
     reviveCount: 0,
@@ -14337,6 +14337,9 @@ function claimAdShi(state) {
 const AD_REWARD_MAX = 10;
 const AD_REWARD_GOLD = 1000;
 const AD_REWARD_FOOD = 200;
+const AD_REWARD_SHI = 2;
+const AD_REWARD_KINDS = ['gold', 'food', 'shi'];
+const AD_REWARD_NAMES = { gold: '金钱', food: '粮草', shi: '天机简' };
 
 /** 现实自然日 key：按设备本地时区算，过零点刷新，和游戏内天数无关。 */
 function realDayKey(date) {
@@ -14348,61 +14351,92 @@ function realDayKey(date) {
   return y + '-' + m + '-' + day;
 }
 
-/** 今日广告奖励次数；遇到新的现实日会把上一次的计数清零。 */
+function blankAdRewardUsed() {
+  return { gold: 0, food: 0, shi: 0 };
+}
+
+/** 老档或半截存档可能没有 adRewardUsed，补齐三类计数。 */
+function normalizeAdRewardUsed(state) {
+  if (!state || !state.player) return blankAdRewardUsed();
+  const p = state.player;
+  if (!p.adRewardUsed || typeof p.adRewardUsed !== 'object') {
+    p.adRewardUsed = blankAdRewardUsed();
+  }
+  AD_REWARD_KINDS.forEach(function (kind) {
+    const n = Number(p.adRewardUsed[kind]);
+    p.adRewardUsed[kind] = isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  });
+  return p.adRewardUsed;
+}
+
+/** 今日广告奖励次数；三类奖励各自计数，遇到新的现实日全部清零。 */
 function adRewardInfo(state, dayKey) {
+  const key = dayKey || realDayKey();
   if (!state || !state.player) {
-    return { dayKey: dayKey || realDayKey(), max: AD_REWARD_MAX, used: 0, left: 0,
-      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD };
+    return {
+      dayKey: key, max: AD_REWARD_MAX,
+      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD, shi: AD_REWARD_SHI,
+      used: blankAdRewardUsed(),
+      left: { gold: 0, food: 0, shi: 0 },
+    };
   }
   const p = state.player;
-  const key = dayKey || realDayKey();
   if (p.adRewardDay !== key) {
     p.adRewardDay = key;
-    p.adRewardCount = 0;
+    p.adRewardUsed = blankAdRewardUsed();
   }
+  const used = normalizeAdRewardUsed(state);
+  const left = {
+    gold: Math.max(0, AD_REWARD_MAX - used.gold),
+    food: Math.max(0, AD_REWARD_MAX - used.food),
+    shi: Math.max(0, AD_REWARD_MAX - used.shi),
+  };
   return {
     dayKey: key,
     max: AD_REWARD_MAX,
-    used: p.adRewardCount || 0,
-    left: Math.max(0, AD_REWARD_MAX - (p.adRewardCount || 0)),
     gold: AD_REWARD_GOLD,
     food: AD_REWARD_FOOD,
+    shi: AD_REWARD_SHI,
+    used: { gold: used.gold, food: used.food, shi: used.shi },
+    left: left,
   };
 }
 
 /**
- * 看完一次激励视频后领取：kind = 'gold' 领 1000 金钱，'food' 领 200 粮草。
- * 两种奖励共用每天 10 次；过现实日零点自动重置。
+ * 看完一次激励视频后领取：
+ *   kind = 'gold' 领 1000 金钱，'food' 领 200 粮草，'shi' 领 2 支天机简。
+ * 三类奖励各自每天 10 次，互不占用；过现实日零点自动重置。
  */
 function claimAdReward(state, kind, dayKey) {
   const info = adRewardInfo(state, dayKey);
-  if (info.left <= 0) {
-    return { ok: false, msg: '今天的十次广告奖励已经领完了，明天再来。', info: info };
+  if (AD_REWARD_KINDS.indexOf(kind) < 0) {
+    return { ok: false, msg: '没有这种广告奖励。', info: info };
+  }
+  const name = AD_REWARD_NAMES[kind];
+  if (info.left[kind] <= 0) {
+    return { ok: false, msg: '今天的' + name + '广告次数已经领完了，明天再来。', info: info };
   }
   const p = state.player;
   let actual = 0;
-  let label = '';
   if (kind === 'gold') {
     actual = AD_REWARD_GOLD;
     p.gold += actual;
-    label = '金钱';
   } else if (kind === 'food') {
     // 广告奖励按需求给足 200 粮草；这是额外军粮，不按平时购粮的车上限截断。
     actual = AD_REWARD_FOOD;
     p.food = (p.food || 0) + actual;
-    label = '粮草';
   } else {
-    return { ok: false, msg: '没有这种广告奖励。', info: info };
+    actual = AD_REWARD_SHI;
+    p.shi = (p.shi || 0) + actual;
   }
-  p.adRewardCount = (p.adRewardCount || 0) + 1;
-  if (actual > 0) {
-    pushLog(state, '你看完一段军情广告，从局内商店领走 ' + actual + ' ' + label + '。');
-  }
+  p.adRewardUsed[kind] = (p.adRewardUsed[kind] || 0) + 1;
+  const amountText = kind === 'shi' ? actual + ' 支' : actual + ' ';
+  pushLog(state, '你看完一段军情广告，从局内商店领走 ' + amountText + name + '。');
   return {
     ok: true,
     amount: actual,
     kind: kind,
-    msg: '领到 ' + actual + ' ' + label + '（今日 ' + p.adRewardCount + '/' + AD_REWARD_MAX + ' 次）',
+    msg: '领到 ' + amountText + name + '（今日 ' + p.adRewardUsed[kind] + '/' + AD_REWARD_MAX + ' 次）',
     info: adRewardInfo(state, dayKey),
   };
 }
@@ -14831,7 +14865,13 @@ function deserialize(json) {
   state.player.adShiDay = state.player.adShiDay || 0;
   state.player.adShiCount = state.player.adShiCount || 0;
   state.player.adRewardDay = state.player.adRewardDay || '';
-  state.player.adRewardCount = state.player.adRewardCount || 0;
+  if (!state.player.adRewardUsed || typeof state.player.adRewardUsed !== 'object') {
+    state.player.adRewardUsed = { gold: 0, food: 0, shi: 0 };
+  }
+  AD_REWARD_KINDS.forEach(function (kind) {
+    const n = Number(state.player.adRewardUsed[kind]);
+    state.player.adRewardUsed[kind] = isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  });
   state.player.route = [];
   state.player.stepFrom = null;
   state.player.stepTo = null;
@@ -15106,6 +15146,7 @@ module.exports = {
   AD_REWARD_MAX,
   AD_REWARD_GOLD,
   AD_REWARD_FOOD,
+  AD_REWARD_SHI,
   renownTitle,
   pushLog,
   serialize,
@@ -21605,8 +21646,8 @@ module.exports = GovernScene;
   /* js/scenes/shop.js */
   __defs[30] = function (module, exports, __require) {
 /**
- * 局内商店：看一段军情广告，领取金钱或粮草。
- * 每个现实自然日刷新，共 10 次；两种奖励共用次数，过本地零点自动重置。
+ * 局内商店：看一段军情广告，领取金钱、粮草或天机简。
+ * 每个现实自然日刷新，三种奖励各自 10 次，互不占用；过本地零点自动重置。
  * 浏览器里由 runtime.showRewardedAd 模拟观看，小游戏端配置广告位后走真实激励视频。
  */
 
@@ -21619,7 +21660,7 @@ const ShopScene = {
   enter(app) {
     this.busy = false;
     this.busyKind = null;
-    this.msg = '军情广告 · 每个现实日刷新 · 两种奖励共用 10 次。';
+    this.msg = '军情广告 · 每个现实日刷新 · 三种奖励各 10 次。';
   },
   update() {},
 
@@ -21643,38 +21684,46 @@ const ShopScene = {
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
 
-    text(ctx, '商店', PAD, 30, { size: 44, color: '#f0c060' });
-    text(ctx, '军情广告 · 每个现实日刷新 · 每天 10 次', PAD, 90, {
-      size: 18, color: '#a2947a',
+    text(ctx, '商店', PAD, 28, { size: 42, color: '#f0c060' });
+    text(ctx, '军情广告 · 每个现实日刷新 · 三种奖励各 10 次', PAD, 80, {
+      size: 17, color: '#a2947a',
     });
 
-    panel(ctx, PAD, 140, w - PAD * 2, 220, { fill: 'rgba(36,26,18,0.94)' });
-    text(ctx, '今日军情', PAD + 24, 162, { size: 28, color: '#d9a441' });
+    panel(ctx, PAD, 118, w - PAD * 2, 264, { fill: 'rgba(36,26,18,0.94)' });
+    text(ctx, '今日军情', PAD + 24, 138, { size: 27, color: '#d9a441' });
 
     const p = st ? st.player : null;
     const info = st
       ? stateLib.adRewardInfo(st)
-      : { max: 10, used: 0, left: 0, gold: 1000, food: 200 };
+      : {
+        max: 10, used: { gold: 0, food: 0, shi: 0 },
+        left: { gold: 0, food: 0, shi: 0 }, gold: 1000, food: 200, shi: 2,
+      };
 
-    text(ctx, p ? '军帐：金钱 ' + p.gold + ' · 粮草 ' + p.food : '还没有军帐：先开一局再来。',
-      PAD + 24, 202, { size: 18, color: p ? '#e6dbc2' : '#8a8070' });
-    text(ctx, '今日已领 ' + info.used + ' / ' + info.max + ' 次 · 还剩 ' + info.left + ' 次',
-      PAD + 24, 238, { size: 18, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
-    text(ctx, '看完一次广告，二选一：金钱 +' + info.gold + '，或粮草 +' + info.food + '。',
-      PAD + 24, 274, { size: 16, color: '#c8b478' });
-    const tip = '现实日按手机本地日期算，过零点自动重置；两种奖励共用这 10 次。';
-    const ls = wrap(ctx, tip, w - PAD * 2 - 48, 16);
-    ls.slice(0, 2).forEach(function (l, i) {
-      text(ctx, l, PAD + 24, 306 + i * 22, { size: 15, color: '#8a8070' });
+    text(ctx, p ? '军帐：金钱 ' + p.gold + ' · 粮草 ' + p.food + ' · 天机简 ' + p.shi : '还没有军帐：先开一局再来。',
+      PAD + 24, 174, { size: 17, color: p ? '#e6dbc2' : '#8a8070' });
+
+    const rows = [
+      { label: '金钱广告', used: info.used.gold, left: info.left.gold, color: info.left.gold > 0 ? '#8fbf7a' : '#d06a4a' },
+      { label: '粮草广告', used: info.used.food, left: info.left.food, color: info.left.food > 0 ? '#8fbf7a' : '#d06a4a' },
+      { label: '天机简广告', used: info.used.shi, left: info.left.shi, color: info.left.shi > 0 ? '#8fbf7a' : '#d06a4a' },
+    ];
+    rows.forEach(function (row, i) {
+      text(ctx, row.label + '：今日 ' + row.used + ' / ' + info.max + ' · 还剩 ' + row.left + ' 次',
+        PAD + 24, 204 + i * 24, { size: 16, color: row.color });
     });
 
-    text(ctx, '今日剩余 ' + info.left + ' / ' + info.max + ' 次',
-      PAD, 390, { size: 20, color: info.left > 0 ? '#8fbf7a' : '#d06a4a' });
-    text(ctx, '浏览器里会模拟观看；小游戏端配置激励视频广告位后拉起真实广告。', PAD, 420, {
+    const tip = '现实日按手机本地日期算，过零点自动重置；三类奖励分别计数，互不占用。';
+    const ls = wrap(ctx, tip, w - PAD * 2 - 48, 15);
+    ls.slice(0, 2).forEach(function (l, i) {
+      text(ctx, l, PAD + 24, 286 + i * 21, { size: 14, color: '#8a8070' });
+    });
+
+    text(ctx, '浏览器里会模拟观看；小游戏端配置激励视频广告位后拉起真实广告。', PAD, 396, {
       size: 14, color: '#6a6050',
     });
 
-    const can = !!st && info.left > 0 && !this.busy;
+    const can = !!st && !this.busy;
 
     const watch = function (kind) {
       if (app.state !== st || !st) return;
@@ -21701,25 +21750,34 @@ const ShopScene = {
       });
     };
 
-    app.ui.button(ctx, PAD, 444, w - PAD * 2, 86,
+    app.ui.button(ctx, PAD, 426, w - PAD * 2, 70,
       this.busy && this.busyKind === 'gold' ? '正在拉取军情…' : '看广告 · 领 1000 金钱', {
-        id: 'shop_ad_gold', size: 25, fill: '#4a351d', disabled: !can, onTap: function () {
+        id: 'shop_ad_gold', size: 24, fill: '#4a351d',
+        disabled: !can || info.left.gold <= 0, onTap: function () {
           watch('gold');
         },
       });
 
-    app.ui.button(ctx, PAD, 542, w - PAD * 2, 86,
+    app.ui.button(ctx, PAD, 508, w - PAD * 2, 70,
       this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 200 粮草', {
-        id: 'shop_ad_food', size: 25, fill: '#3a2c1e', disabled: !can, onTap: function () {
+        id: 'shop_ad_food', size: 24, fill: '#3a2c1e',
+        disabled: !can || info.left.food <= 0, onTap: function () {
           watch('food');
         },
       });
 
-    if (info.left <= 0) {
-      text(ctx, '今日 10 次已领完，明日零点后再来。', PAD, 646, { size: 16, color: '#d06a4a' });
-    } else {
-      text(ctx, this.msg, PAD, 646, { size: 15, color: '#8a8070' });
-    }
+    app.ui.button(ctx, PAD, 590, w - PAD * 2, 70,
+      this.busy && this.busyKind === 'shi' ? '正在拉取军情…' : '看广告 · 领 2 支天机简', {
+        id: 'shop_ad_shi', size: 24, fill: '#2f2a1e',
+        disabled: !can || info.left.shi <= 0, onTap: function () {
+          watch('shi');
+        },
+      });
+
+    const allDone = info.left.gold <= 0 && info.left.food <= 0 && info.left.shi <= 0;
+    text(ctx, allDone ? '今日三类广告都已领完，明日零点后再来。' : this.msg, PAD, 684, {
+      size: 15, color: allDone ? '#d06a4a' : '#8a8070',
+    });
 
     app.ui.button(ctx, PAD, h - 96, w - PAD * 2, 68, '返回', {
       id: 'shop_back', size: 24, fill: '#241c14', onTap: function () {

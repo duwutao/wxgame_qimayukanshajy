@@ -298,7 +298,7 @@ function createGame(opts) {
     adShiDay: 0,
     adShiCount: 0,
     adRewardDay: '',
-    adRewardCount: 0,
+    adRewardUsed: { gold: 0, food: 0, shi: 0 },
     goods: {},
     heroes: [],
     reviveCount: 0,
@@ -6101,6 +6101,9 @@ function claimAdShi(state) {
 const AD_REWARD_MAX = 10;
 const AD_REWARD_GOLD = 1000;
 const AD_REWARD_FOOD = 200;
+const AD_REWARD_SHI = 2;
+const AD_REWARD_KINDS = ['gold', 'food', 'shi'];
+const AD_REWARD_NAMES = { gold: '金钱', food: '粮草', shi: '天机简' };
 
 /** 现实自然日 key：按设备本地时区算，过零点刷新，和游戏内天数无关。 */
 function realDayKey(date) {
@@ -6112,61 +6115,92 @@ function realDayKey(date) {
   return y + '-' + m + '-' + day;
 }
 
-/** 今日广告奖励次数；遇到新的现实日会把上一次的计数清零。 */
+function blankAdRewardUsed() {
+  return { gold: 0, food: 0, shi: 0 };
+}
+
+/** 老档或半截存档可能没有 adRewardUsed，补齐三类计数。 */
+function normalizeAdRewardUsed(state) {
+  if (!state || !state.player) return blankAdRewardUsed();
+  const p = state.player;
+  if (!p.adRewardUsed || typeof p.adRewardUsed !== 'object') {
+    p.adRewardUsed = blankAdRewardUsed();
+  }
+  AD_REWARD_KINDS.forEach(function (kind) {
+    const n = Number(p.adRewardUsed[kind]);
+    p.adRewardUsed[kind] = isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  });
+  return p.adRewardUsed;
+}
+
+/** 今日广告奖励次数；三类奖励各自计数，遇到新的现实日全部清零。 */
 function adRewardInfo(state, dayKey) {
+  const key = dayKey || realDayKey();
   if (!state || !state.player) {
-    return { dayKey: dayKey || realDayKey(), max: AD_REWARD_MAX, used: 0, left: 0,
-      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD };
+    return {
+      dayKey: key, max: AD_REWARD_MAX,
+      gold: AD_REWARD_GOLD, food: AD_REWARD_FOOD, shi: AD_REWARD_SHI,
+      used: blankAdRewardUsed(),
+      left: { gold: 0, food: 0, shi: 0 },
+    };
   }
   const p = state.player;
-  const key = dayKey || realDayKey();
   if (p.adRewardDay !== key) {
     p.adRewardDay = key;
-    p.adRewardCount = 0;
+    p.adRewardUsed = blankAdRewardUsed();
   }
+  const used = normalizeAdRewardUsed(state);
+  const left = {
+    gold: Math.max(0, AD_REWARD_MAX - used.gold),
+    food: Math.max(0, AD_REWARD_MAX - used.food),
+    shi: Math.max(0, AD_REWARD_MAX - used.shi),
+  };
   return {
     dayKey: key,
     max: AD_REWARD_MAX,
-    used: p.adRewardCount || 0,
-    left: Math.max(0, AD_REWARD_MAX - (p.adRewardCount || 0)),
     gold: AD_REWARD_GOLD,
     food: AD_REWARD_FOOD,
+    shi: AD_REWARD_SHI,
+    used: { gold: used.gold, food: used.food, shi: used.shi },
+    left: left,
   };
 }
 
 /**
- * 看完一次激励视频后领取：kind = 'gold' 领 1000 金钱，'food' 领 200 粮草。
- * 两种奖励共用每天 10 次；过现实日零点自动重置。
+ * 看完一次激励视频后领取：
+ *   kind = 'gold' 领 1000 金钱，'food' 领 200 粮草，'shi' 领 2 支天机简。
+ * 三类奖励各自每天 10 次，互不占用；过现实日零点自动重置。
  */
 function claimAdReward(state, kind, dayKey) {
   const info = adRewardInfo(state, dayKey);
-  if (info.left <= 0) {
-    return { ok: false, msg: '今天的十次广告奖励已经领完了，明天再来。', info: info };
+  if (AD_REWARD_KINDS.indexOf(kind) < 0) {
+    return { ok: false, msg: '没有这种广告奖励。', info: info };
+  }
+  const name = AD_REWARD_NAMES[kind];
+  if (info.left[kind] <= 0) {
+    return { ok: false, msg: '今天的' + name + '广告次数已经领完了，明天再来。', info: info };
   }
   const p = state.player;
   let actual = 0;
-  let label = '';
   if (kind === 'gold') {
     actual = AD_REWARD_GOLD;
     p.gold += actual;
-    label = '金钱';
   } else if (kind === 'food') {
     // 广告奖励按需求给足 200 粮草；这是额外军粮，不按平时购粮的车上限截断。
     actual = AD_REWARD_FOOD;
     p.food = (p.food || 0) + actual;
-    label = '粮草';
   } else {
-    return { ok: false, msg: '没有这种广告奖励。', info: info };
+    actual = AD_REWARD_SHI;
+    p.shi = (p.shi || 0) + actual;
   }
-  p.adRewardCount = (p.adRewardCount || 0) + 1;
-  if (actual > 0) {
-    pushLog(state, '你看完一段军情广告，从局内商店领走 ' + actual + ' ' + label + '。');
-  }
+  p.adRewardUsed[kind] = (p.adRewardUsed[kind] || 0) + 1;
+  const amountText = kind === 'shi' ? actual + ' 支' : actual + ' ';
+  pushLog(state, '你看完一段军情广告，从局内商店领走 ' + amountText + name + '。');
   return {
     ok: true,
     amount: actual,
     kind: kind,
-    msg: '领到 ' + actual + ' ' + label + '（今日 ' + p.adRewardCount + '/' + AD_REWARD_MAX + ' 次）',
+    msg: '领到 ' + amountText + name + '（今日 ' + p.adRewardUsed[kind] + '/' + AD_REWARD_MAX + ' 次）',
     info: adRewardInfo(state, dayKey),
   };
 }
@@ -6595,7 +6629,13 @@ function deserialize(json) {
   state.player.adShiDay = state.player.adShiDay || 0;
   state.player.adShiCount = state.player.adShiCount || 0;
   state.player.adRewardDay = state.player.adRewardDay || '';
-  state.player.adRewardCount = state.player.adRewardCount || 0;
+  if (!state.player.adRewardUsed || typeof state.player.adRewardUsed !== 'object') {
+    state.player.adRewardUsed = { gold: 0, food: 0, shi: 0 };
+  }
+  AD_REWARD_KINDS.forEach(function (kind) {
+    const n = Number(state.player.adRewardUsed[kind]);
+    state.player.adRewardUsed[kind] = isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  });
   state.player.route = [];
   state.player.stepFrom = null;
   state.player.stepTo = null;
@@ -6870,6 +6910,7 @@ module.exports = {
   AD_REWARD_MAX,
   AD_REWARD_GOLD,
   AD_REWARD_FOOD,
+  AD_REWARD_SHI,
   renownTitle,
   pushLog,
   serialize,
