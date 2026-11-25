@@ -295,7 +295,7 @@ const HelpScene = {
 
     // 标题
     text(ctx, '玩法', 20, 26, { size: 36, color: '#f0c060' });
-    text(ctx, '点兵三国 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
+    text(ctx, '征战汉末 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
 
     // 分类 tab
     const tabW = (w - 40) / TABS.length;

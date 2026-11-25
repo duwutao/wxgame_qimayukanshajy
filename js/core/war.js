@@ -1282,7 +1282,8 @@ function settleFieldBattle(state, battlefield, summary, options) {
   state.fieldBattles = (state.fieldBattles || []).filter(function (x) { return x.id !== bf.id; });
   if (partyDestroyed.length) {
     partyDestroyed.forEach(function (q) {
-      if (destroyPartyFn) destroyPartyFn(state, q, 'field');
+      // 玩家亲自参与的合战要按玩家战果处理，不能套用“任务目标五天内免死”的 NPC 保护。
+      if (destroyPartyFn) destroyPartyFn(state, q, playerBattle ? 'player' : 'field');
       else q.dead = true;
     });
     state.parties = (state.parties || []).filter(function (q) { return partyDestroyed.indexOf(q) < 0; });

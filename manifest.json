@@ -1,6 +1,6 @@
 {
-  "name": "点兵三国 · 骑砍大师制作",
-  "short_name": "点兵三国",
+  "name": "征战汉末 · 骑砍大师制作",
+  "short_name": "征战汉末",
   "description": "像素三国骑砍，大地图行军、遭遇战、比武大会与天下国战",
   "start_url": "./index.html",
   "scope": "./",

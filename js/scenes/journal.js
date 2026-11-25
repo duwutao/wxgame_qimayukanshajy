@@ -14,11 +14,17 @@ const TOP = 330;
 const BOT = 104;
 const RECENT_DAYS = 12;
 
-/** 山贼/匪团的战报不再进史册：史册只记天下事，不记剿匪流水账。 */
+/**
+ * 史册只记天下事：普通劫匪、黄巾军的清剿流水账一律不写。
+ * 乱军、溃兵、叛军、群盗属于成规模的兵乱，仍照常记入史册；
+ * 先判“兵乱”再判“匪类”，避免文案里带“匪首”的乱军战报被误删。
+ */
 function isBanditFight(entry) {
   const kind = entry && entry.kind;
   if (kind !== 'war' && kind !== 'battle') return false;
-  return /匪|山贼|贼寇|匪首|匪团/.test(String((entry && entry.text) || ''));
+  const body = String((entry && entry.text) || '');
+  if (/乱军|溃兵|叛军|群盗/.test(body)) return false;
+  return /黄巾|劫匪|山贼|贼寇|匪首|匪团|剪径|断道|饿虎岗|黑店/.test(body);
 }
 
 const KIND_COLORS = {

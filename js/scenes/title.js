@@ -1,5 +1,5 @@
 /**
- * 标题：点兵三国 · 骑砍大师制作
+ * 标题：征战汉末 · 骑砍大师制作
  */
 
 const { text, panel } = require('../render/ui.js');
@@ -50,7 +50,7 @@ const TitleScene = {
     drawTitleBackdrop(ctx, app, w, h, t);
 
     // 标题
-    text(ctx, '点兵三国', w / 2, h * 0.285, {
+    text(ctx, '征战汉末', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
     text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {

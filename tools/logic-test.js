@@ -345,10 +345,12 @@ if (lordSite) {
   ruleState.player.route = [];
   ruleState.player.stepTo = null;
   stateLib.moveLords(ruleState);
-  // 新规则：先走到城池中心，再等这一步走完才收旗
-  ok('到城下会先迈最后半步进城中心', lordForRecruit.enteringSiteId === lordSite.id &&
-    lordForRecruit.x === lordSite.x && lordForRecruit.y === lordSite.y,
-    'entering=' + lordForRecruit.enteringSiteId + ' at=' + lordForRecruit.x + ',' + lordForRecruit.y);
+  // 新规则：城门外一格只是开始最后半步，数据坐标不能提前算到中心，更不能算进城。
+  ok('城门外一格还不算进城', lordForRecruit.enteringSiteId === lordSite.id &&
+    !lordForRecruit.inCity &&
+    Math.max(Math.abs(lordForRecruit.x - lordSite.x), Math.abs(lordForRecruit.y - lordSite.y)) === 1,
+    'entering=' + lordForRecruit.enteringSiteId + ' inCity=' + lordForRecruit.inCity +
+    ' at=' + lordForRecruit.x + ',' + lordForRecruit.y);
   ruleState.clock.hour += 6;
   if (ruleState.clock.hour >= 24) { ruleState.clock.hour -= 24; ruleState.clock.day += 1; }
   stateLib.moveLords(ruleState);
@@ -1379,6 +1381,34 @@ const killQuest = {
 stQK.quests.push(killQuest);
 stateLib.completeQuests(stQK, 'hunt', killParty.id);
 ok('玩家自己打散目标算交差', killQuest.done === true && !killQuest.failed && stQK.player.gold === 460 + 180);
+
+// 玩家刚接的猎匪目标：五天内 NPC 领主不能打它，保证玩家赶得到。
+const stQP = stateLib.createGame({ seed: 9008 });
+stQP.events.length = 0;
+const protectParty = stQP.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; })[0];
+const protectQuest = {
+  id: 'q_protect', type: 'hunt', siteId: 'chenliu', siteName: '陈留', faction: 'wei',
+  acceptedDay: stQP.clock.day, done: false, targetPartyId: protectParty.id,
+  title: '清剿' + protectParty.name, text: '清剿匪团', reward: { gold: 180, renown: 24 },
+};
+stQP.quests.push(protectQuest);
+ok('任务目标头五天受保护', stateLib.questProtectedParty(stQP, protectParty) === true);
+ok('普通匪团没有被误标为任务目标',
+  stateLib.questProtectedParty(stQP, stQP.parties.filter(function (p) {
+    return p.faction === 'bandit' && p.id !== protectParty.id;
+  })[0]) === false);
+const guardLord = stQP.lords.filter(function (l) { return l.alive && !l.inCity; })[0];
+guardLord.x = protectParty.x + 1;
+guardLord.y = protectParty.y;
+guardLord.engagedWith = 'party:' + protectParty.id;
+protectParty.engagedWith = guardLord.id;
+protectParty.engagedSinceH = stateLib.gameHours(stQP);
+stateLib.fightNeighbors(stQP);
+ok('任务目标五天内不进入 NPC 遭遇战',
+  protectParty.engagedWith === null && protectParty.dead !== true,
+  'engaged=' + protectParty.engagedWith + ' dead=' + protectParty.dead);
+stQP.clock.day += 5;
+ok('五天后任务保护自动失效', stateLib.questProtectedParty(stQP, protectParty) === false);
 
 group('灭亡后就近择主');
 const stN = stateLib.createGame({ seed: 9004 });
@@ -2995,7 +3025,16 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
 {
   const journalScene = require(R + '/scenes/journal.js');
   ok('史册过滤匪徒战报', journalScene.isBanditFight({ kind: 'war', text: '刘备军击溃了一伙山贼' }));
+  ok('史册过滤黄巾军战报', journalScene.isBanditFight({ kind: 'battle', text: '曹操军击溃了白波黄巾' }));
+  ok('史册过滤没有“匪”字的匪团战报', journalScene.isBanditFight({
+    kind: 'battle', text: '关羽军攻破了饿虎岗',
+  }));
   ok('史册保留正常国战战报', !journalScene.isBanditFight({ kind: 'war', text: '剑阁城头换了旗' }));
+  ok('史册保留乱军战报', !journalScene.isBanditFight({ kind: 'war', text: '徐州乱军攻下了小沛' }));
+  ok('史册保留溃兵战报', !journalScene.isBanditFight({ kind: 'battle', text: '凉州溃兵被击散' }));
+  ok('史册不误删带匪首的乱军战报', !journalScene.isBanditFight({
+    kind: 'war', text: '徐州乱军击溃了匪首张闿的残部',
+  }));
   ok('史册不会把生活日志当匪战', !journalScene.isBanditFight({ kind: 'life', text: '又有一伙残匪聚了起来' }));
 }
 
@@ -3374,6 +3413,38 @@ group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
   ok('旧档残留的扎营军令进档后清掉，领主重新巡逻',
     !r.order && !r.defending && r.nextMoveH === 0,
     'order=' + JSON.stringify(r.order) + ' defending=' + r.defending);
+}
+/* ---------------------------------------------------------------- n14 版：卡点脱困 */
+
+group('n14 版：领主卡点脱困');
+{
+  const g = stateLib.createGame({ seed: 2026112611 });
+  g.events.length = 0;
+  const lord = g.lords.filter(function (l) { return l.alive && !l.inCity && !l.prisoner; })[0];
+  lord.troops = { inf: 100 };
+  lord.defTroops = { inf: 100 };
+  lord.inCity = null;
+  lord.enteringSiteId = null;
+  lord.cityEnterAtH = null;
+  lord.engagedWith = null;
+  lord.fieldBattleId = null;
+  lord.order = { type: 'march', siteId: 'luoyang', hold: false };
+  lord.wander = { x: lord.x, y: lord.y };
+  lord.nextMoveH = 0;
+  lord.stuckPos = lord.x + ',' + lord.y;
+  lord.stuckAnchorX = lord.x;
+  lord.stuckAnchorY = lord.y;
+  lord.stuckSinceH = stateLib.gameHours(g) - 24;
+  const oldX = lord.x;
+  const oldY = lord.y;
+  stateLib.moveLords(g);
+  ok('有军令的卡住领主保留军令，不弃令乱走',
+    lord.order && lord.order.siteId === 'luoyang', 'order=' + JSON.stringify(lord.order));
+  ok('卡住后改走一个更靠近原目标的绕行点',
+    !!lord.orderDetourTarget && (lord.orderDetourTarget.x !== oldX || lord.orderDetourTarget.y !== oldY),
+    'detour=' + JSON.stringify(lord.orderDetourTarget) + ' old=' + oldX + ',' + oldY);
+  ok('卡住后当拍就开始移动，不再原地站死', lord.x !== oldX || lord.y !== oldY,
+    'at=' + lord.x + ',' + lord.y + ' old=' + oldX + ',' + oldY);
 }
 /* ---------------------------------------------------------------- 收尾 */
 

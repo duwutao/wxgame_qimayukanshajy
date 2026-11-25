@@ -1,4 +1,4 @@
-/* 点兵三国 · 骑砍大师制作 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
+/* 征战汉末 · 骑砍大师制作 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
 (function () {
   var __defs = {};
   var __cache = {};
@@ -6769,7 +6769,8 @@ function settleFieldBattle(state, battlefield, summary, options) {
   state.fieldBattles = (state.fieldBattles || []).filter(function (x) { return x.id !== bf.id; });
   if (partyDestroyed.length) {
     partyDestroyed.forEach(function (q) {
-      if (destroyPartyFn) destroyPartyFn(state, q, 'field');
+      // 玩家亲自参与的合战要按玩家战果处理，不能套用“任务目标五天内免死”的 NPC 保护。
+      if (destroyPartyFn) destroyPartyFn(state, q, playerBattle ? 'player' : 'field');
       else q.dead = true;
     });
     state.parties = (state.parties || []).filter(function (q) { return partyDestroyed.indexOf(q) < 0; });
@@ -8222,6 +8223,8 @@ const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
 /** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
 const LORD_STEP_HOURS = 6;
+// 同一格连续两个行军步（12 时辰）还走不动，就判定为卡点，换一个可达目的地。
+const LORD_STUCK_HOURS = 12;
 /** 逃遁只比基础速度多 20%：6 / 1.2 = 5 时辰一格。 */
 const LORD_FLEE_STEP_HOURS = 5;
 /** 进城同样按基础 6 时辰一格，逃遁也不能在城下提速。 */
@@ -9142,6 +9145,8 @@ function spawnBanditParties(state, count) {
 /** 匪团被打散/打死：不进牢房，三日后再在别处聚起一队。 */
 function destroyBanditParty(state, party, reason) {
   if (!party || party.scripted || party.dead) return false;
+  // 玩家接到猎匪任务的五天内，NPC 的任何清剿都不能把目标抹掉；玩家自己打赢仍然算数。
+  if (reason !== 'player' && questProtectedParty(state, party)) return false;
   party.dead = true;
   const day = state.clock.day;
   (state.lords || []).forEach(function (lord) {
@@ -9968,6 +9973,7 @@ function nearestBandit(state, lord, range) {
   let bestD = 1e9;
   state.parties.forEach(function (q) {
     if (q.faction !== 'bandit') return;
+    if (questProtectedParty(state, q)) return;
     if (army.troopCount(q.troops) <= 0) return;
     const d = Math.max(Math.abs(q.x - lord.x), Math.abs(q.y - lord.y));
     if (d <= range && d < bestD) {
@@ -10535,6 +10541,10 @@ function enterLordCity(state, lord, site) {
   if (site.type !== 'town' && site.type !== 'castle') return false;
   // 必须走到城池中心那一格才收旗进城，城门外一格不算进门。
   if (lord.x !== site.x || lord.y !== site.y) return false;
+  lord.stepFrom = null;
+  lord.stepTo = null;
+  lord.stepStartH = null;
+  lord.stepHours = null;
   lord.inCity = site.id;
   lord.resting = true;
   lord.chasing = false;
@@ -10550,7 +10560,30 @@ function enterLordCity(state, lord, site) {
   lord.fleePathFor = null;
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
+  lord.orderDetourTarget = null;
   pushLog(state, lord.name + '带人进了' + site.name + '，旗卷起来，歇在城里。');
+  return true;
+}
+
+/**
+ * 领主在城门外一格开始最后半步：先把动画走向城中心，
+ * 等满 LORD_ENTER_CITY_HOURS 才把数据坐标落到中心并收旗。
+ * 靠近城门一格不等于进城，只有中心格才写 inCity。
+ */
+function beginLordCityEntry(state, lord, site, hours) {
+  if (!lord || !site) return false;
+  if (lord.x === site.x && lord.y === site.y) return enterLordCity(state, lord, site);
+  if (Math.max(Math.abs(lord.x - site.x), Math.abs(lord.y - site.y)) !== 1) return false;
+  const nowH = gameHours(state);
+  const from = unitAnimPos(lord, nowH);
+  lord.enteringSiteId = site.id;
+  lord.cityEnterAtH = nowH + hours;
+  lord.stepFrom = { x: from.x, y: from.y };
+  lord.stepTo = { x: site.x, y: site.y };
+  lord.stepStartH = nowH;
+  lord.stepHours = hours;
+  // 数据坐标仍停在城门外，等走完最后半步再落中心。
+  lord.nextMoveH = nowH + hours;
   return true;
 }
 
@@ -10570,6 +10603,7 @@ function leaveLordCity(state, lord, reason) {
   lord.fleePathFor = null;
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
+  lord.orderDetourTarget = null;
   lord.routePath = null;
   lord.routePathFor = null;
   lord.patrolPath = null;
@@ -11267,6 +11301,7 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
 
   (state.parties || []).forEach(function (party) {
     if (!party || party.dead || party.engagedWith) return;
+    if (party.faction === 'bandit' && questProtectedParty(state, party)) return;
     if (party.faction !== 'bandit' && !war.atWar(state, lord.faction, party.faction)) return;
     const d = gridDistance(lord, party);
     // 匪团只有进了身边三格才被主动追；更远就当没看见。
@@ -11314,6 +11349,162 @@ function clearLordMoveCaches(lord) {
   lord.patrolPath = null;
   lord.fleePath = null;
   lord.fleePathFor = null;
+}
+
+/** 给卡住的领主挑一个可达、且第一步不会继续撞墙的空地。 */
+function chooseLordEscapeTarget(state, lord, towards) {
+  if (!state || !lord) return null;
+  const world = state.world;
+  const curKey = lord.x + ',' + lord.y;
+  const orderSig = lord.wander ? lord.wander.x + ',' + lord.wander.y : null;
+  const candidates = [];
+  const curTowardDist = towards ? gridDistance(lord, towards) : 0;
+  // 有战略目标时优先选“比现在更靠近目标”的空地，不把军令带偏；否则先看巡逻下一腿。
+  if (!towards) {
+    let patrol = patrolTargetFor(state, lord);
+    if (patrol && patrol.x + ',' + patrol.y === orderSig) {
+      advancePatrolLeg(state, lord);
+      patrol = patrolTargetFor(state, lord);
+    }
+    if (patrol && patrol.x + ',' + patrol.y !== curKey) candidates.push(patrol);
+  }
+  // 再在周围 2~12 格找空位：只接受有路、第一步可站人的目标。
+  for (let r = 2; r <= 12; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = lord.x + dx;
+        const y = lord.y + dy;
+        if (x < 0 || y < 0 || x >= world.w || y >= world.h) continue;
+        if (x === lord.x && y === lord.y) continue;
+        if (!isPassable(world, x, y) || siteAt(world, x, y)) continue;
+        if (state.player && x === state.player.x && y === state.player.y) continue;
+        if (unitOccupies(state, lord, x, y)) continue;
+        candidates.push({ x: x, y: y });
+      }
+    }
+  }
+  const tried = {};
+  for (let i = 0; i < candidates.length; i++) {
+    const cand = candidates[i];
+    const key = cand.x + ',' + cand.y;
+    if (tried[key] || key === curKey) continue;
+    tried[key] = true;
+    if (Math.max(Math.abs(cand.x - lord.x), Math.abs(cand.y - lord.y)) < 2) continue;
+    if (towards && gridDistance(cand, towards) >= curTowardDist) continue;
+    const path = patrolPathTo(state, lord, cand);
+    if (!path) continue;
+    if (path.length) {
+      const first = path[0];
+      if (!isPassable(world, first.x, first.y)) continue;
+      if (siteAt(world, first.x, first.y)) continue;
+      if (unitOccupies(state, lord, first.x, first.y)) continue;
+    }
+    return cand;
+  }
+  return null;
+}
+
+/** 当前所有缓存路线里最短的剩余步数；只要路线在变短，就说明领主在沿路推进。 */
+function lordPathRemaining(lord) {
+  let best = Infinity;
+  [lord.orderPath, lord.fleePath, lord.patrolPath, lord.routePath].forEach(function (path) {
+    if (path && path.length && path.length < best) best = path.length;
+  });
+  return best;
+}
+
+/** 卡住超过两个行军步：清掉原军令，换一个不会立刻再撞墙的目的地。 */
+function maybeUnstickLord(state, lord, nowH) {
+  if (!lord) return false;
+  // 主动进城等待、主动驻守（hold）不算卡死；其余位置连续不动才处理。
+  if (lord.enteringSiteId || lord.inCity) {
+    lord.stuckSinceH = nowH;
+    lord.stuckPos = null;
+    lord.stuckAnchorX = null;
+    lord.stuckAnchorY = null;
+    lord.stuckPathRemaining = null;
+    return false;
+  }
+  if (lord.order && lord.order.hold) {
+    const holdSite = lord.order.siteId ? siteById(state.world, lord.order.siteId) : null;
+    // 只有已经站到军令目标旁边，hold 才算“按令驻守”；离目标很远还站着就是卡住。
+    if (holdSite && gridDistance(lord, holdSite) <= 1) {
+      lord.stuckSinceH = nowH;
+      lord.stuckPos = null;
+      lord.stuckAnchorX = null;
+      lord.stuckAnchorY = null;
+      lord.stuckPathRemaining = null;
+      return false;
+    }
+  }
+  const pos = lord.x + ',' + lord.y;
+  // 以“锚点 + 三格内”判定卡点：只在三四格之间来回挪也算卡住，
+  // 真正走出三格以上（或在沿路推进）才重置计时，避免路口来回试探被误判成已脱困。
+  if (typeof lord.stuckAnchorX !== 'number' || typeof lord.stuckAnchorY !== 'number') {
+    lord.stuckAnchorX = lord.x;
+    lord.stuckAnchorY = lord.y;
+    lord.stuckPathRemaining = lordPathRemaining(lord);
+    if (!lord.stuckSinceH) lord.stuckSinceH = nowH;
+    lord.stuckPos = pos;
+    return false;
+  }
+  const drift = Math.max(Math.abs(lord.x - lord.stuckAnchorX), Math.abs(lord.y - lord.stuckAnchorY));
+  const pathRemaining = lordPathRemaining(lord);
+  // 路线剩余步数在减少，说明不是卡死，而是在绕路/行军，重置锚点和计时。
+  if (pathRemaining < (lord.stuckPathRemaining === undefined ? Infinity : lord.stuckPathRemaining) ||
+      drift > 3) {
+    lord.stuckAnchorX = lord.x;
+    lord.stuckAnchorY = lord.y;
+    lord.stuckPos = pos;
+    lord.stuckSinceH = nowH;
+    lord.stuckPathRemaining = pathRemaining;
+    return false;
+  }
+  if (lord.stuckPathRemaining === undefined) lord.stuckPathRemaining = pathRemaining;
+  if (lord.stuckPos !== pos) lord.stuckPos = pos;
+  if (nowH - (lord.stuckSinceH || nowH) < LORD_STUCK_HOURS) return false;
+
+  // 有明确军令时不要弃令乱走：在周围找一个“更靠近原目标、且有路”的落脚点，
+  // 先脱离当前卡点，抵达后军令路线会自动接回目标。
+  const orderSite = lord.order && lord.order.siteId
+    ? siteById(state.world, lord.order.siteId)
+    : null;
+  if (orderSite) {
+    let dest = chooseLordEscapeTarget(state, lord, orderSite);
+    if (!dest) dest = chooseLordEscapeTarget(state, lord, null);
+    if (dest) {
+      lord.orderDetourTarget = { x: dest.x, y: dest.y };
+      lord.orderPath = null;
+      lord.orderPathFor = null;
+      clearLordMoveCaches(lord);
+      lord.nextMoveH = nowH;
+    }
+    lord.stuckPos = pos;
+    lord.stuckAnchorX = lord.x;
+    lord.stuckAnchorY = lord.y;
+    lord.stuckPathRemaining = lordPathRemaining(lord);
+    lord.stuckSinceH = nowH;
+    return !!dest;
+  }
+
+  const dest = chooseLordEscapeTarget(state, lord, null);
+  lord.order = null;
+  lord.defending = null;
+  lord.orderPath = null;
+  lord.orderPathFor = null;
+  stopLordFlee(lord);
+  clearLordChase(lord);
+  clearLordMoveCaches(lord);
+  lord.stuckEscape = dest ? { x: dest.x, y: dest.y } : null;
+  lord.wander = dest;
+  lord.nextMoveH = nowH;
+  lord.stuckPos = pos;
+  lord.stuckAnchorX = lord.x;
+  lord.stuckAnchorY = lord.y;
+  lord.stuckPathRemaining = lordPathRemaining(lord);
+  lord.stuckSinceH = nowH;
+  return !!dest;
 }
 
 function isAdjacentStep(from, to) {
@@ -11427,16 +11618,42 @@ function moveLords(state, slot) {
     // 已经走到城中心、这一步也走完了：现在才收旗进城。
     if (lord.enteringSiteId && lord.cityEnterAtH && nowH >= lord.cityEnterAtH) {
       const city = siteById(state.world, lord.enteringSiteId);
-      if (city && lord.x === city.x && lord.y === city.y) {
-        enterLordCity(state, lord, city);
-        return;
+      if (city && siteFriendlyToLord(state, lord, city)) {
+        // 动画这一步已经走完，进城这一刻才把坐标落到城中心。
+        lord.x = city.x;
+        lord.y = city.y;
+        if (enterLordCity(state, lord, city)) return;
       }
       releaseLordCityApproach(lord);
+      lord.nextMoveH = nowH + 1;
     }
     // 还差最后半步到城中心：等这一步走完，不能再提前收进城。
     if (lord.enteringSiteId) return;
+    // 只要真的踩在城/关中心格，哪怕是被旧逻辑挪进来的，也按中心格收编。
+    if (!lord.inCity) {
+      const centerSite = siteAt(state.world, lord.x, lord.y);
+      if (centerSite && (centerSite.type === 'town' || centerSite.type === 'castle') &&
+          siteFriendlyToLord(state, lord, centerSite)) {
+        enterLordCity(state, lord, centerSite);
+        return;
+      }
+    }
     // 精确到时辰的下一步时间：普通 6、逃遁 5，不再用 3 时辰槽粗切。
-    if (nowH < (lord.nextMoveH || 0)) return;
+    if (nowH < (lord.nextMoveH || 0)) {
+      // 被剧情落位/战场收尾设了很远的 nextMoveH，且已经没有步行动画时，
+      // 也要检查是不是在旧位置站了太久；正在走的长动画不打断。
+      if (!lord.stepFrom && !lord.inCity && !lord.engagedWith && !lord.fieldBattleId &&
+          !(lord.pauseUntil && nowH < lord.pauseUntil) &&
+          (nowH - (lord.stuckSinceH || nowH) >= LORD_STUCK_HOURS)) {
+        if (maybeUnstickLord(state, lord, nowH)) {
+          // 脱困后立即进入下面的选路，不再等旧 nextMoveH。
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
 
     // 旧档/中途被删掉的匪团会留下 engagedWith 死锁，先验证再决定停不停。
     if (lord.engagedWith) {
@@ -11476,7 +11693,10 @@ function moveLords(state, slot) {
     if (needRest && lord.order && lord.order.type !== 'defend') {
       lord.order = null;
       lord.defending = null;
+      lord.orderDetourTarget = null;
     }
+    // 卡住两个行军步以上：先清掉失效军令并换目的地，再进入正常选路。
+    maybeUnstickLord(state, lord, nowH);
     // 国战军令：集结 / 开拔 / 围城 / 回防。接了令就按军令走，不再自己乱追人
     if (lord.order && lord.order.siteId && !needRest) {
       const orderSite = siteById(state.world, lord.order.siteId);
@@ -11491,7 +11711,14 @@ function moveLords(state, slot) {
         lord.banditChasing = null;
         lord.resting = false;
         if (lord.order.hold && od <= 1) return;
-        const orderTarget = { x: orderSite.x, y: orderSite.y, siteId: orderSite.id };
+        let orderTarget = { x: orderSite.x, y: orderSite.y, siteId: orderSite.id };
+        if (lord.orderDetourTarget) {
+          if (gridDistance(lord, lord.orderDetourTarget) <= 1) {
+            lord.orderDetourTarget = null;
+          } else {
+            orderTarget = { x: lord.orderDetourTarget.x, y: lord.orderDetourTarget.y };
+          }
+        }
         const orderSig = orderTarget.x + ',' + orderTarget.y;
         if (lord.orderPathFor !== orderSig || !lord.orderPath) {
           lord.orderPath = patrolPathTo(state, lord, orderTarget);
@@ -11606,6 +11833,11 @@ function moveLords(state, slot) {
       }
       target = lord.wander;
     }
+    // 卡点脱困的目标优先于巡逻/休整/追人，避免刚换的目标又被原来的逻辑覆盖。
+    if (lord.stuckEscape) {
+      target = { x: lord.stuckEscape.x, y: lord.stuckEscape.y };
+      lord.stuckEscape = null;
+    }
     // 基础 6 时辰一格；逃遁只给 20% 加成，即 5 时辰一格。追匪、军令、进城都不另提速。
     const fleeing = !!lord.fleeing;
     const travelHours = fleeing ? LORD_FLEE_STEP_HOURS : LORD_STEP_HOURS;
@@ -11703,12 +11935,9 @@ function moveLords(state, slot) {
         const d = gridDistance(lord, targetSite);
         if (d === 0) {
           enterLordCity(state, lord, targetSite);
-        } else if (d <= 1) {
-          // 进城统一按基础速度，逃遁不享受城下加速。
-          lord.enteringSiteId = targetSite.id;
-          lord.cityEnterAtH = nowH + LORD_ENTER_CITY_HOURS;
-          stepUnitTo(state, lord, { x: targetSite.x, y: targetSite.y }, LORD_ENTER_CITY_HOURS);
-          lord.nextMoveH = nowH + LORD_ENTER_CITY_HOURS;
+        } else if (d === 1) {
+          // 城门外一格只算“开始最后半步”，数据坐标不进中心、更不算进城。
+          beginLordCityEntry(state, lord, targetSite, LORD_ENTER_CITY_HOURS);
         }
       }
     }
@@ -11792,6 +12021,14 @@ function fightNeighbors(state) {
   state.parties.forEach(function (party) {
     if (party.faction !== 'bandit') return;
     if (army.troopCount(party.troops) <= 0) return;
+    // 玩家刚接的猎匪任务：五天内 NPC 领主不能把这支目标打散，玩家能赶到。
+    if (questProtectedParty(state, party)) {
+      if (party.engagedWith) {
+        const engagedLord = state.lords.filter(function (l) { return l.id === party.engagedWith; })[0];
+        clear(party, engagedLord, true);
+      }
+      return;
+    }
 
     let lord = null;
     if (party.engagedWith) {
@@ -12611,6 +12848,18 @@ function takeSite(state, site) {
 }
 
 /* ---------------------------------------------------------------- 任务 */
+
+/** 酒馆猎匪任务的目标队伍：接下任务后的头五天不参与 NPC 领主的遭遇战，保证玩家有时间赶到。 */
+const QUEST_PROTECT_DAYS = 5;
+function questProtectedParty(state, party) {
+  if (!state || !party || party.faction !== 'bandit') return false;
+  const day = (state.clock && state.clock.day) || 0;
+  return (state.quests || []).some(function (q) {
+    return q && !q.done && !q.failed && q.type === 'hunt' &&
+      q.targetPartyId === party.id &&
+      day - (q.acceptedDay || 0) < QUEST_PROTECT_DAYS;
+  });
+}
 
 /** 酒馆任务的目标坐标：怪物队伍、贼巢或交粮城 */
 function questTargetPos(state, quest) {
@@ -14613,6 +14862,7 @@ module.exports = {
   moveLords,
   moveParties,
   fightNeighbors,
+  questProtectedParty,
   recruitLordFromSite,
   joinRenownReq,
   playerSpeed,
@@ -14932,7 +15182,7 @@ module.exports = {
   /* js/scenes/title.js */
   __defs[19] = function (module, exports, __require) {
 /**
- * 标题：点兵三国 · 骑砍大师制作
+ * 标题：征战汉末 · 骑砍大师制作
  */
 
 const { text, panel } = __require(6);
@@ -14983,7 +15233,7 @@ const TitleScene = {
     drawTitleBackdrop(ctx, app, w, h, t);
 
     // 标题
-    text(ctx, '点兵三国', w / 2, h * 0.285, {
+    text(ctx, '征战汉末', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
     text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {
@@ -22857,11 +23107,17 @@ const TOP = 330;
 const BOT = 104;
 const RECENT_DAYS = 12;
 
-/** 山贼/匪团的战报不再进史册：史册只记天下事，不记剿匪流水账。 */
+/**
+ * 史册只记天下事：普通劫匪、黄巾军的清剿流水账一律不写。
+ * 乱军、溃兵、叛军、群盗属于成规模的兵乱，仍照常记入史册；
+ * 先判“兵乱”再判“匪类”，避免文案里带“匪首”的乱军战报被误删。
+ */
 function isBanditFight(entry) {
   const kind = entry && entry.kind;
   if (kind !== 'war' && kind !== 'battle') return false;
-  return /匪|山贼|贼寇|匪首|匪团/.test(String((entry && entry.text) || ''));
+  const body = String((entry && entry.text) || '');
+  if (/乱军|溃兵|叛军|群盗/.test(body)) return false;
+  return /黄巾|劫匪|山贼|贼寇|匪首|匪团|剪径|断道|饿虎岗|黑店/.test(body);
 }
 
 const KIND_COLORS = {
@@ -23798,7 +24054,7 @@ const HelpScene = {
 
     // 标题
     text(ctx, '玩法', 20, 26, { size: 36, color: '#f0c060' });
-    text(ctx, '点兵三国 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
+    text(ctx, '征战汉末 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
 
     // 分类 tab
     const tabW = (w - 40) / TABS.length;
@@ -24318,7 +24574,7 @@ const ArcScene = {
           st.ending = {
             type: 'arc',
             title: '谢君一游',
-            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《点兵三国》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
+            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《征战汉末》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
           };
           st.gameOver = true;
           app.replace('ending');

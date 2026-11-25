@@ -18,8 +18,8 @@ const icon512 = 'data:image/png;base64,' + fs.readFileSync(path.join(web, 'icon-
 const touch = 'data:image/png;base64,' + fs.readFileSync(path.join(web, 'apple-touch-icon.png')).toString('base64');
 
 const manifest = {
-  name: '点兵三国 · 骑砍大师制作',
-  short_name: '点兵三国',
+  name: '征战汉末 · 骑砍大师制作',
+  short_name: '征战汉末',
   start_url: '.',
   scope: '.',
   display: 'fullscreen',
@@ -45,7 +45,7 @@ const html = `<!DOCTYPE html>
   <meta name="format-detection" content="telephone=no" />
   <link rel="manifest" href="${manifestUri}" />
   <link rel="apple-touch-icon" href="${touch}" />
-  <title>点兵三国 · 骑砍大师制作</title>
+  <title>征战汉末 · 骑砍大师制作</title>
   <style>
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
@@ -82,7 +82,7 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
   <div id="stage">
-    <div id="boot"><b>点兵三国</b><span id="bootTip">正在点兵，请稍候…</span><small>首次进入需加载约 440KB 资源</small></div>
+    <div id="boot"><b>征战汉末</b><span id="bootTip">正在聚兵，请稍候…</span><small>首次进入需加载约 440KB 资源</small></div>
   </div>
   <script>
     (function () {
