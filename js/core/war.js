@@ -16,6 +16,12 @@ const ESCAPE_BASE = 0.008;   // 第一天：0.8% + 1.4% ≈ 2.2%
 const ESCAPE_STEP = 0.014;
 const ESCAPE_CAP = 0.62;
 const MIN_WAR_DAYS = 25;
+const DUEL_FLEE_RATIO = 1.65;
+const DUEL_FLEE_GAP = 10;
+const MAX_WAR_PARTNERS = 3;
+// 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
+const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
+const OPENING_DAYS = 30;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
@@ -23,14 +29,12 @@ function key(a, b) {
 
 // 开局已经撕破脸的那几对，都有出处
 const SEED_WARS = [
-  ['wei', 'yuan'],    // 官渡：曹操与袁绍
   ['wei', 'lv'],      // 兖州：曹操与吕布
   ['wei', 'shu'],     // 徐州：曹操与刘备
   ['wei', 'ma'],      // 关中：曹操与马腾
   ['wu', 'biao'],     // 江夏：孙坚死于黄祖箭下
   ['wu', 'wei'],      // 赤壁前的水路
   ['yuan', 'lv'],     // 袁绍与吕布，翻脸比结盟快
-  ['wei', 'yuanshu'], // 淮南：曹操与袁术
   ['lv', 'yuanshu'],  // 徐州与淮南的粮道
   ['yuan', 'xianbei'],// 北境
   ['ma', 'han'],      // 西凉内斗：马腾与韩遂
@@ -68,7 +72,6 @@ function startDiplomacy(state) {
   state.openingWarsDeclared = true;
   state.diplomacyStarted = true;
   const pairs = [
-    ['wei', 'yuan'],
     ['wei', 'lv'],
     ['wu', 'biao'],
     ['yuan', 'xianbei'],
@@ -103,11 +106,28 @@ function warPartners(state, f) {
   return out;
 }
 
+/** 这两家现在能不能开战：最多三国同时开战，开局曹袁/曹术不互打 */
+function canOpenWar(state, a, b) {
+  if (!a || !b || a === b) return false;
+  if (a === 'bandit' || b === 'bandit') return false;
+  if (!FACTIONS[a] || !FACTIONS[b]) return false;
+  if (a === 'player' && b === 'player') return false;
+  const day = state && state.clock ? state.clock.day : 1;
+  if (day <= OPENING_DAYS) {
+    const k = key(a, b);
+    if (OPENING_FORBIDDEN[k]) return false;
+  }
+  if (warPartners(state, a).length >= MAX_WAR_PARTNERS) return false;
+  if (warPartners(state, b).length >= MAX_WAR_PARTNERS) return false;
+  return true;
+}
+
 function declare(state, a, b, quiet) {
   if (!FACTIONS[a] || !FACTIONS[b] || a === b) return false;
   if (a === 'bandit' || b === 'bandit') return false;
   const m = state.factionWars || init(state);
   if (m[key(a, b)]) return false;
+  if (!canOpenWar(state, a, b)) return false;
   m[key(a, b)] = { since: state.clock.day, score: 0 };
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '翻了脸，使者连夜出境，边关开始点烽火。', 'war');
@@ -224,7 +244,7 @@ function diplomacyTick(state) {
   if (rng.next() < 0.11) {
     const a = ids[rng.int(0, ids.length - 1)];
     const b = ids[rng.int(0, ids.length - 1)];
-    if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && warPartners(state, a).length < 3) {
+    if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && canOpenWar(state, a, b)) {
       if (declare(state, a, b, true)) warPairs.push([a, b]);
     }
   }
@@ -490,6 +510,36 @@ function clash(state, a, b) {
   return { capture: true };
 }
 
+/**
+ * 领主对领主：兵力差到 1.65 倍且差 10 人以上时，弱者不硬碰，
+ * 直接后撤两格并进入逃遁，避免小部队被大军一口吃掉。
+ */
+function fleeDisparity(state, a, b) {
+  if (!a || !b || a.faction === 'bandit' || b.faction === 'bandit') return false;
+  if (a.faction === b.faction || !atWar(state, a.faction, b.faction)) return false;
+  const ca = army.troopCount(a.troops || {});
+  const cb = army.troopCount(b.troops || {});
+  const hi = Math.max(ca, cb);
+  const lo = Math.min(ca, cb);
+  if (lo <= 0 || hi < lo * DUEL_FLEE_RATIO || hi - lo < DUEL_FLEE_GAP) return false;
+  const strong = ca >= cb ? a : b;
+  const weak = ca >= cb ? b : a;
+  clearEngagement(a, b);
+  weak.fleeing = true;
+  weak.fleeFrom = strong.id || strong.name;
+  weak.fleeTargetId = null;
+  weak.fleePath = null;
+  weak.fleePathFor = null;
+  weak.scuffle = Math.max(weak.scuffle || 0, 10);
+  weak.chasing = false;
+  weak.hunting = false;
+  moveAway(state, weak);
+  if (nearPlayer(state, weak, 10)) {
+    logFn(state, weak.name + '看见' + strong.name + '的旗，兵差得太远，先带着人往后撤。', 'war');
+  }
+  return true;
+}
+
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
@@ -512,7 +562,7 @@ function fieldTick(state) {
       const pairKey = [a.id, b.id].sort().join('|');
       if (seen[pairKey]) continue;
       seen[pairKey] = true;
-      clash(state, a, b);
+      if (!fleeDisparity(state, a, b)) clash(state, a, b);
       count += 1;
       if (count > 3) return count;
       continue;
@@ -529,7 +579,7 @@ function fieldTick(state) {
       const pairKey = [a.id, b.id].sort().join('|');
       if (seen[pairKey]) continue;
       seen[pairKey] = true;
-      clash(state, a, b);
+      if (!fleeDisparity(state, a, b)) clash(state, a, b);
       count += 1;
       if (count > 3) return count;
     }
@@ -1255,7 +1305,7 @@ function summaryLines(state) {
 
 module.exports = {
   init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick, startDiplomacy, alertsEnabled,
-  aiCanDeclare,
+  aiCanDeclare, canOpenWar, MAX_WAR_PARTNERS, OPENING_FORBIDDEN,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,

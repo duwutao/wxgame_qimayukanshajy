@@ -1,5 +1,5 @@
 /**
- * 标题：风云三国 · 骑砍大师制作
+ * 标题：点兵三国 · 骑砍大师制作
  */
 
 const { text, panel } = require('../render/ui.js');
@@ -23,6 +23,20 @@ function hasSave(app) {
 const TitleScene = {
   enter(app) {
     app.saveMeta = hasSave(app);
+    // 三国争霸主图：浏览器从 web/ 同目录取，小游戏从包内 assets/ 取。
+    // 图没加载好时先保留原来的烈火背景兜底，不让首页空着。
+    if (!app.titleBg && !app.titleBgFailed) {
+      const img = app.runtime.createImage ? app.runtime.createImage() : null;
+      if (img) {
+        app.titleBg = img;
+        img.onload = function () { app.titleBgReady = true; };
+        img.onerror = function () { app.titleBgFailed = true; };
+        const base = app.runtime.host === 'web'
+          ? (app.runtime.assetBase || '') + 'title-bg.jpg'
+          : 'assets/title-bg.jpg';
+        img.src = base;
+      }
+    }
   },
 
   update() {},
@@ -33,18 +47,17 @@ const TitleScene = {
     const h = app.runtime.height;
     const t = (app.mapPhase = (app.mapPhase || 0) + 0.016);
 
-    // 烈火背景：黑烟、赤焰、飞灰，标题从火里烧出来
-    drawFireBackdrop(ctx, w, h, t);
+    drawTitleBackdrop(ctx, app, w, h, t);
 
     // 标题
-    text(ctx, '风云三国', w / 2, h * 0.285, {
+    text(ctx, '点兵三国', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
-    text(ctx, '骑 砍 大 师 制 作', w / 2, h * 0.285 + 112, {
+    text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {
       size: 25, align: 'center', color: '#d9a441',
     });
     text(ctx, '汉末风云 · 群雄逐鹿 · 一将功成万骨枯', w / 2, h * 0.285 + 158, {
-      size: 17, align: 'center', color: '#9c8a70',
+      size: 17, align: 'center', color: '#bca88a',
     });
 
     // 按钮：新的开始 / 最近存档 / 保存的存档 / 玩法 / 商店
@@ -87,7 +100,7 @@ const TitleScene = {
     });
 
     text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 天机改命', w / 2, h - 40, {
-      size: 15, align: 'center', color: '#6a6050',
+      size: 15, align: 'center', color: '#8e8068',
     });
   },
 
@@ -95,6 +108,45 @@ const TitleScene = {
   onTouchMove() {},
   onTouchEnd() {},
 };
+
+/** 主页背景：有三国争霸图就铺图，图没到就退回程序化烈火战场 */
+function drawTitleBackdrop(ctx, app, w, h, t) {
+  const img = app.titleBg;
+  if (img && app.titleBgReady && img.width && img.height) {
+    const scale = Math.max(w / img.width, h / img.height);
+    const dw = img.width * scale;
+    const dh = img.height * scale;
+    const dx = (w - dw) / 2;
+    const dy = (h - dh) / 2;
+    ctx.save();
+    ctx.drawImage(img, dx, dy, dw, dh);
+    // 上方压暗给标题让位，下方压暗承托按钮；中间保留战场主图。
+    const top = ctx.createLinearGradient(0, 0, 0, h * 0.52);
+    top.addColorStop(0, 'rgba(5,3,2,0.62)');
+    top.addColorStop(0.52, 'rgba(5,3,2,0.38)');
+    top.addColorStop(1, 'rgba(5,3,2,0.02)');
+    ctx.fillStyle = top;
+    ctx.fillRect(0, 0, w, h * 0.52);
+
+    const bottom = ctx.createLinearGradient(0, h * 0.48, 0, h);
+    bottom.addColorStop(0, 'rgba(5,3,2,0)');
+    bottom.addColorStop(0.32, 'rgba(5,3,2,0.56)');
+    bottom.addColorStop(1, 'rgba(3,2,1,0.92)');
+    ctx.fillStyle = bottom;
+    ctx.fillRect(0, h * 0.48, w, h * 0.52);
+
+    // 标题附近再压一小块暗晕，金字的边缘不会和夕阳粘在一起。
+    const halo = ctx.createRadialGradient(w / 2, h * 0.25, 10, w / 2, h * 0.25, w * 0.72);
+    halo.addColorStop(0, 'rgba(3,2,1,0.30)');
+    halo.addColorStop(0.55, 'rgba(3,2,1,0.16)');
+    halo.addColorStop(1, 'rgba(3,2,1,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, w, h * 0.52);
+    ctx.restore();
+    return;
+  }
+  drawFireBackdrop(ctx, w, h, t);
+}
 
 /** 烈火背景：不依赖外部图，纯 Canvas 烧出一片战场 */
 function drawFireBackdrop(ctx, w, h, t) {

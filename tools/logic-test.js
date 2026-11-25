@@ -752,7 +752,7 @@ ok('贼与谁都打', warLib.atWar(st7, 'wei', 'bandit'));
 // 陈留歇满一天后，第一批战书一次放出
 ok('陈留之后天下开始互相宣战', warLib.startDiplomacy(st7) >= 2,
   String(Object.keys(st7.factionWars).length));
-ok('曹操与袁绍这时才翻脸', warLib.atWar(st7, 'wei', 'yuan'));
+ok('曹操与袁绍仍不互打', !warLib.atWar(st7, 'wei', 'yuan'));
 ok('孙权与刘表这时才开战', warLib.atWar(st7, 'wu', 'biao'));
 
 // 宣战 / 议和
@@ -1797,6 +1797,7 @@ group('领主追击与逃遁');
   weak.troops = { militia: 10 }; weak.defTroops = { militia: 110 };
   // 这一组只测领主对领主；清掉匪团，避免“先剿匪”抢走目标。
   g.parties = [];
+  g.clock.day = 31;
   warLib.declare(g, 'wei', 'yuanshu', true);
   stateLib.moveLords(g);
   ok('兵多的领主会追击', strong.hunting && strong.chasing && strong.foeChasing === 'jiling',
@@ -2015,6 +2016,76 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   const pos = stateLib.campaignTargetPos(g);
   const site = pos && g.world.sites.filter(function (s) { return s.id === pos.siteId; })[0];
   ok('主线目标有地图落点', !!pos && pos.siteId === 'chenliu' && !!site, pos && pos.siteId);
+}
+
+/* ---------------------------------------------------------------- n 版：峡谷/州分布/三国上限 */
+
+group('n 版：峡谷 · 州分布 · 三国上限');
+ok('穿山峡谷有横竖两种方向', (world.canyons || []).length >= 8 &&
+  (world.canyons || []).some(function (c) { return c.dir === 'h'; }) &&
+  (world.canyons || []).some(function (c) { return c.dir === 'v'; }),
+  JSON.stringify((world.canyons || []).slice(0, 3)));
+{
+  const g = stateLib.createGame({ seed: 2026112520 });
+  const counts = {};
+  g.parties.filter(function (p) { return p.faction === 'bandit' && !p.scripted; }).forEach(function (p) {
+    const rid = worldLib.regionAt(g.world, p.x, p.y) || 'none';
+    counts[rid] = (counts[rid] || 0) + 1;
+  });
+  const nums = Object.keys(counts).map(function (k) { return counts[k]; });
+  ok('开局匪团按州均匀分布', Math.max.apply(null, nums) <= 2 &&
+    Object.keys(counts).length >= 10, JSON.stringify(counts));
+  ok('匪团速度只比领主略快', (function () {
+    const p = g.parties.filter(function (q) { return q.faction === 'bandit' && !q.scripted; })[0];
+    if (!p) return false;
+    const x = p.x, y = p.y;
+    stateLib.moveParties(g);
+    return (p.x !== x || p.y !== y) && p.nextBanditMoveH &&
+      p.nextBanditMoveH - stateLib.gameHours(g) >= 4.4;
+  })());
+  let cityBandit = 0;
+  for (let day = 0; day < 8; day++) {
+    for (let h = 0; h < 24; h++) {
+      stateLib.advanceTime(g, 1);
+      stateLib.update(g, 0, { ignoreEvents: true });
+    }
+    g.parties.forEach(function (p) {
+      if (p.faction !== 'bandit' || p.scripted) return;
+      const site = worldLib.siteAt(g.world, p.x, p.y);
+      if (site && (site.type === 'town' || site.type === 'castle')) cityBandit += 1;
+    });
+  }
+  ok('匪团不会走进城池', cityBandit === 0, 'cityBandit=' + cityBandit);
+}
+{
+  const g = stateLib.createGame({ seed: 2026112522 });
+  g.events.length = 0;
+  warLib.startDiplomacy(g);
+  ok('开局曹操不与袁绍/袁术开战',
+    !warLib.atWar(g, 'wei', 'yuan') && !warLib.atWar(g, 'wei', 'yuanshu'),
+    JSON.stringify(Object.keys(g.factionWars || {})));
+  ok('开局先放出三对战争', Object.keys(g.factionWars || {}).length === 3,
+    JSON.stringify(Object.keys(g.factionWars || {})));
+  warLib.declare(g, 'wei', 'shu', true);
+  warLib.declare(g, 'wei', 'ma', true);
+  ok('一国最多同时与三国开战', warLib.warPartners(g, 'wei').length === 3 &&
+    !warLib.declare(g, 'wei', 'han', true), JSON.stringify(warLib.warPartners(g, 'wei')));
+  ok('超过三国时宣战被拒', !warLib.canOpenWar(g, 'wei', 'han'));
+}
+{
+  const g = stateLib.createGame({ seed: 2026112523 });
+  g.events.length = 0;
+  warLib.startDiplomacy(g);
+  const strong = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const weak = g.lords.filter(function (l) { return l.id === 'lvbu'; })[0];
+  strong.x = 10; strong.y = 10; strong.troops = { militia: 100 };
+  strong.inCity = null; strong.prisoner = null; strong.alive = true;
+  weak.x = 11; weak.y = 10; weak.troops = { militia: 10 };
+  weak.inCity = null; weak.prisoner = null; weak.alive = true;
+  warLib.fieldTick(g);
+  ok('领主兵力悬殊时弱者逃跑', weak.fleeing === true &&
+    Math.max(Math.abs(weak.x - strong.x), Math.abs(weak.y - strong.y)) >= 2,
+    'weak=' + weak.x + ',' + weak.y + ' strong=' + strong.x + ',' + strong.y);
 }
 
 /* ---------------------------------------------------------------- 收尾 */

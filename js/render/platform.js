@@ -98,11 +98,23 @@ function createRuntime() {
   ctx.imageSmoothingEnabled = false;
   if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
 
+  // 浏览器资源基准：bundle 从 web/ 或 CDN 的 web/ 载入，标题图也在同一目录。
+  // 小游戏直接读包内 assets/，由 title.js 走 host 分支。
+  let assetBase = '';
+  if (!api && typeof document !== 'undefined' && document.currentScript && document.currentScript.src) {
+    try {
+      assetBase = new URL('.', document.currentScript.src).href;
+    } catch (e) {
+      assetBase = '';
+    }
+  }
+
   const runtime = {
     host,
     api,
     canvas,
     ctx,
+    assetBase,
     width: vw,
     height: vh,
     screenW,

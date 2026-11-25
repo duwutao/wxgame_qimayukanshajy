@@ -724,13 +724,9 @@ smoke('修养直接出城看地图，点一下回城，离城能走', function (
   // 点一下地图 → 回城界面
   app.onStart(200, 620);
   app.onEnd(200, 620);
-  ok('点地图回到城市界面', app.stack[app.stack.length - 1].name === 'town');
-  app.ui.begin();
-  app.top().scene.render(app);
-  const leave = app.ui.items.filter(function (b) { return b.id === 'leave'; })[0];
-  ok('城市界面仍有离城', !!leave);
-  if (leave) leave.onTap();
-  ok('离城回地图并结束修养', app.stack[app.stack.length - 1].name === 'map' && !st.player.resting);
+  ok('休息后点地图自动离城', app.stack[app.stack.length - 1].name === 'map' &&
+    !st.player.resting && !app.restView && !st.player.atSiteId);
+  ok('不再需要回城点离城', !app.ui.items.some(function (b) { return b.id === 'leave'; }));
 });
 
 /* ---------------------------------------------------------------- 新页面 */

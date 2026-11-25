@@ -186,6 +186,19 @@ function addBridgeMark(world, x, y, dir) {
   world.bridges.push({ x, y, dir: dir === 'v' ? 'v' : 'h' });
 }
 
+/** 山口/峡谷记号：同一格只记一次，方向由道路穿过的方向决定 */
+function addCanyonMark(world, x, y, dir) {
+  world.canyons = world.canyons || [];
+  for (let i = 0; i < world.canyons.length; i++) {
+    const c = world.canyons[i];
+    if (c.x === x && c.y === y) {
+      if (dir === 'h' || dir === 'v') c.dir = dir;
+      return;
+    }
+  }
+  world.canyons.push({ x: x, y: y, dir: dir === 'v' ? 'v' : 'h' });
+}
+
 /** 河流夹在道路中间时，这一格就是桥；兼容旧档没有 bridge 格的情况 */
 function bridgeDirAt(world, x, y) {
   const L = isRoadTile(world.tiles[idx(x - 1, y)]);
@@ -207,6 +220,7 @@ function bridgeDirAt(world, x, y) {
 function ensureWorldFeatures(world) {
   if (!world || !world.tiles) return world;
   world.bridges = Array.isArray(world.bridges) ? world.bridges : [];
+  world.canyons = Array.isArray(world.canyons) ? world.canyons : [];
   for (let y = 0; y < world.h; y++) {
     for (let x = 0; x < world.w; x++) {
       const t = world.tiles[idx(x, y)];
@@ -218,6 +232,10 @@ function ensureWorldFeatures(world) {
           world.tiles[idx(x, y)] = 'bridge';
           addBridgeMark(world, x, y, dir);
         }
+      } else if (t === 'pass') {
+        // 旧档没有峡谷标记：按道路/山口连成的走廊补方向。
+        // 孤立山口默认为横向，但真正穿山时 layRoads 会写入准确方向。
+        addCanyonMark(world, x, y, bridgeDirAt(world, x, y) || 'h');
       }
     }
   }
@@ -248,6 +266,8 @@ function layRoads(world, pairs) {
         addBridgeMark(world, x, y, dir);
       } else if (t === 'mountain') {
         world.tiles[idx(x, y)] = 'pass';
+        // 穿山口要留下方向：横着穿山和竖着穿山，画出来的峡谷不是同一条。
+        addCanyonMark(world, x, y, dir);
       } else {
         world.tiles[idx(x, y)] = 'road';
       }
@@ -506,10 +526,11 @@ MinHeap.prototype.pop = function () {
 /**
  * A* 8 向寻路，返回不含起点的路径；不可达返回 null
  */
-function findPath(world, from, to) {
+function findPath(world, from, to, opts) {
   if (!inBounds(from.x, from.y) || !inBounds(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   if (!isPassable(world, to.x, to.y)) return null;
+  const avoidSites = !!(opts && opts.avoidSites);
 
   const N = MAP_W * MAP_H;
   const startI = idx(from.x, from.y);
@@ -540,6 +561,8 @@ function findPath(world, from, to) {
       const ny = cy + dirs[d][1];
       if (!inBounds(nx, ny)) continue;
       if (!isPassable(world, nx, ny)) continue;
+      // 匪团/流寇不进城的路径：据点格绕开，避免从城门正中间穿过去。
+      if (avoidSites && !(nx === to.x && ny === to.y) && siteAt(world, nx, ny)) continue;
       if (dirs[d][0] !== 0 && dirs[d][1] !== 0) {
         if (!isPassable(world, cx + dirs[d][0], cy)) continue;
         if (!isPassable(world, cx, cy + dirs[d][1])) continue;

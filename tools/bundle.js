@@ -55,7 +55,7 @@ function addModule(file) {
 const entryId = addModule(entryFile);
 
 let out = '';
-out += '/* 骑砍大师 · 三国 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */\n';
+out += '/* 点兵三国 · 骑砍大师制作 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */\n';
 out += '(function () {\n';
 out += '  var __defs = {};\n';
 out += '  var __cache = {};\n';

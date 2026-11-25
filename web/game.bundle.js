@@ -1,4 +1,4 @@
-/* 骑砍大师 · 三国 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
+/* 点兵三国 · 骑砍大师制作 —— 浏览器预览包，由 tools/bundle.js 生成，请勿手改 */
 (function () {
   var __defs = {};
   var __cache = {};
@@ -112,11 +112,23 @@ function createRuntime() {
   ctx.imageSmoothingEnabled = false;
   if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'low';
 
+  // 浏览器资源基准：bundle 从 web/ 或 CDN 的 web/ 载入，标题图也在同一目录。
+  // 小游戏直接读包内 assets/，由 title.js 走 host 分支。
+  let assetBase = '';
+  if (!api && typeof document !== 'undefined' && document.currentScript && document.currentScript.src) {
+    try {
+      assetBase = new URL('.', document.currentScript.src).href;
+    } catch (e) {
+      assetBase = '';
+    }
+  }
+
   const runtime = {
     host,
     api,
     canvas,
     ctx,
+    assetBase,
     width: vw,
     height: vh,
     screenW,
@@ -2977,6 +2989,19 @@ function addBridgeMark(world, x, y, dir) {
   world.bridges.push({ x, y, dir: dir === 'v' ? 'v' : 'h' });
 }
 
+/** 山口/峡谷记号：同一格只记一次，方向由道路穿过的方向决定 */
+function addCanyonMark(world, x, y, dir) {
+  world.canyons = world.canyons || [];
+  for (let i = 0; i < world.canyons.length; i++) {
+    const c = world.canyons[i];
+    if (c.x === x && c.y === y) {
+      if (dir === 'h' || dir === 'v') c.dir = dir;
+      return;
+    }
+  }
+  world.canyons.push({ x: x, y: y, dir: dir === 'v' ? 'v' : 'h' });
+}
+
 /** 河流夹在道路中间时，这一格就是桥；兼容旧档没有 bridge 格的情况 */
 function bridgeDirAt(world, x, y) {
   const L = isRoadTile(world.tiles[idx(x - 1, y)]);
@@ -2998,6 +3023,7 @@ function bridgeDirAt(world, x, y) {
 function ensureWorldFeatures(world) {
   if (!world || !world.tiles) return world;
   world.bridges = Array.isArray(world.bridges) ? world.bridges : [];
+  world.canyons = Array.isArray(world.canyons) ? world.canyons : [];
   for (let y = 0; y < world.h; y++) {
     for (let x = 0; x < world.w; x++) {
       const t = world.tiles[idx(x, y)];
@@ -3009,6 +3035,10 @@ function ensureWorldFeatures(world) {
           world.tiles[idx(x, y)] = 'bridge';
           addBridgeMark(world, x, y, dir);
         }
+      } else if (t === 'pass') {
+        // 旧档没有峡谷标记：按道路/山口连成的走廊补方向。
+        // 孤立山口默认为横向，但真正穿山时 layRoads 会写入准确方向。
+        addCanyonMark(world, x, y, bridgeDirAt(world, x, y) || 'h');
       }
     }
   }
@@ -3039,6 +3069,8 @@ function layRoads(world, pairs) {
         addBridgeMark(world, x, y, dir);
       } else if (t === 'mountain') {
         world.tiles[idx(x, y)] = 'pass';
+        // 穿山口要留下方向：横着穿山和竖着穿山，画出来的峡谷不是同一条。
+        addCanyonMark(world, x, y, dir);
       } else {
         world.tiles[idx(x, y)] = 'road';
       }
@@ -3297,10 +3329,11 @@ MinHeap.prototype.pop = function () {
 /**
  * A* 8 向寻路，返回不含起点的路径；不可达返回 null
  */
-function findPath(world, from, to) {
+function findPath(world, from, to, opts) {
   if (!inBounds(from.x, from.y) || !inBounds(to.x, to.y)) return null;
   if (from.x === to.x && from.y === to.y) return [];
   if (!isPassable(world, to.x, to.y)) return null;
+  const avoidSites = !!(opts && opts.avoidSites);
 
   const N = MAP_W * MAP_H;
   const startI = idx(from.x, from.y);
@@ -3331,6 +3364,8 @@ function findPath(world, from, to) {
       const ny = cy + dirs[d][1];
       if (!inBounds(nx, ny)) continue;
       if (!isPassable(world, nx, ny)) continue;
+      // 匪团/流寇不进城的路径：据点格绕开，避免从城门正中间穿过去。
+      if (avoidSites && !(nx === to.x && ny === to.y) && siteAt(world, nx, ny)) continue;
       if (dirs[d][0] !== 0 && dirs[d][1] !== 0) {
         if (!isPassable(world, cx + dirs[d][0], cy)) continue;
         if (!isPassable(world, cx, cy + dirs[d][1])) continue;
@@ -4897,6 +4932,12 @@ const ESCAPE_BASE = 0.008;   // 第一天：0.8% + 1.4% ≈ 2.2%
 const ESCAPE_STEP = 0.014;
 const ESCAPE_CAP = 0.62;
 const MIN_WAR_DAYS = 25;
+const DUEL_FLEE_RATIO = 1.65;
+const DUEL_FLEE_GAP = 10;
+const MAX_WAR_PARTNERS = 3;
+// 开局前 30 天，曹操不跟袁绍、袁术互打；给官渡主线留出时间。
+const OPENING_FORBIDDEN = { 'wei|yuan': true, 'wei|yuanshu': true };
+const OPENING_DAYS = 30;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
@@ -4904,14 +4945,12 @@ function key(a, b) {
 
 // 开局已经撕破脸的那几对，都有出处
 const SEED_WARS = [
-  ['wei', 'yuan'],    // 官渡：曹操与袁绍
   ['wei', 'lv'],      // 兖州：曹操与吕布
   ['wei', 'shu'],     // 徐州：曹操与刘备
   ['wei', 'ma'],      // 关中：曹操与马腾
   ['wu', 'biao'],     // 江夏：孙坚死于黄祖箭下
   ['wu', 'wei'],      // 赤壁前的水路
   ['yuan', 'lv'],     // 袁绍与吕布，翻脸比结盟快
-  ['wei', 'yuanshu'], // 淮南：曹操与袁术
   ['lv', 'yuanshu'],  // 徐州与淮南的粮道
   ['yuan', 'xianbei'],// 北境
   ['ma', 'han'],      // 西凉内斗：马腾与韩遂
@@ -4949,7 +4988,6 @@ function startDiplomacy(state) {
   state.openingWarsDeclared = true;
   state.diplomacyStarted = true;
   const pairs = [
-    ['wei', 'yuan'],
     ['wei', 'lv'],
     ['wu', 'biao'],
     ['yuan', 'xianbei'],
@@ -4984,11 +5022,28 @@ function warPartners(state, f) {
   return out;
 }
 
+/** 这两家现在能不能开战：最多三国同时开战，开局曹袁/曹术不互打 */
+function canOpenWar(state, a, b) {
+  if (!a || !b || a === b) return false;
+  if (a === 'bandit' || b === 'bandit') return false;
+  if (!FACTIONS[a] || !FACTIONS[b]) return false;
+  if (a === 'player' && b === 'player') return false;
+  const day = state && state.clock ? state.clock.day : 1;
+  if (day <= OPENING_DAYS) {
+    const k = key(a, b);
+    if (OPENING_FORBIDDEN[k]) return false;
+  }
+  if (warPartners(state, a).length >= MAX_WAR_PARTNERS) return false;
+  if (warPartners(state, b).length >= MAX_WAR_PARTNERS) return false;
+  return true;
+}
+
 function declare(state, a, b, quiet) {
   if (!FACTIONS[a] || !FACTIONS[b] || a === b) return false;
   if (a === 'bandit' || b === 'bandit') return false;
   const m = state.factionWars || init(state);
   if (m[key(a, b)]) return false;
+  if (!canOpenWar(state, a, b)) return false;
   m[key(a, b)] = { since: state.clock.day, score: 0 };
   if (!quiet) {
     logFn(state, FACTIONS[a].full + '与' + FACTIONS[b].full + '翻了脸，使者连夜出境，边关开始点烽火。', 'war');
@@ -5105,7 +5160,7 @@ function diplomacyTick(state) {
   if (rng.next() < 0.11) {
     const a = ids[rng.int(0, ids.length - 1)];
     const b = ids[rng.int(0, ids.length - 1)];
-    if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && warPartners(state, a).length < 3) {
+    if (a !== b && aiCanDeclare(state, a, b) && !atWar(state, a, b) && canOpenWar(state, a, b)) {
       if (declare(state, a, b, true)) warPairs.push([a, b]);
     }
   }
@@ -5371,6 +5426,36 @@ function clash(state, a, b) {
   return { capture: true };
 }
 
+/**
+ * 领主对领主：兵力差到 1.65 倍且差 10 人以上时，弱者不硬碰，
+ * 直接后撤两格并进入逃遁，避免小部队被大军一口吃掉。
+ */
+function fleeDisparity(state, a, b) {
+  if (!a || !b || a.faction === 'bandit' || b.faction === 'bandit') return false;
+  if (a.faction === b.faction || !atWar(state, a.faction, b.faction)) return false;
+  const ca = army.troopCount(a.troops || {});
+  const cb = army.troopCount(b.troops || {});
+  const hi = Math.max(ca, cb);
+  const lo = Math.min(ca, cb);
+  if (lo <= 0 || hi < lo * DUEL_FLEE_RATIO || hi - lo < DUEL_FLEE_GAP) return false;
+  const strong = ca >= cb ? a : b;
+  const weak = ca >= cb ? b : a;
+  clearEngagement(a, b);
+  weak.fleeing = true;
+  weak.fleeFrom = strong.id || strong.name;
+  weak.fleeTargetId = null;
+  weak.fleePath = null;
+  weak.fleePathFor = null;
+  weak.scuffle = Math.max(weak.scuffle || 0, 10);
+  weak.chasing = false;
+  weak.hunting = false;
+  moveAway(state, weak);
+  if (nearPlayer(state, weak, 10)) {
+    logFn(state, weak.name + '看见' + strong.name + '的旗，兵差得太远，先带着人往后撤。', 'war');
+  }
+  return true;
+}
+
 /** 每 NPC 步：所有毗邻的敌对领主互殴；已经缠上的就继续打，不重新找目标 */
 function fieldTick(state) {
   if (!state.factionWars) init(state);
@@ -5393,7 +5478,7 @@ function fieldTick(state) {
       const pairKey = [a.id, b.id].sort().join('|');
       if (seen[pairKey]) continue;
       seen[pairKey] = true;
-      clash(state, a, b);
+      if (!fleeDisparity(state, a, b)) clash(state, a, b);
       count += 1;
       if (count > 3) return count;
       continue;
@@ -5410,7 +5495,7 @@ function fieldTick(state) {
       const pairKey = [a.id, b.id].sort().join('|');
       if (seen[pairKey]) continue;
       seen[pairKey] = true;
-      clash(state, a, b);
+      if (!fleeDisparity(state, a, b)) clash(state, a, b);
       count += 1;
       if (count > 3) return count;
     }
@@ -6136,7 +6221,7 @@ function summaryLines(state) {
 
 module.exports = {
   init, atWar, declare, makePeace, diplomacyTick, peaceOfferTick, startDiplomacy, alertsEnabled,
-  aiCanDeclare,
+  aiCanDeclare, canOpenWar, MAX_WAR_PARTNERS, OPENING_FORBIDDEN,
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
@@ -6697,7 +6782,7 @@ const war = __require(15);
 const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
-  SITE_ROWS, ROADS, HISTORY_MARKS,
+  SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS,
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
@@ -6723,6 +6808,13 @@ const BANDIT_TARGET = 24;
 const BANDIT_MAX = 30;
 const BANDIT_REFILL_PER_DAY = 6;
 const BANDIT_START_COUNT = 16;
+/** 匪团轻装：比领主（6 时辰一格）快一点，但仍在玩家追得上的范围 */
+const BANDIT_STEP_HOURS = 4.5;
+const BANDIT_FLEE_RATIO = 1.6;
+const BANDIT_FLEE_GAP = 10;
+const BANDIT_RESP_DAYS = 3;
+const BANDIT_ROAM_MIN = 7;
+const BANDIT_ROAM_MAX = 26;
 
 /** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
 const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true, yuanshu: true };
@@ -6871,8 +6963,9 @@ function pushLog(state, text, kind) {
   });
   // 上限 700 条；要挤位置时先丢最旧的琐事，重要的事一律留着
   while (state.log.length > 700) {
+    // 先挤掉最旧的琐事；不要刚写进来的新事（哪怕它不重要）倒被自己挤掉。
     let cut = -1;
-    for (let i = 0; i < state.log.length; i += 1) {
+    for (let i = 0; i < state.log.length - 1; i += 1) {
       if (!state.log[i].important) { cut = i; break; }
     }
     state.log.splice(cut >= 0 ? cut : 0, 1);
@@ -6970,6 +7063,7 @@ function createGame(opts) {
     wars,
     lords: [],
     parties: [],
+    banditRespawning: [],
     quests: [],
     log: [],
     events: [],
@@ -7340,22 +7434,45 @@ function pickBanditTier(state) {
 }
 
 /**
- * 匪团落点：全图抽样，尽量远离已有的匪团，避免全挤在几座匪巢门口。
- * 先保证不贴玩家、不压据点、不叠队伍；再按“离最近匪团的距离”选最空的地方。
+ * 匪团落点：先按州均匀分，再在全图抽样，
+ * 尽量远离已有的匪团，避免全挤在几座匪巢门口。
  */
 function balancedBanditSpot(state) {
   const rng = state.rng;
   const world = state.world;
   const p = state.player;
+  const counts = {};
+  Object.keys(REGIONS).forEach(function (id) { counts[id] = 0; });
+  (state.parties || []).forEach(function (q) {
+    if (q.faction !== 'bandit') return;
+    const rid = q.region || regionAt(world, q.x, q.y);
+    if (counts[rid] !== undefined) counts[rid] += 1;
+  });
+
+  // 先挑人最少的州；同数时随机，避免每轮都从西北开始。
+  let targetRegion = null;
+  let least = Infinity;
+  Object.keys(REGIONS).forEach(function (id) {
+    const n = counts[id] || 0;
+    if (n < least || (n === least && rng.chance(0.35))) {
+      least = n;
+      targetRegion = id;
+    }
+  });
+
   let best = null;
   let bestScore = -Infinity;
-  for (let attempt = 0; attempt < 90; attempt++) {
+  for (let attempt = 0; attempt < 150; attempt++) {
     const x = rng.int(2, world.w - 3);
     const y = rng.int(2, world.h - 3);
     if (!isPassable(world, x, y)) continue;
     if (siteAt(world, x, y)) continue;
     if (unitOccupies(state, null, x, y)) continue;
     if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 6) continue;
+
+    // 前 110 次只在本州找；实在找不到空地才放开全图兜底。
+    const rid = regionAt(world, x, y);
+    if (attempt < 110 && targetRegion && rid !== targetRegion) continue;
 
     let nearestBandit = 999;
     state.parties.forEach(function (q) {
@@ -7371,15 +7488,48 @@ function balancedBanditSpot(state) {
       if (d < nearestSite) nearestSite = d;
     });
 
-    // 离匪团越远越空；离城村太近则扣分，避免一开局就堵在城门口。
-    const score = Math.min(30, nearestBandit) + rng.random() * 4 +
-      (nearestSite < 4 ? -7 : 0);
+    // 离其他匪团越远越好；离城村太近要扣分，避免堵门；本州加分。
+    const score = Math.min(30, nearestBandit) * 1.35 + rng.random() * 5 +
+      (nearestSite < 4 ? -7 : 0) + (rid === targetRegion ? 5 : 0);
     if (score > bestScore) {
       bestScore = score;
       best = { x: x, y: y };
     }
   }
   return best;
+}
+
+/** 造一支匪团（新刷、三日重生共用，保证字段一致） */
+function makeBanditParty(state, tier, spot, name) {
+  const rng = state.rng;
+  const cfg = BANDIT_TIERS[tier] || BANDIT_TIERS.qing;
+  const size = rng.int(cfg.minSize, cfg.maxSize);
+  const troops = { bandit: size };
+  Object.keys(cfg.extra || {}).forEach(function (id) {
+    const range = cfg.extra[id];
+    troops[id] = rng.int(range[0], range[1]);
+  });
+  return {
+    id: 'p' + state.partySeq++,
+    name: name || rng.pick(BANDIT_NAMES[tier] || BANDIT_NAMES.qing),
+    faction: 'bandit',
+    banditTier: tier,
+    region: regionAt(state.world, spot.x, spot.y),
+    roamRegion: regionAt(state.world, spot.x, spot.y),
+    color: cfg.color,
+    troops,
+    morale: rng.int(cfg.morale[0], cfg.morale[1]),
+    x: spot.x,
+    y: spot.y,
+    wander: null,
+    roamTarget: null,
+    roamPath: null,
+    roamPathFor: null,
+    chasing: false,
+    sight: cfg.sight,
+    loot: cfg.loot,
+    size0: size,
+  };
 }
 
 function spawnBanditParties(state, count) {
@@ -7391,7 +7541,6 @@ function spawnBanditParties(state, count) {
   });
   for (let i = 0; i < want; i++) {
     const tier = pickBanditTier(state);
-    const cfg = BANDIT_TIERS[tier];
     let spot = balancedBanditSpot(state);
     if (!spot && camps.length) {
       const camp = rng.pick(camps);
@@ -7399,31 +7548,67 @@ function spawnBanditParties(state, count) {
     }
     if (!spot) spot = findFreeSpotNear(state, rng.int(2, state.world.w - 3), rng.int(2, state.world.h - 3), 2);
     if (!spot) continue;
+    state.parties.push(makeBanditParty(state, tier, spot));
+  }
+}
 
-    const size = rng.int(cfg.minSize, cfg.maxSize);
-    const troops = { bandit: size };
-    Object.keys(cfg.extra || {}).forEach(function (id) {
-      const range = cfg.extra[id];
-      troops[id] = rng.int(range[0], range[1]);
-    });
-
-    state.parties.push({
-      id: 'p' + state.partySeq++,
-      name: rng.pick(BANDIT_NAMES[tier] || BANDIT_NAMES.qing),
-      faction: 'bandit',
-      banditTier: tier,
-      color: cfg.color,
-      troops,
-      morale: rng.int(cfg.morale[0], cfg.morale[1]),
-      x: spot.x,
-      y: spot.y,
-      wander: null,
-      chasing: false,
-      sight: cfg.sight,
-      loot: cfg.loot,
-      size0: size,
+/** 匪团被打散/打死：不进牢房，三日后再在别处聚起一队。 */
+function destroyBanditParty(state, party, reason) {
+  if (!party || party.scripted || party.dead) return false;
+  party.dead = true;
+  const day = state.clock.day;
+  (state.lords || []).forEach(function (lord) {
+    if (String(lord.engagedWith || '') === 'party:' + party.id) {
+      lord.engagedWith = null;
+      lord.engagedSinceH = null;
+      lord.scuffle = Math.max(lord.scuffle || 0, 3);
+    }
+    if (lord.banditChasing === party.id) {
+      lord.hunting = false;
+      lord.banditChasing = null;
+      lord.foeChasing = null;
+      lord.chasing = false;
+    }
+  });
+  party.engagedWith = null;
+  party.engagedSinceH = null;
+  state.banditRespawning = state.banditRespawning || [];
+  if (!state.banditRespawning.some(function (q) { return q.partyId === party.id; })) {
+    state.banditRespawning.push({
+      partyId: party.id,
+      tier: party.banditTier || 'qing',
+      name: party.name,
+      from: reason || 'npc',
+      respawnDay: day + BANDIT_RESP_DAYS,
     });
   }
+  state.parties = state.parties.filter(function (q) { return q.id !== party.id; });
+  return true;
+}
+
+/** 每天检查三日前被打散的匪团：在另一个空地上重新聚人 */
+function banditRespawnTick(state) {
+  if (!state.banditRespawning) state.banditRespawning = [];
+  const due = state.banditRespawning.filter(function (q) {
+    return state.clock.day >= (q.respawnDay || 0);
+  });
+  if (!due.length) return 0;
+  let spawned = 0;
+  due.forEach(function (entry) {
+    const alive = state.parties.filter(function (q) { return q.faction === 'bandit'; }).length;
+    if (alive >= BANDIT_MAX) return; // 满编就先留在队里，明天再试
+    const spot = balancedBanditSpot(state);
+    if (!spot) return;
+    const tier = BANDIT_TIERS[entry.tier] ? entry.tier : pickBanditTier(state);
+    state.parties.push(makeBanditParty(state, tier, spot, entry.name));
+    entry.done = true;
+    spawned += 1;
+  });
+  state.banditRespawning = state.banditRespawning.filter(function (q) { return !q.done; });
+  if (spawned && state.player) {
+    pushLog(state, '三日期满，又有一伙残匪在别处聚了起来。');
+  }
+  return spawned;
 }
 
 /** 山寨按主角声望挑等级：声望越高，匪团越像样 */
@@ -7487,8 +7672,10 @@ function campRespawnTick(state) {
 /** 补充匪团到目标数量，避开玩家脚下；整体数量只在目标上下浮动 */
 function refillBandits(state) {
   const alive = state.parties.filter(function (x) { return x.faction === 'bandit'; }).length;
-  if (alive >= BANDIT_TARGET) return 0;
-  const add = Math.min(BANDIT_TARGET - alive, BANDIT_REFILL_PER_DAY);
+  const queued = (state.banditRespawning || []).length;
+  // 三日重生队也算“名额”，否则匪团刚被打散，日常补员又会在第二天立刻刷回来。
+  if (alive + queued >= BANDIT_TARGET) return 0;
+  const add = Math.min(BANDIT_TARGET - alive - queued, BANDIT_REFILL_PER_DAY);
   if (add <= 0) return 0;
   const before = state.parties.length;
   spawnBanditParties(state, add);
@@ -7842,6 +8029,7 @@ function dailyTick(state) {
 
   // 匪团补充：维持全图常驻数量（太少没得打，太多寸步难行）
   campRespawnTick(state);
+  banditRespawnTick(state);
   refillBandits(state);
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
@@ -8206,6 +8394,10 @@ function stepUnitTo(state, unit, step, hours) {
   unit.stepHours = Math.max(0.4, hours);
   unit.x = step.x;
   unit.y = step.y;
+  // 匪团每走一步就把所在州刷新，补员/统计才不会按出生州算旧账。
+  if (unit.faction === 'bandit') {
+    unit.region = regionAt(state.world, step.x, step.y);
+  }
 }
 
 /** 结算走完的那一步，别让插值数据一直挂着 */
@@ -8223,23 +8415,164 @@ function settleUnitSteps(state) {
   });
 }
 
+/** 附近兵力明显更强的领主：匪团和弱领主都要先躲 */
+function strongerLordNear(state, unit, range) {
+  let best = null;
+  let bestScore = -Infinity;
+  (state.lords || []).forEach(function (lord) {
+    if (!lord.alive || lord.inCity || lord.prisoner || lord.dead) return;
+    if (lord.id === unit.id) return;
+    const d = Math.max(Math.abs(lord.x - unit.x), Math.abs(lord.y - unit.y));
+    if (d > range) return;
+    const a = Math.max(1, army.troopCount(unit.troops || {}));
+    const b = Math.max(1, army.troopCount(lord.troops || {}));
+    if (b < a * BANDIT_FLEE_RATIO || b - a < BANDIT_FLEE_GAP) return;
+    const score = b - d * 1.5;
+    if (score > bestScore) {
+      bestScore = score;
+      best = lord;
+    }
+  });
+  return best;
+}
+
+/**
+ * 匪团的州内巡游目标：不再围着脚下 5 格打转，
+ * 而是在同一个州里挑一个 7~26 格外的空地，到了再换下一个。
+ */
+function chooseBanditTarget(state, party, opts) {
+  const rng = state.rng;
+  const world = state.world;
+  const p = state.player;
+  const o = opts || {};
+  const currentRegion = o.differentRegion ? null : (o.region || regionAt(world, party.x, party.y));
+  const threat = o.threat || null;
+  let best = null;
+  let bestScore = -Infinity;
+  for (let attempt = 0; attempt < 140; attempt++) {
+    const x = rng.int(2, world.w - 3);
+    const y = rng.int(2, world.h - 3);
+    if (!isPassable(world, x, y)) continue;
+    if (siteAt(world, x, y)) continue;
+    if (unitOccupies(state, party, x, y)) continue;
+    if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 6) continue;
+    const rid = regionAt(world, x, y);
+    if (o.differentRegion && rid === regionAt(world, party.x, party.y)) continue;
+    if (!o.differentRegion && currentRegion && rid !== currentRegion) continue;
+    const d = Math.max(Math.abs(x - party.x), Math.abs(y - party.y));
+    if (d < BANDIT_ROAM_MIN) continue;
+    if (d > (o.differentRegion ? 34 : BANDIT_ROAM_MAX)) continue;
+
+    let nearestBandit = 999;
+    state.parties.forEach(function (q) {
+      if (q.faction !== 'bandit' || q === party) return;
+      const bd = Math.max(Math.abs(x - q.x), Math.abs(y - q.y));
+      if (bd < nearestBandit) nearestBandit = bd;
+    });
+
+    let score = (nearestBandit > 6 ? 7 : -5) + rng.random() * 4;
+    if (o.differentRegion) {
+      // 逃到邻州时，离追兵越远越好，但也别一口气跑到天下另一头。
+      const td = threat ? Math.max(Math.abs(x - threat.x), Math.abs(y - threat.y)) : d;
+      score += td * 0.45 - Math.abs(d - 15) * 0.45;
+      if (rid !== currentRegion) score += 3;
+    } else {
+      score -= Math.abs(d - 15) * 0.18;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x: x, y: y, region: rid };
+    }
+  }
+  return best;
+}
+
+/** 沿缓存路径走一步；没有路径就贪心一步，至少不会原地打转 */
+function banditPathStep(state, party, target) {
+  const sig = target.x + ',' + target.y;
+  if (!party.roamPath || party.roamPathFor !== sig) {
+    party.roamPath = findPath(state.world, { x: party.x, y: party.y }, target, { avoidSites: true });
+    party.roamPathFor = sig;
+    if (!party.roamPath) party.roamPath = [];
+  }
+  while (party.roamPath.length) {
+    const next = party.roamPath[0];
+    if (!next || !isPassable(state.world, next.x, next.y) ||
+        siteAt(state.world, next.x, next.y) ||
+        unitOccupies(state, party, next.x, next.y)) {
+      party.roamPath = null;
+      party.roamPathFor = null;
+      break;
+    }
+    party.roamPath.shift();
+    return next;
+  }
+  return greedyStep(state, party, target);
+}
+
+/** 清掉旧档/多队互抢留下的“交战中”死锁：不互指、离太远、超时都解开 */
+function releaseStuckBanditEngagements(state) {
+  const nowH = gameHours(state);
+  state.parties.forEach(function (party) {
+    if (!party.engagedWith) return;
+    const lord = (state.lords || []).filter(function (l) { return l.id === party.engagedWith; })[0];
+    const since = party.engagedSinceH || (lord && lord.engagedSinceH) || nowH;
+    const bad = !lord || !lord.alive || lord.prisoner || lord.inCity ||
+      Math.max(Math.abs(lord.x - party.x), Math.abs(lord.y - party.y)) > 1 ||
+      nowH - since > 18 || army.troopCount(party.troops || {}) <= 0;
+    if (bad) {
+      party.engagedWith = null;
+      party.engagedSinceH = null;
+      if (lord) clearLordEngagement(state, lord, 3);
+    }
+  });
+  state.lords.forEach(function (lord) {
+    if (String(lord.engagedWith || '').indexOf('party:') !== 0) return;
+    const party = (state.parties || []).filter(function (q) { return q.id === String(lord.engagedWith).slice(6); })[0];
+    const since = lord.engagedSinceH || nowH;
+    // 指向一支不存在的队伍（旧档/临时标记）时先保留到超时，
+    // 不要在下一次整点立刻把“已和别人交战”的领主解锁，否则会诱发抢交战对象。
+    const ghost = !party;
+    if ((ghost && nowH - since > 18) || (!ghost && (party.dead || !party.engagedWith)) ||
+        nowH - since > 18) {
+      clearLordEngagement(state, lord, 3);
+    }
+  });
+}
+
 function moveParties(state, slot) {
   const p = state.player;
   const nowH = gameHours(state);
+  releaseStuckBanditEngagements(state);
   state.parties.forEach(function (party) {
-    // 分槽推进：本时辰不是它这一组，就继续走上一段的插值动画
-    if (slot !== undefined && npcSlotFor(party) !== slot) return;
+    const isBandit = party.faction === 'bandit' && !party.scripted;
+    // 匪团按 4.5 时辰一格走：比领主 6 时辰略快，但不会快到玩家追不上。
+    // 它们不受三槽错峰限制，靠 nextBanditMoveH 控制节奏。
+    if (isBandit) {
+      if (party.nextBanditMoveH && nowH < party.nextBanditMoveH) return;
+      party.nextBanditMoveH = nowH + BANDIT_STEP_HOURS;
+    } else if (slot !== undefined && npcSlotFor(party) !== slot) {
+      return;
+    }
     // 已经和某支队伍缠上：模型停在原地显示交战，不再滑走。
     if (party.engagedWith) {
       const foe = state.lords.filter(function (l) { return l.id === party.engagedWith; })[0];
+      const foeStrong = isBandit && foe && army.troopCount(foe.troops || {}) >=
+        Math.max(1, army.troopCount(party.troops || {})) * BANDIT_FLEE_RATIO &&
+        army.troopCount(foe.troops || {}) - army.troopCount(party.troops || {}) >= BANDIT_FLEE_GAP;
       if (!foe || !foe.alive || foe.prisoner || foe.inCity ||
           Math.max(Math.abs(foe.x - party.x), Math.abs(foe.y - party.y)) > 1 ||
-          (party.engagedSinceH && nowH - party.engagedSinceH > 18)) {
+          (party.engagedSinceH && nowH - party.engagedSinceH > 18) || foeStrong) {
         party.engagedWith = null;
         party.engagedSinceH = null;
         party.scuffle = Math.max(party.scuffle || 0, 3);
         party.pauseUntil = Math.max(party.pauseUntil || 0, nowH + 3);
         if (foe) clearLordEngagement(state, foe, 3);
+        if (foeStrong) {
+          party.banditFleeFrom = foe.id;
+          party.banditFleeRegion = null;
+          party.banditFleeTarget = null;
+        }
       } else {
         return;
       }
@@ -8270,11 +8603,76 @@ function moveParties(state, slot) {
       if (step) stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
       return;
     }
-    // 见着大兵就溜：匪团轻装，领主辎重多，追不上。
-    // 但如果领主已经锁定这支匪团，就原地结阵，别一边被追一边跑成风筝。
+
+    // 到邻州后就算脱身：恢复成那个州的普通巡游，不再一直挂着“逃”字。
+    const nowRegion = regionAt(state.world, party.x, party.y);
+    if (isBandit && party.banditFleeRegion && nowRegion === party.banditFleeRegion) {
+      party.banditFleeFrom = null;
+      party.banditFleeRegion = null;
+      party.banditFleeTarget = null;
+      party.roamTarget = null;
+      party.roamPath = null;
+      party.roamPathFor = null;
+    }
+
+    const threatLord = isBandit ? strongerLordNear(state, party, party.sight || 5) : null;
+    if (isBandit && threatLord) {
+      party.chasing = false;
+      party.banditFleeFrom = threatLord.id;
+      if (!party.banditFleeRegion || nowRegion === party.banditFleeRegion) {
+        const fleeTarget = chooseBanditTarget(state, party, {
+          differentRegion: true,
+          threat: threatLord,
+        });
+        if (fleeTarget) {
+          party.banditFleeRegion = fleeTarget.region;
+          party.banditFleeTarget = fleeTarget;
+          party.roamTarget = fleeTarget;
+          party.roamPath = null;
+          party.roamPathFor = null;
+        }
+      }
+    }
+    // 被领主吓到邻州：先沿路径往新州跑，到了再继续州内活动。
+    if (isBandit && party.banditFleeFrom) {
+      if (!party.banditFleeTarget || gridDistance(party, party.banditFleeTarget) <= 1) {
+        const fleeTarget = chooseBanditTarget(state, party, {
+          differentRegion: true,
+          threat: threatLord || null,
+        });
+        if (fleeTarget) {
+          party.banditFleeRegion = fleeTarget.region;
+          party.banditFleeTarget = fleeTarget;
+          party.roamTarget = fleeTarget;
+          party.roamPath = null;
+          party.roamPathFor = null;
+        }
+      }
+      if (party.banditFleeTarget) {
+        const step = banditPathStep(state, party, party.banditFleeTarget);
+        if (step) stepUnitTo(state, party, step, BANDIT_STEP_HOURS);
+        return;
+      }
+      if (threatLord && retreatFrom(state, party, threatLord)) {
+        party.chasing = false;
+        return;
+      }
+    }
+
+    // 已经贴上了：只有兵力明显更弱的匪团才跑，否则停住交给大战结算。
     const lord = nearestLord(state, party, 4);
     const hunter = !!(lord && lord.hunting && lord.banditChasing === party.id);
     if (lord && gridDistance(party, lord) <= 1) {
+      const lordCount = army.troopCount(lord.troops || {});
+      const partyCount = army.troopCount(party.troops || {});
+      if (isBandit && lordCount >= partyCount * BANDIT_FLEE_RATIO && lordCount - partyCount >= BANDIT_FLEE_GAP) {
+        party.banditFleeFrom = lord.id;
+        party.banditFleeTarget = null;
+        party.banditFleeRegion = null;
+        retreatFrom(state, party, lord);
+        party.chasing = false;
+        return;
+      }
       // 这位领主已经和别的匪团缠上了：不抢别人的交战对象，先退开，避免三支队伍互相覆盖 engagedWith。
       if (lord.engagedWith && lord.engagedWith !== 'party:' + party.id) {
         retreatFrom(state, party, lord);
@@ -8293,7 +8691,12 @@ function moveParties(state, slot) {
       party.chasing = false;
       return;
     }
-    if (lord && !hunter && retreatFrom(state, party, lord)) {
+    if (isBandit && threatLord && retreatFrom(state, party, threatLord)) {
+      party.chasing = false;
+      party.engaged = false;
+      return;
+    }
+    if (lord && !hunter && isBandit && retreatFrom(state, party, lord)) {
       party.chasing = false;
       party.engaged = false;
       return;
@@ -8302,22 +8705,55 @@ function moveParties(state, slot) {
       party.chasing = false;
       return;
     }
-    const dist = gridDistance(party, p);
-    let target;
-    if (!isSafeResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
-      target = { x: p.x, y: p.y };
-      party.chasing = true;
-    } else {
-      if (!party.wander || gridDistance(party, party.wander) < 1) {
-        party.wander = findFreeSpotNear(state, party.x, party.y, 5, party);
+
+    let target = null;
+    let targetIsPlayer = false;
+    if (isBandit) {
+      const dist = gridDistance(party, p);
+      if (!isSafeResting(state) && !p.atSiteId && dist <= (party.sight || 5) &&
+          isHostileFaction(state, party.faction)) {
+        target = { x: p.x, y: p.y };
+        targetIsPlayer = true;
+        party.chasing = true;
+      } else {
+        if (!party.roamTarget || gridDistance(party, party.roamTarget) <= 1) {
+          party.roamTarget = chooseBanditTarget(state, party, {
+            region: nowRegion,
+          });
+          party.roamPath = null;
+          party.roamPathFor = null;
+        }
+        target = party.roamTarget;
+        party.chasing = false;
       }
-      target = party.wander;
-      party.chasing = false;
+    } else {
+      // 兼容旧档里没有标记 scripted 的普通追兵
+      const dist = gridDistance(party, p);
+      if (!isSafeResting(state) && dist <= (party.sight || 5) && isHostileFaction(state, party.faction)) {
+        target = { x: p.x, y: p.y };
+        party.chasing = true;
+      } else {
+        if (!party.wander || gridDistance(party, party.wander) < 1) {
+          party.wander = findFreeSpotNear(state, party.x, party.y, 5, party);
+        }
+        target = party.wander;
+        party.chasing = false;
+      }
     }
     if (!target) return;
-    const step = greedyStep(state, party, target);
+    let step;
+    if (isBandit && !targetIsPlayer) {
+      step = banditPathStep(state, party, target);
+    } else {
+      step = greedyStep(state, party, target);
+    }
     if (step) {
-      stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
+      stepUnitTo(state, party, step, isBandit ? BANDIT_STEP_HOURS : NPC_STEP_HOURS * (party.slow || 1));
+    } else if (isBandit && !targetIsPlayer) {
+      // 目标被堵住/无路：换一处，别在一格上原地撞墙
+      party.roamTarget = null;
+      party.roamPath = null;
+      party.roamPathFor = null;
     } else if (target === party.wander) {
       party.wander = null;
     }
@@ -8325,7 +8761,10 @@ function moveParties(state, slot) {
 
   // 路上相逢：匪团与领主互殴。等到三个槽都走完再统一结算，
   // 避免刚走完一组就提前把还没动的另一组判成“贴上了”。
-  if (slot === undefined || slot === NPC_SLOT_COUNT - 1) fightNeighbors(state);
+  if (slot === undefined || slot === NPC_SLOT_COUNT - 1) {
+    releaseStuckBanditEngagements(state);
+    fightNeighbors(state);
+  }
 }
 
 /** 按编制给领主补人：先补缺得最多的兵种；不超过等级带兵上限 */
@@ -9189,7 +9628,9 @@ function retreatFrom(state, unit, threat) {
   // 被围死也不能原地不动：先找一格能站的地方退开，避免下一轮又贴上来。
   if (!best) best = fallback;
   if (best) {
-    stepUnitTo(state, unit, best, NPC_STEP_HOURS);
+    // 匪团轻装，后退也比领主快一点；领主仍按原来的 3 时辰退一步。
+    const hours = unit && unit.faction === 'bandit' ? BANDIT_STEP_HOURS : NPC_STEP_HOURS;
+    stepUnitTo(state, unit, best, hours);
     return true;
   }
   return false;
@@ -9235,7 +9676,7 @@ function fightNeighbors(state) {
         const partyOut = retreatFrom(state, party, lord);
         const lordOut = retreatFrom(state, lord, party);
         if (!partyOut) {
-          state.parties = state.parties.filter(function (x) { return x.id !== party.id; });
+          destroyBanditParty(state, party, 'timeout');
         } else if (!lordOut) {
           // 领主被围得退不开，这场就不再拖：按俘虏处理，等日子到了再逃
           war.capture(state, lord, 'bandit', party.name);
@@ -9251,6 +9692,17 @@ function fightNeighbors(state) {
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
+      const countParty = army.troopCount(party.troops);
+      const countLord = army.troopCount(lord.troops);
+      // 兵力差太远就不打了：匪团掉头往邻州跑，别在领主面前站成一尊像。
+      if (countLord >= countParty * BANDIT_FLEE_RATIO &&
+          countLord - countParty >= BANDIT_FLEE_GAP) {
+        party.banditFleeFrom = lord.id;
+        party.banditFleeTarget = null;
+        party.banditFleeRegion = null;
+        retreatFrom(state, party, lord);
+        return;
+      }
       // 双方停住，地图上挂“交战”牌，等这场打完再走。
       party.engagedWith = lord.id;
       party.engagedSinceH = nowH;
@@ -9263,6 +9715,15 @@ function fightNeighbors(state) {
     const countA = army.troopCount(party.troops);
     const countB = army.troopCount(lord.troops);
     if (countB <= 0) { clear(party, lord, true); return; }
+    // 绝对碾压：领主当场把这伙匪徒打散，不拖 18 个时辰。
+    if (countB >= countA * 3 && countB - countA >= 20) {
+      clear(party, lord, true);
+      destroyBanditParty(state, party, 'crushed');
+      if (Math.max(Math.abs(party.x - p.x), Math.abs(party.y - p.y)) <= 14) {
+        pushLog(state, lord.name + '以绝对优势把这伙' + party.name + '当场打散，匪首也没能跑掉。', 'war');
+      }
+      return;
+    }
     const share = countA / (countA + countB || 1);
     // 大规模交战：每轮不是一两个人，而是按阵线成片掉。
     const lossA = Math.max(1, Math.round(countA * (0.06 + (1 - share) * 0.16)));
@@ -9283,21 +9744,25 @@ function fightNeighbors(state) {
 
     if (brokenA && brokenB) {
       clear(party, lord, true);
-      retreatFrom(state, party, lord);
+      const partyOut = retreatFrom(state, party, lord);
       retreatFrom(state, lord, party);
+      if (!partyOut) destroyBanditParty(state, party, 'mutual');
       if (near) pushLog(state, party.name + '和' + lord.name + '打到两败俱伤，各自收拢残兵退开。', 'war');
       return;
     }
 
     if (brokenA) {
       clear(party, lord, true);
-      if (rng.next() < 0.84 && retreatFrom(state, party, lord)) {
+      // 兵力差越大，逃掉的机会越小；NPC 也可以直接把这伙匪徒消灭。
+      const escapeChance = countB >= countA * 2 ? 0.35 : 0.58;
+      if (rng.next() < escapeChance && retreatFrom(state, party, lord)) {
         party.scuffle = 4;
+        party.banditFleeFrom = lord.id;
         if (near) pushLog(state, party.name + '的阵线先散，抢了条野路逃了；' + lord.name + '没有死追。', 'war');
       } else {
         // 退无可退就当场散了，绝不能留在原地继续挂“交战中”
-        state.parties = state.parties.filter(function (x) { return x.id !== party.id; });
-        if (near) pushLog(state, party.name + '被' + lord.name + '的部曲围住，头目被捆了，剩下的散了。', 'war');
+        destroyBanditParty(state, party, 'lord');
+        if (near) pushLog(state, party.name + '被' + lord.name + '当场打散，匪首也没能跑掉。', 'war');
       }
       return;
     }
@@ -9776,7 +10241,15 @@ function resolveBattle(state, battle) {
 
     const ctx = battle.context;
     if (ctx.kind === 'party' || ctx.kind === 'chase') {
-      state.parties = state.parties.filter(function (x) { return x.id !== ctx.partyId; });
+      const beaten = state.parties.filter(function (x) { return x.id === ctx.partyId; })[0];
+      if (beaten) {
+        if (ctx.kind === 'party') {
+          // 玩家打散的匪团也按三日期满重生，和 NPC 清剿一样，不会当天原地再冒出来。
+          destroyBanditParty(state, beaten, 'player');
+        } else {
+          state.parties = state.parties.filter(function (x) { return x.id !== ctx.partyId; });
+        }
+      }
       // 玩家自己打散猎匪目标，算交差；被别的势力清剿才算失败
       completeQuests(state, 'hunt', ctx.partyId);
       pushLog(state, '击溃' + ctx.partyName + '：缴获 ' + loot + ' 金钱，声望 +' + renownGain + '。');
@@ -11684,6 +12157,7 @@ function deserialize(json) {
       return copy;
     }),
     parties: data.parties || [],
+    banditRespawning: data.banditRespawning || [],
     quests: data.quests || [],
     log: data.log || [],
     events: [],
@@ -12186,7 +12660,7 @@ module.exports = {
   /* js/scenes/title.js */
   __defs[19] = function (module, exports, __require) {
 /**
- * 标题：风云三国 · 骑砍大师制作
+ * 标题：点兵三国 · 骑砍大师制作
  */
 
 const { text, panel } = __require(6);
@@ -12210,6 +12684,20 @@ function hasSave(app) {
 const TitleScene = {
   enter(app) {
     app.saveMeta = hasSave(app);
+    // 三国争霸主图：浏览器从 web/ 同目录取，小游戏从包内 assets/ 取。
+    // 图没加载好时先保留原来的烈火背景兜底，不让首页空着。
+    if (!app.titleBg && !app.titleBgFailed) {
+      const img = app.runtime.createImage ? app.runtime.createImage() : null;
+      if (img) {
+        app.titleBg = img;
+        img.onload = function () { app.titleBgReady = true; };
+        img.onerror = function () { app.titleBgFailed = true; };
+        const base = app.runtime.host === 'web'
+          ? (app.runtime.assetBase || '') + 'title-bg.jpg'
+          : 'assets/title-bg.jpg';
+        img.src = base;
+      }
+    }
   },
 
   update() {},
@@ -12220,18 +12708,17 @@ const TitleScene = {
     const h = app.runtime.height;
     const t = (app.mapPhase = (app.mapPhase || 0) + 0.016);
 
-    // 烈火背景：黑烟、赤焰、飞灰，标题从火里烧出来
-    drawFireBackdrop(ctx, w, h, t);
+    drawTitleBackdrop(ctx, app, w, h, t);
 
     // 标题
-    text(ctx, '风云三国', w / 2, h * 0.285, {
+    text(ctx, '点兵三国', w / 2, h * 0.285, {
       size: 104, align: 'center', color: '#ffe0a0', shadow: true,
     });
-    text(ctx, '骑 砍 大 师 制 作', w / 2, h * 0.285 + 112, {
+    text(ctx, '骑砍大师制作', w / 2, h * 0.285 + 112, {
       size: 25, align: 'center', color: '#d9a441',
     });
     text(ctx, '汉末风云 · 群雄逐鹿 · 一将功成万骨枯', w / 2, h * 0.285 + 158, {
-      size: 17, align: 'center', color: '#9c8a70',
+      size: 17, align: 'center', color: '#bca88a',
     });
 
     // 按钮：新的开始 / 最近存档 / 保存的存档 / 玩法 / 商店
@@ -12274,7 +12761,7 @@ const TitleScene = {
     });
 
     text(ctx, '点地图行军 · 城池经营 · 领主追杀 · 天机改命', w / 2, h - 40, {
-      size: 15, align: 'center', color: '#6a6050',
+      size: 15, align: 'center', color: '#8e8068',
     });
   },
 
@@ -12282,6 +12769,45 @@ const TitleScene = {
   onTouchMove() {},
   onTouchEnd() {},
 };
+
+/** 主页背景：有三国争霸图就铺图，图没到就退回程序化烈火战场 */
+function drawTitleBackdrop(ctx, app, w, h, t) {
+  const img = app.titleBg;
+  if (img && app.titleBgReady && img.width && img.height) {
+    const scale = Math.max(w / img.width, h / img.height);
+    const dw = img.width * scale;
+    const dh = img.height * scale;
+    const dx = (w - dw) / 2;
+    const dy = (h - dh) / 2;
+    ctx.save();
+    ctx.drawImage(img, dx, dy, dw, dh);
+    // 上方压暗给标题让位，下方压暗承托按钮；中间保留战场主图。
+    const top = ctx.createLinearGradient(0, 0, 0, h * 0.52);
+    top.addColorStop(0, 'rgba(5,3,2,0.62)');
+    top.addColorStop(0.52, 'rgba(5,3,2,0.38)');
+    top.addColorStop(1, 'rgba(5,3,2,0.02)');
+    ctx.fillStyle = top;
+    ctx.fillRect(0, 0, w, h * 0.52);
+
+    const bottom = ctx.createLinearGradient(0, h * 0.48, 0, h);
+    bottom.addColorStop(0, 'rgba(5,3,2,0)');
+    bottom.addColorStop(0.32, 'rgba(5,3,2,0.56)');
+    bottom.addColorStop(1, 'rgba(3,2,1,0.92)');
+    ctx.fillStyle = bottom;
+    ctx.fillRect(0, h * 0.48, w, h * 0.52);
+
+    // 标题附近再压一小块暗晕，金字的边缘不会和夕阳粘在一起。
+    const halo = ctx.createRadialGradient(w / 2, h * 0.25, 10, w / 2, h * 0.25, w * 0.72);
+    halo.addColorStop(0, 'rgba(3,2,1,0.30)');
+    halo.addColorStop(0.55, 'rgba(3,2,1,0.16)');
+    halo.addColorStop(1, 'rgba(3,2,1,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, w, h * 0.52);
+    ctx.restore();
+    return;
+  }
+  drawFireBackdrop(ctx, w, h, t);
+}
 
 /** 烈火背景：不依赖外部图，纯 Canvas 烧出一片战场 */
 function drawFireBackdrop(ctx, w, h, t) {
@@ -12981,13 +13507,15 @@ const MapScene = {
       return;
     }
 
-    // 在城里歇着的时候出来看地图：点一下地图就回城
+    // 在城里歇着的时候出来看地图：点一下地图就自动收拾行装离开，不再回城点“离城”。
+    // 和骑砍一样，休息完第一下点地图=离城，后面的点才是重新指路。
     if (app.restView) {
       app.follow = null;
-      const siteId = app.restView;
       app.restView = null;
-      app.push('town', { siteId: siteId });
-      return;
+      if (app.state.player.resting) stateLib.stopRest(app.state);
+      app.state.player.atSiteId = null;
+      app.showToast('收拾行装，上路。', 2);
+      // 不 return：这一下点击继续当作大地图目标，直接开始行军。
     }
 
     // 只要不是拖地图，点哪儿都算"重新指路"：先松开正在跟的人，
@@ -13359,116 +13887,320 @@ function drawMountainRange(ctx, line, raw, toX, toY, w, box, index, snow, app) {
   }
 }
 
-/** 桥：木面、石墩、栏杆；横跨河道，和道路走向对齐 */
+/** 桥：按同一处河道合并成一座宽桥，桥面从河心一直搭到两岸地面 */
 function drawBridges(ctx, world, toX, toY, w, box, app) {
   const marks = world.bridges || [];
+  if (!marks.length) return;
   const z = app.mapZoom || 1;
+  const byKey = {};
+  marks.forEach(function (m) { byKey[m.x + ',' + m.y] = m; });
+  const used = {};
   for (let i = 0; i < marks.length; i++) {
     const b = marks[i];
-    const stepX = b.dir === 'h' ? 1 : 0;
-    const stepY = b.dir === 'h' ? 0 : 1;
-    function markAt(wx, wy) {
+    const bk = b.x + ',' + b.y;
+    if (used[bk]) continue;
+    // 同一处河道附近的桥格并成一座桥：同方向、两格以内连成簇。
+    const cluster = [];
+    const queue = [b];
+    used[bk] = true;
+    while (queue.length) {
+      const cur = queue.shift();
+      cluster.push(cur);
       for (let m = 0; m < marks.length; m++) {
-        if (marks[m].x === wx && marks[m].y === wy) return marks[m];
+        const q = marks[m];
+        const qk = q.x + ',' + q.y;
+        if (used[qk] || q.dir !== b.dir) continue;
+        if (Math.abs(q.x - cur.x) > 2 || Math.abs(q.y - cur.y) > 2) continue;
+        used[qk] = true;
+        queue.push(q);
       }
-      return null;
     }
-    // 连续桥格只画一座桥，避免一格一块木板叠成一大片
-    if (markAt(b.x - stepX, b.y - stepY)) continue;
-    let runLen = 1;
-    while (runLen < 7) {
-      const nx = b.x + stepX * runLen;
-      const ny = b.y + stepY * runLen;
-      if (nx < 0 || ny < 0 || nx >= world.w || ny >= world.h) break;
-      if (world.tiles[ny * world.w + nx] !== 'bridge') break;
-      if (!markAt(nx, ny)) break;
-      runLen++;
-    }
-    const cx = b.x + stepX * (runLen - 1) * 0.5;
-    const cy = b.y + stepY * (runLen - 1) * 0.5;
+    let minX = b.x, maxX = b.x, minY = b.y, maxY = b.y;
+    cluster.forEach(function (q) {
+      if (q.x < minX) minX = q.x;
+      if (q.x > maxX) maxX = q.x;
+      if (q.y < minY) minY = q.y;
+      if (q.y > maxY) maxY = q.y;
+    });
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
     const sx = toX(cx + 0.5);
     const sy = toY(cy + 0.5);
-    if (sx < -TS * 3 || sx > w + TS * 3 || sy < box.top - TS * 3 || sy > box.top + box.h + TS * 3) continue;
-    // 桥面要横跨河道，不能顺着河道铺成一条长木板
+    if (sx < -TS * 4 || sx > w + TS * 4 || sy < box.top - TS * 4 || sy > box.top + box.h + TS * 4) continue;
+
+    // 桥面横跨河道：找出这一簇真正跨过的水面宽度。
     const drawDir = bridgeRenderDir(world, Math.round(cx), Math.round(cy), b.dir);
     const crossX = drawDir === 'h' ? 1 : 0;
     const crossY = drawDir === 'h' ? 0 : 1;
-    let span = 1;
+    let wetMin = 0;
+    let wetMax = 0;
     for (let side = -1; side <= 1; side += 2) {
       for (let n = 1; n <= 8; n++) {
         const tx = Math.round(cx) + crossX * n * side;
         const ty = Math.round(cy) + crossY * n * side;
         if (tx < 0 || ty < 0 || tx >= world.w || ty >= world.h) break;
         const t = world.tiles[ty * world.w + tx];
-        if (t === 'river' || t === 'bridge') span++;
-        else break;
+        if (t === 'river' || t === 'bridge') {
+          if (side < 0 && -n < wetMin) wetMin = -n;
+          if (side > 0 && n > wetMax) wetMax = n;
+        } else {
+          break;
+        }
       }
     }
-    span = Math.min(span, 8);
-    const len = Math.max(TS * 0.92, span * TS * 0.5 + TS * 0.18);
-    const halfW = Math.max(3, TS * 0.22);
-    const rail = Math.max(2, TS * 0.018);
+    const crossExtent = drawDir === 'h' ? maxX - minX : maxY - minY;
+    const wetSpan = Math.max(1, wetMax - wetMin + 1);
+    const runTiles = Math.max(crossExtent + 1, wetSpan);
+    // 桥面总长 = 水面 + 两侧各半格岸，保证桥头落到地面而不是断在河心。
+    const len = Math.max(TS * 1.1, (runTiles + 1.15) * TS * 0.5);
+    const perpExtent = drawDir === 'h' ? maxY - minY : maxX - minX;
+    const halfW = Math.max(TS * 0.32, Math.min(TS * 0.86, TS * 0.30 + perpExtent * TS * 0.55));
+    const rail = Math.max(2, TS * 0.022);
+    const plankLine = Math.max(1, TS * 0.01);
     ctx.save();
     ctx.translate(sx, sy);
     if (drawDir === 'v') ctx.rotate(Math.PI / 2);
-    // 桥下阴影
-    ctx.fillStyle = 'rgba(12,10,8,0.34)';
-    ctx.fillRect(-len - 4, halfW - 2, len * 2 + 8, Math.max(6, TS * 0.10));
-    // 桥面
-    ctx.fillStyle = '#9a7448';
+
+    // 桥下阴影与两岸石基：先落地，再接桥面
+    ctx.fillStyle = 'rgba(12,10,8,0.38)';
+    ctx.fillRect(-len - 6, halfW - 2, len * 2 + 12, Math.max(7, TS * 0.12));
+    ctx.fillStyle = 'rgba(106,96,80,0.95)';
+    ctx.fillRect(-len - TS * 0.12, -halfW - rail * 2, Math.max(5, TS * 0.12), halfW * 2 + rail * 4);
+    ctx.fillRect(len, -halfW - rail * 2, Math.max(5, TS * 0.12), halfW * 2 + rail * 4);
+
+    // 桥面：加宽后不再像一条细木板
+    ctx.fillStyle = '#987144';
     ctx.fillRect(-len, -halfW, len * 2, halfW * 2);
-    ctx.fillStyle = '#c49a63';
-    ctx.fillRect(-len, -halfW, len * 2, Math.max(2, TS * 0.025));
-    ctx.fillStyle = '#644a2e';
-    ctx.fillRect(-len, halfW - Math.max(2, TS * 0.025), len * 2, Math.max(2, TS * 0.025));
-    // 木板
-    const planks = Math.max(4, Math.round(len / Math.max(5, TS * 0.13)));
-    for (let p = 1; p < planks; p++) {
-      const x = -len + (len * 2 * p) / planks;
-      ctx.fillStyle = 'rgba(72,51,32,0.55)';
-      ctx.fillRect(x, -halfW, Math.max(1, TS * 0.008), halfW * 2);
+    const grad = ctx.createLinearGradient(0, -halfW, 0, halfW);
+    grad.addColorStop(0, 'rgba(207,166,104,0.46)');
+    grad.addColorStop(0.5, 'rgba(154,116,72,0.10)');
+    grad.addColorStop(1, 'rgba(86,62,38,0.34)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(-len, -halfW, len * 2, halfW * 2);
+    ctx.fillStyle = '#d0a568';
+    ctx.fillRect(-len, -halfW, len * 2, Math.max(2, TS * 0.035));
+    ctx.fillStyle = '#5d432a';
+    ctx.fillRect(-len, halfW - Math.max(2, TS * 0.035), len * 2, Math.max(2, TS * 0.035));
+
+    // 木板缝：远景省略，近景才画，避免全图密密麻麻。
+    if (z >= 0.5) {
+      const planks = Math.max(5, Math.round(len / Math.max(7, TS * 0.16)));
+      for (let p = 1; p < planks; p++) {
+        const x = -len + (len * 2 * p) / planks;
+        ctx.fillStyle = 'rgba(70,49,30,0.52)';
+        ctx.fillRect(x, -halfW, plankLine, halfW * 2);
+      }
     }
-    // 栏杆
-    ctx.fillStyle = '#5b4329';
-    ctx.fillRect(-len, -halfW - rail * 1.6, len * 2, rail);
-    ctx.fillRect(-len, halfW + rail * 0.6, len * 2, rail);
-    for (let p = 0; p <= 4; p++) {
-      const x = -len + (len * 2 * p) / 4;
-      ctx.fillRect(x, -halfW - rail * 2, Math.max(1.5, rail), halfW + rail * 2.5);
+    // 栏杆与桥柱
+    ctx.fillStyle = '#543b24';
+    ctx.fillRect(-len, -halfW - rail * 1.8, len * 2, rail);
+    ctx.fillRect(-len, halfW + rail * 0.7, len * 2, rail);
+    if (z >= 0.42) {
+      const posts = Math.max(4, Math.round(len / (TS * 0.42)));
+      for (let p = 0; p <= posts; p++) {
+        const x = -len + (len * 2 * p) / posts;
+        ctx.fillRect(x, -halfW - rail * 2.3, Math.max(1.5, rail * 1.2), halfW + rail * 3);
+      }
     }
-    // 两岸石墩
-    ctx.fillStyle = 'rgba(118,108,92,0.92)';
-    ctx.fillRect(-len - 5, -halfW - rail * 2, Math.max(4, TS * 0.06), halfW * 2 + rail * 4);
-    ctx.fillRect(len + 1, -halfW - rail * 2, Math.max(4, TS * 0.06), halfW * 2 + rail * 4);
+    // 桥头石阶：明确落到岸上
+    ctx.fillStyle = 'rgba(140,126,102,0.90)';
+    ctx.fillRect(-len - TS * 0.16, -halfW * 0.82, TS * 0.16, halfW * 1.64);
+    ctx.fillRect(len, -halfW * 0.82, TS * 0.16, halfW * 1.64);
     ctx.restore();
   }
 }
 
-/** 山口：在宽山带上开一道浅色缺口，并立一座石门，让人一眼看出能走 */
-function drawPassMarks(ctx, world, cam, box, w, toX, toY, app) {
+/** 穿山峡谷：两壁是断续的岩层，谷底是踩出来的土路，和木桥、山口明显分开 */
+function drawCanyons(ctx, world, cam, box, w, toX, toY, app) {
   const z = app.mapZoom || 1;
-  if (z < 0.32) return;
-  const startX = Math.max(0, Math.floor(cam.x / TS));
-  const startY = Math.max(0, Math.floor(cam.y / TS));
-  const endX = Math.min(world.w - 1, Math.ceil((cam.x + w) / TS));
-  const endY = Math.min(world.h - 1, Math.ceil((cam.y + box.h) / TS));
-  for (let y = startY; y <= endY; y++) {
-    for (let x = startX; x <= endX; x++) {
-      if (world.tiles[y * world.w + x] !== 'pass') continue;
-      const sx = toX(x + 0.5);
-      const sy = toY(y + 0.5);
-      const rw = TS * 0.34;
-      const rh = TS * 0.52;
-      // 缺口：用偏暖的土色把山带压掉，形成垭口
-      ctx.fillStyle = 'rgba(181,169,145,0.70)';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, rw * 1.25, rh * 0.78, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(109,90,66,0.78)';
-      ctx.fillRect(sx - rw * 0.85, sy - rh * 0.2, rw * 0.28, rh * 1.6);
-      ctx.fillRect(sx + rw * 0.58, sy - rh * 0.2, rw * 0.28, rh * 1.6);
-      ctx.fillRect(sx - rw * 0.95, sy - rh * 0.48, rw * 1.9, rh * 0.16);
+  if (z < 0.24) return;
+  let marks = world.canyons || [];
+  if (!marks.length) {
+    marks = [];
+    for (let y = 0; y < world.h; y++) {
+      for (let x = 0; x < world.w; x++) {
+        if (world.tiles[y * world.w + x] === 'pass') marks.push({ x: x, y: y, dir: 'h' });
+      }
     }
+  }
+  if (!marks.length) return;
+  const used = {};
+  for (let i = 0; i < marks.length; i++) {
+    const b = marks[i];
+    const bk = b.x + ',' + b.y;
+    if (used[bk]) continue;
+    const cluster = [];
+    const queue = [b];
+    used[bk] = true;
+    while (queue.length) {
+      const cur = queue.shift();
+      cluster.push(cur);
+      for (let m = 0; m < marks.length; m++) {
+        const q = marks[m];
+        const qk = q.x + ',' + q.y;
+        if (used[qk] || q.dir !== b.dir) continue;
+        if (Math.abs(q.x - cur.x) > 2 || Math.abs(q.y - cur.y) > 2) continue;
+        used[qk] = true;
+        queue.push(q);
+      }
+    }
+    let minX = b.x, maxX = b.x, minY = b.y, maxY = b.y;
+    cluster.forEach(function (q) {
+      if (q.x < minX) minX = q.x;
+      if (q.x > maxX) maxX = q.x;
+      if (q.y < minY) minY = q.y;
+      if (q.y > maxY) maxY = q.y;
+    });
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const sx = toX(cx + 0.5);
+    const sy = toY(cy + 0.5);
+    if (sx < -TS * 4 || sx > w + TS * 4 || sy < box.top - TS * 4 || sy > box.top + box.h + TS * 4) continue;
+
+    const drawDir = b.dir === 'v' ? 'v' : 'h';
+    const alongExtent = drawDir === 'h' ? maxX - minX : maxY - minY;
+    const perpExtent = drawDir === 'h' ? maxY - minY : maxX - minX;
+    const runTiles = alongExtent + 1;
+    const halfLen = Math.max(TS * 0.92, (runTiles + 0.75) * TS * 0.5);
+    const floorW = Math.max(TS * 0.54, TS * 0.43 + perpExtent * TS * 0.22);
+    const wallW = Math.max(TS * 0.34, TS * 0.46);
+    const outerHalf = floorW * 0.5 + wallW;
+    const segs = Math.max(7, Math.round((halfLen * 2) / (TS * 0.26)));
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    if (drawDir === 'v') ctx.rotate(Math.PI / 2);
+
+    // 峡谷外缘：上下两排锯齿状岩壁，先把山带咬出一个不规则的缺口
+    const topEdge = [];
+    const bottomEdge = [];
+    const floorTop = [];
+    const floorBottom = [];
+    for (let i = 0; i <= segs; i++) {
+      const px = -halfLen + (halfLen * 2 * i) / segs;
+      const j1 = (peakHash(i, i + 3, 11) - 0.5) * TS * 0.20;
+      const j2 = (peakHash(i + 5, i, 17) - 0.5) * TS * 0.20;
+      topEdge.push({ x: px, y: -outerHalf + j1 });
+      bottomEdge.push({ x: px, y: outerHalf + j2 });
+      floorTop.push({ x: px, y: -floorW * 0.5 + (peakHash(i + 9, i, 23) - 0.5) * TS * 0.055 });
+      floorBottom.push({ x: px, y: floorW * 0.5 + (peakHash(i, i + 9, 29) - 0.5) * TS * 0.055 });
+    }
+    function trace(points, reverse) {
+      ctx.beginPath();
+      if (!reverse) {
+        points.forEach(function (p, k) { if (k) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+      } else {
+        for (let k = points.length - 1; k >= 0; k--) ctx.lineTo(points[k].x, points[k].y);
+      }
+    }
+    // 外圈暗岩
+    ctx.beginPath();
+    trace(topEdge, false);
+    for (let k = bottomEdge.length - 1; k >= 0; k--) ctx.lineTo(bottomEdge[k].x, bottomEdge[k].y);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(37,30,23,0.94)';
+    ctx.fill();
+
+    // 两侧石壁：外缘和谷底线各画一层，中间用竖向岩纹咬合
+    [-1, 1].forEach(function (side) {
+      ctx.beginPath();
+      if (side < 0) {
+        trace(topEdge, false);
+        for (let k = floorTop.length - 1; k >= 0; k--) ctx.lineTo(floorTop[k].x, floorTop[k].y);
+      } else {
+        trace(floorBottom, false);
+        for (let k = bottomEdge.length - 1; k >= 0; k--) ctx.lineTo(bottomEdge[k].x, bottomEdge[k].y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = side < 0 ? '#574735' : '#4d3e2e';
+      ctx.fill();
+      // 岩层亮边
+      ctx.strokeStyle = side < 0 ? 'rgba(179,151,110,0.46)' : 'rgba(145,119,84,0.38)';
+      ctx.lineWidth = Math.max(1, TS * 0.028);
+      trace(side < 0 ? topEdge : bottomEdge, false);
+      ctx.stroke();
+      // 岩壁上零星的凸起，远看不是一条直边
+      for (let k = 1; k < segs; k += 2) {
+        const px = -halfLen + (halfLen * 2 * k) / segs;
+        const y0 = side < 0 ? -outerHalf : floorW * 0.5;
+        const hh = wallW * (0.20 + peakHash(k, i, side) * 0.24);
+        ctx.fillStyle = side < 0 ? 'rgba(29,22,16,0.34)' : 'rgba(29,22,16,0.30)';
+        ctx.beginPath();
+        ctx.moveTo(px, y0);
+        ctx.lineTo(px + TS * 0.10, y0 + side * hh);
+        ctx.lineTo(px - TS * 0.10, y0 + side * hh * 0.70);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+
+    // 谷底土路：不是木板，颜色偏土黄、边缘被车辙磨亮
+    const floorGrad = ctx.createLinearGradient(0, -floorW * 0.5, 0, floorW * 0.5);
+    floorGrad.addColorStop(0, '#463927');
+    floorGrad.addColorStop(0.20, '#8f7450');
+    floorGrad.addColorStop(0.60, '#b28d5c');
+    floorGrad.addColorStop(1, '#493a29');
+    ctx.beginPath();
+    floorTop.forEach(function (p, k) { if (k) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+    for (let k = floorBottom.length - 1; k >= 0; k--) ctx.lineTo(floorBottom[k].x, floorBottom[k].y);
+    ctx.closePath();
+    ctx.fillStyle = floorGrad;
+    ctx.fill();
+
+    // 谷底中央的踩踏车辙、碎石与坎
+    ctx.strokeStyle = 'rgba(69,49,30,0.48)';
+    ctx.lineWidth = Math.max(1, TS * 0.032);
+    for (let k = 0; k < 2; k++) {
+      ctx.beginPath();
+      for (let i2 = 0; i2 <= segs; i2++) {
+        const px = -halfLen + (halfLen * 2 * i2) / segs;
+        const py = (k ? 1 : -1) * TS * 0.075 + (peakHash(i2, k, 31) - 0.5) * TS * 0.04;
+        if (i2) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.stroke();
+    }
+    // 碎石块，别用横贯谷底的整条栏杆
+    for (let k = 0; k < 5; k++) {
+      const px = -halfLen + TS * 0.18 + (halfLen * 2 - TS * 0.36) * peakHash(k, i, 41);
+      const py = (peakHash(k + 4, i, 43) - 0.5) * floorW * 0.62;
+      const rw = TS * (0.05 + peakHash(k + 7, i, 47) * 0.05);
+      ctx.fillStyle = 'rgba(73,56,39,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(px - rw, py + rw * 0.5);
+      ctx.lineTo(px, py - rw * 0.7);
+      ctx.lineTo(px + rw, py + rw * 0.4);
+      ctx.lineTo(px, py + rw * 0.8);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 两端各立两块岩阙，提示这里能穿山而过；不是桥头石墩
+    [-1, 1].forEach(function (side) {
+      const px = side < 0 ? -halfLen : halfLen - TS * 0.15;
+      [-1, 1].forEach(function (edgeSide) {
+        const py = edgeSide < 0 ? -outerHalf : floorW * 0.5;
+        ctx.fillStyle = 'rgba(74,60,43,0.92)';
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + TS * 0.14, py + edgeSide * TS * 0.10);
+        ctx.lineTo(px + TS * 0.06, py + edgeSide * wallW * 0.70);
+        ctx.lineTo(px - TS * 0.08, py + edgeSide * wallW * 0.55);
+        ctx.closePath();
+        ctx.fill();
+      });
+    });
+
+    // 近景给谷底边缘补一道亮痕，远处也能看出是一条切穿山体的路
+    if (z >= 0.5) {
+      ctx.strokeStyle = 'rgba(224,190,132,0.42)';
+      ctx.lineWidth = Math.max(1, TS * 0.024);
+      trace(floorTop, false);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(224,190,132,0.34)';
+      trace(floorBottom, false);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
@@ -13509,8 +14241,8 @@ function drawGeography(ctx, app, cam, box, w) {
     drawMountainRange(ctx, line, raw, toX, toY, w, box, index, snow, app);
   });
 
-  // 山口压在山上，给道路留出可读的通道
-  drawPassMarks(ctx, world, cam, box, w, toX, toY, app);
+  // 峡谷压在山脉上：横穿/竖穿的谷口用不同方向的石壁切面表现
+  drawCanyons(ctx, world, cam, box, w, toX, toY, app);
 
   // 河流：暗岸 + 水体 + 高光 + 流动的水纹
   [[sc(RIVER_HUANG), 0.72], [sc(RIVER_YANG), 0.85], [sc(RIVER_HUAI), 0.55],
@@ -20408,7 +21140,7 @@ const HelpScene = {
 
     // 标题
     text(ctx, '玩法', 20, 26, { size: 36, color: '#f0c060' });
-    text(ctx, '骑砍大师 · 三国', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
+    text(ctx, '点兵三国 · 骑砍大师制作', w - 20, 38, { size: 17, align: 'right', color: '#8a8070' });
 
     // 分类 tab
     const tabW = (w - 40) / TABS.length;
@@ -20928,7 +21660,7 @@ const ArcScene = {
           st.ending = {
             type: 'arc',
             title: '谢君一游',
-            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《风云三国》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
+            text: '你放下了刀，走出了这座城。\n\n天下很大，故事到这里。\n\n感谢你游玩《点兵三国》。\n本游戏由骑砍大师制作，献给每一个还愿意在乱世里走一遭的人。',
           };
           st.gameOver = true;
           app.replace('ending');
