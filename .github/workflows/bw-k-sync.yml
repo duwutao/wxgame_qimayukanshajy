@@ -1,0 +1,32 @@
+name: bw-sync k
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply k patch and rebuild
+        run: |
+          set -e
+          curl -fsSL "https://aka.doubaocdn.com/s/9U9fZcibgA" -o /tmp/bw-k.patch
+          git apply --check /tmp/bw-k.patch
+          git apply /tmp/bw-k.patch
+          node tools/bundle.js
+          node tools/logic-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Commit release and remove temporary workflow
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/bw-k-sync.yml
+          git add -A
+          git commit -m "release: 20261125k NPC整点错峰·巡逻寻路缓存 [skip ci]"
+          git push origin HEAD:main
