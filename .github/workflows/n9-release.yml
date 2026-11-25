@@ -1,0 +1,39 @@
+name: n9 release
+on:
+  push:
+    paths:
+      - '.github/workflows/n9-release.yml'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n9 source patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/n9-src.patch 'https://aka.doubaocdn.com/s/WhJV28LNHn'
+          git apply --check /tmp/n9-src.patch
+          git apply /tmp/n9-src.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/render-smoke.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Commit release
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/game.bundle.js index.html web/index.html js/core/battle.js js/core/state.js js/core/war.js js/data/china.js js/scenes/battle.js js/scenes/govern.js js/scenes/journal.js js/scenes/map.js js/scenes/town.js tools/logic-test.js tools/render-smoke.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'release: 20261125n9 道路连通与关隘防御 [skip ci]'
+          git push origin HEAD:main
