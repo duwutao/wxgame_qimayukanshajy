@@ -3357,6 +3357,24 @@ group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
     factions.length > 0 && bad.length === 0,
     'campaigns=' + factions.length + ' bad=' + bad.join(','));
 }
+{
+  // 旧档里残留的“扎营/集结”军令在进档时必须清掉，否则领主会在城边一直站着。
+  const g = stateLib.createGame({ seed: 2026112610 });
+  const city = worldLib.siteById(g.world, 'luoyang');
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  g.warCampaigns = {};
+  lord.order = { type: 'hold', siteId: city.id, hold: true, since: 1 };
+  lord.defending = city.id;
+  lord.inCity = null;
+  lord.x = city.x + 1;
+  lord.y = city.y;
+  lord.nextMoveH = 0;
+  const re = stateLib.deserialize(stateLib.serialize(g));
+  const r = re.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  ok('旧档残留的扎营军令进档后清掉，领主重新巡逻',
+    !r.order && !r.defending && r.nextMoveH === 0,
+    'order=' + JSON.stringify(r.order) + ' defending=' + r.defending);
+}
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));

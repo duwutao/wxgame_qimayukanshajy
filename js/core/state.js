@@ -633,6 +633,37 @@ function spawnLords(state) {
 }
 
 /**
+ * 旧档清洗：n11 及更早的存档里可能留着已经作废的“集结/扎营/围城”军令。
+ * 这些军令会让领主在城边一直等到下一轮战略结算，甚至永久站住。
+ * 进档时只保留仍属于进行中战役的军令；hold 一律转回巡逻。
+ */
+function sanitizeLordOrders(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  const active = {};
+  Object.keys(state.warCampaigns || {}).forEach(function (faction) {
+    const cp = state.warCampaigns[faction];
+    if (!cp || cp.done) return;
+    (cp.attackerIds || []).concat(cp.defenderIds || []).forEach(function (id) {
+      active[id] = true;
+    });
+  });
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.order) return;
+    const keep = !!active[lord.id] && lord.order.type !== 'hold';
+    if (keep) return;
+    lord.order = null;
+    lord.defending = null;
+    lord.wander = null;
+    lord.routePath = null;
+    lord.routePathFor = null;
+    lord.patrolPath = null;
+    lord.orderPath = null;
+    lord.orderPathFor = null;
+    lord.nextMoveH = 0;
+  });
+}
+
+/**
  * 老档/新开局兜底：同一格上只留一支队伍，其余挪到最近的可走空格。
  * 只动真正重叠的领主，不重排正常站位；挪动只有一两格，不瞬移。
  */
@@ -6333,6 +6364,8 @@ function deserialize(json) {
   });
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
+  // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
+  sanitizeLordOrders(state);
   // 老档里若有两支队伍叠在同一格，进档时先挪开，避免一开局就互相堵死。
   unstackLords(state);
   autoAssignFiefs(state);
