@@ -398,7 +398,7 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
-  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」已生效', 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已记下，战后结算' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
 
   if (pending) {
     panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
@@ -472,17 +472,18 @@ function renderShi(app, w, h, b) {
   ctx.fillStyle = 'rgba(8,6,4,0.94)';
   ctx.fillRect(0, 0, w, h);
   text(ctx, '落一笔天机简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
-  text(ctx, '这一笔会留在纸上，天下人也会记住。剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
-    size: 17, align: 'center', color: '#a2947a',
+  text(ctx, '前两笔战中生效，名册战后结算 · 战中落笔即时生效 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
+    size: 16, align: 'center', color: '#a2947a',
   });
 
   let y = 250;
   Object.keys(HISTORY_MARKS).forEach(function (id) {
     const m = HISTORY_MARKS[id];
     panel(ctx, 24, y, w - 48, 150, { fill: '#241c14' });
-    text(ctx, m.name, 48, y + 18, { size: 30, color: '#d9a441' });
-    text(ctx, m.desc, 48, y + 62, { size: 17, color: '#c9bda2' });
-    text(ctx, '“' + m.text + '”', 48, y + 96, { size: 15, color: '#8a8070' });
+    text(ctx, m.name, 48, y + 16, { size: 29, color: '#d9a441' });
+    text(ctx, m.timingLabel || '', 188, y + 28, { size: 15, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0' });
+    text(ctx, m.desc, 48, y + 58, { size: 16, color: '#c9bda2' });
+    text(ctx, '“' + m.text + '”', 48, y + 94, { size: 15, color: '#8a8070' });
     app.ui.button(ctx, w - 176, y + 70, 132, 60, '落笔', {
       id: 'shi_' + id, size: 22, onTap: function () {
         const r = stateLib.useHistory(app.state, id);

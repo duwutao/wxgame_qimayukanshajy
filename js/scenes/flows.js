@@ -95,6 +95,7 @@ function process(app) {
         title: ev.title || '议和使者',
         lines: ev.lines || [],
         tag: '议和',
+        art: 'peace',
       });
       return;
     }

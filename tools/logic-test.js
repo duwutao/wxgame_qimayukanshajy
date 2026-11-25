@@ -244,6 +244,31 @@ if (lordSite) {
   const got = stateLib.recruitLordFromSite(ruleState, lordForRecruit, lordSite, 3);
   ok('领主能在城镇招兵', got === 3 && (lordForRecruit.troops.militia || 0) === 3, 'got=' + got);
   ok('领主招兵不扣玩家招募池', lordSite.recruits.militia === beforePlayerPool, 'pool=' + lordSite.recruits.militia);
+
+  // 低兵领主走到城门口，应当真的进城（而不是停在城下一直站着）
+  lordForRecruit.inCity = null;
+  lordForRecruit.home = lordSite.id;
+  lordForRecruit.order = null;
+  lordForRecruit.troops = { militia: 1 };
+  lordForRecruit.defTroops = { militia: 10 };
+  lordForRecruit.x = lordSite.x + 1;
+  lordForRecruit.y = lordSite.y;
+  ruleState.player.route = [];
+  ruleState.player.stepTo = null;
+  ruleState.hoursPending = 6;
+  ruleState.npcClock = 0;
+  stateLib.update(ruleState, 0, { ignoreEvents: true });
+  const entered = lordForRecruit.inCity === lordSite.id;
+  ok('低兵领主会进城门，不再卡在城下', entered, 'inCity=' + lordForRecruit.inCity +
+    ' at=' + lordForRecruit.x + ',' + lordForRecruit.y);
+  ok('进城后地图坐标收在城里', entered && lordForRecruit.x === lordSite.x && lordForRecruit.y === lordSite.y,
+    lordForRecruit.x + ',' + lordForRecruit.y);
+
+  // 补到足够兵力后应能自己出城；给足天数并让它反复掷骰
+  lordForRecruit.troops = { militia: 10 };
+  for (let i = 0; i < 30 && lordForRecruit.inCity; i++) stateLib.lordRestTick(ruleState);
+  ok('补足兵力后会自己出城', !lordForRecruit.inCity,
+    'inCity=' + lordForRecruit.inCity);
 }
 
 ok('大国投靠声望门槛 200', stateLib.joinRenownReq('wei') === 200);
@@ -336,6 +361,29 @@ ok('风止不削我方攻势，只压敌军', c1.a >= p1.a && c1.b <= p1.b,
 
 const rollB = runWith('roll');
 ok('名册可记录', rollB.shiMark === 'roll');
+ok('南风起是战中效果', wind.shiTiming === 'battle');
+ok('风止是战中效果', calm.shiTiming === 'battle');
+ok('名册是战后效果', rollB.shiTiming === 'after');
+ok('名册在战斗过程中不提前结算', rollB.summary().round === plain.summary().round &&
+  rollB.summary().remainA === plain.summary().remainA,
+  rollB.summary().remainA + '/' + plain.summary().remainA);
+
+const midWind = new Battle({
+  rng: new RNG(4242),
+  attacker: { name: '我', troops: { militia: 80 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 80 }, morale: 70 },
+});
+midWind.step();
+midWind.applyShiMark('wind');
+ok('战中落笔南风起即时生效', midWind.shiTiming === 'battle' && midWind.fireGround === true);
+const midCalm = new Battle({
+  rng: new RNG(4242),
+  attacker: { name: '我', troops: { militia: 80 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 80 }, morale: 70 },
+});
+midCalm.step();
+midCalm.applyShiMark('calm');
+ok('战中落笔风止从下一回合起算三回合', midCalm.shiTiming === 'battle' && midCalm.shiRounds === 3);
 
 // 走完整流程：用 state 应用名册
 st.player.shi = 3;
@@ -1550,6 +1598,39 @@ ok('大规模交战每轮成片掉人', armyLib.troopCount(ca.troops) < aBefore 
   aBefore + '->' + armyLib.troopCount(ca.troops) + ' / ' + bBefore + '->' + armyLib.troopCount(cb.troops));
 ok('溃败后双方解除缠斗', !second.engaged || ca.engagedWith || cb.engagedWith,
   JSON.stringify({ engaged: second.engaged, a: ca.engagedWith, b: cb.engagedWith }));
+
+/* ---------------------------------------------------------------- 巡逻路线 */
+
+group('领主巡逻路线');
+{
+  const patrolA = stateLib.createGame({ seed: 2026112501 });
+  const weiLords = patrolA.lords.filter(function (l) { return l.alive && l.faction === 'wei'; });
+  const routes = weiLords.slice(0, 8);
+  const routeNames = routes.map(function (l) {
+    return stateLib.patrolRouteFor(patrolA, l).map(function (s) { return s.name; }).join('>');
+  });
+  ok('领主有两点以上的独立巡逻路线', routes.every(function (l) {
+    return stateLib.patrolRouteFor(patrolA, l).length >= 2;
+  }), routeNames.join(' / '));
+  ok('同国前八名领主路线不重复', new Set(routeNames).size === routeNames.length,
+    routeNames.join(' / '));
+  const moving = routes[0];
+  moving.inCity = null;
+  moving.order = null;
+  moving.pauseUntil = 0;
+  moving.wander = null;
+  moving.patrolRouteIds = null;
+  moving.patrolIdx = undefined;
+  moving.patrolPath = null;
+  patrolA.player.x = 5;
+  patrolA.player.y = 140;
+  patrolA.player.faction = 'wei';
+  const fromX = moving.x;
+  const fromY = moving.y;
+  for (let i = 0; i < 20; i++) stateLib.moveLords(patrolA);
+  ok('领主沿路线离开原地', moving.x !== fromX || moving.y !== fromY,
+    fromX + ',' + fromY + ' → ' + moving.x + ',' + moving.y);
+}
 
 /* ---------------------------------------------------------------- 收尾 */
 

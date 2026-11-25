@@ -314,12 +314,10 @@ const AtlasScene = {
     const ids = Object.keys(FACTIONS).filter(function (id) {
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
-    // 让关系名单尽量铺满全屏栏，名字之间的间距随屏高变化
-    const legendIds = Object.keys(FACTIONS);
-    const legendRows = Math.ceil(legendIds.length / 2);
-    const legendH = legendRows * 30;
-    const rowH = Math.max(34, Math.min(46,
-      Math.floor((ph - 86 - legendH - 50) / Math.max(1, ids.length))));
+    // 旗色不再单列成图例：每行名字前的色条就是这家势力的旗色。
+    // 名单因此可以铺满侧栏，不用给底部图例留位置。
+    const rowH = Math.max(38, Math.min(58,
+      Math.floor((ph - 86 - 50) / Math.max(1, ids.length))));
     const rowTop = py + 86;
     ids.forEach(function (id, i) {
       const y = rowTop + i * rowH;
@@ -327,33 +325,22 @@ const AtlasScene = {
       const rel = stateLib.relationOf(st, id);
       const war = stateLib.atWarWith(st, id);
       const fs = st.factionState[id] || {};
+      // 旗色直接铺进这一行：左侧色条 + 极淡底色，不再另设独立图例。
+      ctx.save();
+      ctx.globalAlpha = 0.075;
       ctx.fillStyle = fac.color;
-      ctx.fillRect(px + 14, y + 5, 5, 19);
-      text(ctx, fac.name || fac.full, px + 26, y, { size: 17, color: fs.dead ? '#6a6050' : '#e6dbc2' });
+      ctx.fillRect(px + 10, y - 4, pw - 18, rowH - 7);
+      ctx.restore();
+      ctx.fillStyle = fac.color;
+      ctx.fillRect(px + 14, y + 3, 7, 24);
+      text(ctx, fac.name || fac.full, px + 29, y, { size: 17, color: fs.dead ? '#6a6050' : '#e6dbc2' });
       text(ctx, fs.dead ? '亡' : rel > 0 ? '+' + rel : String(rel),
         px + pw - 12, y, { size: 17, align: 'right', color: fs.dead ? '#6a6050' : rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#c9bda2' });
       if (war) {
         ctx.fillStyle = 'rgba(210,70,50,0.85)';
-        ctx.fillRect(px + 14, y + 23, 5, 5);
-        text(ctx, '战', px + 26, y + 19, { size: 11, color: '#e08070' });
+        ctx.fillRect(px + 14, y + 29, 7, 5);
+        text(ctx, '战', px + 29, y + 20, { size: 11, color: '#e08070' });
       }
-    });
-
-    // 势力色图例：原本在地图下方，现在合并到右侧关系栏底部
-    const legendTop = Math.max(rowTop + ids.length * rowH + 18, py + ph - legendH - 40);
-    ctx.fillStyle = 'rgba(120,92,54,0.45)';
-    ctx.fillRect(px + 14, legendTop - 14, pw - 28, 1);
-    text(ctx, '势力旗色', px + 14, legendTop, { size: 13, color: '#a2947a' });
-    legendIds.forEach(function (id, i) {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const lx = px + 14 + col * (pw / 2 - 8);
-      const ly = legendTop + 22 + row * 30;
-      ctx.fillStyle = FACTIONS[id].color;
-      ctx.fillRect(lx, ly + 3, 12, 12);
-      text(ctx, FACTIONS[id].name || FACTIONS[id].full, lx + 18, ly + 1, {
-        size: 13, color: '#c9bda2',
-      });
     });
   },
 

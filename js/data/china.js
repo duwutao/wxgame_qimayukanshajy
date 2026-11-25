@@ -583,15 +583,18 @@ const EQUIPMENT = {
 const HISTORY_MARKS = {
   wind: {
     id: 'wind', name: '南风起', text: '你写下“南风起”，风真的转了向。',
-    desc: '本场我方攻击 +90%，火攻类战斗额外 +50%。',
+    timing: 'battle', timingLabel: '战中生效',
+    desc: '本场我方攻击 +90%，火攻类战斗额外 +50%；战中落笔也即时起风。',
   },
   calm: {
     id: 'calm', name: '风止', text: '你写下“风止”，风停了，火也停了。',
-    desc: '只压敌军攻势 70%，持续 3 回合；我方不受反噬。',
+    timing: 'battle', timingLabel: '战中生效',
+    desc: '只压敌军攻势 70%，持续 3 回合；战中落笔从下一回合算起，我方不受反噬。',
   },
   roll: {
     id: 'roll', name: '名册', text: '你写下阵亡者的名字，他们又站了起来。',
-    desc: '战后本场阵亡的我方士兵回归 70%。',
+    timing: 'after', timingLabel: '战后生效',
+    desc: '战后本场阵亡的我方士兵回归 70%；战中落笔也留到这场打完再结算。',
   },
 };
 

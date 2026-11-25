@@ -116,6 +116,7 @@ class Battle {
     this.retreated = false;
     this.fireGround = false;
     this.shiMark = null;
+    this.shiTiming = '';
     this.shiRounds = 0;
     this.shiName = '';
   }
@@ -142,6 +143,8 @@ class Battle {
   applyShiMark(id) {
     this.shiMark = id;
     this.shiName = id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册';
+    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
+    this.shiTiming = id === 'roll' ? 'after' : 'battle';
     if (id === 'calm') this.shiRounds = 3;
     if (id === 'wind') this.fireGround = true;
   }
@@ -317,6 +320,7 @@ class Battle {
       loot: this.loot(),
       shiMark: this.shiMark,
       shiName: this.shiName,
+      shiTiming: this.shiTiming,
     };
   }
 

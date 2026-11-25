@@ -116,6 +116,12 @@ function createRuntime() {
       const c = document.createElement('canvas');
       return c;
     },
+    /** 平台图片对象：用于内置背景图；浏览器用 Image，小游戏用 createImage */
+    createImage: function () {
+      if (api && typeof api.createImage === 'function') return api.createImage();
+      if (typeof Image !== 'undefined') return new Image();
+      return null;
+    },
     now: function () {
       return Date.now();
     },

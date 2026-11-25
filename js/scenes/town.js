@@ -962,6 +962,13 @@ function renderHall(app, site) {
     });
     text(ctx, '他们在大地图上收了旗，正在城里补兵。', PAD + 4, y, { size: 15, color: '#8a8070' });
     y += 30;
+    if (resting.length > 3) {
+      app.ui.button(ctx, PAD, y + 2, w - PAD * 2, 54, '查看全部 · ' + resting.length + ' 位府中领主', {
+        id: 'hall_all_resting', size: 20, fill: '#2b2419',
+        onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+      });
+      y += 66;
+    }
   }
   const lords = st.lords.filter(function (l) {
     return l.faction === f && l.alive && !l.inCity;
