@@ -1,0 +1,39 @@
+name: n13 hotfix
+on:
+  push:
+    paths:
+      - '.github/workflows/n13-release.yml'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n13 hotfix patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/n13-src.patch 'https://aka.doubaocdn.com/s/quF4zM3qVC'
+          git apply --check /tmp/n13-src.patch
+          git apply /tmp/n13-src.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/render-smoke.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Commit release
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/game.bundle.js index.html web/index.html js/core/state.js tools/logic-test.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'release: 20261125n13 旧档军令清洗 [skip ci]'
+          git push origin HEAD:main
