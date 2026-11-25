@@ -678,6 +678,8 @@ smoke('市场默认先看粮草，货物有转卖备注', function () {
   app.ui.begin();
   app.top().scene.render(app);
   ok('货物页画得出来', true);
+  const goodCards = app.ui.items.filter(function (it) { return String(it.id).indexOf('good_') === 0; });
+  ok('货物页只画四张货卡', goodCards.length === 4, goodCards.map(function (it) { return it.id; }).join(','));
 });
 
 smoke('新增幕间章节卡', function () {

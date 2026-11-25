@@ -25,7 +25,7 @@ function siteSeed(id) {
   return h + 7;
 }
 const { FACTIONS, EQUIPMENT } = require('../data/china.js');
-const { GOODS, VILLAGE_FOOD } = require('../data/extra.js');
+const { VILLAGE_FOOD } = require('../data/extra.js');
 const flows = require('./flows.js');
 
 const PAD = 16;
@@ -432,45 +432,47 @@ function renderRecruit(app, site) {
 
 /* ---------------------------------------------------------------- 货物 */
 
-/** 货物总览：十种货，两列五行，点开看单品 */
+/** 货物总览：本城只做四样货，两列两行，点开看单品 */
 function renderGoods(app, site) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
-  const h = app.runtime.height;
   const p = app.state.player;
   const carried = trade.goodsCount(p);
+  const goods = trade.marketGoods(site);
 
-  text(ctx, '驮队 ' + carried + ' / ' + trade.GOODS_CAP + ' 件', PAD, 388, { size: 21, color: '#efe3c6' });
-  text(ctx, '这里只是货，不顶口粮：低价买进、别城卖出，赚的是转手的差价。', PAD, 362, {
-    size: 15, color: '#c9a05a',
+  text(ctx, '本城货物 · 四样', PAD, 362, { size: 21, color: '#efe3c6' });
+  text(ctx, '驮队 ' + carried + ' / ' + trade.GOODS_CAP + ' 件', PAD, 392, { size: 18, color: '#c9a05a' });
+  text(ctx, '每城只做四样货：低价买进、别城卖出，赚的是转手的差价。', PAD, 416, {
+    size: 15, color: '#a2947a',
   });
 
-  const top = 428;
-  const cw = (w - PAD * 2 - 10) / 2;
-  const rh = 96;
+  const top = 448;
+  const gap = 12;
+  const cw = (w - PAD * 2 - gap) / 2;
+  const rh = 124;
 
-  GOODS.forEach(function (gd, i) {
-    const cx = PAD + (i % 2) * (cw + 10);
-    const cy = top + Math.floor(i / 2) * rh;
+  goods.forEach(function (gd, i) {
+    const cx = PAD + (i % 2) * (cw + gap);
+    const cy = top + Math.floor(i / 2) * (rh + 10);
     const buy = trade.buyPrice(site, gd.id);
     const sell = trade.sellPrice(site, gd.id);
     const have = (p.goods || {})[gd.id] || 0;
 
-    panel(ctx, cx, cy, cw, rh - 8, { fill: '#241c14' });
-    text(ctx, gd.name, cx + 14, cy + 8, { size: 20, color: '#efe3c6' });
-    text(ctx, '买 ' + buy + ' / 卖 ' + sell, cx + 14, cy + 36, { size: 16, color: '#f0c060' });
-    text(ctx, '持有 ' + have, cx + 14, cy + 60, {
-      size: 15, color: have > 0 ? '#8fbf7a' : '#6a6050',
+    panel(ctx, cx, cy, cw, rh, { fill: '#241c14' });
+    text(ctx, gd.name, cx + 14, cy + 10, { size: 22, color: '#efe3c6' });
+    text(ctx, '买 ' + buy + ' / 卖 ' + sell, cx + 14, cy + 46, { size: 17, color: '#f0c060' });
+    text(ctx, '持有 ' + have, cx + 14, cy + 76, {
+      size: 16, color: have > 0 ? '#8fbf7a' : '#6a6050',
     });
-    text(ctx, '→', cx + cw - 22, cy + 30, { size: 22, color: '#8a8070' });
+    text(ctx, '→', cx + cw - 24, cy + 38, { size: 24, color: '#8a8070' });
 
-    app.ui.rect('good_' + gd.id, cx, cy, cw, rh - 8, function () {
+    app.ui.rect('good_' + gd.id, cx, cy, cw, rh, function () {
       app.townView.goodId = gd.id;
       app.townView.estimate = null;
     });
   });
 
-  backButton(app, h - 84);
+  backButton(app, app.runtime.height - 84);
 }
 
 /** 单品交易：买/卖几件，顺便估个价 */
@@ -481,7 +483,7 @@ function renderGoodOne(app, site, goodId) {
   const st = app.state;
   const p = st.player;
   const gd = trade.goodById(goodId);
-  if (!gd) {
+  if (!gd || !trade.offersGood(site, goodId)) {
     app.townView.goodId = null;
     return;
   }

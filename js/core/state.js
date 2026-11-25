@@ -25,7 +25,7 @@ const war = require('./war.js');
 const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
-  SITE_ROWS, ROADS,
+  SITE_ROWS, ROADS, HISTORY_MARKS,
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
@@ -37,6 +37,8 @@ const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
 const LORD_PURSUIT_RATIO = 1.65;
 const LORD_PURSUIT_GAP = 10;
+const LORD_BANDIT_HUNT_RATIO = 1.25;
+const LORD_BANDIT_HUNT_GAP = 4;
 const LORD_FLEE_OWN_MAX = 30;
 const LORD_RESPAWN_DAYS = 12;
 /** 山寨被清空后的冷却：几天后重新聚人，又可再打一次 */
@@ -44,8 +46,10 @@ const CAMP_RESPAWN_DAYS = 3;
 const SAVE_VERSION = 5; // 天下放大到 128x154，旧档地图对不上，直接换新
 
 /** 全图常驻匪团目标数量（玩家附近看得见，远处也算） */
-const BANDIT_TARGET = 12;
-const BANDIT_MAX = 16;
+const BANDIT_TARGET = 24;
+const BANDIT_MAX = 30;
+const BANDIT_REFILL_PER_DAY = 6;
+const BANDIT_START_COUNT = 16;
 
 /** 三家与袁绍算大国，投靠要声望 200；其余割据势力算小国，100 即可 */
 const MAJOR_FACTIONS = { wei: true, shu: true, wu: true, yuan: true, yuanshu: true };
@@ -325,7 +329,7 @@ function createGame(opts) {
   spawnLords(state);
   autoAssignFiefs(state);
   heroes.resolveHeroSites(state);
-  spawnBanditParties(state, 8);
+  spawnBanditParties(state, BANDIT_START_COUNT);
   spawnChaseParty(state, spawn);
   war.init(state);
   war.bindLogger(pushLog);
@@ -649,22 +653,65 @@ function pickBanditTier(state) {
   return best;
 }
 
+/**
+ * 匪团落点：全图抽样，尽量远离已有的匪团，避免全挤在几座匪巢门口。
+ * 先保证不贴玩家、不压据点、不叠队伍；再按“离最近匪团的距离”选最空的地方。
+ */
+function balancedBanditSpot(state) {
+  const rng = state.rng;
+  const world = state.world;
+  const p = state.player;
+  let best = null;
+  let bestScore = -Infinity;
+  for (let attempt = 0; attempt < 90; attempt++) {
+    const x = rng.int(2, world.w - 3);
+    const y = rng.int(2, world.h - 3);
+    if (!isPassable(world, x, y)) continue;
+    if (siteAt(world, x, y)) continue;
+    if (unitOccupies(state, null, x, y)) continue;
+    if (p && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) < 6) continue;
+
+    let nearestBandit = 999;
+    state.parties.forEach(function (q) {
+      if (q.faction !== 'bandit') return;
+      const d = Math.max(Math.abs(x - q.x), Math.abs(y - q.y));
+      if (d < nearestBandit) nearestBandit = d;
+    });
+
+    let nearestSite = 999;
+    world.sites.forEach(function (s) {
+      if (s.type === 'camp') return;
+      const d = Math.max(Math.abs(x - s.x), Math.abs(y - s.y));
+      if (d < nearestSite) nearestSite = d;
+    });
+
+    // 离匪团越远越空；离城村太近则扣分，避免一开局就堵在城门口。
+    const score = Math.min(30, nearestBandit) + rng.random() * 4 +
+      (nearestSite < 4 ? -7 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x: x, y: y };
+    }
+  }
+  return best;
+}
+
 function spawnBanditParties(state, count) {
   const rng = state.rng;
-  const W = state.world.w;
-  const H = state.world.h;
+  const alive = state.parties.filter(function (x) { return x.faction === 'bandit'; }).length;
+  const want = Math.max(0, Math.min(count, BANDIT_MAX - alive));
   const camps = state.world.sites.filter(function (s) {
     return s.type === 'camp' && !s.cleared;
   });
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < want; i++) {
     const tier = pickBanditTier(state);
     const cfg = BANDIT_TIERS[tier];
-    let spot = null;
-    if (camps.length) {
+    let spot = balancedBanditSpot(state);
+    if (!spot && camps.length) {
       const camp = rng.pick(camps);
       spot = findFreeSpotNear(state, camp.x, camp.y, 7);
     }
-    if (!spot) spot = findFreeSpotNear(state, rng.int(2, W - 3), rng.int(2, H - 3), 2);
+    if (!spot) spot = findFreeSpotNear(state, rng.int(2, state.world.w - 3), rng.int(2, state.world.h - 3), 2);
     if (!spot) continue;
 
     const size = rng.int(cfg.minSize, cfg.maxSize);
@@ -751,11 +798,11 @@ function campRespawnTick(state) {
   });
 }
 
-/** 补充匪团到目标数量，避开玩家脚下 */
+/** 补充匪团到目标数量，避开玩家脚下；整体数量只在目标上下浮动 */
 function refillBandits(state) {
   const alive = state.parties.filter(function (x) { return x.faction === 'bandit'; }).length;
   if (alive >= BANDIT_TARGET) return 0;
-  const add = Math.min(BANDIT_TARGET - alive, 3);
+  const add = Math.min(BANDIT_TARGET - alive, BANDIT_REFILL_PER_DAY);
   if (add <= 0) return 0;
   const before = state.parties.length;
   spawnBanditParties(state, add);
@@ -1462,8 +1509,10 @@ function moveParties(state) {
       if (step) stepUnitTo(state, party, step, NPC_STEP_HOURS * (party.slow || 1));
       return;
     }
-    // 见着大兵就溜：匪团轻装，领主辎重多，追不上
-    const lord = nearestLord(state, party, 3);
+    // 见着大兵就溜：匪团轻装，领主辎重多，追不上。
+    // 但如果领主已经锁定这支匪团，就原地结阵，别一边被追一边跑成风筝。
+    const lord = nearestLord(state, party, 4);
+    const hunter = !!(lord && lord.hunting && lord.banditChasing === party.id);
     if (lord && gridDistance(party, lord) <= 1) {
       // 已经贴上了就不跑了：停住，交给下面的大战结算。
       party.engagedWith = lord.id;
@@ -1473,9 +1522,13 @@ function moveParties(state) {
       party.chasing = false;
       return;
     }
-    if (lord && retreatFrom(state, party, lord)) {
+    if (lord && !hunter && retreatFrom(state, party, lord)) {
       party.chasing = false;
       party.engaged = false;
+      return;
+    }
+    if (hunter) {
+      party.chasing = false;
       return;
     }
     const dist = gridDistance(party, p);
@@ -1908,17 +1961,26 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   });
 
   let flee = null;
-  let hunt = null;
+  let huntParty = null;
+  let huntOther = null;
   candidates.forEach(function (c) {
     if (c.count >= own * LORD_PURSUIT_RATIO && c.count - own >= LORD_PURSUIT_GAP) {
       if (!flee || c.d < flee.d) flee = c;
     }
-    if (own >= c.count * LORD_PURSUIT_RATIO && own - c.count >= LORD_PURSUIT_GAP) {
-      if (!hunt || c.d < hunt.d) hunt = c;
+    // 剿匪门槛低一些：领主愿意主动清乡，不必等匪团只剩零头才动手。
+    const ratio = c.kind === 'party' ? LORD_BANDIT_HUNT_RATIO : LORD_PURSUIT_RATIO;
+    const gap = c.kind === 'party' ? LORD_BANDIT_HUNT_GAP : LORD_PURSUIT_GAP;
+    if (own >= c.count * ratio && own - c.count >= gap) {
+      if (c.kind === 'party') {
+        if (!huntParty || c.d < huntParty.d) huntParty = c;
+      } else if (!huntOther || c.d < huntOther.d) {
+        huntOther = c;
+      }
     }
   });
   if (flee) return { role: 'flee', target: flee };
-  if (hunt) return { role: 'hunt', target: hunt };
+  if (huntParty) return { role: 'hunt', target: huntParty };
+  if (huntOther) return { role: 'hunt', target: huntOther };
   return null;
 }
 
@@ -2094,9 +2156,11 @@ function moveLords(state) {
       }
       target = lord.wander;
     }
-    // 辎重多，两拍才挪一格：土匪轻装跑得掉，领主追不上
+    // 辎重多，两拍才挪一格；但锁定匪团时轻装疾追，一拍一格，免得匪团总能跑掉。
+    const banditHunter = !!(lord.hunting && lord.banditChasing);
+    const stride = banditHunter ? 1 : 2;
     lord.moveTick = (lord.moveTick || 0) + 1;
-    if (lord.moveTick % 2 !== 0) return;
+    if (lord.moveTick % stride !== 0) return;
     if (!target) return;
     let step = null;
     // 逃遁也走 BFS，避免沿河岸或城角一步贪心来回打转。
@@ -2134,7 +2198,7 @@ function moveLords(state) {
     }
     if (!step) step = greedyStep(state, lord, target);
     if (step) {
-      stepUnitTo(state, lord, step, NPC_STEP_HOURS * 2);
+      stepUnitTo(state, lord, step, NPC_STEP_HOURS * stride);
     } else if (target === lord.wander) {
       // 前面被别的队伍堵住：跳到路线的下一站，不在一格上反复撞。
       if (Array.isArray(lord.patrolRouteIds) && lord.patrolRouteIds.length > 1) {
@@ -2709,7 +2773,8 @@ function resolveBattle(state, battle) {
 
   // 天机简「名册」：阵亡者更多归队
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
-    const back = Math.max(0, Math.round(summary.initialA * 0.70));
+    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.70;
+    const back = Math.max(0, Math.round(summary.initialA * rollPct));
     if (back > 0) {
       const t = battle.a.initialTroops;
       let put = 0;

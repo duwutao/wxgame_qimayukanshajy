@@ -6,6 +6,7 @@
 const { GOODS } = require('../data/extra.js');
 
 const GOODS_CAP = 80; // 货物总件数上限
+const MARKET_GOODS_COUNT = 4; // 每座城的市场只做四样货，避免货物页一眼全是字
 
 function hashStr(s) {
   let h = 2166136261;
@@ -21,6 +22,22 @@ function goodById(id) {
   return null;
 }
 
+/**
+ * 每座城固定做四样货：按城名稳定散列挑，不随刷新变动。
+ * 这样新手在每座城只需要认四个价签，跑商仍然有异地差价。
+ */
+function marketGoods(site) {
+  if (!site || !site.market) return [];
+  return GOODS.slice().sort(function (a, b) {
+    return hashStr(site.id + '|' + a.id) - hashStr(site.id + '|' + b.id);
+  }).slice(0, MARKET_GOODS_COUNT);
+}
+
+/** 本城是否做这路货；买、卖、估价都先用它挡一下。 */
+function offersGood(site, goodId) {
+  return marketGoods(site).some(function (g) { return g.id === goodId; });
+}
+
 /** 该城对该货的固定偏好：0.62 ~ 1.5 */
 function cityFactor(site, good) {
   const h = hashStr(site.id + '|' + good.id);
@@ -31,6 +48,7 @@ function cityFactor(site, good) {
 function buyPrice(site, goodId) {
   const good = goodById(goodId);
   if (!good || !site || !site.market) return 0;
+  if (!offersGood(site, goodId)) return 0;
   const raw = good.base * cityFactor(site, good) * (site.priceIndex || 1);
   return Math.max(2, Math.round(raw));
 }
@@ -53,6 +71,7 @@ function buyGoods(state, site, goodId, amount) {
   if (!site || !site.market) return { ok: false, msg: '这里没有市场' };
   const good = goodById(goodId);
   if (!good) return { ok: false, msg: '没有这种货' };
+  if (!offersGood(site, goodId)) return { ok: false, msg: '本城不做这路货' };
   const n = Math.max(1, Math.floor(amount));
   const cost = buyPrice(site, goodId) * n;
   if (state.player.gold < cost) return { ok: false, msg: '金钱不够，要 ' + cost };
@@ -67,6 +86,7 @@ function buyGoods(state, site, goodId, amount) {
 
 function sellGoods(state, site, goodId, amount) {
   if (!site || !site.market) return { ok: false, msg: '这里没有市场' };
+  if (!offersGood(site, goodId)) return { ok: false, msg: '本城不做这路货' };
   const have = (state.player.goods || {})[goodId] || 0;
   const n = Math.min(have, Math.max(1, Math.floor(amount)));
   if (have <= 0) return { ok: false, msg: '你没有这种货' };
@@ -85,10 +105,12 @@ function estimate(state, fromSite, goodId) {
   if (!fromSite || !fromSite.market) return { ok: false, msg: '这里的市集不做这种事' };
   const good = goodById(goodId);
   if (!good) return { ok: false, msg: '没有这种货' };
+  if (!offersGood(fromSite, goodId)) return { ok: false, msg: '本城不做这路货' };
   const here = buyPrice(fromSite, goodId);
   const rows = [];
   state.world.sites.forEach(function (s) {
     if (!s.market || s.id === fromSite.id) return;
+    if (!offersGood(s, goodId)) return;
     const price = buyPrice(s, goodId);
     const dist = Math.max(Math.abs(s.x - fromSite.x), Math.abs(s.y - fromSite.y));
     const profit = price - here;
@@ -115,7 +137,10 @@ function dailyGoods(state, rng) {
 
 module.exports = {
   GOODS_CAP,
+  MARKET_GOODS_COUNT,
   goodById,
+  marketGoods,
+  offersGood,
   buyPrice,
   sellPrice,
   goodsCount,

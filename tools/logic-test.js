@@ -10,12 +10,13 @@ const worldLib = require(R + '/core/world.js');
 const stateLib = require(R + '/core/state.js');
 const armyLib = require(R + '/core/army.js');
 const economy = require(R + '/core/economy.js');
+const trade = require(R + '/core/trade.js');
 const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS } = require(R + '/data/china.js');
-const { VILLAGE_FOOD } = require(R + '/data/extra.js');
+const { FACTIONS, CAMPAIGN, SITE_ROWS, CAPITAL_IDS, LORDS, HISTORY_MARKS } = require(R + '/data/china.js');
+const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
 let fail = 0;
@@ -107,6 +108,18 @@ ok('追兵距离 ≥ 4', chase && worldLib.gridDistance(chase, st.player) >= 4,
 ok('追兵是 60 步卒', chase && armyLib.troopCount(chase.troops) === 60 &&
   armyLib.strength(chase.troops).cavRatio === 0, JSON.stringify(chase && chase.troops));
 
+const startBandits = st.parties.filter(function (p) {
+  return p.faction === 'bandit' && !p.scripted;
+});
+ok('开局地图匪团翻倍到 16 支', startBandits.length === 16, String(startBandits.length));
+ok('开局匪团不叠在同一格', new Set(startBandits.map(function (p) { return p.x + ',' + p.y; })).size === startBandits.length,
+  startBandits.length + ' 支');
+ok('开局匪团分布不挤在一角', (function () {
+  const left = startBandits.filter(function (p) { return p.x < st.world.w / 2; }).length;
+  const top = startBandits.filter(function (p) { return p.y < st.world.h / 2; }).length;
+  return left >= 4 && left <= 12 && top >= 4 && top <= 12;
+})(), startBandits.map(function (p) { return p.x + ',' + p.y; }).join('|'));
+
 /* ---------------------------------------------------------------- 行军 */
 
 group('行军与序章');
@@ -149,6 +162,23 @@ st.player.gold = 9999;
 const up = economy.upgradeEquipment(st, 'blade');
 ok('换装成功', up.ok, up.msg);
 ok('换装提升一档', st.player.equip.blade === eqBefore + 1);
+
+// 每城四样货：不再把十种货全摊在货物页
+const marketSites = st.world.sites.filter(function (s) { return s.market; });
+const marketGoodSets = marketSites.map(function (s) { return trade.marketGoods(s); });
+ok('每座城的货物只有四样', marketGoodSets.every(function (list) { return list.length === trade.MARKET_GOODS_COUNT; }),
+  marketGoodSets.map(function (list) { return list.length; }).join('/'));
+ok('四样货不重复', marketGoodSets.every(function (list) {
+  return new Set(list.map(function (g) { return g.id; })).size === list.length;
+}));
+const localGoods = trade.marketGoods(chenliu);
+const unoffered = GOODS.filter(function (g) {
+  return !trade.offersGood(chenliu, g.id);
+})[0];
+ok('本城不做的货不能买', !!unoffered && trade.buyPrice(chenliu, unoffered.id) === 0 &&
+  trade.buyGoods(st, chenliu, unoffered.id, 1).ok === false, unoffered ? unoffered.id : 'none');
+ok('本城货物买价正常', localGoods.every(function (g) { return trade.buyPrice(chenliu, g.id) > 0; }),
+  localGoods.map(function (g) { return g.id + ':' + trade.buyPrice(chenliu, g.id); }).join('/'));
 
 /* ---------------------------------------------------------------- 战斗 */
 
@@ -383,6 +413,9 @@ ok('名册是战后效果', rollB.shiTiming === 'after');
 ok('名册在战斗过程中不提前结算', rollB.summary().round === plain.summary().round &&
   rollB.summary().remainA === plain.summary().remainA,
   rollB.summary().remainA + '/' + plain.summary().remainA);
+ok('天机简效果已整体翻倍', HISTORY_MARKS.wind.atkMul === 2.80 && HISTORY_MARKS.wind.fireMul === 2.00 &&
+  HISTORY_MARKS.calm.enemyMul === 0.10 && HISTORY_MARKS.roll.backPct === 1.00,
+  JSON.stringify({ wind: HISTORY_MARKS.wind.atkMul, calm: HISTORY_MARKS.calm.enemyMul, roll: HISTORY_MARKS.roll.backPct }));
 
 const midWind = new Battle({
   rng: new RNG(4242),
@@ -419,6 +452,8 @@ ok('用天机简没有副作用', st.relations.wei === 0, String(st.relations.we
 const sum = stateLib.resolveBattle(st, st.battle);
 ok('名册战后回归士兵', sum.remainA > 0 && armyLib.troopCount(st.player.troops) > sum.remainA - 1,
   '剩' + sum.remainA);
+ok('名册翻倍后全部阵亡者归队', sum.remainA === sum.initialA && sum.rollBack > 0,
+  '归队 ' + (sum.rollBack || 0) + ' / 初始 ' + sum.initialA);
 
 /* ---------------------------------------------------------------- 势力 */
 
@@ -905,6 +940,9 @@ ownSite.playerOwned = true;
 ok('自立城池越多，招降概率越高', chanceFive > chanceOne, chanceOne.toFixed(3) + ' → ' + chanceFive.toFixed(3));
 let recruited = null;
 for (let i = 0; i < 40 && !recruited; i += 1) {
+  // 招降有三天冷却；测试里推进时间，避免 40 次全被冷却挡掉。
+  st16.clock.day += 3;
+  pv.recruitCoolDay = 0;
   const r = warLib.recruitLord(st16, 'wenpin');
   if (r.ok) recruited = r;
   else if (!st16.prisoners.some(function (x) { return x.lordId === 'wenpin'; })) {
@@ -1705,6 +1743,8 @@ group('领主追击与逃遁');
   weak.x = base.x + 3; weak.y = base.y + 1;
   strong.troops = { militia: 150 }; strong.defTroops = { militia: 150 };
   weak.troops = { militia: 10 }; weak.defTroops = { militia: 110 };
+  // 这一组只测领主对领主；清掉匪团，避免“先剿匪”抢走目标。
+  g.parties = [];
   stateLib.moveLords(g);
   ok('兵多的领主会追击', strong.hunting && strong.chasing && strong.foeChasing === 'jiling',
     'hunting=' + strong.hunting + ' foe=' + strong.foeChasing);
@@ -1755,6 +1795,29 @@ group('领主追击与逃遁');
   ok('改投的城确实是不敌对国', target && target.ownerFaction === 'xianbei' &&
     !warLib.atWar(g, 'lv', target.ownerFaction),
     target ? target.id : 'none');
+}
+{
+  const g = stateLib.createGame({ seed: 2026112507 });
+  g.player.faction = 'wei';
+  g.player.x = 5;
+  g.player.y = 140;
+  const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const base = g.world.sites.filter(function (s) { return s.id === 'xuchang'; })[0];
+  g.lords = [lord];
+  g.parties = [{
+    id: 'p_hunt', name: '试刀劫匪', faction: 'bandit', banditTier: 'qing',
+    color: '#4f8f6a', troops: { bandit: 8 }, morale: 60,
+    x: base.x + 3, y: base.y, sight: 5, loot: [18, 40], size0: 8,
+  }];
+  lord.inCity = null; lord.order = null; lord.pauseUntil = 0; lord.moveTick = 0;
+  lord.wander = null; lord.patrolRouteIds = null; lord.patrolPath = null;
+  lord.fleeing = false; lord.fleeTargetId = null; lord.fleePath = null;
+  lord.hunting = false; lord.chasing = false; lord.foeChasing = null; lord.banditChasing = null;
+  lord.x = base.x + 1; lord.y = base.y;
+  lord.troops = { militia: 120 }; lord.defTroops = { militia: 150 };
+  stateLib.moveLords(g);
+  ok('领主会主动锁定并追剿匪团', lord.hunting && lord.banditChasing === 'p_hunt',
+    'hunting=' + lord.hunting + ' bandit=' + lord.banditChasing);
 }
 
 /* ---------------------------------------------------------------- 收尾 */

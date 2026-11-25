@@ -5,6 +5,7 @@
  */
 
 const { TROOPS } = require('../data/troops.js');
+const { HISTORY_MARKS } = require('../data/china.js');
 const { troopCount, strength, distributeLosses } = require('./army.js');
 
 const TACTICS = {
@@ -141,11 +142,12 @@ class Battle {
 
   /** 写一笔天机简 */
   applyShiMark(id) {
+    const mark = HISTORY_MARKS[id];
     this.shiMark = id;
-    this.shiName = id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册';
+    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
     // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
-    this.shiTiming = id === 'roll' ? 'after' : 'battle';
-    if (id === 'calm') this.shiRounds = 3;
+    this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
+    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
     if (id === 'wind') this.fireGround = true;
   }
 
@@ -176,14 +178,15 @@ class Battle {
     if (sb.pierceRatio > 0.12) defA *= 0.82;
 
     // 天机简效果：只利己，不反噬
-    if (this.shiMark === 'wind') {
-      atkA *= 1.90;
-      if (this.fireGround) atkA *= 1.50;
+    const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
+    if (shi && this.shiMark === 'wind') {
+      atkA *= shi.atkMul;
+      if (this.fireGround) atkA *= shi.fireMul;
     }
-    if (this.shiMark === 'calm' && this.shiRounds > 0) {
+    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
       // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
-      if (this.a.isPlayer) atkB *= 0.30;
-      else if (this.b.isPlayer) atkA *= 0.30;
+      if (this.a.isPlayer) atkB *= shi.enemyMul;
+      else if (this.b.isPlayer) atkA *= shi.enemyMul;
       this.shiRounds -= 1;
     }
 
