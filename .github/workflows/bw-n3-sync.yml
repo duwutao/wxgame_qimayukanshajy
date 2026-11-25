@@ -1,0 +1,37 @@
+name: bw-n3-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download patch
+        run: curl -fsSL https://aka.doubaocdn.com/s/vfvJJtT0KD -o /tmp/bw-n3.patch
+      - name: Apply and test
+        run: |
+          git apply --check /tmp/bw-n3.patch
+          git apply /tmp/bw-n3.patch
+          node tools/logic-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Commit and push
+        run: |
+          git config user.name 'bw-release-bot'
+          git config user.email 'bw-release-bot@users.noreply.github.com'
+          rm -f .github/workflows/bw-n3-sync.yml
+          git add -A
+          git commit -m 'release: 20261125n3 桥头落岸·峡谷岩壁·巡逻路线·追匪旗色 [skip ci]'
+          git push origin HEAD:main
