@@ -14081,7 +14081,11 @@ function lordRecruitTick(state) {
     if (!site) return;
     if (lord.inCity && (site.type !== 'town' && site.type !== 'castle')) return;
     if (!siteFriendlyToLord(state, lord, site)) return;
-    const full = lordTroopCap(lord);
+    // 榜单领主按榜单 cap 满编；刘备作为入川主帅也按等级上限保持满编，
+    // 其余普通领主仍以自身编制为满员目标，不能因等级上限高于编制而卡在城里招不满。
+    const full = (lordPowerInfo(lord) || lord.id === 'liubei')
+      ? lordTroopCap(lord)
+      : Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
     const now = army.troopCount(lord.troops || {});
     if (full <= 0 || now >= full) return;
     // 驻城/驻在村口按据点倍率补兵；行军巡逻路过只按两成。
@@ -14422,7 +14426,10 @@ function lordRestTick(state) {
       return;
     }
     // 有军令（集结 / 围城 / 守城）就出城；但兵太少时先留在城里招兵，不跟着去送。
-    const full = lordTroopCap(lord);
+    // 榜单领主按榜单 cap 满编；普通领主仍按原编制判定低兵。
+    const full = (lordPowerInfo(lord) || lord.id === 'liubei')
+      ? lordTroopCap(lord)
+      : Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
     const now = army.troopCount(lord.troops || {});
     const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
     if (lord.order && lord.order.siteId) {
