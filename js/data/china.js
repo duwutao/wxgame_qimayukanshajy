@@ -261,8 +261,9 @@ const SITE_ROWS = [
   ['danyang', '丹阳村', 'village', 'wu', 31, 33, 0.76, 15, 'village', '出精兵的地方。山越与汉人混着住。'],
   // ---- 交州 ----
   ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
-  ['shanyue', '山越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的山越王城。铜鼓藏在洞里，山路比城墙更难走。'],
-  ['changsha', '长沙村', 'village', null, 23, 42, 0.74, 12, 'village', '湘水边的稻村，孙刘两家都来征过粮。'],
+  ['shanyue', '南越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的南越王城。铜鼓藏在洞里，山路比城墙更难走。'],
+  ['longbian', '龙编', 'town', 'shanyue', 25, 47, 1.0, 72, 'shanyue', '红河口的南越城。码头连着交趾，铜鼓与盐船都在这里靠岸。'],
+  ['changsha', '长沙', 'town', null, 23, 42, 1.0, 88, 'none', '湘水与浏水交汇的荆州城。谁握住长沙，谁就能把荆南的粮船扣在港里。'],
   ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
   ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
   // ---- 匪巢 ----
@@ -338,12 +339,17 @@ const ROADS = [
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'], ['jiaozhi', 'shanyue'],
   ['taishanguan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
+  // 牂牁—武陵：南中与荆南之间的一条山道，南蛮与刘表因此接壤。
+  ['zangke', 'wuling'],
+  // 南蛮—南越：两家从开局便沿山路互攻，永不停战。
+  ['zangke', 'shanyue'],
+  ['shanyue', 'longbian'], ['longbian', 'jiaozhi'],
   // 蜀道与关隘枢纽：让关键关口四面可走，也给刘备一条从新野入川的路。
   ['jiange', 'xinye'], ['jiange', 'xiangyang'],
   ['hulao', 'shangdang'], ['hulao', 'xuchang'],
   ['tongguan', 'shangdang'], ['tongguan', 'wan'],
-  // 新野—官渡不再直连：刘备北上只能走许昌或绕宛城；官渡仍是黄河渡口。
-  ['xuchang', 'xinye'], ['wan', 'xiangyang'],
+  // 新野—许昌不直连：刘备北上走汝南或绕宛城；官渡仍是黄河渡口。
+  ['runan', 'xinye'], ['wan', 'xiangyang'],
   ['hefei', 'jianye'], ['hefei', 'xuchang'],
   ['chaisang', 'jiangling'], ['chibi', 'jiangling'],
 ];
@@ -371,6 +377,7 @@ const STRATEGIC_SITES = {
   xiangyang: { id: 'xiangyang', name: '襄阳',   radius: 8, defense: 1.5 },
   hefei:     { id: 'hefei',     name: '合肥',   radius: 8, defense: 1.5 },
   chaisang:  { id: 'chaisang',  name: '柴桑',   radius: 8, defense: 1.5 },
+  changsha:  { id: 'changsha',  name: '长沙',   radius: 8, defense: 1.5 },
   chibi:     { id: 'chibi',     name: '赤壁',   radius: 8, defense: 1.5 },
   yiling:    { id: 'yiling',    name: '夷陵',   radius: 8, defense: 1.5 },
 };
@@ -428,16 +435,16 @@ const FACTIONS = {
     lord: '韩遂', desc: '金城起家，联结羌胡。与马腾同饮过酒，也同动过刀。',
   },
   gongsun: {
-    id: 'gongsun', name: '燕', full: '公孙瓒', color: '#93a6b0', banner: '燕',
-    lord: '公孙瓒', desc: '白马义从，幽燕之主。赵云也曾在白马旗下听令。',
+    id: 'gongsun', name: '公孙', full: '公孙瓒', color: '#93a6b0', banner: '公',
+    lord: '公孙瓒', desc: '白马义从，公孙之主。赵云也曾在白马旗下听令。',
   },
   nanman: {
     id: 'nanman', name: '蛮', full: '孟获', color: '#a8673d', banner: '蛮',
     lord: '孟获', desc: '南中诸部，藤甲铜鼓。山高林密，外人进来先迷路。',
   },
   shanyue: {
-    id: 'shanyue', name: '越', full: '山越诸部', color: '#4f6f5f', banner: '越',
-    lord: '潘临', desc: '交州山中的越人诸洞。不守平川，只守山口，弩箭从林子里射出来。',
+    id: 'shanyue', name: '南越', full: '南越诸部', color: '#4f6f5f', banner: '越',
+    lord: '潘临', desc: '交州南部的越人诸洞。不守平川，只守山口，弩箭从林子里射出来。',
   },
   han: {
     id: 'han', name: '汉', full: '汉廷', color: '#8f8f86', banner: '汉',
@@ -461,6 +468,7 @@ const FACTIONS = {
  * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
  */
 const FACTION_COMBAT = {
+  yuan: { power: 1, note: '袁绍军：官渡昏君状态下会被压到 0.33，一兵不如曹操三兵' },
   wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
   shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
@@ -560,7 +568,7 @@ const SUCCESSION = {
     { id: 'youtu', name: '尤突', title: '越帅' },
     { id: 'feizhan', name: '费栈', title: '丹阳越帅' },
     { id: 'pengqi', name: '彭绮', title: '鄱阳越帅' },
-    { id: 'pengshi', name: '彭式', title: '山越渠帅' },
+    { id: 'pengshi', name: '彭式', title: '南越渠帅' },
     { id: 'huangluan', name: '黄乱', title: '越中渠帅' },
   ],
   han: [
@@ -698,11 +706,11 @@ const LORDS = [
   { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'tongguan', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
   { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
   // ---- 山越：交州诸洞 ----
-  { id: 'panlin', name: '潘临', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 40, spear: 25, archer: 25, danyang: 8 }, morale: 82, sight: 7, title: '山越帅' },
+  { id: 'panlin', name: '潘临', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 40, spear: 25, archer: 25, danyang: 8 }, morale: 82, sight: 7, title: '南越帅' },
   { id: 'youtu', name: '尤突', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 25 }, morale: 80, sight: 7, title: '越帅' },
   { id: 'feizhan', name: '费栈', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 20, danyang: 6 }, morale: 78, sight: 6, title: '丹阳越帅' },
   { id: 'pengqi', name: '彭绮', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 18 }, morale: 76, sight: 7, title: '鄱阳越帅' },
-  { id: 'pengshi', name: '彭式', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '山越渠帅' },
+  { id: 'pengshi', name: '彭式', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '南越渠帅' },
   { id: 'huangluan', name: '黄乱', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 20, archer: 15, danyang: 5 }, morale: 72, sight: 6, title: '越中渠帅' },
 
   // ---- 放大天下以后补的领主：魏蜀吴袁刘各添一队人 ----

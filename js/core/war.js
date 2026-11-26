@@ -2046,6 +2046,11 @@ function ensureLiuBeiYiWar(state, day) {
 function planCampaign(state, faction, day) {
   const story = state.story;
   const passive = !!(story && story.mode && story.passive && story.passive[faction]);
+  // 官渡合战进行时，曹袁两军都被这场战役占住，不再另开围城战役。
+  const guanduField = (state.fieldBattles || []).some(function (bf) {
+    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+  });
+  if (guanduField && (faction === 'wei' || faction === 'yuan')) return null;
   // 剧情阶段先赶战略：已进入交战阶段的国家多带一路、少在集结城磨蹭，
   // 让魏蜀吴的第一阶段能尽快打出结果，方便观察天下演绎。
   const phaseWar = !!(story && story.mode && story.phases && story.phases[faction] &&
@@ -2122,7 +2127,14 @@ function planCampaign(state, faction, day) {
           s.region !== story.targetRegion[faction]) return;
       const near = nearestSiteOf(state, own, s);
       const villagePenalty = s.type === 'village' ? 45 : 0;
-      const score = near.distance * 0.6 + s.garrison * 0.35 + villagePenalty + state.rng.int(0, 18);
+      let score = near.distance * 0.6 + s.garrison * 0.35 + villagePenalty + state.rng.int(0, 18);
+      // 荆州会战：襄阳第一、新野第二、江陵第三；三镇之外先缓一缓。
+      if (story && story.jingzhou && story.jingzhou.active && story.jingzhouFocus) {
+        const focus = story.jingzhouFocus;
+        const rank = focus.indexOf(s.id);
+        if (rank >= 0) score -= (focus.length - rank) * 120;
+        else score += 90;
+      }
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });

@@ -9,7 +9,7 @@
  */
 
 const { STORY } = require('../data/story.js');
-const { FACTIONS, ROADS } = require('../data/china.js');
+const { FACTIONS, ROADS, FACTION_COMBAT } = require('../data/china.js');
 const { siteById } = require('./world.js');
 const war = require('./war.js');
 
@@ -22,6 +22,43 @@ function bindLogger(fn) {
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
 }
+
+/** 公告里不显示“第一/第二战略”这类阶段序号，只留战略名。 */
+function displayLabel(cfg) {
+  if (!cfg) return '';
+  return String(cfg.label || cfg.short || cfg.title || '').replace(/^第[一二三四五六七八九十百]+战略\s*·\s*/, '');
+}
+
+/** 袁绍官渡昏君状态：全局对拼系数压到 0.33，直到袁氏灭亡才恢复。 */
+function applyYuanCombat(state, weak) {
+  if (!state || !state.story) return;
+  if (!FACTION_COMBAT.yuan) FACTION_COMBAT.yuan = { power: 1 };
+  const on = !!weak && factionAlive(state, 'yuan');
+  FACTION_COMBAT.yuan.power = on ? (STORY.yuanWeakPower || 0.33) : 1;
+  state.story.yuanWeak = on;
+  if (on) {
+    state.lords.forEach(function (l) {
+      if (l.faction === 'yuan' && l.alive && !l.dead) {
+        l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
+        l.storyMoraleCap = 35;
+      }
+    });
+  }
+}
+
+function yuanMoraleTick(state) {
+  const st = state.story;
+  if (!st || !st.yuanWeak || !factionAlive(state, 'yuan')) return;
+  state.lords.forEach(function (l) {
+    if (l.faction !== 'yuan' || !l.alive || l.dead) return;
+    l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
+  });
+}
+
+function resetYuanCombat() {
+  if (FACTION_COMBAT.yuan) FACTION_COMBAT.yuan.power = 1;
+}
+const resetCombat = resetYuanCombat;
 
 /* ------------------------------------------------------------ 基础查询 */
 
@@ -41,9 +78,9 @@ function isDuel(faction) {
   return STORY.duelFactions.indexOf(faction) >= 0;
 }
 
-/** 边缘小国领主每天补兵的比例；大国是它的两倍。 */
+/** 边缘小国领主每天补兵的比例；大国是它的两倍。整体比旧版快一倍。 */
 function recruitRate(state, faction) {
-  return isPassive(state, faction) ? 0.06 : 0.12;
+  return isPassive(state, faction) ? 0.12 : 0.24;
 }
 
 function citiesOf(state, faction) {
@@ -188,6 +225,10 @@ function init(state, logger) {
     endgame: null,
     headline: '',
     openingDeclared: false,
+    yuanWeak: false,
+    yuanBattleLost: false,
+    edgeWarsDeclared: false,
+    waitEvents: {},
   };
   state.story = st;
 
@@ -195,6 +236,18 @@ function init(state, logger) {
   STORY.noPeacePairs.forEach(function (pair) {
     st.noPeace[key(pair[0], pair[1])] = true;
   });
+  // 南蛮与南越从开局就在山道上互攻，任何议和书都不收。
+  if (factionAlive(state, 'nanman') && factionAlive(state, 'shanyue')) {
+    war.declare(state, 'nanman', 'shanyue', true, true);
+  }
+  // 马腾、韩遂、汉廷三方开局即互相开战；三家都只在本土一城范围内争夺。
+  const triple = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
+  triple.forEach(function (a, i) {
+    triple.slice(i + 1).forEach(function (b) {
+      war.declare(state, a, b, true, true);
+    });
+  });
+  applyYuanCombat(state, false);
 
   Object.keys(FACTIONS).forEach(function (f) {
     st.originCities[f] = citiesOf(state, f).map(function (s) { return s.id; });
@@ -220,8 +273,10 @@ function init(state, logger) {
     '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
     '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
     '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
+    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
+    '马腾、韩遂与汉廷在凉州、关中互相开战，三家都只盯着与本土相邻的一座城。',
   ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；刘备暂守新野。', 'war');
+  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮与南越、马腾韩遂汉廷也各点烽火。', 'war');
   refreshHeadline(state);
   return st;
 }
@@ -238,6 +293,10 @@ function resume(state, logger) {
   if (!state.story.phases) state.story.phases = {};
   if (!state.story.emperor) state.story.emperor = { declared: false, day: 0, coalition: [] };
   if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
+  if (!state.story.waitEvents) state.story.waitEvents = {};
+  if (state.story.yuanWeak === undefined) state.story.yuanWeak = false;
+  if (state.story.edgeWarsDeclared === undefined) state.story.edgeWarsDeclared = false;
+  applyYuanCombat(state, !!state.story.yuanWeak);
   refreshHeadline(state);
   return state.story;
 }
@@ -277,6 +336,12 @@ function canBeginPhase(state, cfg) {
       if (day < bleedAt) return false;
     }
   }
+  if (cfg.waitFactionDead) {
+    if (!factionDead(state, cfg.waitFactionDead)) return false;
+    const fs = state.factionState && state.factionState[cfg.waitFactionDead];
+    const deadDay = (fs && (fs.deadDay || fs.lastLossDay)) || 0;
+    if (deadDay && day < deadDay + (cfg.waitAfterDays || 0)) return false;
+  }
   return true;
 }
 
@@ -304,6 +369,7 @@ function startPhase(state, faction, opts) {
   }
 
   war.abortCampaign(state, faction);
+  if (cfg.yuanPenalty) applyYuanCombat(state, true);
   const declared = [];
   targets.forEach(function (to) {
     if (!factionAlive(state, to)) return;
@@ -318,10 +384,14 @@ function startPhase(state, faction, opts) {
     const lines = (cfg.warLines || [cfg.casusBelli]).slice();
     const names = declared.map(factionName).join('、');
     lines.push('战书已下：' + factionName(faction) + '向' + names + '正式宣战。');
-    pushWarEvent(state, cfg.title || cfg.label, lines);
-    logFn(state, '【' + factionName(faction) + '】' + cfg.label + '：' + (cfg.casusBelli || ''), 'war');
+    pushWarEvent(state, cfg.title || displayLabel(cfg), lines);
+    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '：' + (cfg.casusBelli || ''), 'war');
   } else if (opening && declared.length) {
-    logFn(state, '【' + factionName(faction) + '】' + cfg.label + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
+    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
+  }
+  // 官渡开局：战书落下后再把曹袁两军补满、调到官渡列阵，并直接开一场合战。
+  if (cfg.stage === 'guandu' && state.storyHooks && state.storyHooks.stageGuandu) {
+    state.storyHooks.stageGuandu(state);
   }
   // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
   if (declared.length && faction !== 'player' && faction !== 'bandit') {
@@ -381,35 +451,38 @@ function finishPhase(state, faction, ok) {
   const cfg = currentCfg(state, faction);
   if (!cfg) { p.status = 'done'; return; }
 
+  // 剧情阶段只有“完成”一条出口：目标未达成，就在本阶段继续打，绝不跳关。
+  if (!ok) {
+    p.timedOut = false;
+    return;
+  }
   const peaceTo = phasePeace(state, faction, cfg);
   p.status = 'rest';
-  p.success = !!ok;
-  p.timedOut = !ok;
-  p.completed += ok ? 1 : 0;
-  p.nextId = (ok ? cfg.successNext : cfg.timeoutNext) || cfg.next || 'end';
+  p.success = true;
+  p.timedOut = false;
+  p.completed += 1;
+  p.nextId = cfg.successNext || cfg.next || 'end';
   p.restUntil = state.clock.day + (cfg.restDays || STORY.restDays);
   st.targets[faction] = [];
   delete st.priority[faction];
   war.abortCampaign(state, faction);
 
-  const baseLines = ok ? (cfg.successLines || []) : (cfg.timeoutLines || []);
-  const lines = baseLines.slice();
+  const lines = (cfg.successLines || []).slice();
   if (peaceTo.length) {
     lines.push('与' + peaceTo.map(factionName).join('、') + '遣使议和，两家收兵，边关鼓角暂歇。');
   }
-  if (!ok) lines.push('一年之期已到，' + (cfg.short || cfg.label) + '未能达成，改走下一阶段。');
-  const markTitle = (cfg.label || cfg.short) + (ok ? ' · 达成' : ' · 受挫');
+  const markTitle = displayLabel(cfg) + ' · 达成';
   if (peaceTo.length) {
     // 真正递了停战书的阶段，走议和文书：大字是战略结果，小字写清为何收兵。
     pushPeaceEvent(state, markTitle, lines);
   } else {
     pushStoryEvent(state, markTitle, lines, {
-      tag: ok ? '战略' : '受挫',
+      tag: '战略',
       art: 'peace',
       auto: 8,
     });
   }
-  logFn(state, '【' + factionName(faction) + '】' + cfg.label + (ok ? '达成。' : '受挫，收兵休整。'), 'throne');
+  logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '达成。', 'throne');
 
   if (cfg.id === 'yuan_duel' || cfg.id === 'gongsun_duel') {
     st.duel.ended = true;
@@ -443,7 +516,38 @@ function advancePhase(state, faction) {
   st.phases[faction].completed = oldCompleted;
   st.targets[faction] = [];
   refreshHeadline(state);
-  if (canBeginPhase(state, cfg)) startPhase(state, faction, {});
+  if (!canBeginPhase(state, cfg)) {
+    // 等待型阶段（如“等袁术灭亡后一个月”）保持 waiting，不递战书、不进战斗。
+    if (cfg.waitFactionDead) enterWaitPhase(state, faction, cfg);
+    return;
+  }
+  // 等待条件已经满足：直接跨过等待阶段，进入真正的下一战。
+  if (cfg.waitFactionDead) {
+    p.nextId = cfg.next || 'end';
+    p.status = 'rest';
+    p.restUntil = state.clock.day;
+    advancePhase(state, faction);
+    return;
+  }
+  startPhase(state, faction, {});
+}
+
+/** 进入“坐观成败”型等待阶段：只发一条大势文书，不向任何势力宣战。 */
+function enterWaitPhase(state, faction, cfg) {
+  const p = state.story.phases[faction];
+  if (!p) return;
+  p.status = 'waiting';
+  p.startedDay = state.clock.day;
+  p.nextId = cfg.next || null;
+  state.story.targets[faction] = [];
+  delete state.story.priority[faction];
+  if (!state.story.waitEvents) state.story.waitEvents = {};
+  if (state.story.waitEvents[faction + ':' + cfg.id]) return;
+  state.story.waitEvents[faction + ':' + cfg.id] = true;
+  pushStoryEvent(state, cfg.waitTitle || displayLabel(cfg), cfg.waitLines || [cfg.casusBelli], {
+    tag: '大势', art: 'peace', auto: 8,
+  });
+  logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，按兵不动。', 'throne');
 }
 
 function tickPhase(state, faction) {
@@ -460,6 +564,13 @@ function tickPhase(state, faction) {
   if (p.status === 'waiting') {
     if (!cfg) { p.status = 'done'; return; }
     if (!canBeginPhase(state, cfg)) return;
+    if (cfg.waitFactionDead) {
+      p.status = 'rest';
+      p.nextId = cfg.next || 'end';
+      p.restUntil = state.clock.day;
+      advancePhase(state, faction);
+      return;
+    }
     startPhase(state, faction, {});
     return;
   }
@@ -470,7 +581,8 @@ function tickPhase(state, faction) {
       finishPhase(state, faction, true);
       return;
     }
-    if (!cfg.noTimeout && cfg.timeout) {
+    // 剧情模式默认全阶段强制完成（STORY.mandatoryAll），不再有超时跳关。
+    if (!STORY.mandatoryAll && !cfg.noTimeout && cfg.timeout) {
       if (state.clock.day - p.startedDay >= cfg.timeout) finishPhase(state, faction, false);
     }
     return;
@@ -514,6 +626,40 @@ function maybeEmperor(state) {
   refreshHeadline(state);
 }
 
+/* ------------------------------------------------------------ 边缘诸部 */
+
+/** 大国第一阶段都打完后，边缘诸部才开始互相攻伐；只打与本土道路相邻的城。 */
+function maybeEdgeWars(state) {
+  const st = state.story;
+  if (!st || st.edgeWarsDeclared) return;
+  const firstDone = STORY.majors.every(function (f) {
+    const p = st.phases[f];
+    return p && (p.completed || 0) >= 1;
+  });
+  if (!firstDone || state.clock.day < (STORY.edgeWarDay || 0)) return;
+  const edge = (STORY.edgeFactions || []).filter(function (f) { return factionAlive(state, f); });
+  if (edge.length < 2) return;
+  st.edgeWarsDeclared = true;
+  const declared = [];
+  for (let i = 0; i < edge.length; i++) {
+    for (let j = i + 1; j < edge.length; j++) {
+      const a = edge[i];
+      const b = edge[j];
+      if (a === 'nanman' && b === 'shanyue') continue;
+      if (!war.atWar(state, a, b)) {
+        if (war.declare(state, a, b, true, true)) declared.push([a, b]);
+      }
+    }
+  }
+  pushStoryEvent(state, '边地烽烟', [
+    '魏、蜀、吴的第一阶段已告一段落，中原暂时收刀，边缘诸部却开始互相吞并。',
+    '鲜卑、西凉、韩遂、南蛮、南越各自只打与本土道路直接相邻的城池，不肯远征。',
+    '南蛮与南越仍在牂牁、交趾一线死战，谁递议和书都不接。',
+  ], { tag: '大势', art: 'war', auto: 8 });
+  logFn(state, '边缘诸部开始互相攻伐；南蛮与南越永不停战。', 'war');
+  refreshHeadline(state);
+}
+
 /* ------------------------------------------------------------ 荆州会战 */
 
 function maybeJingzhou(state) {
@@ -531,7 +677,10 @@ function maybeJingzhou(state) {
     active: true,
     since: state.clock.day,
     until: state.clock.day + STORY.jingzhouDays,
+    sites: STORY.jingzhouSites.slice(),
+    winner: null,
   };
+  st.jingzhouFocus = STORY.jingzhouSites.slice();
   st.priority = {};
   st.targetRegion = {};
   STORY.majors.forEach(function (f) {
@@ -552,11 +701,11 @@ function maybeJingzhou(state) {
     });
   });
   pushStoryEvent(state, STORY.jingzhou.title, STORY.jingzhou.lines, { tag: '会战', art: 'war', auto: 8 });
-  logFn(state, '荆州会战开始：魏、蜀、吴三家在襄阳、江陵、夏口一线同时用兵，为期一年。', 'war');
+  logFn(state, '荆州会战开始：魏、蜀、吴三家按襄阳、新野、江陵的次序争夺荆州三镇。', 'war');
   refreshHeadline(state);
 }
 
-function endJingzhou(state) {
+function endJingzhou(state, winner) {
   const st = state.story;
   if (!st || !st.jingzhou) return;
   STORY.majors.forEach(function (a) {
@@ -570,6 +719,9 @@ function endJingzhou(state) {
     const p = st.phases[f];
     if (p && p.status === 'war') p.startedDay += days;
   });
+  const winnerId = winner || st.jingzhou.winner || null;
+  st.jingzhou.winner = winnerId;
+  if (winnerId) st.jingzhou.until = Math.min(st.jingzhou.until, state.clock.day);
   st.jingzhou.active = false;
   st.jingzhouDone = true;
   st.targetRegion = null;
@@ -589,18 +741,29 @@ function endJingzhou(state) {
       }
     });
   });
-  pushStoryEvent(state, '荆州会战结束', [
-    '一年战罢，襄阳、江陵城下尸横遍野，三家谁也没能独吞荆州。',
+  const lines = winnerId ? [
+    '荆州三镇——襄阳、新野、江陵——尽归' + factionName(winnerId) + '，最终争霸之位已定。',
+    '魏、蜀、吴三家收兵，荆州的城头换了一色旗。',
+    '下一阶段：以荆州为根基，去完成尚未完成的目标。',
+  ] : [
+    '一年战罢，襄阳、新野、江陵城下尸横遍野，三家谁也没能独吞荆州。',
     '魏、蜀、吴各自收兵，重新回到自己的战略上。',
     '下一阶段：各自去完成尚未完成的目标。',
-  ], { tag: '会战', art: 'peace', auto: 8 });
-  logFn(state, '荆州会战结束，三家收兵；各自回到本国战略。', 'war');
+  ];
+  pushStoryEvent(state, winnerId ? '荆州三镇归一家' : '荆州会战结束', lines, { tag: '会战', art: 'peace', auto: 8 });
+  logFn(state, winnerId ? '荆州三镇尽归' + factionName(winnerId) + '，最终争霸之位已定。' : '荆州会战结束，三家收兵；各自回到本国战略。', 'war');
   refreshHeadline(state);
 }
 
 function tickJingzhou(state) {
   const st = state.story;
   if (!st || !st.jingzhou || !st.jingzhou.active) return;
+  // 三镇尽归一家：不等满一年，直接判定“最终争霸之位”归属。
+  const sites = st.jingzhou.sites || STORY.jingzhouSites || [];
+  const winner = STORY.majors.filter(function (f) {
+    return sites.length && allSitesOwned(state, f, sites);
+  })[0];
+  if (winner) { endJingzhou(state, winner); return; }
   if (state.clock.day >= st.jingzhou.until) endJingzhou(state);
 }
 
@@ -784,6 +947,22 @@ function recordCapture(state, site, oldFaction, byFaction) {
   }
   const fsBy = state.factionState && state.factionState[byFaction];
   if (fsBy && citiesOf(state, byFaction).length > 0) fsBy.lastConqueror = null;
+
+  // 官渡之后：袁绍丢城即触发“大军溃散”的士气文书，0.33 倍率一直保留到袁氏灭亡。
+  if (st.yuanWeak && factionAlive(state, 'yuan') && oldFaction === 'yuan' &&
+      byFaction === 'wei' && !st.yuanBattleLost) {
+    st.yuanBattleLost = true;
+    state.lords.forEach(function (l) {
+      if (l.faction === 'yuan' && l.alive && !l.dead) l.morale = Math.min(l.morale || 35, 20);
+    });
+    pushStoryEvent(state, '官渡败讯', [
+      '官渡前线溃散，袁绍的河北大军丢下粮车与旌旗，退回黄河北岸。',
+      '袁绍不听田丰、沮授之言，斩将换令，军中人人自危。',
+      '从此袁军士气低迷，士兵力气只剩三成；这支部队要一直撑到曹操把袁氏灭亡。',
+    ], { tag: '大势', art: 'war', auto: 8 });
+    logFn(state, '官渡败讯：袁绍军心涣散，战力保持 0.33，直到袁氏灭亡。', 'war');
+    refreshHeadline(state);
+  }
 }
 
 /* ------------------------------------------------------------ 主循环 */
@@ -809,6 +988,9 @@ function refreshHeadline(state) {
   if (st.emperor && st.emperor.declared && factionAlive(state, 'yuanshu')) {
     parts.push('袁术：仲家称帝');
   }
+  const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
+  if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
+  if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·三成战力');
   if (st.jingzhou && st.jingzhou.active) parts.push('荆州：三家会战');
   if (st.endgame && st.endgame.active) parts.push('乱国：三国循环');
   st.headline = parts.join(' · ');
@@ -818,9 +1000,12 @@ function tick(state) {
   const st = state.story;
   if (!state || !st || !st.mode) return;
   st.day = state.clock.day;
+  applyYuanCombat(state, !!st.yuanWeak);
+  yuanMoraleTick(state);
   if (state.gameOver) return;
 
   maybeEmperor(state);
+  maybeEdgeWars(state);
   // 袁术一旦覆灭，魏吴的联合剿灭优先级立刻撤掉。
   if (st.emperor && st.emperor.coalitionTarget && factionDead(state, st.emperor.coalitionTarget)) {
     (st.emperor.coalition || []).forEach(function (f) { delete st.priority[f]; });
@@ -853,9 +1038,9 @@ function tick(state) {
 }
 
 module.exports = {
-  init, resume, tick, refreshHeadline, recordCapture, bindLogger,
+  init, resume, tick, refreshHeadline, recordCapture, bindLogger, resetCombat,
   isPassive, hasStory, siteAdjacent, factionAlive, factionDead, recruitRate,
   startEndgame, startPhase, beginGang, beginTwoStrong, beginTripleRest,
   maybeEmperor, maybeJingzhou, endJingzhou,
-  _private: { phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, endgameWeak, eventLines },
+  _private: { phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, endgameWeak, eventLines, displayLabel },
 };

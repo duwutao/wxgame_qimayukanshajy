@@ -9,6 +9,8 @@
 const STORY = {
   label: '汉末战略',
   yearDays: 360,
+  // 剧情阶段不设超时：目标未达成，就不允许进入下一阶段。
+  mandatoryAll: true,
 
   // 主动经营天下的大国；其余势力都是边缘/守成势力
   majors: ['wei', 'shu', 'wu'],
@@ -18,8 +20,44 @@ const STORY = {
     'xianbei', 'ma', 'hansui', 'nanman', 'shanyue', 'han',
   ],
 
-  // 两家开局就不死不休，任何议和书都退回
-  noPeacePairs: [['yuan', 'gongsun']],
+  // 开局就不死不休的两家：袁绍—公孙瓒、南蛮—南越；马腾—韩遂—汉廷三方也互不收兵。
+  noPeacePairs: [
+    ['yuan', 'gongsun'],
+    ['nanman', 'shanyue'],
+    ['ma', 'hansui'],
+    ['ma', 'han'],
+    ['hansui', 'han'],
+  ],
+  // 凉州—关中的三方混战：开局即互相宣战，只在各自本土一城范围内争夺。
+  tripleWar: ['ma', 'hansui', 'han'],
+
+  // 边缘部落：等大国第一阶段结束后再互相攻伐，只打与本土道路直接相邻的领土。
+  edgeFactions: ['xianbei', 'ma', 'hansui', 'nanman', 'shanyue'],
+  edgeWarDay: 90,
+
+  // 荆州三点：襄阳第一、新野第二、江陵第三，三镇尽归一家即最终争霸之位。
+  jingzhouSites: ['xiangyang', 'xinye', 'jiangling'],
+  // 官渡昏君状态下的袁军对拼系数；一个袁绍兵抵不上三个曹兵。
+  yuanWeakPower: 0.33,
+
+  // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴各补三名新人。
+  // 乱世三国不读取这些配置，仍用完整 LORDS 名单。
+  lordCuts: {
+    lv: ['chengong', 'houcheng', 'weixu'],
+    biao: ['zhangyun', 'wangwei', 'liupan', 'huangshe'],
+    zhang: ['lengbao', 'liugui', 'gaopei'],
+  },
+  lordAdds: [
+    { id: 'caozhen', name: '曹真', faction: 'wei', home: 'chenliu', title: '镇西将军', soldiers: { militia: 35, spear: 30, cav: 20, guard: 8 }, morale: 84, sight: 7 },
+    { id: 'caoxiu', name: '曹休', faction: 'wei', home: 'qiao', title: '征东将军', soldiers: { militia: 30, spear: 25, cav: 25 }, morale: 82, sight: 7 },
+    { id: 'xunyou', name: '荀攸', faction: 'wei', home: 'xuchang', title: '军师', soldiers: { militia: 20, spear: 18, crossbow: 18, guard: 5 }, morale: 80, sight: 7 },
+    { id: 'wuban', name: '吴班', faction: 'shu', home: 'xinye', title: '牙门将', soldiers: { militia: 32, spear: 28, archer: 16 }, morale: 80, sight: 6 },
+    { id: 'huojun', name: '霍峻', faction: 'shu', home: 'hanzhong', title: '中郎将', soldiers: { spear: 35, militia: 25, archer: 18 }, morale: 86, sight: 7 },
+    { id: 'masu', name: '马谡', faction: 'shu', home: 'xinye', title: '参军', soldiers: { militia: 22, spear: 18, crossbow: 15 }, morale: 74, sight: 6 },
+    { id: 'huanggai', name: '黄盖', faction: 'wu', home: 'wujun', title: '丹阳都尉', soldiers: { militia: 30, archer: 28, boat: 22 }, morale: 86, sight: 6 },
+    { id: 'zhuran', name: '朱然', faction: 'wu', home: 'jianye', title: '偏将军', soldiers: { militia: 28, spear: 25, boat: 18 }, morale: 82, sight: 6 },
+    { id: 'sunshao', name: '孙韶', faction: 'wu', home: 'kuaiji', title: '广陵太守', soldiers: { militia: 30, archer: 22, cav: 15 }, morale: 80, sight: 7 },
+  ],
 
   // 阶段时长与休整
   phaseTimeout: 360,
@@ -47,12 +85,12 @@ const STORY = {
     shu: [
       {
         id: 'shu_yizhou',
-        label: '第一战略 · 收取西川',
+        label: '收取西川',
         short: '收取西川',
         targets: ['zhang'],
         objective: { type: 'destroy', factions: ['zhang'] },
         notBeforeDay: 8,
-        timeout: 720,
+        noTimeout: true,
         restDays: 120,
         next: 'shu_jingzhou',
         successNext: 'shu_jingzhou',
@@ -67,17 +105,17 @@ const STORY = {
         successLines: [
           '成都城头换旗，刘璋势力覆灭，西川诸郡归入刘备手中。',
           '刘备下令收兵，汉中、成都开仓赈济，诸将清点降卒，休养生息。',
-          '下一战略：向右看，取荆州刘表之地，问鼎中原。',
+          '下一阶段：向右看，取荆州刘表之地，问鼎中原。',
         ],
         timeoutLines: [
           '西川战事拖得太久，汉中、成都的粮道已经吃紧。',
           '刘备只得暂收兵锋，留魏延守剑阁，主力回成都休整。',
-          '下一战略：先取荆州，再图中原。',
+          '下一阶段：先取荆州，再图中原。',
         ],
       },
       {
         id: 'shu_jingzhou',
-        label: '第二战略 · 荆州问鼎',
+        label: '荆州问鼎',
         short: '荆州问鼎',
         targets: ['biao'],
         objective: { type: 'captureOrDestroy', sites: ['xiangyang', 'jiangling'], factions: ['biao'] },
@@ -97,17 +135,17 @@ const STORY = {
         successLines: [
           '襄阳、江陵相继易手，荆州大半归蜀，刘表势力再无力北顾。',
           '刘备在江陵设宴犒军，关羽镇襄阳，诸葛亮督粮，准备问鼎中原。',
-          '下一战略：北上长安、洛阳，匡扶汉室。',
+          '下一阶段：北上长安、洛阳，匡扶汉室。',
         ],
         timeoutLines: [
           '一年已过，襄阳城下仍未破，荆州水军把江面封得死死的。',
           '刘备只得与刘表遣使议和，收兵回江陵休整。',
-          '第二战略暂时搁置：先南下收南蛮，再从长计议。',
+          '荆州暂缓：先南下收南蛮，再从长计议。',
         ],
       },
       {
         id: 'shu_nanman',
-        label: '第三战略 · 南征南蛮',
+        label: '南征南蛮',
         short: '南征南蛮',
         targets: ['nanman'],
         objective: { type: 'destroy', factions: ['nanman'] },
@@ -124,17 +162,17 @@ const STORY = {
         successLines: [
           '南蛮王城陷落，孟获以下诸部大半归蜀，小部分残部逃往邻国。',
           '刘备命诸葛亮在南中置庲降都督，安抚夷汉，征发丁壮。',
-          '下一战略：北上长安、洛阳，匡扶汉室；荆州旧线也可同时再开。',
+          '下一阶段：北上长安、洛阳，匡扶汉室；荆州旧线也可同时再开。',
         ],
         timeoutLines: [
           '南中山高林密，一年未能尽破，蜀军疫病渐起。',
           '刘备只得收兵回成都，留马忠守朱提，暂缓南征。',
-          '下一战略：先图长安、洛阳，匡扶汉室。',
+          '下一阶段：先图长安、洛阳，匡扶汉室。',
         ],
       },
       {
         id: 'shu_han',
-        label: '第四战略 · 匡扶汉室',
+        label: '匡扶汉室',
         short: '匡扶汉室',
         targets: ['han', 'wei'],
         parallel: 'biao',
@@ -147,7 +185,7 @@ const STORY = {
         warLines: [
           '刘备在成都誓师，以“匡扶汉室”为名，兵分两路北上长安、洛阳。',
           '汉廷诸将据潼关而守，曹操的洛阳守军也在城头点起了烽火。',
-          '荆州旧线若仍未定，关羽可从江陵北上，形成第二与第四战略同时开战的局面。',
+          '荆州旧线若仍未定，关羽可从江陵北上，形成荆州与关中两线同时开战的局面。',
         ],
         successLines: [
           '长安、洛阳两座旧都先后易手，汉室旌旗重新立在关中。',
@@ -165,11 +203,11 @@ const STORY = {
     wei: [
       {
         id: 'wei_lv',
-        label: '第一战略 · 灭吕布',
+        label: '灭吕布',
         short: '灭吕布',
         targets: ['lv'],
         objective: { type: 'destroy', factions: ['lv'] },
-        timeout: 360,
+        noTimeout: true,
         restDays: 120,
         next: 'wei_han',
         title: '兖州旧怨',
@@ -182,17 +220,17 @@ const STORY = {
         successLines: [
           '下邳城破，吕布授首，其麾下并州骑兵大半归入曹操帐下。',
           '曹操下令休整，徐州、兖州连成一片。',
-          '下一战略：西入关中，攻长安汉室，挟天子以令诸侯。',
+          '下一阶段：西入关中，攻长安汉室，挟天子以令诸侯。',
         ],
         timeoutLines: [
           '吕布据下邳死守，一年未下，曹军粮道反被吕布骑兵骚扰。',
           '曹操只得收兵回兖州，留于禁守彭城。',
-          '下一战略：西入关中，先取长安。',
+          '下一阶段：西入关中，先取长安。',
         ],
       },
       {
         id: 'wei_han',
-        label: '第二战略 · 挟天子',
+        label: '挟天子',
         short: '挟天子',
         targets: ['han'],
         objective: { type: 'capture', sites: ['changan'] },
@@ -209,17 +247,17 @@ const STORY = {
         successLines: [
           '长安城头竖起曹字旗，汉廷百官被迁入许都，天子诏书从此出自曹操帐下。',
           '曹操下令休整，关中、中原连成一线。',
-          '下一战略：等袁绍、公孙瓒杀到两败俱伤，再北上统一河北。',
+          '下一阶段：等袁绍、公孙瓒杀到两败俱伤，再北上统一河北。',
         ],
         timeoutLines: [
           '潼关天险难破，曹军一年未能入长安。',
           '曹操收兵回洛阳，留钟繇守潼关，暂缓西进。',
-          '下一战略：先看河北，等袁绍、公孙瓒两败俱伤。',
+          '下一阶段：先看河北，等袁绍、公孙瓒两败俱伤。',
         ],
       },
       {
         id: 'wei_yuan',
-        label: '第三战略 · 一统河北',
+        label: '一统河北',
         short: '一统河北',
         targets: ['yuan', 'gongsun'],
         waitBleed: true,
@@ -237,17 +275,17 @@ const STORY = {
         successLines: [
           '袁绍、公孙瓒先后覆灭，河北诸郡尽归曹操，北方大业已成。',
           '曹操下令休整，邺城开府，收编河北降卒。',
-          '下一战略：南下攻荆州，取长江上游。',
+          '下一阶段：南下攻荆州，取长江上游。',
         ],
         timeoutLines: [
           '河北战事拖过一年，袁绍与公孙瓒的残部仍在互咬。',
           '曹操收兵回邺，留张辽守黎阳，暂缓统一河北。',
-          '下一战略：南下荆州。',
+          '下一阶段：南下荆州。',
         ],
       },
       {
         id: 'wei_jingzhou',
-        label: '第四战略 · 南下荆州',
+        label: '南下荆州',
         short: '南下荆州',
         targets: ['biao'],
         objective: { type: 'captureOrDestroy', sites: ['xiangyang', 'jiangling'], factions: ['biao'] },
@@ -264,17 +302,17 @@ const STORY = {
         successLines: [
           '襄阳、江陵易手，曹操控住长江上游，荆州北部尽入魏境。',
           '曹操下令休整，留曹仁守江陵，于禁督襄阳。',
-          '下一战略：西灭马腾、韩遂，再扫北边鲜卑。',
+          '下一阶段：西灭马腾、韩遂，再扫北边鲜卑。',
         ],
         timeoutLines: [
           '荆州水网不利北军，一年未能拿下襄阳、江陵。',
           '曹操收兵回许都，留曹仁守宛城，暂缓南下。',
-          '下一战略：先平西凉，再图北边。',
+          '下一阶段：先平西凉，再图北边。',
         ],
       },
       {
         id: 'wei_north',
-        label: '第五战略 · 扫平西凉',
+        label: '扫平西凉',
         short: '扫平西凉',
         targets: ['ma', 'hansui', 'xianbei'],
         objective: { type: 'destroy', factions: ['ma', 'hansui', 'xianbei'] },
@@ -304,63 +342,63 @@ const STORY = {
     wu: [
       {
         id: 'wu_jiangdong',
-        label: '第一战略 · 为父报仇',
+        label: '为父报仇',
         short: '为父报仇',
         targets: ['biao'],
-        objective: { type: 'captureOrDestroy', sites: ['xiangyang', 'jiangling'], factions: ['biao'] },
-        timeout: 360,
+        // 第一阶段是灭国目标：不是占两座城就算完成，必须把刘表势力清零。
+        objective: { type: 'destroy', factions: ['biao'] },
+        noTimeout: true,
         restDays: 120,
         next: 'wu_hefei',
         successNext: 'wu_hefei',
-        timeoutNext: 'wu_shanyue',
         title: '为父报仇',
         casusBelli: '孙权要报孙坚死于黄祖箭下之仇，先取荆州，统一江东门户。',
         warLines: [
           '孙权以“为父报仇”为名，向刘表宣战，周瑜督水军直取夏口、江陵。',
           '荆州水军与江东水军在三江口对峙，两岸烽火连了百里。',
-          '一年之内若拿不下襄阳、江陵，江东的粮秣便要转去南边的山越。',
+          '若拿不下襄阳、江陵，江东的粮秣便要转去南边的南越。',
         ],
         successLines: [
           '襄阳、江陵易手，黄祖伏诛，孙权在江陵祭告孙坚。',
           '江东全军休整，周瑜督造战船，准备北上合肥。',
-          '下一战略：北上攻合肥、寿春，左攻荆州，引三家在荆州搏杀。',
+          '下一阶段：北上攻合肥、寿春，左攻荆州，引三家在荆州搏杀。',
         ],
         timeoutLines: [
           '一年已过，江陵城下仍未破，周瑜的水军被荆州水寨拖住。',
           '孙权只得收兵回建业，休整水师。',
-          '第一战略暂缓：先南下收山越，再图合肥。',
+          '荆州暂缓：先南下收南越，再图合肥。',
         ],
       },
       {
         id: 'wu_shanyue',
-        label: '第二战略 · 南收山越',
-        short: '南收山越',
+        label: '南收南越',
+        short: '南收南越',
         targets: ['shanyue'],
         objective: { type: 'destroy', factions: ['shanyue'] },
         timeout: 360,
         restDays: 120,
         next: 'wu_hefei',
-        title: '南收山越',
-        casusBelli: '荆州未下，孙权转兵南方的山越诸部，先收其丁壮，再图北上。',
+        title: '南收南越',
+        casusBelli: '荆州未下，孙权转兵南方的南越诸部，先收其丁壮，再图北上。',
         warLines: [
-          '孙权命贺齐、吕范南征山越，兵锋直指山越城。',
-          '山越诸部据险而守，江东军每进一步都要先开山道。',
-          '山越一平，其丁壮便可补入江东水军，合肥之战才有本钱。',
+          '孙权命贺齐、吕范南征南越，兵锋直指南越王城。',
+          '南越诸部据险而守，江东军每进一步都要先开山道。',
+          '南越一平，其丁壮便可补入江东水军，合肥之战才有本钱。',
         ],
         successLines: [
-          '山越城破，潘临等部大半归吴，小部分残部逃往交州。',
-          '孙权命贺齐镇山越，征发丁壮，江东休养生息。',
-          '下一战略：北上合肥、寿春，左攻荆州。',
+          '南越王城破，潘临等部大半归吴，小部分残部逃往交州。',
+          '孙权命贺齐镇南越，征发丁壮，江东休养生息。',
+          '下一阶段：北上合肥、寿春，左攻荆州。',
         ],
         timeoutLines: [
-          '山越据险不出，一年未能尽平。',
+          '南越据险不出，一年未能尽平。',
           '孙权收兵回建业，留吕范守玉山，暂缓南征。',
-          '下一战略：先北上合肥、寿春。',
+          '下一阶段：先北上合肥、寿春。',
         ],
       },
       {
         id: 'wu_hefei',
-        label: '第三战略 · 合肥寿春',
+        label: '合肥寿春',
         short: '合肥寿春',
         targets: ['yuanshu', 'wei', 'biao'],
         parallel: 'biao',
@@ -397,13 +435,85 @@ const STORY = {
         targets: ['gongsun'],
         objective: { type: 'destroy', factions: ['gongsun'] },
         noTimeout: true,
-        next: 'won',
+        restDays: 15,
+        next: 'yuan_expand',
         title: '幽冀不死不休',
         casusBelli: '袁绍与公孙瓒开局便撕破脸，幽冀两家不死不休，任何议和书都退回。',
         warLines: [
           '袁绍与公孙瓒在幽冀边界点起烽火，两家开局便是不死不休。',
           '袁绍自邺城北上，公孙瓒自蓟城南下，范阳、涿郡一线成了绞肉场。',
           '这一战没有议和，只有一方灭国才会停。',
+        ],
+        successLines: [
+          '公孙瓒败亡，袁绍尽收幽燕之地，白马义从的旗号从此不再出现。',
+          '邺城大摆宴席，河北兵甲堆满武库，袁绍志得意满，自以为天下已在掌中。',
+          '席间田丰、沮授劝他休养生息，袁绍不听，只令大军休整半月，便要东取吕布、北扫鲜卑。',
+        ],
+      },
+      {
+        id: 'yuan_expand',
+        label: '东取吕布，北扫鲜卑',
+        short: '吕布鲜卑',
+        targets: ['lv', 'xianbei'],
+        objective: { type: 'destroy', factions: ['lv', 'xianbei'] },
+        noTimeout: true,
+        restDays: 30,
+        next: 'yuan_wait_yuanshu',
+        title: '河北极盛',
+        casusBelli: '袁绍灭公孙瓒后兵强马壮，要趁势东取吕布、北扫鲜卑，把河北四州连成一片。',
+        warLines: [
+          '袁绍席罢，兵分两路：一路东出徐州取吕布，一路北出塞外扫鲜卑。',
+          '河北新胜，粮草充足，袁绍自谓兵强马壮，不把曹操、孙权放在眼里。',
+          '他要在曹操、孙权灭袁术之前，先拿下吕布与鲜卑，再回头与曹操争中原。',
+        ],
+        successLines: [
+          '吕布、鲜卑先后败亡，袁绍坐拥河北、幽燕、塞外，声势到了极点。',
+          '袁绍在邺城阅兵，甲士塞满漳水两岸，谋臣武将都不敢再劝他收手。',
+          '他按兵不动，只等曹操与孙权把袁术灭掉，再南下与曹操争锋。',
+        ],
+      },
+      {
+        id: 'yuan_wait_yuanshu',
+        label: '坐观袁术覆灭',
+        short: '等待袁术',
+        targets: [],
+        noTimeout: true,
+        restDays: 0,
+        next: 'yuan_guandu',
+        waitTitle: '袁绍按兵不动',
+        waitLines: [
+          '袁绍在邺城按兵不动，只派斥候南下打探寿春消息。',
+          '他要等曹操、孙权把袁术灭掉，再以逸待劳，南下与曹操决战。',
+          '田丰、沮授数次进言，劝他趁曹操兵疲先取许都；袁绍只笑不答。',
+        ],
+        title: '坐观成败',
+        casusBelli: '袁绍要等曹操、孙权灭掉袁术，再举河北之兵南下，与曹操争夺中原。',
+        waitFactionDead: 'yuanshu',
+        waitAfterDays: 30,
+      },
+      {
+        id: 'yuan_guandu',
+        label: '官渡决战',
+        short: '官渡决战',
+        targets: ['wei'],
+        objective: { type: 'destroy', factions: ['wei'] },
+        noTimeout: true,
+        restDays: 0,
+        next: 'end',
+        stage: 'guandu',
+        yuanPenalty: true,
+        title: '官渡决战',
+        casusBelli: '袁术覆灭一月后，袁绍尽起河北大军南下，曹操把中原兵马全部压上，两军在官渡决战。',
+        warLines: [
+          '袁术覆灭一月后，袁绍尽起河北大军南下，曹操也把中原兵马全部压上。',
+          '两军在官渡相遇，营寨连绵数十里，粮道只隔一条汴水。',
+          '袁绍自恃兵多，不肯听田丰、沮授之谏，临阵改令，军心已散。',
+          '曹操兵精粮足，以逸待劳；这一战，袁绍一个兵已抵不上曹操三个兵。',
+        ],
+        successLines: [
+          '官渡一战，曹军粮道被断，前线溃散，袁绍的河北大军竟被曹操翻盘。',
+          '袁绍带着残部退回河北，士气低迷，从此再无力南下。',
+          '袁绍军心涣散，士兵力气只剩三成，直到曹操把袁氏彻底灭亡。',
         ],
       },
     ],
@@ -416,7 +526,8 @@ const STORY = {
         targets: ['yuan'],
         objective: { type: 'destroy', factions: ['yuan'] },
         noTimeout: true,
-        next: 'won',
+        restDays: 0,
+        next: 'end',
         title: '幽冀不死不休',
         casusBelli: '公孙瓒与袁绍开局便撕破脸，幽冀两家不死不休，任何议和书都退回。',
         warLines: [
@@ -442,8 +553,9 @@ const STORY = {
     title: '荆州会战',
     lines: [
       '诸国各自战略目标已告一段落，荆州成了天下唯一的焦点。',
-      '魏、蜀、吴三家同时向荆州用兵，襄阳、江陵、夏口一线杀成一锅粥。',
-      '这一年里谁也不肯先收手；一年之后，各自再去做下一件事。',
+      '魏、蜀、吴三家同时向荆州用兵：襄阳第一，新野第二，江陵第三。',
+      '三镇是荆州的点位，也是最终争霸之位；谁先尽占三镇，谁就握住下一轮天下的门闩。',
+      '这一年里谁也不肯先收手；一年之后，或有三镇归一家，或各自收兵再图后举。',
     ],
   },
 

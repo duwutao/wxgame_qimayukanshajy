@@ -12,7 +12,7 @@ const stateLib = require(R + '/core/state.js');
 const warLib = require(R + '/core/war.js');
 const story = require(R + '/core/story.js');
 const { STORY } = require(R + '/data/story.js');
-const { ROADS, FACTIONS } = require(R + '/data/china.js');
+const { ROADS, FACTIONS, FACTION_COMBAT } = require(R + '/data/china.js');
 
 let pass = 0;
 let fail = 0;
@@ -44,6 +44,14 @@ function takeAll(st, from, to) {
   });
 }
 
+function killFaction(st, faction, by) {
+  st.factionState[faction] = Object.assign({}, st.factionState[faction] || {}, {
+    dead: true, deadDay: st.clock.day, lastConqueror: by,
+  });
+  takeAll(st, faction, by);
+  stateLib.fallFaction(st, faction);
+}
+
 /** 据点之间是否有城道（测试自己的邻接表，不依赖内部实现） */
 function roadAdjacent(a, b) {
   return ROADS.some(function (p) {
@@ -64,8 +72,22 @@ group('开局战略');
   ok('孙权开局只打刘表', warLib.atWar(st, 'wu', 'biao'));
   ok('袁绍与公孙瓒开局死战', warLib.atWar(st, 'yuan', 'gongsun'));
   ok('刘备开局尚未攻刘璋', !warLib.atWar(st, 'shu', 'zhang'));
-  ok('没有旧的随机战事', wars.indexOf('ma|wei') < 0 && wars.indexOf('han|ma') < 0 &&
+  ok('没有旧的随机战事', wars.indexOf('ma|wei') < 0 &&
     wars.indexOf('lv|yuanshu') < 0 && wars.indexOf('wei|shu') < 0, wars.join(','));
+  ok('马腾韩遂汉廷三方开局互战', warLib.atWar(st, 'ma', 'hansui') &&
+    warLib.atWar(st, 'ma', 'han') && warLib.atWar(st, 'hansui', 'han'));
+  ok('三方都不接议和书', warLib.makePeace(st, 'ma', 'hansui', true) === false &&
+    warLib.makePeace(st, 'hansui', 'han', true) === false);
+  ok('吕布刘表刘璋领主已削减', st.lords.filter(function (l) { return l.faction === 'lv'; }).length === 4 &&
+    st.lords.filter(function (l) { return l.faction === 'biao'; }).length === 6 &&
+    st.lords.filter(function (l) { return l.faction === 'zhang'; }).length === 5);
+  ok('魏蜀吴各补三名新领主', ['caozhen', 'caoxiu', 'xunyou'].every(function (id) {
+    return st.lords.some(function (l) { return l.id === id && l.faction === 'wei'; });
+  }) && ['wuban', 'huojun', 'masu'].every(function (id) {
+    return st.lords.some(function (l) { return l.id === id && l.faction === 'shu'; });
+  }) && ['huanggai', 'zhuran', 'sunshao'].every(function (id) {
+    return st.lords.some(function (l) { return l.id === id && l.faction === 'wu'; });
+  }));
   const weiCp = st.warCampaigns && st.warCampaigns.wei;
   ok('第一阶段战书落下即点兵', !!weiCp && weiCp.enemy === 'lv' && weiCp.attackerIds.length >= 6,
     JSON.stringify(weiCp && { target: weiCp.targetId, attackers: weiCp.attackerIds.length }));
@@ -83,13 +105,32 @@ group('开局战略');
   ok('魏蜀吴袁绍公孙瓒不是小国', ['wei', 'shu', 'wu', 'yuan', 'gongsun'].every(function (f) {
     return !story.isPassive(st, f);
   }));
-  ok('小国募兵只有大国一半', story.recruitRate(st, 'biao') === 0.06 &&
-    story.recruitRate(st, 'wei') === 0.12);
+  ok('小国募兵只有大国一半（整体加快两倍）', story.recruitRate(st, 'biao') === 0.12 &&
+    story.recruitRate(st, 'wei') === 0.24);
 
   // 随机外交在剧情模式下完全停掉
   const before = Object.keys(st.factionWars).sort().join(',');
   for (let i = 0; i < 40; i++) warLib.diplomacyTick(st);
   ok('剧情模式没有随机宣战/议和', Object.keys(st.factionWars).sort().join(',') === before);
+}
+
+/* ---------------------------------------------------------------- 地图改动 */
+group('地图：公孙、南越、长沙、新野、荆州三点');
+{
+  const st = game(1012);
+  const sites = st.world.sites;
+  ok('公孙势力名与旗号为公', FACTIONS.gongsun.name === '公孙' && FACTIONS.gongsun.banner === '公');
+  ok('南越改名且新增龙编', FACTIONS.shanyue.name === '南越' &&
+    sites.some(function (s) { return s.id === 'longbian' && s.ownerFaction === 'shanyue'; }) &&
+    sites.filter(function (s) { return s.ownerFaction === 'shanyue' && (s.type === 'town' || s.type === 'castle'); }).length >= 2);
+  ok('长沙由村升城且是要地', (function () {
+    const s = sites.filter(function (x) { return x.id === 'changsha'; })[0];
+    return s && s.type === 'town' && !!(require(R + '/data/china.js').STRATEGIC_SITES.changsha);
+  })());
+  ok('新野断许昌、连汝南', !roadAdjacent('xuchang', 'xinye') && roadAdjacent('runan', 'xinye'));
+  ok('牂牁—武陵连成山道', roadAdjacent('zangke', 'wuling'));
+  ok('荆州三镇按襄阳—新野—江陵排序',
+    JSON.stringify(STORY.jingzhouSites) === JSON.stringify(['xiangyang', 'xinye', 'jiangling']));
 }
 
 /* ---------------------------------------------------------------- 玩家宣战 */
@@ -131,8 +172,8 @@ group('蜀：第一战略 · 收取西川');
   tickDay(st, 12);
   ok('西川平定后进入休整', st.story.phases.shu.status === 'rest' && st.story.phases.shu.success);
   ok('第一战略记完成', st.story.phases.shu.completed >= 1);
-  ok('战略达成文书存在', st.events.some(function (e) {
-    return e.title && e.title.indexOf('第一战略') >= 0 && e.title.indexOf('达成') >= 0;
+  ok('收取西川达成文书存在', st.events.some(function (e) {
+    return e.title && e.title.indexOf('收取西川') >= 0 && e.title.indexOf('达成') >= 0;
   }));
 
   // 休整结束后开荆州
@@ -147,11 +188,11 @@ group('蜀：第一战略 · 收取西川');
 
 /* ---------------------------------------------------------------- 阶段超时 */
 
-group('一年未下荆州：转南蛮');
+group('荆州未下：不再超时跳关');
 {
   const st = game(1002);
   tickDay(st, 8);
-  // 跳过入川，直接让蜀进入第二战略并打满一年
+  // 跳过入川，直接把蜀推到第二战略，打满一年也不许跳关。
   st.story.phases.shu = {
     id: 'shu_jingzhou', status: 'war', startedDay: 100, restUntil: 0,
     nextId: 'shu_nanman', completed: 1, success: false, timedOut: false,
@@ -160,15 +201,27 @@ group('一年未下荆州：转南蛮');
   warLib.declare(st, 'shu', 'biao', true, true);
   st.clock.day = 100 + 360;
   story.tick(st);
-  ok('一年未下荆州判定受挫', st.story.phases.shu.status === 'rest' &&
-    st.story.phases.shu.timedOut === true);
-  ok('受挫后转南蛮', st.story.phases.shu.nextId === 'shu_nanman');
-  ok('受挫文书说明收兵', st.events.some(function (e) {
+  ok('一年未下荆州仍留在本阶段', st.story.phases.shu.status === 'war' &&
+    st.story.phases.shu.id === 'shu_jingzhou' && st.story.phases.shu.timedOut === false);
+  ok('不出现受挫收兵文书', !st.events.some(function (e) {
     return e.title && e.title.indexOf('受挫') >= 0 && e.lines.join('').indexOf('一年') >= 0;
   }));
-  tickDay(st, 100 + 360 + 121);
-  ok('休整后开南蛮', st.story.phases.shu.id === 'shu_nanman' &&
-    warLib.atWar(st, 'shu', 'nanman'));
+  ok('下一阶段仍是原定南蛮', st.story.phases.shu.nextId === 'shu_nanman');
+
+  // 把刘表势力清零，才允许进入下一阶段。
+  takeAll(st, 'biao', 'shu');
+  st.factionState.biao = Object.assign({}, st.factionState.biao || {}, {
+    dead: true, deadDay: st.clock.day, lastConqueror: 'shu',
+  });
+  st.clock.day = 100 + 361;
+  story.tick(st);
+  ok('灭刘表后荆州阶段达成', st.story.phases.shu.status === 'rest' &&
+    st.story.phases.shu.success === true);
+  ok('荆州达成后接匡扶汉室', st.story.phases.shu.nextId === 'shu_han');
+
+  tickDay(st, st.story.phases.shu.restUntil);
+  ok('休整后进入匡扶汉室', st.story.phases.shu.id === 'shu_han' &&
+    st.story.phases.shu.status === 'war');
 }
 
 /* ---------------------------------------------------------------- 袁术称帝 */
@@ -193,20 +246,70 @@ group('袁术：一年后称帝');
 
 /* ---------------------------------------------------------------- 死战 */
 
-group('袁绍与公孙瓒：不死不休');
+group('袁绍：兴盛、官渡、衰亡');
 {
   const st = game(1004);
   ok('两家开局就是死战', warLib.atWar(st, 'yuan', 'gongsun'));
   ok('议和书被退回', warLib.makePeace(st, 'yuan', 'gongsun', true) === false);
   ok('之后仍在死战', warLib.atWar(st, 'yuan', 'gongsun'));
-  ok('阶段无超时', !!(st.story.phases.yuan && st.story.phases.yuan.status === 'war'));
+  ok('第一阶段无超时', !!(st.story.phases.yuan && st.story.phases.yuan.status === 'war'));
 
-  // 公孙瓒灭亡，赵云固定投刘备
+  // 第一阶段：灭公孙瓒，邺城大摆宴席，赵云固定投刘备。
   st.factionState.gongsun = Object.assign({}, st.factionState.gongsun, { lastConqueror: 'yuan' });
   takeAll(st, 'gongsun', 'yuan');
   stateLib.fallFaction(st, 'gongsun');
+  story.tick(st);
   ok('公孙瓒灭亡后赵云归蜀', st.lords.filter(function (l) { return l.id === 'zhaoyun'; })
     .every(function (l) { return l.faction === 'shu'; }));
+  ok('灭公孙后进入十五日休整', st.story.phases.yuan.status === 'rest' &&
+    st.story.phases.yuan.success === true);
+  ok('宴席文书说明兵强马壮', st.events.some(function (e) {
+    return e.title === '幽冀不死不休 · 达成' &&
+      e.lines.join('').indexOf('大摆宴席') >= 0 &&
+      e.lines.join('').indexOf('田丰') >= 0;
+  }));
+
+  // 第二阶段：东取吕布、北扫鲜卑。
+  tickDay(st, st.story.phases.yuan.restUntil);
+  ok('休整后东取吕布、北扫鲜卑', st.story.phases.yuan.id === 'yuan_expand' &&
+    st.story.phases.yuan.status === 'war' &&
+    warLib.atWar(st, 'yuan', 'lv') && warLib.atWar(st, 'yuan', 'xianbei'));
+  killFaction(st, 'lv', 'yuan');
+  killFaction(st, 'xianbei', 'yuan');
+  tickDay(st, st.clock.day + 1);
+  ok('灭吕布与鲜卑后再次休整', st.story.phases.yuan.status === 'rest' &&
+    st.story.phases.yuan.success === true &&
+    st.story.phases.yuan.nextId === 'yuan_wait_yuanshu');
+
+  // 第三阶段：按兵等曹操、孙权灭袁术。
+  tickDay(st, st.story.phases.yuan.restUntil);
+  ok('进入坐观袁术阶段', st.story.phases.yuan.id === 'yuan_wait_yuanshu' &&
+    st.story.phases.yuan.status === 'waiting');
+  ok('袁绍此时不打曹操', !warLib.atWar(st, 'yuan', 'wei'));
+  killFaction(st, 'yuanshu', 'wei');
+  const deathDay = st.clock.day;
+  tickDay(st, deathDay + 1);
+  ok('袁术刚死，袁绍仍按兵一月', st.story.phases.yuan.id === 'yuan_wait_yuanshu' &&
+    st.story.phases.yuan.status === 'waiting');
+
+  // 第四阶段：袁术灭亡一月后，曹袁汇聚官渡。
+  tickDay(st, deathDay + 31);
+  ok('袁术灭亡一月后进入官渡', st.story.phases.yuan.id === 'yuan_guandu' &&
+    st.story.phases.yuan.status === 'war' &&
+    warLib.atWar(st, 'yuan', 'wei'));
+  ok('袁绍进入昏君衰弱', st.story.yuanWeak === true &&
+    FACTION_COMBAT.yuan.power === 0.33);
+  ok('袁军士气被压到 35 以下', st.lords.filter(function (l) { return l.faction === 'yuan'; })
+    .every(function (l) { return l.morale <= 35; }));
+  ok('官渡合战已经摆开', st.fieldBattles.some(function (bf) {
+    return bf.context && bf.context.cause === 'guandu' &&
+      bf.battle && !bf.battle.finished;
+  }));
+  const caocao = st.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const yuanshao = st.lords.filter(function (l) { return l.id === 'yuanshao'; })[0];
+  ok('曹操与袁绍补满本部', !!caocao && !!yuanshao &&
+    JSON.stringify(caocao.troops) === JSON.stringify(caocao.defTroops) &&
+    JSON.stringify(yuanshao.troops) === JSON.stringify(yuanshao.defTroops));
 }
 
 /* ---------------------------------------------------------------- 小国 */
@@ -214,11 +317,23 @@ group('袁绍与公孙瓒：不死不休');
 group('边缘小国：只骚扰相邻城市');
 {
   const st = game(1005);
-  // 魏主动攻马腾，但两家没有直接城道：马腾不应组织远征
+  // 马腾现在与韩遂、汉廷互战；即使魏再宣战，马腾也只能打与本土直接相邻的城。
   warLib.declare(st, 'wei', 'ma', true, true);
   warLib.strategyTick(st);
-  ok('没有相邻城道的小国不远征', !st.warCampaigns.ma);
+  const maCp = st.warCampaigns.ma;
+  const maOrigins = st.story.originCities.ma;
+  ok('没有相邻城道就不远征魏', !maCp || maCp.enemy !== 'wei');
   ok('马腾仍被视为小国', story.isPassive(st, 'ma'));
+  ok('马腾只攻本土一邻城', !maCp || maOrigins.some(function (id) {
+    return roadAdjacent(id, maCp.targetId);
+  }), maCp ? maCp.targetId + ' / ' + maOrigins.join(',') : 'none');
+  ['hansui', 'han'].forEach(function (f) {
+    const cp = st.warCampaigns[f];
+    const origins = st.story.originCities[f];
+    ok(f + ' 只攻本土一邻城', !cp || origins.some(function (id) {
+      return roadAdjacent(id, cp.targetId);
+    }), cp ? cp.targetId + ' / ' + origins.join(',') : 'none');
+  });
 
   // 吕布与曹操接壤，吕布可以反击相邻的陈留/小沛，但不会去打远处的城
   const lvCp = st.warCampaigns.lv;
@@ -231,7 +346,7 @@ group('边缘小国：只骚扰相邻城市');
   }
 
   // 小国募兵速率减半（通过公开的速率函数核对）
-  ok('刘表募兵减半', story.recruitRate(st, 'biao') === 0.06);
+  ok('刘表募兵仍是大国一半', story.recruitRate(st, 'biao') === 0.12);
   ok('袁术也算小国', story.isPassive(st, 'yuanshu'));
 }
 

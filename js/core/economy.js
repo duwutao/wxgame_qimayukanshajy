@@ -192,11 +192,11 @@ function dailyMarket(state, rng) {
     // 领主招兵池：按城/村错开日子补一点，跟玩家招募池分开，也不额外消耗事件随机数
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
       site.lordRecruits = site.lordRecruits || {};
-      const lcap = site.type === 'village' ? 2 : 4;
+      const lcap = site.type === 'village' ? 4 : 8;
       if (state.clock.day % 3 === (site.x + site.y) % 3) {
         (site.recruitList || []).forEach(function (id) {
           const have = site.lordRecruits[id] || 0;
-          if (have < lcap) site.lordRecruits[id] = have + 1;
+          if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + 2);
         });
       }
     }

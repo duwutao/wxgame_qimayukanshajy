@@ -792,7 +792,7 @@ ok('孙权与刘表这时才开战', warLib.atWar(st7, 'wu', 'biao'));
 
 // 宣战 / 议和
 const wcount = Object.keys(st7.factionWars).length;
-ok('宣战能生效', warLib.declare(st7, 'wei', 'shu', true) === true || warLib.atWar(st7, 'shu', 'wu'));
+ok('宣战能生效', warLib.declare(st7, 'wei', 'shu', true, true) === true || warLib.atWar(st7, 'shu', 'wu'));
 ok('重复宣战不重复记', warLib.declare(st7, 'wei', 'shu', true) === false);
 ok('议和能停战', (function () {
   warLib.makePeace(st7, 'wei', 'shu', true);
@@ -2125,7 +2125,7 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   g.campaign.stage = 2;
   g.settings = { diplomacyAlerts: false };
   const n0 = g.events.length;
-  warLib.declare(g, 'wei', 'shu', false);
+  warLib.declare(g, 'wei', 'shu', false, true);
   ok('关闭战和提醒后不弹军情', g.events.length === n0, 'events=' + (g.events.length - n0));
   g.settings.diplomacyAlerts = true;
   warLib.declare(g, 'shu', 'zhang', false);
@@ -2205,8 +2205,8 @@ ok('穿山峡谷有横向与斜向山口', (world.canyons || []).length >= 8 &&
     JSON.stringify(Object.keys(g.factionWars || {})));
   ok('开局先放出三对战争', Object.keys(g.factionWars || {}).length === 3,
     JSON.stringify(Object.keys(g.factionWars || {})));
-  warLib.declare(g, 'wei', 'shu', true);
-  warLib.declare(g, 'wei', 'han', true);
+  warLib.declare(g, 'wei', 'shu', true, true);
+  warLib.declare(g, 'wei', 'han', true, true);
   ok('一国最多同时与三国开战', warLib.warPartners(g, 'wei').length === 3 &&
     !warLib.declare(g, 'wei', 'biao', true), JSON.stringify(warLib.warPartners(g, 'wei')));
   ok('超过三国时宣战被拒', !warLib.canOpenWar(g, 'wei', 'biao'));
@@ -2950,7 +2950,7 @@ group('n8 版：两层对碰 · 五格合战 · NPC 动态战场');
   const foe = testLord('n8-foe', 'shu', 30, 52, 50);
   const foeAlly = testLord('n8-foe-ally', 'shu', 20, 53, 51);
   g.lords = [ally, foe, foeAlly];
-  warLib.declare(g, 'wei', 'shu');
+  warLib.declare(g, 'wei', 'shu', true, true);
   const playerStart = armyLib.troopCount(g.player.troops);
   const battle = stateLib.startLordBattle(g, foe);
   ok('玩家开战会带上五格内友军',
@@ -2985,7 +2985,7 @@ group('n8 版：两层对碰 · 五格合战 · NPC 动态战场');
   const c = testLord('n8-c', 'wei', 30, 49, 51);
   const d = testLord('n8-d', 'shu', 20, 52, 51);
   g2.lords = [a, b, c, d];
-  warLib.declare(g2, 'wei', 'shu');
+  warLib.declare(g2, 'wei', 'shu', true, true);
   const bf = warLib.createFieldBattle(g2, { kind: 'lord', id: 'n8-a' },
     { kind: 'lord', id: 'n8-b' }, { preAggregate: false, context: { kind: 'field' } });
   ok('NPC 对 NPC 开局不预先聚合', !!bf && bf.participants.length === 2 &&
@@ -3004,7 +3004,7 @@ group('n8 版：两层对碰 · 五格合战 · NPC 动态战场');
   const cc = testLord('n8-tick-c', 'wei', 600, 49, 51);
   const dd = testLord('n8-tick-d', 'shu', 600, 52, 51);
   g3.lords = [aa, bb, cc, dd];
-  warLib.declare(g3, 'wei', 'shu');
+  warLib.declare(g3, 'wei', 'shu', true, true);
   warLib.fieldTick(g3);
   const live = g3.fieldBattles[0];
   ok('NPC 野战 tick 会生成战场且首拍只有原始两方',
@@ -3037,13 +3037,13 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
     (roadData.ROADS || []).some(function (r) {
       return (r[0] === 'jiange' && r[1] === 'xinye') || (r[0] === 'xinye' && r[1] === 'jiange');
     }));
-  ok('战略要地共 12 处且半径 8、防御 1.5',
-    Object.keys(roadData.STRATEGIC_SITES).length === 12 &&
+  ok('战略要地共 13 处且半径 8、防御 1.5',
+    Object.keys(roadData.STRATEGIC_SITES).length === 13 &&
     Object.keys(roadData.STRATEGIC_SITES).every(function (id) {
       const c = roadData.STRATEGIC_SITES[id];
       return c.radius === 8 && c.defense === 1.5;
     }), Object.keys(roadData.STRATEGIC_SITES).join(','));
-  ['hulao', 'tongguan', 'jiange', 'guandu', 'hanzhong', 'xiangyang', 'hefei', 'chaisang', 'taishanguan'].forEach(function (id) {
+  ['hulao', 'tongguan', 'jiange', 'guandu', 'hanzhong', 'xiangyang', 'hefei', 'chaisang', 'taishanguan', 'changsha'].forEach(function (id) {
     const n = (roadData.ROADS || []).filter(function (r) { return r[0] === id || r[1] === id; }).length;
     // 官渡按新路网只保留陈留/白马/虎牢三条通道，新野线已断。
     const need = (id === 'guandu' || id === 'taishanguan') ? 3 : 4;
@@ -3055,7 +3055,7 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
   ok('蜀—璋因道路接壤成为邻国', warLib.factionsAdjacent(gRoad, 'shu', 'zhang'));
   ok('魏—马腾不接壤', !warLib.factionsAdjacent(gRoad, 'wei', 'ma'));
   ok('不接壤的势力不能随机宣战', !warLib.canOpenWar(gRoad, 'wei', 'ma'));
-  ok('接壤的势力可以宣战', warLib.canOpenWar(gRoad, 'wei', 'shu'));
+  ok('接壤的势力可以宣战', warLib.canOpenWar(gRoad, 'shu', 'zhang'));
 }
 {
   // 玩家：没有城时第一座随意；有了城后只能打道路直接相连的敌城。
@@ -3192,7 +3192,7 @@ group('n10 版：合战节奏 · 溃逃位移 · 旗色');
   const b1 = testLord('n10-b1', 'shu', 6000, 51, 50);
   const b2 = testLord('n10-b2', 'shu', 1200, 52, 51);
   g.lords = [a1, a2, b1, b2];
-  warLib.declare(g, 'wei', 'shu');
+  warLib.declare(g, 'wei', 'shu', true, true);
   const bf = warLib.createFieldBattle(g,
     { kind: 'lord', id: a1.id }, { kind: 'lord', id: b1.id },
     { preAggregate: true, context: { kind: 'field' } });
@@ -3473,7 +3473,7 @@ group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
   g.player.x = 150; g.player.y = 150;
   g.parties = [];
   g.lords = [weak, foe];
-  warLib.declare(g, 'wei', 'shu');
+  warLib.declare(g, 'wei', 'shu', true, true);
   const threat = stateLib.lordThreatFor(g, weak, true, false);
   ok('敌军逼近本城时超过十人的守军不再逃',
     !threat || threat.role !== 'flee', threat ? threat.role : 'none');
@@ -3502,7 +3502,7 @@ group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
   g.player.x = 150; g.player.y = 150;
   g.parties = [];
   g.lords = [weak, strong];
-  warLib.declare(g, 'wei', 'shu');
+  warLib.declare(g, 'wei', 'shu', true, true);
   for (let i = 0; i < 8 && weak.alive && !weak.prisoner; i++) warLib.clash(g, weak, strong);
   ok('守城军撞阵打崩也不准溃逃（只可被俘）',
     weak.fleeing !== true && (!!weak.prisoner || !weak.alive),
@@ -3728,7 +3728,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   const newIds = ['fanyang', 'changshan', 'yushan', 'shanyue'];
   const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
   ok('n19 新城全部生成', missing.length === 0, missing.join(','));
-  ok('总据点扩到 82', g.world.sites.length === 82, String(g.world.sites.length));
+  ok('总据点扩到 83', g.world.sites.length === 83, String(g.world.sites.length));
 
   function hasRoad(a, b) {
     return ROADS.some(function (p) {
@@ -3810,7 +3810,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     if (l) l.inCity = null;
   });
   const migrated = stateLib.deserialize(old);
-  ok('旧档补齐 n19 四座新城与泰山关', !!migrated && migrated.world.sites.length === 82,
+  ok('旧档补齐 n19 四座新城、泰山关与龙编', !!migrated && migrated.world.sites.length === 83,
     migrated ? String(migrated.world.sites.length) : 'null');
   ok('旧档襄平转无主', !!migrated && (function () {
     const s = worldLib.siteById(migrated.world, 'xiangping');

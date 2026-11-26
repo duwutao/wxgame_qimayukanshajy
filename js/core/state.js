@@ -250,6 +250,7 @@ function pushLog(state, text, kind) {
 /* ---------------------------------------------------------------- 初始化 */
 
 function createGame(opts) {
+  story.resetCombat();
   resetFactionRulers();
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
@@ -387,6 +388,7 @@ function createGame(opts) {
     },
   };
 
+  state.storyHooks = { stageGuandu: stageGuandu };
   syncPlayerFaction(null);
   spawnLords(state);
   autoAssignFiefs(state);
@@ -663,9 +665,82 @@ function lordFromDef(state, def) {
   };
 }
 
+
+/** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
+function stageGuandu(state) {
+  const guandu = siteById(state.world, 'guandu');
+  if (!guandu) return false;
+  ['wei', 'yuan'].forEach(function (faction, sideIndex) {
+    const lords = state.lords.filter(function (l) {
+      return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
+    });
+    lords.forEach(function (lord, i) {
+      lord.troops = deepCopy(lord.defTroops || lord.troops || {});
+      lord.morale = faction === 'yuan' ? 35 : 92;
+      lord.inCity = null;
+      lord.resting = false;
+      lord.defending = null;
+      lord.order = null;
+      lord.chasing = false;
+      lord.engagedWith = null;
+      lord.engagedSinceH = null;
+      lord.enteringSiteId = null;
+      lord.cityEnterAtH = null;
+      lord.routePath = null;
+      lord.routePathFor = null;
+      lord.orderPath = null;
+      lord.patrolPath = null;
+      lord.wander = null;
+      lord.stepFrom = null;
+      lord.stepTo = null;
+      lord.stepStartH = null;
+      lord.stepHours = null;
+      lord.nextMoveH = 0;
+      const side = faction === 'yuan' ? -1 : 1;
+      const anchor = {
+        x: guandu.x + ((i % 5) - 2) * 2,
+        y: guandu.y + side * (6 + Math.floor(i / 5) * 2),
+      };
+      const spot = findFreeSpotNear(state, anchor.x, anchor.y, 6, lord) ||
+        findFreeSpotNear(state, guandu.x, guandu.y, 12, lord);
+      if (spot) {
+        lord.x = spot.x;
+        lord.y = spot.y;
+        lord.prevX = spot.x;
+        lord.prevY = spot.y;
+      }
+    });
+  });
+
+  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
+  if (state.fieldBattles && state.fieldBattles.some(function (bf) {
+    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+  })) return true;
+  const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
+  const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
+  if (caocao && yuanshao && war.createFieldBattle) {
+    war.createFieldBattle(state,
+      { kind: 'lord', id: caocao.id },
+      { kind: 'lord', id: yuanshao.id },
+      { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
+  }
+  return true;
+}
+
 function spawnLords(state) {
   const { LORDS } = require('../data/china.js');
-  state.lords = LORDS.map(function (def) { return lordFromDef(state, def); });
+  const { STORY } = require('../data/story.js');
+  let defs = LORDS;
+  if (state.storyMode) {
+    // 三国演义专属人事：吕布、刘表、刘璋削减领主；魏蜀吴补入新人。
+    const cuts = STORY.lordCuts || {};
+    defs = defs.filter(function (def) {
+      const drop = cuts[def.faction] || [];
+      return drop.indexOf(def.id) < 0;
+    });
+    defs = defs.concat(STORY.lordAdds || []);
+  }
+  state.lords = defs.map(function (def) { return lordFromDef(state, def); });
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -6859,6 +6934,8 @@ function deserialize(json) {
   if (!data.relations) return null; // 旧档不兼容
   if ((data.version || 0) < SAVE_VERSION) return null; // 旧地图/旧领主表不兼容
 
+  // 先清掉上一局可能残留的袁绍 0.33 系数；剧情档随后由 story.resume 按存档恢复。
+  story.resetCombat();
   resetFactionRulers();
   const state = {
     version: data.version || SAVE_VERSION,
@@ -7195,6 +7272,7 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
+  state.storyHooks = { stageGuandu: stageGuandu };
   war.init(state);
   war.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
