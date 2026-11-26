@@ -1,0 +1,30 @@
+name: n43 update juqing source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n43-juqing.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n43 source patch and bundle
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n43-source.patch 'https://aka.doubaocdn.com/s/ZVoe6BMchD'
+          git apply --check /tmp/n43-source.patch
+          git apply /tmp/n43-source.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/Xym9TBlV3D'
+          echo '730ca84df7841c16760827a3e7d46ab5b92b5fa09b1729a44a9198551ae68cb9  web/game.bundle.js' | sha256sum -c -
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: 20261126n43 张鲁/三阶段/荆州十轮/统一背叛/两年防卡死 [skip ci]'
+          git push origin HEAD:juqing
