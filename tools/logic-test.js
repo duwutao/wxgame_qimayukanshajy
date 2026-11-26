@@ -3989,8 +3989,9 @@ group('n20 版：官渡断线 · 青徐连城 · 泰山关 · 零兵打散');
   ok('小沛—彭城已接上', hasRoad('xiaopei', 'pengcheng'));
   ok('彭城—徐州已接上', hasRoad('pengcheng', 'xuzhou'));
   ok('平原—泰山关—彭城成走廊', hasRoad('pingyuan', 'taishanguan') && hasRoad('taishanguan', 'pengcheng'));
+  ok('濮阳—泰山关直连', hasRoad('puyang', 'taishanguan'));
   const pass = worldLib.siteById(g.world, 'taishanguan');
-  ok('泰山关归吕布', !!pass && pass.type === 'castle' && pass.ownerFaction === 'lv',
+  ok('泰山关归袁绍', !!pass && pass.type === 'castle' && pass.ownerFaction === 'yuan',
     pass ? pass.type + '/' + pass.ownerFaction : 'missing');
   ok('泰山关登记为 1.5 倍要地', roadData.STRATEGIC_SITES.taishanguan &&
     roadData.STRATEGIC_SITES.taishanguan.defense === 1.5);

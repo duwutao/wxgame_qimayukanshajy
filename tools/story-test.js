@@ -42,7 +42,11 @@ group('n43 开局与地图归属');
   ok('张鲁据上洛', site(st, 'shangluo').ownerFaction === 'zhanglu');
   ok('长沙归刘表', site(st, 'changsha').ownerFaction === 'biao');
   ok('襄平归公孙瓒', site(st, 'xiangping').ownerFaction === 'gongsun');
-  ok('泰山关归吕布', site(st, 'taishanguan').ownerFaction === 'lv');
+  ok('泰山关归袁绍', site(st, 'taishanguan').ownerFaction === 'yuan');
+  ok('夷陵归孙权', site(st, 'yiling').ownerFaction === 'wu');
+  ok('濮阳—泰山关直连', ROADS.some(function (r) {
+    return r[0] === 'puyang' && r[1] === 'taishanguan' || r[0] === 'taishanguan' && r[1] === 'puyang';
+  }));
   ok('交趾归山越', site(st, 'jiaozhi').ownerFaction === 'shanyue');
   ok('除边陲小镇外没有无主战略要地', st.world.sites.every(function (s) {
     return s.type === 'camp' || s.id === 'edge_town' || !!s.ownerFaction;

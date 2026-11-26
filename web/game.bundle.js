@@ -851,7 +851,7 @@ const SITE_ROWS = [
   ['xiapi', '下邳', 'town', 'lv', 31, 24, 1.1, 150, 'lv', '吕布守着这座城。泗水绕着城墙流，水能灌进来。'],
   ['xiaopei', '小沛', 'castle', 'lv', 29, 23, 1.12, 80, 'lv', '刘备借住过的地方，现在插着吕字旗。'],
   ['pengcheng', '彭城', 'village', 'lv', 30, 21, 0.78, 15, 'village', '徐州旧治的残垣，集市还开在墙根下。'],
-  ['taishanguan', '泰山关', 'castle', 'lv', 29, 18, 1.16, 80, 'lv', '青徐之间的山口关城。北接平原，南压彭城，谁占住这里，谁就卡住两州的粮道。'],
+  ['taishanguan', '泰山关', 'castle', 'yuan', 29, 18, 1.16, 80, 'yuan', '青徐之间的山口关城。北接平原，南压彭城，如今袁绍的旗插在关楼上。'],
   ['xuzhou', '徐州', 'town', 'lv', 33, 21, 1.07, 120, 'lv', '泗水与沂水在这里交汇，城头插着吕字旗，商队仍从城门下过。'],
   ['guangling', '广陵', 'town', 'yuanshu', 32, 26, 1.06, 95, 'yuanshu', '淮南的盐粮码头，袁术的船队从这里北上。'],
   ['hefei', '合肥', 'castle', 'yuanshu', 31, 29, 1.12, 85, 'yuanshu', '合肥新城压在江淮之间，谁占住这里，谁就能卡住寿春的北门。'],
@@ -869,7 +869,7 @@ const SITE_ROWS = [
   ['chaisang', '柴桑', 'town', 'wu', 28, 38, 1.06, 95, 'wu', '江东的水军基地，船比房子多。'],
   ['yushan', '玉山', 'town', 'wu', 32, 39, 1.04, 85, 'wu', '柴桑与会稽之间的山城，浙赣山道从城下过，往西还能转进夷陵。'],
   ['chibi', '赤壁', 'castle', 'biao', 26, 38, 1.16, 70, 'biao', '江边的石壁。风从东南来，火能烧到对岸。'],
-  ['yiling', '夷陵', 'castle', 'biao', 24, 41, 1.12, 75, 'biao', '三峡的出口。连营七百里，说的就是这一线。'],
+  ['yiling', '夷陵', 'castle', 'wu', 24, 41, 1.12, 75, 'wu', '三峡的出口。孙权的水军在这里下寨，江陵与柴桑之间的水路都从这里转。'],
   // ---- 益州 ----
   ['hanzhong', '汉中', 'town', 'zhanglu', 16, 29, 1.04, 105, 'zhanglu', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
   ['shangluo', '上洛', 'castle', 'zhanglu', 18, 26, 1.16, 80, 'zhanglu', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。张鲁的旗插在关楼上。'],
@@ -963,7 +963,7 @@ const ROADS = [
   ['hefei', 'guangling'], ['guangling', 'xiapi'], ['guangling', 'xuzhou'],
   ['xiaopei', 'xiapi'], ['xiaopei', 'pengcheng'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
   ['pengcheng', 'xuzhou'],
-  ['pengcheng', 'taishanguan'], ['taishanguan', 'taishan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
+  ['pengcheng', 'taishanguan'], ['taishanguan', 'taishan'], ['puyang', 'taishanguan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
   ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'shangluo'], ['shangluo', 'luoyang'],
@@ -9741,10 +9741,10 @@ const STORY = {
         warLines: [
           '孙权以“为父报仇”为名，向刘表宣战，周瑜督水军直取夏口、江陵。',
           '荆州水军与江东水军在三江口对峙，两岸烽火连了百里。',
-          '长沙、武陵、桂阳、夷陵、赤壁皆在刘表旗下，江东要一座一座地拔。',
+          '长沙、武陵、桂阳、赤壁皆在刘表旗下；夷陵已由孙权的水军先一步占住，江东要一座一座地拔。',
         ],
         successLines: [
-          '刘表势力覆灭，长沙、武陵、桂阳、夷陵、赤壁尽归江东。',
+          '刘表势力覆灭，长沙、武陵、桂阳、赤壁尽归江东；夷陵本就在孙权手中，江陵门户由此连成一线。',
           '孙权在江陵祭告孙坚，周瑜督造战船，准备北上。',
           '只等曹操也走完第一步，天下便会传出袁术称帝的消息。',
         ],
@@ -19053,6 +19053,26 @@ function deserialize(json) {
     { id: 'taishanguan', from: [null], to: 'lv' },
   ];
   N43_OWNER_MOVES.forEach(function (move) {
+    const site = siteById(state.world, move.id);
+    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
+    if (move.from.indexOf(site.ownerFaction) < 0) return;
+    const faction = FACTIONS[move.to];
+    if (!faction) return;
+    site.ownerFaction = move.to;
+    site.faction = move.to;
+    site.banner = faction.banner;
+    site.color = faction.color;
+    site.lordId = null;
+    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+  });
+  // n44 老档：泰山关由吕布改归袁绍，夷陵由刘表改归孙权；只迁移旧主，保留玩家战果。
+  const N44_OWNER_MOVES = [
+    { id: 'taishanguan', from: ['lv', null], to: 'yuan' },
+    { id: 'yiling', from: ['biao'], to: 'wu' },
+  ];
+  N44_OWNER_MOVES.forEach(function (move) {
     const site = siteById(state.world, move.id);
     if (!site || site.playerOwned || site.ownerFaction === move.to) return;
     if (move.from.indexOf(site.ownerFaction) < 0) return;

@@ -7531,6 +7531,26 @@ function deserialize(json) {
     site.lordRecruits = {};
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
+  // n44 老档：泰山关由吕布改归袁绍，夷陵由刘表改归孙权；只迁移旧主，保留玩家战果。
+  const N44_OWNER_MOVES = [
+    { id: 'taishanguan', from: ['lv', null], to: 'yuan' },
+    { id: 'yiling', from: ['biao'], to: 'wu' },
+  ];
+  N44_OWNER_MOVES.forEach(function (move) {
+    const site = siteById(state.world, move.id);
+    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
+    if (move.from.indexOf(site.ownerFaction) < 0) return;
+    const faction = FACTIONS[move.to];
+    if (!faction) return;
+    site.ownerFaction = move.to;
+    site.faction = move.to;
+    site.banner = faction.banner;
+    site.color = faction.color;
+    site.lordId = null;
+    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+  });
   // 边陲小镇：老档没有这张图，补城并挂上雾圈元数据。
   const edgeSite = siteById(state.world, 'edge_town');
   if (edgeSite && !state.world.edgeTown) {
