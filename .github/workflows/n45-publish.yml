@@ -1,0 +1,48 @@
+name: n45 publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n45-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update main entry and bundle
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/IVqSqzUxPT'
+          echo 'bb921ba15e45da6b809ae61460badf74002872761dbce229db425a7186d8011f  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261126n44/20261126n45/g' index.html web/index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html web/game.bundle.js
+          git commit -m 'release: 20261126n45 袁绍北伐蓟 叛军误报修复 [skip ci]'
+          git push origin HEAD:main
+  juqing:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n45 source and bundle to juqing
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n45-source.patch 'https://aka.doubaocdn.com/s/zLOIGNkiSY'
+          git apply --check /tmp/n45-source.patch
+          git apply /tmp/n45-source.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/IVqSqzUxPT'
+          echo 'bb921ba15e45da6b809ae61460badf74002872761dbce229db425a7186d8011f  web/game.bundle.js' | sha256sum -c -
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: 20261126n45 袁绍北伐蓟 叛军误报修复 [skip ci]'
+          git push origin HEAD:juqing
