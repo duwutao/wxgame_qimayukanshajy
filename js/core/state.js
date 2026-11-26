@@ -261,11 +261,16 @@ function createGame(opts) {
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
   const world = createWorld(seed);
-  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义是按史实推进的剧情。
-  // 先落成独立字段，后续与 main 合并时由选局页直接读取，不再靠布尔值猜。
+  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义保留史实开局人事，
+  // 但不再强制推进主线阶段；是否启用剧情状态机由显式 storyMode 决定。
   const background = (opts && opts.background) ||
     ((opts && opts.storyMode) ? 'romance' : 'chaos');
-  const storyMode = background === 'romance' || !!(opts && opts.storyMode);
+  const storyMode = (opts && typeof opts.storyMode === 'boolean')
+    ? opts.storyMode
+    : background === 'romance';
+  const historicalRoster = background === 'romance';
+  // 三国演义改成史实沙盘后不再跑十二章主线；乱世三国仍保留旧战役链。
+  const campaignDisabled = historicalRoster && !storyMode;
 
   world.sites.forEach(function (site) {
     let h = 0;
@@ -346,6 +351,8 @@ function createGame(opts) {
     version: SAVE_VERSION,
     seed,
     background,
+    historicalRoster,
+    campaignDisabled,
     storyMode,
     story: null,
     clock: { day: 1, hour: 5 },
@@ -413,9 +420,16 @@ function createGame(opts) {
   warmPatrolFields(state);
 
   pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
-  pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
-  state.events.push({ type: 'chapter', chapterId: require('../data/china.js').CAMPAIGN[0].id });
+  if (state.campaignDisabled) {
+    pushLog(state, '这一局没有写好的下一章；到陈留落脚，天下会自己往前演。');
+  } else {
+    pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
+  }
+  if (!state.campaignDisabled) {
+    state.events.push({ type: 'chapter', chapterId: require('../data/china.js').CAMPAIGN[0].id });
+  }
   // 剧情模式：各国按历史阶段递战书；普通模式保持原来的随机天下。
+  // 史实沙盘不再启动剧情状态机，只保留上面的史实人事。
   story.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
   story.init(state, pushLog);
@@ -741,8 +755,9 @@ function spawnLords(state) {
   const { LORDS } = require('../data/china.js');
   const { STORY } = require('../data/story.js');
   let defs = LORDS;
-  if (state.storyMode) {
+  if (state.storyMode || state.historicalRoster) {
     // 三国演义专属人事：吕布、刘表、刘璋削减领主；魏蜀吴补入新人。
+    // 无主线模式也保留这套史实人事，只是不再启动战略阶段。
     const cuts = STORY.lordCuts || {};
     defs = defs.filter(function (def) {
       const drop = cuts[def.faction] || [];
@@ -5837,6 +5852,7 @@ function lordTroopLine(lord) {
 /* ---------------------------------------------------------------- 战役 */
 
 function campaignState(state) {
+  if (state && state.campaignDisabled) return null;
   const stage = state.campaign.stage;
   return CAMPAIGN[Math.min(stage, CAMPAIGN.length - 1)];
 }
@@ -5865,7 +5881,7 @@ const CAMPAIGN_TARGET_SITE = {
 };
 
 function campaignTargetPos(state) {
-  if (!state || !state.campaign) return null;
+  if (!state || !state.campaign || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   if (!ch) return null;
   const site = siteById(state.world, CAMPAIGN_TARGET_SITE[ch.id]);
@@ -5874,7 +5890,7 @@ function campaignTargetPos(state) {
 }
 
 function campaignInfo(state) {
-  if (!state || !state.campaign) return null;
+  if (!state || !state.campaign || state.campaignDisabled) return null;
   if (state.campaign.stage >= CAMPAIGN.length) {
     return { done: true, total: CAMPAIGN.length, index: CAMPAIGN.length };
   }
@@ -5892,6 +5908,7 @@ function campaignInfo(state) {
 }
 
 function advanceCampaign(state) {
+  if (state && state.campaignDisabled) return;
   const c = state.campaign;
   if (c.stage >= CAMPAIGN.length) return;
   const ch = CAMPAIGN[c.stage];
@@ -5950,7 +5967,7 @@ function checkCampaign(state, key) {
 
 /** 当前这一章，在哪个据点能打出关键一仗 */
 function campaignObjective(state, site) {
-  if (!site) return null;
+  if (!site || !state || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   const id = ch && ch.id;
   if (id === 'act1b' && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
@@ -7276,6 +7293,8 @@ function serialize(state) {
     version: SAVE_VERSION,
     seed: state.seed,
     background: state.background || (state.storyMode ? 'romance' : 'chaos'),
+    historicalRoster: !!(state.historicalRoster || state.background === 'romance'),
+    campaignDisabled: !!state.campaignDisabled,
     storyMode: !!state.storyMode,
     story: state.story || null,
     clock: state.clock,
@@ -7359,6 +7378,11 @@ function deserialize(json) {
     version: data.version || SAVE_VERSION,
     seed: data.seed,
     background: data.background || (data.storyMode ? 'romance' : 'chaos'),
+    historicalRoster: !!(data.historicalRoster ||
+      (data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance'),
+    campaignDisabled: data.campaignDisabled != null
+      ? !!data.campaignDisabled
+      : ((data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance' && !data.storyMode),
     storyMode: !!data.storyMode,
     story: data.story || null,
     clock: data.clock,

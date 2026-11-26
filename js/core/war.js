@@ -27,6 +27,9 @@ const HANSUI_MIE_MA_DAY = 12;
 // 不再给开局设“曹袁三十天不能打”的停战罩；各国从第一天起就可以互相吞并。
 const OPENING_FORBIDDEN = {};
 const OPENING_DAYS = 0;
+// 南征南蛮是蜀国唯一一次“多路并进”的山地战：不再只凑 5 路，
+// 从成都、江州、朱提一线能点几路就点几路，最多八路。
+const SHU_NANMAN_MAX_LORDS = 8;
 let destroyPartyFn = null;
 let captureHook = null;
 
@@ -2239,6 +2242,10 @@ function planCampaign(state, faction, day) {
   if (proxy && proxy.target && foes.indexOf(proxy.target) >= 0) {
     foes = [proxy.target];
   }
+  // 蜀国打南蛮：史实里是诸葛亮统诸将分路南征，不是一路偏师慢慢啃。
+  // 这里只放宽本场战役的出征人数，后续仍按同一套集结、开拔、围城流程走。
+  const shuNanmanWar = faction === 'shu' && foes.indexOf('nanman') >= 0 &&
+    atWar(state, 'shu', 'nanman') && !(state.factionState.nanman || {}).dead;
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
   if (!own.length) return null;
@@ -2384,7 +2391,8 @@ function planCampaign(state, faction, day) {
       });
     }
   }
-  chosen = chosen.slice(0, Math.min(phaseWar ? 8 : 5, chosen.length));
+  chosen = chosen.slice(0, Math.min(
+    shuNanmanWar ? SHU_NANMAN_MAX_LORDS : (phaseWar ? 8 : 5), chosen.length));
   // 刘备入川：主公必须亲自走这一趟，带的是本势力最硬的四路人马，不是按离城最近的凑数。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
     const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
@@ -2449,10 +2457,16 @@ function planCampaign(state, faction, day) {
     }
   });
   state.warCampaigns[faction] = cp;
-  logFn(state,
-    '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
-    ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
-    target.site.name + '开拔。', 'muster');
+  if (shuNanmanWar) {
+    logFn(state,
+      '【蜀】点起 ' + chosen.length + ' 路南征军，诸将分道而进；' +
+      '主帅先往' + rally.name + '会合，兵锋直指' + target.site.name + '。', 'muster');
+  } else {
+    logFn(state,
+      '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
+      ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
+      target.site.name + '开拔。', 'muster');
+  }
   return cp;
 }
 

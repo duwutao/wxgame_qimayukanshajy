@@ -6190,6 +6190,9 @@ const HANSUI_MIE_MA_DAY = 12;
 // 不再给开局设“曹袁三十天不能打”的停战罩；各国从第一天起就可以互相吞并。
 const OPENING_FORBIDDEN = {};
 const OPENING_DAYS = 0;
+// 南征南蛮是蜀国唯一一次“多路并进”的山地战：不再只凑 5 路，
+// 从成都、江州、朱提一线能点几路就点几路，最多八路。
+const SHU_NANMAN_MAX_LORDS = 8;
 let destroyPartyFn = null;
 let captureHook = null;
 
@@ -8402,6 +8405,10 @@ function planCampaign(state, faction, day) {
   if (proxy && proxy.target && foes.indexOf(proxy.target) >= 0) {
     foes = [proxy.target];
   }
+  // 蜀国打南蛮：史实里是诸葛亮统诸将分路南征，不是一路偏师慢慢啃。
+  // 这里只放宽本场战役的出征人数，后续仍按同一套集结、开拔、围城流程走。
+  const shuNanmanWar = faction === 'shu' && foes.indexOf('nanman') >= 0 &&
+    atWar(state, 'shu', 'nanman') && !(state.factionState.nanman || {}).dead;
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
   if (!own.length) return null;
@@ -8547,7 +8554,8 @@ function planCampaign(state, faction, day) {
       });
     }
   }
-  chosen = chosen.slice(0, Math.min(phaseWar ? 8 : 5, chosen.length));
+  chosen = chosen.slice(0, Math.min(
+    shuNanmanWar ? SHU_NANMAN_MAX_LORDS : (phaseWar ? 8 : 5), chosen.length));
   // 刘备入川：主公必须亲自走这一趟，带的是本势力最硬的四路人马，不是按离城最近的凑数。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
     const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
@@ -8612,10 +8620,16 @@ function planCampaign(state, faction, day) {
     }
   });
   state.warCampaigns[faction] = cp;
-  logFn(state,
-    '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
-    ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
-    target.site.name + '开拔。', 'muster');
+  if (shuNanmanWar) {
+    logFn(state,
+      '【蜀】点起 ' + chosen.length + ' 路南征军，诸将分道而进；' +
+      '主帅先往' + rally.name + '会合，兵锋直指' + target.site.name + '。', 'muster');
+  } else {
+    logFn(state,
+      '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
+      ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
+      target.site.name + '开拔。', 'muster');
+  }
   return cp;
 }
 
@@ -9601,7 +9615,7 @@ const STORY = {
         title: '南征南蛮',
         casusBelli: '汉中已定，刘备转兵南方，要收南蛮诸部，完成西南一统，成为一方枭雄。',
         warLines: [
-          '诸葛亮率军南征，马岱、魏延为先锋，兵锋直指建宁、朱提。',
+          '诸葛亮率马岱、魏延、张飞、黄忠诸将分路南征，兵锋直指朱提、建宁。',
           '南蛮诸部善走山林，蜀军每下一城都要先修栈道。',
           '孟获若降，南中丁壮与象兵便能为蜀所用；若逃，则往他国去。',
         ],
@@ -12439,11 +12453,16 @@ function createGame(opts) {
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
   const world = createWorld(seed);
-  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义是按史实推进的剧情。
-  // 先落成独立字段，后续与 main 合并时由选局页直接读取，不再靠布尔值猜。
+  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义保留史实开局人事，
+  // 但不再强制推进主线阶段；是否启用剧情状态机由显式 storyMode 决定。
   const background = (opts && opts.background) ||
     ((opts && opts.storyMode) ? 'romance' : 'chaos');
-  const storyMode = background === 'romance' || !!(opts && opts.storyMode);
+  const storyMode = (opts && typeof opts.storyMode === 'boolean')
+    ? opts.storyMode
+    : background === 'romance';
+  const historicalRoster = background === 'romance';
+  // 三国演义改成史实沙盘后不再跑十二章主线；乱世三国仍保留旧战役链。
+  const campaignDisabled = historicalRoster && !storyMode;
 
   world.sites.forEach(function (site) {
     let h = 0;
@@ -12524,6 +12543,8 @@ function createGame(opts) {
     version: SAVE_VERSION,
     seed,
     background,
+    historicalRoster,
+    campaignDisabled,
     storyMode,
     story: null,
     clock: { day: 1, hour: 5 },
@@ -12591,9 +12612,16 @@ function createGame(opts) {
   warmPatrolFields(state);
 
   pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
-  pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
-  state.events.push({ type: 'chapter', chapterId: __require(5).CAMPAIGN[0].id });
+  if (state.campaignDisabled) {
+    pushLog(state, '这一局没有写好的下一章；到陈留落脚，天下会自己往前演。');
+  } else {
+    pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
+  }
+  if (!state.campaignDisabled) {
+    state.events.push({ type: 'chapter', chapterId: __require(5).CAMPAIGN[0].id });
+  }
   // 剧情模式：各国按历史阶段递战书；普通模式保持原来的随机天下。
+  // 史实沙盘不再启动剧情状态机，只保留上面的史实人事。
   story.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
   story.init(state, pushLog);
@@ -12919,8 +12947,9 @@ function spawnLords(state) {
   const { LORDS } = __require(5);
   const { STORY } = __require(18);
   let defs = LORDS;
-  if (state.storyMode) {
+  if (state.storyMode || state.historicalRoster) {
     // 三国演义专属人事：吕布、刘表、刘璋削减领主；魏蜀吴补入新人。
+    // 无主线模式也保留这套史实人事，只是不再启动战略阶段。
     const cuts = STORY.lordCuts || {};
     defs = defs.filter(function (def) {
       const drop = cuts[def.faction] || [];
@@ -18015,6 +18044,7 @@ function lordTroopLine(lord) {
 /* ---------------------------------------------------------------- 战役 */
 
 function campaignState(state) {
+  if (state && state.campaignDisabled) return null;
   const stage = state.campaign.stage;
   return CAMPAIGN[Math.min(stage, CAMPAIGN.length - 1)];
 }
@@ -18043,7 +18073,7 @@ const CAMPAIGN_TARGET_SITE = {
 };
 
 function campaignTargetPos(state) {
-  if (!state || !state.campaign) return null;
+  if (!state || !state.campaign || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   if (!ch) return null;
   const site = siteById(state.world, CAMPAIGN_TARGET_SITE[ch.id]);
@@ -18052,7 +18082,7 @@ function campaignTargetPos(state) {
 }
 
 function campaignInfo(state) {
-  if (!state || !state.campaign) return null;
+  if (!state || !state.campaign || state.campaignDisabled) return null;
   if (state.campaign.stage >= CAMPAIGN.length) {
     return { done: true, total: CAMPAIGN.length, index: CAMPAIGN.length };
   }
@@ -18070,6 +18100,7 @@ function campaignInfo(state) {
 }
 
 function advanceCampaign(state) {
+  if (state && state.campaignDisabled) return;
   const c = state.campaign;
   if (c.stage >= CAMPAIGN.length) return;
   const ch = CAMPAIGN[c.stage];
@@ -18128,7 +18159,7 @@ function checkCampaign(state, key) {
 
 /** 当前这一章，在哪个据点能打出关键一仗 */
 function campaignObjective(state, site) {
-  if (!site) return null;
+  if (!site || !state || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   const id = ch && ch.id;
   if (id === 'act1b' && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
@@ -19454,6 +19485,8 @@ function serialize(state) {
     version: SAVE_VERSION,
     seed: state.seed,
     background: state.background || (state.storyMode ? 'romance' : 'chaos'),
+    historicalRoster: !!(state.historicalRoster || state.background === 'romance'),
+    campaignDisabled: !!state.campaignDisabled,
     storyMode: !!state.storyMode,
     story: state.story || null,
     clock: state.clock,
@@ -19537,6 +19570,11 @@ function deserialize(json) {
     version: data.version || SAVE_VERSION,
     seed: data.seed,
     background: data.background || (data.storyMode ? 'romance' : 'chaos'),
+    historicalRoster: !!(data.historicalRoster ||
+      (data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance'),
+    campaignDisabled: data.campaignDisabled != null
+      ? !!data.campaignDisabled
+      : ((data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance' && !data.storyMode),
     storyMode: !!data.storyMode,
     story: data.story || null,
     clock: data.clock,
@@ -20424,7 +20462,8 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是按史实推进的剧情。
+    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是史实人事沙盘。
+    // 三国演义不再挂主线阶段，天下由群雄按现有国战 AI 自行演进。
     if (this.choosing) {
       drawScenarioChooser(ctx, app, w, h);
       return;
@@ -20524,12 +20563,12 @@ function drawScenarioChooser(ctx, app, w, h) {
   const card2Y = cardTop + cardH + cardGap;
   drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
     title: '三国演义',
-    tag: '史实推进',
-    desc: '同一套行军、攻城、募兵、内政机制，按史实推进天下大势。',
+    tag: '史实沙盘',
+    desc: '保留史实开局人事，但不再推进主线章节；让群雄按自己的兵力和道路去争天下。',
     action: '进入三国演义',
     id: 'new_romance',
     onTap: function () {
-      app.state = stateLib.createGame({ background: 'romance', storyMode: true });
+      app.state = stateLib.createGame({ background: 'romance', storyMode: false });
       app.replace('map');
     },
   });
@@ -23033,8 +23072,10 @@ function focusTaskTarget(app, target, label) {
 function drawQuestCard(ctx, app, box, w) {
   const st = app.state;
   const info = stateLib.campaignInfo(st);
-  if (!info) return;
   const activeSide = (st.quests || []).filter(function (q) { return q && !q.done && !q.failed; });
+  // 史实沙盘没有主线时，只留酒馆支线；一条支线也没有就不占地图。
+  if (!info && !activeSide.length) return;
+  const sideOnly = !info;
   const side = activeSide[0] || null;
   const collapsed = !!app.questTrackCollapsed;
 
@@ -23061,7 +23102,7 @@ function drawQuestCard(ctx, app, box, w) {
   const headerH = 30;
   const mainH = 64;
   const sideH = side ? 56 : 36;
-  const ph = headerH + mainH + sideH + 8;
+  const ph = headerH + (sideOnly ? 0 : mainH) + sideH + 8;
 
   ctx.fillStyle = 'rgba(10,8,6,0.84)';
   ctx.fillRect(x, y, pw, ph);
@@ -23078,28 +23119,30 @@ function drawQuestCard(ctx, app, box, w) {
   });
 
   let ry = y + headerH + 4;
-  // 主线：只显示当前这一章，不再把整条主线摊开
-  const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
-  const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
-  ctx.fillStyle = 'rgba(38,29,18,0.72)';
-  ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
-  ctx.fillStyle = '#d9a441';
-  ctx.fillRect(x + 8, ry, 3, mainH - 4);
-  text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
-  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
-  text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
-  const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
-  mainLines.forEach(function (ln, i) {
-    text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
-  });
-  text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
-  app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
-    const target = stateLib.campaignTargetPos(st);
-    if (target) focusTaskTarget(app, target, '主线目标');
-    else app.push('journal');
-  });
+  if (!sideOnly) {
+    // 主线：只显示当前这一章，不再把整条主线摊开
+    const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
+    const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
+    ctx.fillStyle = 'rgba(38,29,18,0.72)';
+    ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(x + 8, ry, 3, mainH - 4);
+    text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
+    const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
+    text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
+    const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
+    mainLines.forEach(function (ln, i) {
+      text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
+    });
+    text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
+    app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
+      const target = stateLib.campaignTargetPos(st);
+      if (target) focusTaskTarget(app, target, '主线目标');
+      else app.push('journal');
+    });
 
-  ry += mainH;
+    ry += mainH;
+  }
   // 支线：只收一条酒馆差事，点一下把镜头送到目标
   const sideHint = side
     ? (side.type === 'hunt' ? '去地图上找到目标队伍并打散' :
@@ -24303,34 +24346,116 @@ module.exports = { drawBackdrop };
   /* js/core/tourney.js */
   __defs[29] = function (module, exports, __require) {
 /**
- * 比武大会：押一注报名费，跟一位好手在彩棚底下比三招血。
+ * 军机棋盘：原城池“比武大会”改成五种军情博弈。
  *
- * 玩法是"猜手"：每合一招，双方各出一手——
- *   左挡 / 右挡 / 左攻 / 右攻。
- * 结算：
- *   · 都攻 → 两败俱伤，各掉一滴血
- *   · 都挡 → 各自绕圈试探，这合白打
- *   · 一攻一挡，方向相同（挡住）→ 攻击方掉血，防守方不掉，还白赚一刀
- *   · 一攻一挡，方向不同（挡空）→ 防守方掉血
- * 三滴血，先见底的人输。报名 40 金，赢的人拿 200。
- *
- * 不杀人不损兵，纯个人武艺（骑砍竞技场的味道）。
+ * 五种玩法都只押一局：报名 40 金钱，胜者得 200 金钱。
+ * 规则全部由本文件计算，场景层只负责把选择画成棋盘。
+ *   单挑斩将：劈克刺，刺克闪，闪克劈
+ *   断粮道：三处粮道猜伏兵，AI 会避开上次设伏点
+ *   狙杀敌哨：明哨/暗哨 × 换防/不换
+ *   火攻时机：顺风放火/等风停 × 防备/不备
+ *   烽火传令：三选一避开伏兵，再在剩下两条道中二选一
  */
 
-const { LORDS, FACTIONS } = __require(5);
 const heroes = __require(14);
 
-const HP = 3;
 const FEE = 40;
 const PRIZE = 200;
 
-const MOVES = {
-  blockL: { id: 'blockL', name: '左挡', dir: 'L', kind: 'block' },
-  blockR: { id: 'blockR', name: '右挡', dir: 'R', kind: 'block' },
-  attackL: { id: 'attackL', name: '左攻', dir: 'L', kind: 'attack' },
-  attackR: { id: 'attackR', name: '右攻', dir: 'R', kind: 'attack' },
-};
-const MOVE_IDS = ['blockL', 'blockR', 'attackL', 'attackR'];
+const DUEL_MOVES = [
+  { id: 'pi', name: '劈', beats: 'ci', desc: '大刀当头劈下，克刺。' },
+  { id: 'ci', name: '刺', beats: 'shan', desc: '枪尖直取咽喉，克闪。' },
+  { id: 'shan', name: '闪', beats: 'pi', desc: '侧身让过刀锋，克劈。' },
+];
+const DUEL_BY_ID = {};
+DUEL_MOVES.forEach(function (m) { DUEL_BY_ID[m.id] = m; });
+
+const SUPPLY_NODES = [
+  { id: 'east', name: '东粮道', short: '东', desc: '靠河，车辙最深。' },
+  { id: 'center', name: '中粮道', short: '中', desc: '直通大营，守备最密。' },
+  { id: 'west', name: '西粮道', short: '西', desc: '绕山，路窄而隐蔽。' },
+];
+const SUPPLY_BY_ID = {};
+SUPPLY_NODES.forEach(function (n) { SUPPLY_BY_ID[n.id] = n; });
+
+const SENTRY_TARGETS = [
+  { id: 'bright', name: '明哨', desc: '火把下的哨兵，站得最直。' },
+  { id: 'hidden', name: '暗哨', desc: '营外阴影里的眼睛，最难找。' },
+];
+const SENTRY_AIS = [
+  { id: 'change', name: '换防', desc: '哨兵互换位置。' },
+  { id: 'stay', name: '不换', desc: '原位盯到天亮。' },
+];
+const FIRE_MOVES = [
+  { id: 'burn', name: '顺风放火', desc: '趁风势把火船送过去。' },
+  { id: 'wait', name: '等风停', desc: '先按兵不动，等风向定。' },
+];
+const FIRE_AIS = [
+  { id: 'ready', name: '防备', desc: '沿江布下拒火船。' },
+  { id: 'unready', name: '不备', desc: '只当是寻常夜雾。' },
+];
+const RELAY_LANES = [
+  { id: 'east', name: '东驿道', short: '东', desc: '沿河快马，路最宽。' },
+  { id: 'center', name: '中驿道', short: '中', desc: '穿过两道土岗。' },
+  { id: 'west', name: '西驿道', short: '西', desc: '绕山，近而险。' },
+];
+const RELAY_BY_ID = {};
+RELAY_LANES.forEach(function (n) { RELAY_BY_ID[n.id] = n; });
+
+const MODES = [
+  {
+    id: 'duel', name: '单挑斩将', icon: 'duel', color: '#4a241c',
+    short: '劈 · 刺 · 闪',
+    intro: '两军阵前，你与敌将各出一招。劈克刺，刺克闪，闪克劈；同招相抵，可再出一手。',
+    rule: '一局定胜负。胜者斩将夺旗，得 200 金钱。',
+    choiceTitle: '你出哪一招？',
+    choices: DUEL_MOVES.map(function (m) {
+      return { id: m.id, name: m.name, desc: '克 ' + DUEL_BY_ID[m.beats].name };
+    }),
+  },
+  {
+    id: 'supply', name: '断粮道', icon: 'supply', color: '#3b3020',
+    short: '三处粮道 · 猜伏兵',
+    intro: '敌营粮道分东、中、西三处。你选一处偷袭，AI 选一处设伏；同时亮出，撞上伏兵即输，避开即赢。',
+    rule: 'AI 会避开上次设伏点。胜者烧掉敌粮，得 200 金钱。',
+    choiceTitle: '偷袭哪一处粮道？',
+    choices: SUPPLY_NODES.map(function (n) {
+      return { id: n.id, name: n.name, desc: n.desc };
+    }),
+  },
+  {
+    id: 'sentry', name: '狙杀敌哨', icon: 'sentry', color: '#26372e',
+    short: '明哨 / 暗哨',
+    intro: '敌营外两名哨兵轮换，一明一暗。你狙明哨或暗哨，AI 决定换防或不换；同时亮出。',
+    rule: '狙中暗哨且不换，或狙中明哨且换防，你赢；其余你输。',
+    choiceTitle: '先狙哪一个？',
+    choices: SENTRY_TARGETS.map(function (n) {
+      return { id: n.id, name: n.name, desc: n.desc };
+    }),
+  },
+  {
+    id: 'fire', name: '火攻时机', icon: 'fire', color: '#4a2a18',
+    short: '顺风 / 等风',
+    intro: '风向不定。你选顺风放火或等风停，AI 选防备或不备；同时亮出。',
+    rule: '顺风放火遇不备，或等风停遇防备，你赢；其余你输。',
+    choiceTitle: '何时点火？',
+    choices: FIRE_MOVES.map(function (n) {
+      return { id: n.id, name: n.name, desc: n.desc };
+    }),
+  },
+  {
+    id: 'relay', name: '烽火传令', icon: 'relay', color: '#2c2a40',
+    short: '两道关 · 三选一',
+    intro: '你是传令兵，要把军信送到前线。第一关三条驿道，AI 在其中一条设卡；避开后，第二关只剩两条道，AI 再补一道卡。',
+    rule: '两关都避开伏兵，军信送到，得 200 金钱；任一次撞上即输。',
+    choiceTitle: '第一关走哪条道？',
+    choices: RELAY_LANES.map(function (n) {
+      return { id: n.id, name: n.name, desc: n.desc };
+    }),
+  },
+];
+const MODE_BY_ID = {};
+MODES.forEach(function (m) { MODE_BY_ID[m.id] = m; });
 
 function fee() {
   return FEE;
@@ -24340,183 +24465,316 @@ function prize() {
   return PRIZE;
 }
 
-/** 挑一个本地的对手：从天下名将里抽一位，身板随声望涨一点 */
-function pickFoe(state) {
-  const rng = state.rng;
-  const list = LORDS.filter(function (l) { return l && l.id && l.name; });
-  const def = list[rng.int(0, list.length - 1)];
-  const rep = Math.min(20, Math.floor((state.player.renown || 0) / 60));
-  return {
-    name: def.name,
-    faction: def.faction,
-    lordId: def.id,
-    // 读招的本事：0.12 ~ 0.5，随你的声望往上加，别让人一开场就摸透
-    skill: Math.max(0.12, Math.min(0.5, 0.16 + rep * 0.02)),
-    tag: (FACTIONS[def.faction] || {}).full || '外地来的好手',
-  };
+function modeById(id) {
+  return MODE_BY_ID[id] || null;
 }
 
-function enter(state, site) {
-  const cost = FEE;
-  if (state.player.gold < cost) {
-    return { ok: false, msg: '报名要 ' + cost + ' 金钱，你身上不够' };
+function modeList() {
+  return MODES.slice();
+}
+
+function choiceList(modeId, relayState) {
+  const mode = modeById(modeId);
+  if (!mode) return [];
+  if (modeId === 'relay' && relayState && relayState.stage === 2) {
+    return RELAY_LANES.filter(function (n) {
+      return (relayState.remaining || []).indexOf(n.id) >= 0;
+    });
   }
-  state.player.gold -= cost;
-  state.tourney = {
+  return mode.choices.slice();
+}
+
+function labelFor(modeId, choiceId) {
+  const mode = modeById(modeId);
+  if (!mode) return choiceId;
+  if (modeId === 'relay') {
+    return (RELAY_BY_ID[choiceId] && RELAY_BY_ID[choiceId].name) || choiceId;
+  }
+  const list = mode.choices || [];
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].id === choiceId) return list[i].name;
+  }
+  return choiceId;
+}
+
+function aiLabelFor(modeId, aiId) {
+  if (modeId === 'supply') return (SUPPLY_BY_ID[aiId] && SUPPLY_BY_ID[aiId].name) || aiId;
+  if (modeId === 'sentry') {
+    return (SENTRY_AIS.filter(function (n) { return n.id === aiId; })[0] || {}).name || aiId;
+  }
+  if (modeId === 'fire') {
+    return (FIRE_AIS.filter(function (n) { return n.id === aiId; })[0] || {}).name || aiId;
+  }
+  if (modeId === 'relay') return (RELAY_BY_ID[aiId] && RELAY_BY_ID[aiId].name) || aiId;
+  if (modeId === 'duel') return (DUEL_BY_ID[aiId] && DUEL_BY_ID[aiId].name) || aiId;
+  return aiId;
+}
+
+/** 单挑：返回 win / lose / tie。 */
+function resolveDuel(playerMove, aiMove) {
+  const p = DUEL_BY_ID[playerMove];
+  if (!p || !DUEL_BY_ID[aiMove]) return null;
+  if (playerMove === aiMove) return 'tie';
+  return p.beats === aiMove ? 'win' : 'lose';
+}
+
+/** 断粮道：避开伏兵即胜。 */
+function resolveSupply(playerNode, ambushNode) {
+  if (!SUPPLY_BY_ID[playerNode] || !SUPPLY_BY_ID[ambushNode]) return null;
+  return playerNode !== ambushNode ? 'win' : 'lose';
+}
+
+/** 狙杀敌哨 2×2 表。 */
+function resolveSentry(target, aiMove) {
+  const ok = (target === 'hidden' && aiMove === 'stay') ||
+    (target === 'bright' && aiMove === 'change');
+  return ok ? 'win' : 'lose';
+}
+
+/** 火攻时机 2×2 表。 */
+function resolveFire(move, aiMove) {
+  const ok = (move === 'burn' && aiMove === 'unready') ||
+    (move === 'wait' && aiMove === 'ready');
+  return ok ? 'win' : 'lose';
+}
+
+/** 烽火传令：每一关都只是“选中的道是否撞上设卡道”。 */
+function resolveRelayStage(playerLane, blockLane) {
+  if (!RELAY_BY_ID[playerLane] || !RELAY_BY_ID[blockLane]) return null;
+  return playerLane !== blockLane ? 'win' : 'lose';
+}
+
+function safeFlags(state) {
+  if (!state.flags || typeof state.flags !== 'object') state.flags = {};
+  return state.flags;
+}
+
+function pickFrom(state, list) {
+  if (!list || !list.length) return null;
+  return list[state.rng.int(0, list.length - 1)];
+}
+
+function pickDuelAI(state) {
+  return pickFrom(state, DUEL_MOVES).id;
+}
+
+/** AI 会避开上次设伏点；没有上次记录时三处随机。 */
+function pickSupplyAmbush(state, last) {
+  let pool = SUPPLY_NODES.slice();
+  if (last) {
+    const filtered = pool.filter(function (n) { return n.id !== last; });
+    if (filtered.length) pool = filtered;
+  }
+  return pickFrom(state, pool).id;
+}
+
+function pickSentryAI(state) {
+  return pickFrom(state, SENTRY_AIS).id;
+}
+
+function pickFireAI(state) {
+  return pickFrom(state, FIRE_AIS).id;
+}
+
+function pickRelayBlock(state, lanes) {
+  return pickFrom(state, lanes).id;
+}
+
+/** 报名：交 40，初始化当前这一局。 */
+function enter(state, site, modeId) {
+  if (!state || !state.player) return { ok: false, msg: '还没有开局。' };
+  const mode = modeById(modeId || 'duel');
+  if (!mode) return { ok: false, msg: '棋盘上没有这一局。' };
+  if (state.tourney && !state.tourney.done) {
+    return { ok: false, msg: '上一局还没下完。' };
+  }
+  const gold = Number(state.player.gold || 0);
+  if (gold < FEE) return { ok: false, msg: '报名要 ' + FEE + ' 金钱，你身上不够。' };
+
+  state.player.gold = gold - FEE;
+  const t = {
+    mode: mode.id,
+    modeName: mode.name,
     siteId: site ? site.id : null,
     siteName: site ? site.name : '此地',
-    hp: HP,
-    foeHp: HP,
-    foe: pickFoe(state),
-    moves: [],
-    log: [],
-    done: false,
-    champion: false,
-    draw: false,
-    fee: cost,
+    fee: FEE,
     pot: PRIZE,
     round: 0,
+    done: false,
+    champion: false,
+    win: false,
+    result: null,
+    draw: false,
+    log: [],
+    choiceTitle: mode.choiceTitle,
   };
-  return { ok: true, msg: '交了 ' + cost + ' 金钱报名费，签了生死状（其实不杀人）。' };
-}
-
-/** 对手出招：多数时候乱来，偶尔读你上一手的习惯 */
-function aiMove(state) {
-  const t = state.tourney;
-  if (!t) return 'attackL';
-  const rng = state.rng;
-  const last = t.moves.length ? t.moves[t.moves.length - 1] : null;
-  if (last && rng.next() < (t.foe.skill || 0.2)) {
-    if (last.pMove === 'attackL') return 'blockL';
-    if (last.pMove === 'attackR') return 'blockR';
-    if (last.pMove === 'blockL') return 'attackR';
-    if (last.pMove === 'blockR') return 'attackL';
+  if (mode.id === 'relay') {
+    t.relay = {
+      stage: 1,
+      firstLane: null,
+      block1: null,
+      remaining: RELAY_LANES.map(function (n) { return n.id; }),
+      block2: null,
+    };
   }
-  return MOVE_IDS[rng.int(0, MOVE_IDS.length - 1)];
-}
-
-function dirName(d) {
-  return d === 'L' ? '左' : '右';
-}
-
-/**
- * 纯结算：给定双方这一合的招，算出各掉几滴血。
- * 规则只在这里写一遍，play 和测试都走它。
- */
-function settle(pMoveId, fMoveId) {
-  const pm = MOVES[pMoveId];
-  const fm = MOVES[fMoveId];
-  if (!pm || !fm) return null;
-  let dmgPlayer = 0;
-  let dmgFoe = 0;
-  let line = '';
-
-  if (pm.kind === 'attack' && fm.kind === 'attack') {
-    dmgPlayer = 1;
-    dmgFoe = 1;
-    line = '两边同时抢攻，家伙都落了实，各挨一下。';
-  } else if (pm.kind === 'block' && fm.kind === 'block') {
-    line = '两边都在收着，绕着彩棚走了半圈，这一合谁也没摸着谁。';
-  } else if (pm.kind === 'attack' && fm.kind === 'block') {
-    if (pm.dir === fm.dir) {
-      // 挡对了：进攻方白挨一刀，防守方不掉血
-      dmgPlayer = 1;
-      line = '你从' + dirName(pm.dir) + '边抢攻，对面正好在' + dirName(fm.dir) + '边架上盾，你虎口被震得发麻。';
-    } else {
-      // 挡空了：防守方掉血
-      dmgFoe = 1;
-      line = '你从' + dirName(pm.dir) + '边虚晃一招，人却从' + dirName(pm.dir === 'L' ? 'R' : 'L') + '边切进去，一刀劈在他护肩上。';
-    }
-  } else if (pm.dir === fm.dir) {
-    // 你挡住他的攻：反手赚他一下
-    dmgFoe = 1;
-    line = '他攻你' + dirName(fm.dir) + '，你' + dirName(pm.dir) + '手盾迎上去，磕开刀锋还推了他一把。';
-  } else {
-    dmgPlayer = 1;
-    line = '他攻你' + dirName(fm.dir) + '边，你挡在' + dirName(pm.dir) + '边——护不住，肋下吃了一记。';
-  }
-
-  return { dmgPlayer: dmgPlayer, dmgFoe: dmgFoe, line: line };
-}
-
-/**
- * 出一招，跟对手的招一起结算。
- * 返回 { ok, pMove, fMove, hp, foeHp, done, champion, draw, lines }
- */
-function play(state, moveId) {
-  const t = state.tourney;
-  if (!t) return { ok: false, msg: '大会已经散了' };
-  if (t.done) return { ok: false, msg: '这一场已经完了' };
-  const pm = MOVES[moveId];
-  if (!pm) return { ok: false, msg: '没有这么一手' };
-
-  const fm = MOVES[aiMove(state)];
-  const settled = settle(pm.id, fm.id);
-  const dmgPlayer = settled.dmgPlayer;
-  const dmgFoe = settled.dmgFoe;
-  t.round += 1;
-  const lines = ['第 ' + t.round + ' 合：', settled.line];
-
-  t.hp -= dmgPlayer;
-  t.foeHp -= dmgFoe;
-  t.moves.push({ pMove: moveId, fMove: fm.id, dmgPlayer: dmgPlayer, dmgFoe: dmgFoe });
-  lines.push('（你 ' + Math.max(0, t.hp) + ' 血 · ' + t.foe.name + ' ' + Math.max(0, t.foeHp) + ' 血）');
-
-  let result = 'continue';
-  if (t.hp <= 0 && t.foeHp <= 0) {
-    t.done = true;
-    t.draw = true;
-    result = 'draw';
-    state.player.gold += t.fee;
-    state.player.renown += 6;
-    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金钱报名费退了你，赏格对半分不成，只好作罢。');
-  } else if (t.foeHp <= 0) {
-    t.done = true;
-    t.champion = true;
-    result = 'win';
-    state.player.gold += t.pot;
-    state.player.renown += 40;
-    state.player.morale = Math.min(100, state.player.morale + 8);
-    heroes.gainHeroExp(state, 10);
-    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金钱，声望 +40。');
-    if (t.foe.lordId) {
-      const lid = t.foe.lordId;
-      state.lords.forEach(function (l) {
-        if (l.id === lid && l.alive) {
-          state.relations[l.faction] = Math.min(100, (state.relations[l.faction] || 0) + 6);
-        }
-      });
-    }
-  } else if (t.hp <= 0) {
-    t.done = true;
-    result = 'lose';
-    state.player.renown += 2;
-    state.player.morale = Math.max(0, state.player.morale - 4);
-    lines.push('你膝盖一软，坐在了土里。' + t.foe.name + '收了手，抱拳说：再练两年。报名费没了，台下还是有人叫好——敢上场的人不多。声望 +2。');
-  }
-
-  t.log.push(lines.join('\n'));
+  state.tourney = t;
   return {
     ok: true,
-    pMove: pm.id,
-    fMove: fm.id,
-    hp: Math.max(0, t.hp),
-    foeHp: Math.max(0, t.foeHp),
-    done: t.done,
+    msg: '交 ' + FEE + ' 金钱，军机棋盘摆开：' + mode.name + '。',
+    mode: mode.id,
+  };
+}
+
+function addLog(t, lines) {
+  if (!lines || !lines.length) return;
+  t.log.push(lines.filter(Boolean).join('\n'));
+  if (t.log.length > 12) t.log.shift();
+}
+
+function finish(state, t, win, resultLines) {
+  if (!t || t.done) return;
+  t.done = true;
+  t.win = !!win;
+  t.champion = !!win;
+  t.draw = false;
+  t.result = win ? 'win' : 'lose';
+  addLog(t, resultLines || []);
+  if (win) {
+    state.player.gold = Number(state.player.gold || 0) + PRIZE;
+    state.player.renown = Number(state.player.renown || 0) + 12;
+    state.player.morale = Math.min(100, Number(state.player.morale || 0) + 4);
+    if (state.stats) state.stats.goldEarned = Number(state.stats.goldEarned || 0) + PRIZE;
+    heroes.gainHeroExp(state, 4);
+    addLog(t, ['棋盘收官，你赢了。赏钱 ' + PRIZE + ' 金钱，声望 +12。']);
+  } else {
+    state.player.renown = Number(state.player.renown || 0) + 2;
+    state.player.morale = Math.max(0, Number(state.player.morale || 0) - 2);
+    addLog(t, ['这一局输了。报名费不退，声望 +2。']);
+  }
+}
+
+/**
+ * 下一步。选完之后由场景层展示结果。
+ * @param {object} state
+ * @param {string} choice
+ */
+function choose(state, choice) {
+  const t = state && state.tourney;
+  if (!t) return { ok: false, msg: '棋盘已经收了。' };
+  if (t.done) return { ok: false, msg: '这一局已经下完。' };
+  const mode = modeById(t.mode);
+  if (!mode) return { ok: false, msg: '这局棋盘已经作废。' };
+  t.round += 1;
+
+  if (t.mode === 'duel') {
+    if (!DUEL_BY_ID[choice]) return { ok: false, msg: '没有这一招。' };
+    const ai = pickDuelAI(state);
+    const result = resolveDuel(choice, ai);
+    if (result === 'tie') {
+      t.draw = true;
+      addLog(t, ['你出「' + labelFor('duel', choice) + '」，敌将也出「' + labelFor('duel', ai) + '」。', '同招相抵，各自收招；不另收报名费，可再出一手。']);
+      return {
+        ok: true, mode: t.mode, result: 'tie', done: false,
+        playerChoice: choice, aiChoice: ai,
+        playerLabel: labelFor('duel', choice), aiLabel: labelFor('duel', ai),
+        lines: ['同招相抵，重新起手。'],
+      };
+    }
+    t.draw = false;
+    const win = result === 'win';
+    addLog(t, ['你出「' + labelFor('duel', choice) + '」，敌将出「' + labelFor('duel', ai) + '」。', win ? '刀锋先到，敌将落马。' : '敌将先变招，你的刀势落空。']);
+    finish(state, t, win, [win ? '阵前斩将，夺旗而还。' : '你被亲兵抢回阵中，这局输了。']);
+  } else if (t.mode === 'supply') {
+    if (!SUPPLY_BY_ID[choice]) return { ok: false, msg: '没有这处粮道。' };
+    const last = safeFlags(state).warboardSupplyLastAmbush || null;
+    const ambush = pickSupplyAmbush(state, last);
+    safeFlags(state).warboardSupplyLastAmbush = ambush;
+    const result = resolveSupply(choice, ambush);
+    const win = result === 'win';
+    addLog(t, ['你偷袭「' + labelFor('supply', choice) + '」，伏兵藏在「' + labelFor('supply', ambush) + '」。', win ? '粮车起火，敌营连夜断炊。' : '你一头撞进伏兵圈，火把从两侧亮起。']);
+    finish(state, t, win, [win ? '断粮成功，敌营军心大乱。' : '偷袭失败，你带伤退回。']);
+  } else if (t.mode === 'sentry') {
+    if (!SENTRY_TARGETS.some(function (n) { return n.id === choice; })) {
+      return { ok: false, msg: '哨位只有明哨和暗哨。' };
+    }
+    const ai = pickSentryAI(state);
+    const result = resolveSentry(choice, ai);
+    const win = result === 'win';
+    addLog(t, ['你瞄准「' + labelFor('sentry', choice) + '」，敌营选择「' + aiLabelFor('sentry', ai) + '」。', win ? '弩箭穿过换防的空档，哨兵无声倒下。' : '哨兵恰好不在你的箭路上，营门立刻警觉。']);
+    finish(state, t, win, [win ? '敌哨已除，营门开了一条暗路。' : '一箭落空，你只能退入夜色。']);
+  } else if (t.mode === 'fire') {
+    if (!FIRE_MOVES.some(function (n) { return n.id === choice; })) {
+      return { ok: false, msg: '火攻只有两种时机。' };
+    }
+    const ai = pickFireAI(state);
+    const result = resolveFire(choice, ai);
+    const win = result === 'win';
+    addLog(t, ['你选「' + labelFor('fire', choice) + '」，敌营选择「' + aiLabelFor('fire', ai) + '」。', win ? '火船顺风撞入水寨，江面烧成一条火龙。' : '风向不对，火船还未靠近就被拒火船拦住。']);
+    finish(state, t, win, [win ? '火攻得手，敌营水寨尽毁。' : '火攻失手，你折了火船退回。']);
+  } else if (t.mode === 'relay') {
+    const relay = t.relay || (t.relay = {
+      stage: 1, firstLane: null, block1: null,
+      remaining: RELAY_LANES.map(function (n) { return n.id; }), block2: null,
+    });
+    const lane = RELAY_BY_ID[choice];
+    if (!lane) return { ok: false, msg: '没有这条驿道。' };
+    if (relay.stage === 1) {
+      const block = pickRelayBlock(state, RELAY_LANES);
+      relay.firstLane = choice;
+      relay.block1 = block;
+      relay.remaining = RELAY_LANES.filter(function (n) { return n.id !== block; }).map(function (n) { return n.id; });
+      const result = resolveRelayStage(choice, block);
+      if (result === 'lose') {
+        addLog(t, ['第一关你走「' + lane.name + '」，AI 在「' + (RELAY_BY_ID[block] || {}).name + '」设卡。', '关卡火把亮起，军信没能出营。']);
+        finish(state, t, false, ['第一关就被截住，传令失败。']);
+      } else {
+        relay.stage = 2;
+        addLog(t, ['第一关你走「' + lane.name + '」，AI 的关卡设在「' + (RELAY_BY_ID[block] || {}).name + '」。', '你绕过关卡，前方只剩第二条驿道。']);
+        return {
+          ok: true, mode: t.mode, result: 'continue', done: false,
+          stage: 2, playerChoice: choice, aiChoice: block,
+          playerLabel: lane.name, aiLabel: (RELAY_BY_ID[block] || {}).name,
+          remaining: relay.remaining.slice(),
+          lines: ['第一关已过，进入第二关。'],
+        };
+      }
+    } else {
+      if (relay.remaining.indexOf(choice) < 0) return { ok: false, msg: '这条道已经被关卡封了。' };
+      const block = pickRelayBlock(state, relay.remaining.map(function (id) { return RELAY_BY_ID[id]; }));
+      relay.block2 = block;
+      const result = resolveRelayStage(choice, block);
+      const win = result === 'win';
+      addLog(t, ['第二关你走「' + lane.name + '」，AI 在「' + (RELAY_BY_ID[block] || {}).name + '」补卡。', win ? '你从山道尽头冲出去，军信送到了。' : '第二条关卡封住山道，军信落在泥里。']);
+      finish(state, t, win, [win ? '烽火传到前线，大军按军信而动。' : '传令失败，前线没能等到这封信。']);
+    }
+  } else {
+    return { ok: false, msg: '这局棋盘已经作废。' };
+  }
+
+  return {
+    ok: true,
+    mode: t.mode,
+    result: t.result,
+    done: !!t.done,
+    winner: t.win ? 'player' : 'ai',
     champion: !!t.champion,
-    draw: !!t.draw,
-    result: result,
-    lines: lines,
+    playerChoice: choice,
+    playerLabel: labelFor(t.mode, choice),
+    lines: t.log.length ? t.log[t.log.length - 1].split('\n') : [],
   };
 }
 
 function close(state) {
-  state.tourney = null;
+  if (state) state.tourney = null;
 }
 
 module.exports = {
-  HP, FEE, PRIZE, MOVES, MOVE_IDS,
-  fee, prize, pickFoe, enter, aiMove, settle, play, close,
+  FEE, PRIZE, MODES, DUEL_MOVES, SUPPLY_NODES, SENTRY_TARGETS,
+  SENTRY_AIS, FIRE_MOVES, FIRE_AIS, RELAY_LANES,
+  fee, prize, modeById, modeList, choiceList, labelFor, aiLabelFor,
+  resolveDuel, resolveSupply, resolveSentry, resolveFire, resolveRelayStage,
+  pickDuelAI, pickSupplyAmbush, pickSentryAI, pickFireAI,
+  enter, choose, close,
 };
 
   };
@@ -24759,8 +25017,8 @@ function menuItems(app, site) {
       onTap: function () { app.townView.view = 'hall'; },
     });
     list.push({
-      id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
-      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + '金钱',
+      id: 'm_tourney', label: '军机棋盘', sub: '单挑 · 断粮 · 狙哨 · 火攻 · 传令，一局定胜负', fill: '#3a2c1e',
+      right: (app.state.tourney && !app.state.tourney.done) ? '推演中' : '报名 ' + tourney.fee() + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
     const obj = stateLib.campaignObjective(app.state, site);
@@ -28433,38 +28691,404 @@ module.exports = PrisonScene;
   /* js/scenes/tourney.js */
   __defs[39] = function (module, exports, __require) {
 /**
- * 比武大会：彩棚底下的"猜手"赌局。
- * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
- * 报名 40 金钱，赢的人拿 200。
+ * 军机棋盘：城池里的五种军情博弈。
+ * 报名 40 金钱，胜者得 200；一局只走一次结算。
  */
 
 const { text, wrap, panel } = __require(6);
-const tourney = __require(29);
+const board = __require(29);
 const { siteById } = __require(8);
 const scenery = __require(28);
-const { lookFor } = __require(12);
-const { FACTIONS } = __require(5);
 
-const FILL_BLOCK = '#26372e';
-const FILL_ATTACK = '#452a1c';
+const CARD_GAP = 12;
 
-function drawPips(ctx, x, y, n, total, color) {
-  for (let i = 0; i < total; i++) {
-    const alive = i < n;
-    ctx.fillStyle = alive ? color : 'rgba(255,255,255,0.08)';
-    ctx.fillRect(x + i * 46, y, 38, 14);
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+function drawIcon(ctx, type, x, y, size, color) {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(2, Math.round(size / 22));
+
+  if (type === 'duel') {
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.18, y + size * 0.20);
+    ctx.lineTo(x + size * 0.82, y + size * 0.80);
+    ctx.moveTo(x + size * 0.82, y + size * 0.20);
+    ctx.lineTo(x + size * 0.18, y + size * 0.80);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + size * 0.18, y + size * 0.20, size * 0.06, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.82, y + size * 0.80, size * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (type === 'supply') {
+    ctx.strokeRect(x + size * 0.24, y + size * 0.34, size * 0.46, size * 0.24);
+    ctx.beginPath();
+    ctx.arc(x + size * 0.31, y + size * 0.70, size * 0.10, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.63, y + size * 0.70, size * 0.10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.24, y + size * 0.34);
+    ctx.lineTo(x + size * 0.10, y + size * 0.28);
+    ctx.moveTo(x + size * 0.70, y + size * 0.34);
+    ctx.lineTo(x + size * 0.84, y + size * 0.28);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + size * 0.24, y + size * 0.24, size * 0.08, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.52, y + size * 0.20, size * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (type === 'sentry') {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, size * 0.32, size * 0.17, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - size * 0.32, cy);
+    ctx.lineTo(x + size * 0.12, y + size * 0.16);
+    ctx.moveTo(cx + size * 0.32, cy);
+    ctx.lineTo(x + size * 0.88, y + size * 0.16);
+    ctx.stroke();
+  } else if (type === 'fire') {
+    ctx.beginPath();
+    ctx.moveTo(cx, y + size * 0.10);
+    ctx.bezierCurveTo(x + size * 0.74, y + size * 0.38, x + size * 0.76, y + size * 0.66, cx, y + size * 0.84);
+    ctx.bezierCurveTo(x + size * 0.24, y + size * 0.66, x + size * 0.26, y + size * 0.38, cx, y + size * 0.10);
+    ctx.fill();
+    ctx.fillStyle = '#f0c060';
+    ctx.beginPath();
+    ctx.moveTo(cx, y + size * 0.34);
+    ctx.bezierCurveTo(x + size * 0.58, y + size * 0.50, x + size * 0.58, y + size * 0.62, cx, y + size * 0.70);
+    ctx.bezierCurveTo(x + size * 0.42, y + size * 0.62, x + size * 0.42, y + size * 0.50, cx, y + size * 0.34);
+    ctx.fill();
+  } else if (type === 'relay') {
+    ctx.strokeRect(x + size * 0.34, y + size * 0.38, size * 0.32, size * 0.42);
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.34, y + size * 0.38);
+    ctx.lineTo(x + size * 0.26, y + size * 0.28);
+    ctx.lineTo(x + size * 0.74, y + size * 0.28);
+    ctx.lineTo(x + size * 0.66, y + size * 0.38);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.66, y + size * 0.16);
+    ctx.lineTo(x + size * 0.90, y + size * 0.24);
+    ctx.lineTo(x + size * 0.66, y + size * 0.32);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + size * 0.24, y + size * 0.18, size * 0.05, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.16, y + size * 0.12, size * 0.04, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawModeSelect(app, site, w, h) {
+  const ctx = app.runtime.ctx;
+  const st = app.state;
+  const siteName = site ? site.name : '此地';
+  const modes = board.modeList();
+
+  text(ctx, siteName + ' · 军机棋盘', 20, 24, {
+    size: 34, color: '#f0c060',
+  });
+  text(ctx, '五局军情，各押一注；胜负只在落子之间', 20, 70, {
+    size: 16, color: '#a2947a',
+  });
+
+  panel(ctx, 20, 104, w - 40, 94, { fill: '#1d1711' });
+  text(ctx, '五局军机 · 各押一注', 40, 120, { size: 24, color: '#f0c060' });
+  text(ctx, '每局报名 ' + board.FEE + ' 金钱，胜者得 ' + board.PRIZE + ' 金钱。棋局只论军情，不损兵。', 40, 154, {
+    size: 15, color: '#c9bda2',
+  });
+  text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, w - 40, 126, {
+    size: 15, align: 'right', color: '#a2947a',
+  });
+
+  const top = 220;
+  const gap = CARD_GAP;
+  const cardH = 142;
+  const cardW = (w - 40 - gap) / 2;
+  modes.forEach(function (mode, i) {
+    const row = Math.floor(i / 2);
+    const col = i % 2;
+    const wide = i === modes.length - 1;
+    const x = wide ? 20 : 20 + col * (cardW + gap);
+    const y = top + row * (cardH + 16);
+    const cw = wide ? w - 40 : cardW;
+
+    panel(ctx, x, y, cw, cardH, { fill: '#201810' });
+    ctx.fillStyle = mode.color;
+    ctx.fillRect(x, y, 5, cardH);
+    drawIcon(ctx, mode.icon, x + 18, y + 16, 58, '#f0c060');
+    text(ctx, mode.name, x + 92, y + 18, { size: 26, color: '#f2e3c4' });
+    text(ctx, mode.short, x + 92, y + 54, { size: 14, color: '#b9a688' });
+    text(ctx, '报名 ' + board.FEE + ' · 胜 ' + board.PRIZE, x + 92, y + 82, {
+      size: 14, color: '#9c8d74',
+    });
+    if (wide) {
+      text(ctx, mode.rule, x + 92, y + 108, { size: 14, color: '#c9bda2' });
+      text(ctx, '→', x + cw - 30, y + 48, { size: 30, align: 'right', color: '#f0c060' });
+    } else {
+      text(ctx, '→', x + cw - 24, y + 58, { size: 28, align: 'right', color: '#f0c060' });
+    }
+    app.ui.rect('wb_mode_' + mode.id, x, y, cw, cardH, function () {
+      const r = board.enter(st, site, mode.id);
+      app.showToast(r.msg, 2.4);
+    });
+  });
+
+  const footTop = top + Math.ceil(modes.length / 2) * (cardH + 16) + 8;
+  const footH = Math.max(76, h - footTop - 106);
+  if (footH > 60) {
+    panel(ctx, 20, footTop, w - 40, footH, { fill: '#15110d' });
+    ctx.save();
+    ctx.strokeStyle = 'rgba(240,192,96,0.10)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x + i * 46, y, 38, 14);
+    for (let gx = 36; gx < w - 30; gx += 38) {
+      ctx.beginPath();
+      ctx.moveTo(gx, footTop + 10);
+      ctx.lineTo(gx, footTop + footH - 10);
+      ctx.stroke();
+    }
+    for (let gy = footTop + 30; gy < footTop + footH - 10; gy += 38) {
+      ctx.beginPath();
+      ctx.moveTo(30, gy);
+      ctx.lineTo(w - 30, gy);
+      ctx.stroke();
+    }
+    ctx.restore();
+    text(ctx, '军机不可泄 · 落子无悔', w / 2, footTop + footH / 2 - 14, {
+      size: 26, align: 'center', color: '#d9b978',
+    });
+    text(ctx, '单挑 · 断粮 · 狙哨 · 火攻 · 传令', w / 2, footTop + footH / 2 + 22, {
+      size: 14, align: 'center', color: '#8f806a',
+    });
+  }
+
+  app.ui.button(ctx, 20, h - 82, w - 40, 62, '回城', {
+    id: 'wb_back', size: 24, fill: '#241c14', onTap: function () { app.pop(); },
+  });
+}
+
+function drawBoardArt(ctx, mode, w, t) {
+  const x = 20;
+  const y = 146;
+  const bw = w - 40;
+  const bh = 192;
+  panel(ctx, x, y, bw, bh, { fill: '#1b160f' });
+  drawIcon(ctx, mode.icon, x + 20, y + 18, 78, '#e8b861');
+  text(ctx, mode.name, x + 114, y + 18, { size: 30, color: '#f2e3c4' });
+  text(ctx, mode.short + ' · 一局定输赢', x + 114, y + 56, { size: 15, color: '#a2947a' });
+
+  const lines = wrap(ctx, mode.intro, bw - 144, 16).slice(0, 3);
+  lines.forEach(function (line, i) {
+    text(ctx, line, x + 114, y + 84 + i * 22, { size: 15, color: '#c9bda2' });
+  });
+  text(ctx, mode.rule, x + 24, y + bh - 26, { size: 15, color: '#e0c98d' });
+
+  // 棋盘装饰：不同局用不同的点线标记，给玩家一点战场感。
+  const sx = x + bw - 96;
+  const sy = y + 42;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240,192,96,0.35)';
+  ctx.fillStyle = 'rgba(240,192,96,0.45)';
+  ctx.lineWidth = 2;
+  if (mode.id === 'supply' || mode.id === 'relay') {
+    ctx.beginPath();
+    ctx.arc(sx, sy + 46, 5, 0, Math.PI * 2);
+    ctx.arc(sx + 34, sy + 10, 5, 0, Math.PI * 2);
+    ctx.arc(sx + 58, sy + 64, 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + 46);
+    ctx.lineTo(sx + 34, sy + 10);
+    ctx.lineTo(sx + 58, sy + 64);
+    ctx.stroke();
+  } else if (mode.id === 'duel') {
+    ctx.beginPath();
+    ctx.arc(sx, sy + 20, 8, 0, Math.PI * 2);
+    ctx.arc(sx + 44, sy + 54, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sx + 8, sy + 50);
+    ctx.lineTo(sx + 40, sy + 24);
+    ctx.stroke();
+  } else if (mode.id === 'sentry') {
+    ctx.beginPath();
+    ctx.arc(sx + 12, sy + 24, 7, 0, Math.PI * 2);
+    ctx.arc(sx + 54, sy + 58, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sx + 12, sy + 34);
+    ctx.lineTo(sx + 54, sy + 48);
+    ctx.stroke();
+  } else if (mode.id === 'fire') {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + 60);
+    ctx.quadraticCurveTo(sx + 18, sy + 20, sx + 38, sy + 54);
+    ctx.quadraticCurveTo(sx + 52, sy + 30, sx + 66, sy + 58);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawChoiceButtons(app, st, t, mode, x, y, w) {
+  const ctx = app.runtime.ctx;
+  const list = board.choiceList(t.mode, t.relay);
+  const n = list.length;
+  const gap = 12;
+  const bw = (w - 40 - gap * (n - 1)) / n;
+  list.forEach(function (item, i) {
+    const bx = 20 + i * (bw + gap);
+    app.ui.button(ctx, bx, y, bw, 82, item.name, {
+      id: 'wb_choice_' + item.id,
+      size: n === 3 ? 26 : 29,
+      fill: mode.color,
+      onTap: function () {
+        const r = board.choose(st, item.id);
+        if (!r.ok) { app.showToast(r.msg, 2.2); return; }
+        if (r.result === 'win') app.showToast('胜 · 赏钱 ' + board.PRIZE + ' 金钱', 2.4);
+        else if (r.result === 'lose') app.showToast('负 · 报名费不退', 2.2);
+        else if (r.result === 'tie') app.showToast('同招相抵 · 可再出一手，不再收费', 2.2);
+        else if (r.result === 'continue') app.showToast('第一关已过 · 进入第二关', 2.2);
+      },
+    });
+    text(ctx, item.desc, bx + bw / 2, y + 91, {
+      size: 13, align: 'center', color: '#8f806a',
+    });
+  });
+}
+
+function drawGame(app, site, w, h) {
+  const ctx = app.runtime.ctx;
+  const st = app.state;
+  const t = st.tourney;
+  const mode = board.modeById(t.mode);
+  if (!mode) {
+    st.tourney = null;
+    drawModeSelect(app, site, w, h);
+    return;
+  }
+
+  text(ctx, (site ? site.name : t.siteName) + ' · 军机棋盘', 20, 24, {
+    size: 34, color: '#f0c060',
+  });
+  text(ctx, mode.name + ' · 报名 ' + board.FEE + ' · 胜者 ' + board.PRIZE, 20, 70, {
+    size: 16, color: '#a2947a',
+  });
+  text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, w - 20, 46, {
+    size: 15, align: 'right', color: '#a2947a',
+  });
+
+  drawBoardArt(ctx, mode, w, t);
+
+  if (!t.done) {
+    let prompt = '落子 · ' + (t.choiceTitle || mode.choiceTitle);
+    if (t.mode === 'relay') {
+      prompt = t.relay && t.relay.stage === 2
+        ? '第二关 · 剩下两条驿道，选一条冲出去'
+        : '第一关 · 三条驿道，选一条送信';
+    }
+    text(ctx, prompt, 20, 356, {
+      size: 16, color: '#e0c98d',
+    });
+    if (t.mode === 'relay' && t.relay && t.relay.stage === 2) {
+      text(ctx, '避开第一关的卡子后，只剩两条道；AI 再补一道卡。', 20, 378, {
+        size: 14, color: '#9c8d74',
+      });
+    }
+    if (t.draw) {
+      text(ctx, '同招相抵，重新起手；这一手不再收报名费。', 20, 400, {
+        size: 15, color: '#e0c98d',
+      });
+    }
+    drawChoiceButtons(app, st, t, mode, 20, t.draw ? 424 : 390, w);
+  } else {
+    panel(ctx, 20, 376, w - 40, 178, { fill: t.win ? '#1e2a1c' : '#2a1b16' });
+    text(ctx, t.win ? '胜' : '负', 44, 394, {
+      size: 44, color: t.win ? '#8fbf7a' : '#d46a50',
+    });
+    text(ctx, t.win ? '军机得手 · 赏钱 ' + board.PRIZE + ' 金钱' : '这一局失手 · 报名费不退',
+      44, 452, { size: 24, color: t.win ? '#f0c060' : '#c9bda2' });
+    text(ctx, t.win ? '声望 +12 · 士气 +4' : '声望 +2 · 士气 -2', 44, 492, {
+      size: 15, color: '#a2947a',
+    });
+    text(ctx, t.win ? '棋盘上还有四局，随时可以再押。' : '换一局军情，或者回城整军再来。', w - 44, 492, {
+      size: 14, align: 'right', color: '#8f806a',
+    });
+  }
+
+  const logTop = t.done ? 574 : 584;
+  const logH = Math.max(150, h - logTop - 98);
+  panel(ctx, 20, logTop, w - 40, logH, { fill: '#15110d' });
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240,192,96,0.045)';
+  ctx.lineWidth = 1;
+  for (let gx = 38; gx < w - 30; gx += 38) {
+    ctx.beginPath();
+    ctx.moveTo(gx, logTop + 8);
+    ctx.lineTo(gx, logTop + logH - 8);
+    ctx.stroke();
+  }
+  for (let gy = logTop + 34; gy < logTop + logH - 8; gy += 38) {
+    ctx.beginPath();
+    ctx.moveTo(30, gy);
+    ctx.lineTo(w - 30, gy);
+    ctx.stroke();
+  }
+  ctx.restore();
+  text(ctx, '棋盘记事', 40, logTop + 24, { size: 16, color: '#8f806a' });
+  const shown = (t.log || []).slice(-3).join('\n');
+  const lines = wrap(ctx, shown || '鼓声未起，棋盘上的灯已经点亮。', w - 80, 16);
+  const maxLines = Math.max(2, Math.floor((logH - 44) / 23));
+  lines.slice(0, maxLines).forEach(function (line, i) {
+    text(ctx, line, 40, logTop + 50 + i * 23, { size: 15, color: '#e4d6b9' });
+  });
+
+  // 一局只有几行记事，下面的空白用棋盘提要压住，避免整页像一张空黑纸。
+  const hintTop = logTop + 58 + Math.min(lines.length, maxLines) * 23;
+  if (hintTop + 80 < h - 98) {
+    ctx.strokeStyle = 'rgba(240,192,96,0.22)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, hintTop);
+    ctx.lineTo(w - 40, hintTop);
+    ctx.stroke();
+    text(ctx, '军机提要', 40, hintTop + 20, { size: 16, color: '#8f806a' });
+    const hint = mode.short + ' · 报名 ' + board.FEE + ' · 胜者 ' + board.PRIZE +
+      ' · 不损兵，只论这一手。';
+    wrap(ctx, hint, w - 80, 15).slice(0, 2).forEach(function (line, i) {
+      text(ctx, line, 40, hintTop + 46 + i * 22, { size: 15, color: '#a2947a' });
+    });
+  }
+
+  if (t.done) {
+    const bw = (w - 40 - 12) / 2;
+    app.ui.button(ctx, 20, h - 82, bw, 62, '再摆一局', {
+      id: 'wb_again', size: 22, fill: '#3a2c1e', onTap: function () {
+        board.close(st);
+      },
+    });
+    app.ui.button(ctx, 20 + bw + 12, h - 82, bw, 62, '领赏回城', {
+      id: 'wb_back', size: 22, fill: '#241c14', onTap: function () {
+        board.close(st);
+        app.pop();
+      },
+    });
+  } else {
+    app.ui.button(ctx, 20, h - 82, w - 40, 62,
+      t.mode === 'relay' ? '暂离棋盘 · 可回来继续' : '暂离棋盘 · 报名费不退', {
+        id: 'wb_leave', size: 21, fill: '#241c14', onTap: function () { app.pop(); },
+      });
   }
 }
 
 const TourneyScene = {
   enter(app, params) {
     this.siteId = params && params.siteId;
-    // 旧档里的赛会是"三场连打"结构，跟现在的三血对决不兼容，直接作废
     const t = app.state.tourney;
-    if (t && (typeof t.hp !== 'number' || !t.foe)) app.state.tourney = null;
+    if (t && (!t.mode || !board.modeById(t.mode))) app.state.tourney = null;
   },
   update() {},
 
@@ -28476,110 +29100,12 @@ const TourneyScene = {
     if (!st) { app.pop(); return; }
 
     const site = this.siteId ? siteById(st.world, this.siteId) : null;
-    const name = site ? site.name : '此地';
-    const t = st.tourney;
-
     ctx.fillStyle = '#14100c';
     ctx.fillRect(0, 0, w, h);
     scenery.drawBackdrop(ctx, 'tourney', w, h, 23);
 
-    text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
-    text(ctx, '报名 ' + tourney.FEE + ' 金钱 · 夺冠赏 ' + tourney.PRIZE + ' 金钱 · 三滴血定胜负', 20, 70, {
-      size: 16, color: '#a2947a',
-    });
-
-    if (!t) {
-      panel(ctx, 20, 104, w - 40, 240, { fill: '#201a14' });
-      const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
-        + '每合一招：要么护住一边，要么从那一边切进去。'
-        + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
-        + '三滴血，先倒下的认输。报名 40 金钱，赢的人捧走 200。';
-      wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
-        text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
-      });
-      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金钱 · 报名下场', {
-        id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
-          const r = tourney.enter(st, site);
-          app.showToast(r.msg, 2.2);
-        },
-      });
-    } else {
-      /* -------------------------------------------------- 对手 */
-      const foe = t.foe;
-      const col = (FACTIONS[foe.faction] || {}).color || '#8a7448';
-      panel(ctx, 20, 100, w - 40, 176, { fill: '#1c1710' });
-      const portrait = app.assets.portraitFor ? app.assets.portraitFor(col, lookFor(foe.lordId)) : null;
-      if (portrait) {
-        ctx.drawImage(portrait, 36, 112, 104, 104);
-      } else {
-        ctx.fillStyle = col;
-        ctx.fillRect(36, 112, 104, 104);
-      }
-      text(ctx, foe.name, 156, 138, { size: 28, color: t.foeHp > 0 ? '#efe3c6' : '#7a7060' });
-      text(ctx, foe.tag, 156, 166, { size: 15, color: '#8a8070' });
-      text(ctx, '对方', w - 40, 132, { size: 15, align: 'right', color: '#8a8070' });
-      drawPips(ctx, 156, 184, t.foeHp, tourney.HP, '#c9553f');
-      text(ctx, t.foeHp + ' / ' + tourney.HP, 156 + 3 * 46 + 10, 184, { size: 15, color: '#c9553f' });
-
-      /* -------------------------------------------------- 自己 */
-      panel(ctx, 20, 288, w - 40, 112, { fill: '#201a14' });
-      text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
-      drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
-      text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
-      text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
-      text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
-
-      if (!t.done) {
-        text(ctx, '护住一边就挡，从一边切进去就攻。方向对了才挡得住。', 20, 412, { size: 15, color: '#8a8070' });
-        const bw = (w - 40 - 14) / 2;
-        const bh = 104;
-        const moves = [
-          { id: 'blockL', label: '左挡', fill: FILL_BLOCK },
-          { id: 'blockR', label: '右挡', fill: FILL_BLOCK },
-          { id: 'attackL', label: '左攻', fill: FILL_ATTACK },
-          { id: 'attackR', label: '右攻', fill: FILL_ATTACK },
-        ];
-        moves.forEach(function (m, i) {
-          const bx = 20 + (i % 2) * (bw + 14);
-          const by = 436 + Math.floor(i / 2) * (bh + 14);
-          app.ui.button(ctx, bx, by, bw, bh, m.label, {
-            id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
-              const r = tourney.play(st, m.id);
-              if (!r.ok) { app.showToast(r.msg); return; }
-              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金钱', 2.4);
-              else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
-              else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
-            },
-          });
-        });
-      } else {
-        const champion = t.champion;
-        const drawn = t.draw;
-        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金钱' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
-        text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
-        app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
-          id: 't_leave', size: 26, fill: '#33271b', onTap: function () {
-            tourney.close(st);
-            app.pop();
-          },
-        });
-      }
-
-      /* -------------------------------------------------- 战报 */
-      const logTop = t.done ? 610 : 664;
-      const logH = Math.max(150, h - logTop - 96);
-      panel(ctx, 20, logTop, w - 40, logH, { fill: '#181410' });
-      text(ctx, '场上', 40, logTop + 26, { size: 16, color: '#8a8070' });
-      const shown = (t.log || []).slice(-2).join('\n');
-      const lines = wrap(ctx, shown || '鼓声一起，看台上的人把酒洒了一地。', w - 96, 17);
-      lines.slice(0, Math.floor((logH - 46) / 24)).forEach(function (ln, i) {
-        text(ctx, ln, 40, logTop + 52 + i * 24, { size: 17, color: '#e8dcc0' });
-      });
-    }
-
-    app.ui.button(ctx, 20, h - 88, w - 40, 66, '回城', {
-      id: 't_back', size: 24, onTap: function () { app.pop(); },
-    });
+    if (!st.tourney) drawModeSelect(app, site, w, h);
+    else drawGame(app, site, w, h);
   },
 
   onTouchStart() {},
@@ -28676,13 +29202,17 @@ const JournalScene = {
     text(ctx, '近 ' + RECENT_DAYS + ' 日一条不落，再往前只留大事 · 按住往下拖可翻旧账',
       20, 64, { size: 14, color: '#8a8070' });
 
-    // 当前章
-    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
+    // 当前章（史实沙盘不设主线）
     ctx.fillStyle = '#241c14';
     ctx.fillRect(16, 88, w - 32, 118);
     ctx.fillStyle = UI_COLORS.accent;
     ctx.fillRect(16, 88, 5, 118);
-    if (st.campaign.stage >= CAMPAIGN.length) {
+    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
+    if (st.campaignDisabled) {
+      text(ctx, '史实沙盘 · 无主线', 34, 100, { size: 23, color: '#f0c060' });
+      text(ctx, '诸侯按史实人事开局，之后由国战 AI 自行演进。', 34, 138, { size: 15, color: '#a2947a' });
+      text(ctx, '你要做的，是在这张图上留下自己的城。', 34, 162, { size: 15, color: '#a2947a' });
+    } else if (st.campaign.stage >= CAMPAIGN.length) {
       text(ctx, '主线已走完', 34, 100, { size: 23, color: '#8fbf7a' });
       text(ctx, '剩下的，是你在图上留下多少座城。', 34, 138, { size: 15, color: '#a2947a' });
     } else if (stage) {
@@ -29338,16 +29868,18 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '十家势力之间本来就有仇：曹操与袁绍（官渡）、曹操与吕布（兖州）、孙权与刘表（孙坚之死）、马腾与韩遂（西凉内斗）、刘璋与刘备（益州）。' });
     ops.push({ t: 'p', s: '宣战之后，双方所有领主互为敌人。大地图上他们撞见就厮杀，看见对方的旗会主动扑过去。' });
     ops.push({ t: 'p', s: '天下同时最多三场大战：各国会挑一座敌城，先在国内集结四到十二天，再开拔围城；守方领主收到烽火，最多四人驰援。' });
+    ops.push({ t: 'p', s: '蜀国南征南蛮时会一次点起八路领主，诸将分道进山；其余战线仍按常规路数出征。' });
     ops.push({ t: 'p', s: '围城至少三天，最长八天。攻下后胜方留兵守七日；同一对国家三十天内不能再动兵。' });
     ops.push({ t: 'p', s: '除主线要点名的那几位，领主之间不会互相杀死：败的一方溃逃、退回老家，或者被人生擒。' });
     ops.push({ t: 'p', s: '被擒的领主押在城里。关一天，自己逃的概率涨一点（第一天约 2%，十天约 14%，一个月接近一半）；城被攻破时，牢里被这家关着的人会趁乱跑出来。' });
     ops.push({ t: 'h1', s: '俘虏与赎金' });
     ops.push({ t: 'p', s: '你亲手打赢一位领主，他是溃逃还是被你捆走，看运气。捆回来的关在营后，队伍页底部有入口。' });
     ops.push({ t: 'p', s: '牢里可以"收赎金"（按他的家底开价）或"放了"（声望 +12，他那一国对你和气些）。' });
-    ops.push({ t: 'h1', s: '比武大会' });
-    ops.push({ t: 'p', s: '每座城的菜单里有"比武大会"：交报名费，连打三场，前两场是本地好手，第三场从天下名将里抽。' });
-    ops.push({ t: 'p', s: '不损兵、不死人，输了只是丢报名费。三场全胜拿赏钱（随声望涨）和 45 点声望，随行英雄也跟着长本事。' });
-    ops.push({ t: 'p', s: '你的胜算看身板：军械、声望、随行英雄的加成都会算进去。打之前每一场都标了把握百分比。' });
+    ops.push({ t: 'h1', s: '军机棋盘' });
+    ops.push({ t: 'p', s: '每座城的菜单里有"军机棋盘"：五局军情任选，每局报名 40 金钱，胜者得 200 金钱。' });
+    ops.push({ t: 'p', s: '单挑斩将：劈克刺、刺克闪、闪克劈；断粮道：三处粮道猜伏兵，AI 会避开上次设伏点；狙杀敌哨与火攻时机都是 2×2 的猜位博弈。' });
+    ops.push({ t: 'p', s: '烽火传令要连过两关：第一关三条驿道避开伏兵，第二关只剩两条道再避开一次，军信才算送到。' });
+    ops.push({ t: 'p', s: '棋盘不损兵、不死人；输了只是丢报名费，赢了赏钱即时入账。' });
     ops.push({ t: 'h1', s: '存档：最近一份 + 九个槽' });
     ops.push({ t: 'p', s: '标题页四项：新的开始 / 加载最近存档 / 加载保存存档（九个槽）/ 玩法。' });
     ops.push({ t: 'p', s: '游戏里每 45 秒自动存一份"最近"，另留一份上一份可回退；营帐菜单能手动存到九个槽里，也能删、能覆盖。' });
@@ -29385,6 +29917,13 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'campaign') {
+    if (st && st.campaignDisabled) {
+      ops.push({ t: 'h1', s: '史实沙盘 · 不设主线' });
+      ops.push({ t: 'p', s: '三国演义不再推进十二章主线，也没有必须按顺序打的关键战役。' });
+      ops.push({ t: 'p', s: '各国保留史实开局的人事与地盘，之后由国战 AI 自行宣战、集结、围城、吞并；史实会自己演进。' });
+      ops.push({ t: 'p', s: '你仍然可以招兵、攻城、外交、在军机棋盘上推演，只是不再被主线章节牵着走。' });
+      return ops;
+    }
     const stage = st ? st.campaign.stage : 0;
     ops.push({ t: 'h1', s: '主线战役' });
     ops.push({ t: 'p', s: '一共七章，标题在这里；每一章具体发生什么，走到那一步就知道了。' });

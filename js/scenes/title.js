@@ -62,7 +62,8 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是按史实推进的剧情。
+    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是史实人事沙盘。
+    // 三国演义不再挂主线阶段，天下由群雄按现有国战 AI 自行演进。
     if (this.choosing) {
       drawScenarioChooser(ctx, app, w, h);
       return;
@@ -162,12 +163,12 @@ function drawScenarioChooser(ctx, app, w, h) {
   const card2Y = cardTop + cardH + cardGap;
   drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
     title: '三国演义',
-    tag: '史实推进',
-    desc: '同一套行军、攻城、募兵、内政机制，按史实推进天下大势。',
+    tag: '史实沙盘',
+    desc: '保留史实开局人事，但不再推进主线章节；让群雄按自己的兵力和道路去争天下。',
     action: '进入三国演义',
     id: 'new_romance',
     onTap: function () {
-      app.state = stateLib.createGame({ background: 'romance', storyMode: true });
+      app.state = stateLib.createGame({ background: 'romance', storyMode: false });
       app.replace('map');
     },
   });

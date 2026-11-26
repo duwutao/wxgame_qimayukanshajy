@@ -81,13 +81,17 @@ const JournalScene = {
     text(ctx, '近 ' + RECENT_DAYS + ' 日一条不落，再往前只留大事 · 按住往下拖可翻旧账',
       20, 64, { size: 14, color: '#8a8070' });
 
-    // 当前章
-    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
+    // 当前章（史实沙盘不设主线）
     ctx.fillStyle = '#241c14';
     ctx.fillRect(16, 88, w - 32, 118);
     ctx.fillStyle = UI_COLORS.accent;
     ctx.fillRect(16, 88, 5, 118);
-    if (st.campaign.stage >= CAMPAIGN.length) {
+    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
+    if (st.campaignDisabled) {
+      text(ctx, '史实沙盘 · 无主线', 34, 100, { size: 23, color: '#f0c060' });
+      text(ctx, '诸侯按史实人事开局，之后由国战 AI 自行演进。', 34, 138, { size: 15, color: '#a2947a' });
+      text(ctx, '你要做的，是在这张图上留下自己的城。', 34, 162, { size: 15, color: '#a2947a' });
+    } else if (st.campaign.stage >= CAMPAIGN.length) {
       text(ctx, '主线已走完', 34, 100, { size: 23, color: '#8fbf7a' });
       text(ctx, '剩下的，是你在图上留下多少座城。', 34, 138, { size: 15, color: '#a2947a' });
     } else if (stage) {

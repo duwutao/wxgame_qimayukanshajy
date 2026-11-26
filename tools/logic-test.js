@@ -934,72 +934,95 @@ if (p0) {
   ok('收赎金能换钱', true);
 }
 
-/* ---------------------------------------------------------------- 比武大会 */
+/* ---------------------------------------------------------------- 军机棋盘 */
 
-group('比武大会');
+group('军机棋盘');
 const tourney = require(R + '/core/tourney.js');
 const st10 = stateLib.createGame({ seed: 777004 });
 st10.events.length = 0;
 st10.player.gold = 500;
 ok('报名费固定 40', tourney.fee() === 40, String(tourney.fee()));
-ok('夺冠赏格 200', tourney.prize() === 200, String(tourney.prize()));
-ok('三滴血', tourney.HP === 3, String(tourney.HP));
-const reg = tourney.enter(st10, st10.world.sites[0]);
-ok('交钱能报名', reg.ok && !!st10.tourney, reg.msg);
+ok('胜者赏格 200', tourney.prize() === 200, String(tourney.prize()));
+ok('棋盘共有五局', tourney.modeList().length === 5, String(tourney.modeList().length));
+ok('五种军情齐全', ['duel', 'supply', 'sentry', 'fire', 'relay'].every(function (id) {
+  return !!tourney.modeById(id);
+}));
+const reg = tourney.enter(st10, st10.world.sites[0], 'supply');
+ok('交钱能开局', reg.ok && st10.tourney.mode === 'supply', reg.msg);
 ok('报名扣 40 金', st10.player.gold === 460, String(st10.player.gold));
-ok('只有一个对手', !!st10.tourney.foe && !!st10.tourney.foe.name, st10.tourney.foe && st10.tourney.foe.name);
-ok('开局各三血', st10.tourney.hp === 3 && st10.tourney.foeHp === 3);
 
-// 结算矩阵：左挡/右挡/左攻/右攻
-ok('同攻各掉一滴', (function () {
-  const r = tourney.settle('attackL', 'attackR');
-  return r.dmgPlayer === 1 && r.dmgFoe === 1;
-})());
-ok('都挡不掉血', (function () {
-  const r = tourney.settle('blockL', 'blockR');
-  return r.dmgPlayer === 0 && r.dmgFoe === 0;
-})());
-ok('攻被同侧挡住：进攻方掉血', (function () {
-  const r = tourney.settle('attackL', 'blockL');
-  return r.dmgPlayer === 1 && r.dmgFoe === 0;
-})());
-ok('攻在异侧：防守方掉血', (function () {
-  const r = tourney.settle('attackL', 'blockR');
-  return r.dmgPlayer === 0 && r.dmgFoe === 1;
-})());
-ok('挡住对方进攻：反赚一滴', (function () {
-  const r = tourney.settle('blockR', 'attackR');
-  return r.dmgPlayer === 0 && r.dmgFoe === 1;
-})());
-ok('挡空：自己掉血', (function () {
-  const r = tourney.settle('blockR', 'attackL');
-  return r.dmgPlayer === 1 && r.dmgFoe === 0;
-})());
+// 单挑：劈克刺、刺克闪、闪克劈；同招相抵
+ok('劈克刺', tourney.resolveDuel('pi', 'ci') === 'win');
+ok('刺克闪', tourney.resolveDuel('ci', 'shan') === 'win');
+ok('闪克劈', tourney.resolveDuel('shan', 'pi') === 'win');
+ok('单挑同招相抵', tourney.resolveDuel('pi', 'pi') === 'tie');
 
-// 打到见底
-let duel = 0;
-while (st10.tourney && !st10.tourney.done && duel < 20) {
-  const r = tourney.play(st10, tourney.MOVE_IDS[duel % 4]);
-  if (!r.ok) break;
-  duel += 1;
-}
-ok('大会能打完', st10.tourney && st10.tourney.done, 'rounds=' + duel);
-ok('打完有经过文字', st10.tourney.log.length >= 1);
-ok('冠军拿 200 赏金', (function () {
-  const st11 = stateLib.createGame({ seed: 777005 });
-  st11.player.gold = 500;
-  tourney.enter(st11, st11.world.sites[0]);
-  st11.tourney.foeHp = 1;
-  st11.tourney.hp = 3;
-  // 固定对手每合都右挡：玩家左攻就是异侧空档，必中
-  st11.rng = {
-    next: function () { return 0.99; },
-    int: function () { return 1; },
-    random: function () { return 0.99; },
-  };
-  tourney.play(st11, 'attackL');
-  return !!(st11.tourney.champion && st11.player.gold === 660);
-})());
+// 断粮道：避开伏兵即胜
+ok('避开伏兵赢', tourney.resolveSupply('east', 'center') === 'win');
+ok('撞上伏兵输', tourney.resolveSupply('east', 'east') === 'lose');
+st10.flags.warboardSupplyLastAmbush = 'east';
+st10.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+ok('AI 避开上次设伏点', tourney.pickSupplyAmbush(st10, 'east') !== 'east');
+
+// 狙杀敌哨 2×2
+ok('暗哨且不换 = 赢', tourney.resolveSentry('hidden', 'stay') === 'win');
+ok('明哨且换防 = 赢', tourney.resolveSentry('bright', 'change') === 'win');
+ok('暗哨但换防 = 输', tourney.resolveSentry('hidden', 'change') === 'lose');
+ok('明哨且不换 = 输', tourney.resolveSentry('bright', 'stay') === 'lose');
+
+// 火攻时机 2×2
+ok('顺风且不备 = 赢', tourney.resolveFire('burn', 'unready') === 'win');
+ok('等风且防备 = 赢', tourney.resolveFire('wait', 'ready') === 'win');
+ok('顺风但防备 = 输', tourney.resolveFire('burn', 'ready') === 'lose');
+ok('等风但不备 = 输', tourney.resolveFire('wait', 'unready') === 'lose');
+
+// 烽火传令：第一关避开后，第二关只剩两条道
+(function () {
+  const st = stateLib.createGame({ seed: 777014 });
+  st.player.gold = 500;
+  tourney.enter(st, st.world.sites[0], 'relay');
+  st.rng = { int: function () { return 1; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  const first = tourney.choose(st, 'east');
+  ok('第一关避开后进入第二关', first.ok && first.result === 'continue' && st.tourney.relay.stage === 2, JSON.stringify(first));
+  st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  const second = tourney.choose(st, 'west');
+  ok('第二关避开后送信成功', second.ok && second.result === 'win' && st.player.gold === 660, JSON.stringify(second));
+})();
+
+(function () {
+  const st = stateLib.createGame({ seed: 777015 });
+  st.player.gold = 500;
+  tourney.enter(st, st.world.sites[0], 'relay');
+  st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  const r = tourney.choose(st, 'east');
+  ok('第一关撞卡即输', r.ok && r.result === 'lose' && st.player.gold === 460, JSON.stringify(r));
+})();
+
+// 断粮道实际结算：AI 避上次设伏，玩家东道、伏兵中道 → 赢
+(function () {
+  const st = stateLib.createGame({ seed: 777016 });
+  st.player.gold = 500;
+  st.flags.warboardSupplyLastAmbush = 'east';
+  tourney.enter(st, st.world.sites[0], 'supply');
+  st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  const r = tourney.choose(st, 'east');
+  ok('断粮结算发赏金', r.ok && r.result === 'win' && st.player.gold === 660, JSON.stringify(r));
+})();
+
+// 单挑同招：不收第二次报名费，可继续出招
+(function () {
+  const st = stateLib.createGame({ seed: 777017 });
+  st.player.gold = 500;
+  tourney.enter(st, st.world.sites[0], 'duel');
+  st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  const tie = tourney.choose(st, 'pi');
+  ok('单挑同招不结束', tie.ok && tie.result === 'tie' && !st.tourney.done && st.player.gold === 460, JSON.stringify(tie));
+  const r = tourney.choose(st, 'ci');
+  ok('同招后可再出一手', r.ok, JSON.stringify(r));
+})();
+
+tourney.close(st10);
+ok('收棋盘后状态清空', st10.tourney === null);
 
 /* ---------------------------------------------------------------- 国战存档 */
 
@@ -4113,8 +4136,27 @@ group('n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景');
 
   const chaos = stateLib.createGame({ background: 'chaos' });
   const romance = stateLib.createGame({ background: 'romance', storyMode: true });
+  const romanceSandbox = stateLib.createGame({ background: 'romance', storyMode: false });
   ok('乱世三国是沙盘背景', chaos.background === 'chaos' && chaos.storyMode === false);
   ok('三国演义是剧情背景', romance.background === 'romance' && romance.storyMode === true);
+  ok('三国演义可切换为无主线史实沙盘', romanceSandbox.background === 'romance' &&
+    romanceSandbox.storyMode === false && romanceSandbox.historicalRoster === true &&
+    romanceSandbox.campaignDisabled === true && romanceSandbox.story === null);
+  ok('史实沙盘不排开局主线章', !(romanceSandbox.events || []).some(function (ev) {
+    return ev && ev.type === 'chapter';
+  }), JSON.stringify(romanceSandbox.events.slice(0, 3)));
+  ok('史实沙盘没有主线任务与战役目标', stateLib.campaignInfo(romanceSandbox) === null &&
+    stateLib.campaignObjective(romanceSandbox, romanceSandbox.world.sites[0]) === null);
+  const sandboxWarStarted = warLib.startDiplomacy(romanceSandbox);
+  ok('史实沙盘不靠剧情阶段也能自行开战', sandboxWarStarted >= 2,
+    '开局战事 ' + sandboxWarStarted + ' 对');
+  ok('三国演义剧情仍保留主线', romance.campaignDisabled === false &&
+    !!stateLib.campaignInfo(romance));
+  const romanceSaved = stateLib.deserialize(stateLib.serialize(romanceSandbox));
+  ok('三国演义沙盘存档保留史实人事与无主线开关', !!romanceSaved &&
+    romanceSaved.background === 'romance' && romanceSaved.storyMode === false &&
+    romanceSaved.historicalRoster === true && romanceSaved.campaignDisabled === true &&
+    romanceSaved.story === null);
   const saved = stateLib.deserialize(stateLib.serialize(romance));
   ok('存档保留游戏背景', !!saved && saved.background === 'romance',
     saved ? saved.background : 'null');
@@ -4320,6 +4362,57 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
     return !romance.lords.some(function (l) { return l.id === id; });
   });
   ok('三国演义模式 50 名将也全部在场', romanceMissing.length === 0, romanceMissing.join(','));
+}
+
+/* ---------------------------------------------------------------- n48 蜀国南征多路领主 */
+group('n48 蜀国南征多路领主');
+{
+  const g = stateLib.createGame({ background: 'romance', storyMode: false, seed: 2026112648 });
+  g.player.x = 200; g.player.y = 200; g.parties = [];
+  ['chengdu', 'jiangzhou', 'baxi', 'jiange'].forEach(function (id) {
+    const s = worldLib.siteById(g.world, id);
+    if (!s) return;
+    s.ownerFaction = 'shu'; s.faction = 'shu'; s.playerOwned = false;
+  });
+  g.story = null; g.storyMode = false;
+  g.warCampaigns = {}; g.siegeCooldown = {}; g.flags = {};
+  warLib.init(g);
+  warLib.declare(g, 'shu', 'nanman', true, true);
+  g.factionWars['shu|nanman'] = { since: 1, score: 0 };
+  Object.keys(g.factionWars).forEach(function (k) {
+    if (k.indexOf('shu') >= 0 && k.indexOf('nanman') < 0) delete g.factionWars[k];
+  });
+  g.lords.filter(function (l) { return l.faction === 'shu'; }).forEach(function (l) {
+    l.troops = l.defTroops; l.defending = null; l.order = null;
+  });
+  const cp = warLib.planCampaign(g, 'shu', g.clock.day);
+  ok('蜀国南征南蛮一次点起八路领主', !!cp && cp.attackerIds.length >= 8,
+    cp ? cp.attackerIds.length + ' 路' : 'none');
+  ok('南征首战指向朱提', !!cp && cp.enemy === 'nanman' && cp.targetId === 'zhuti',
+    cp ? cp.targetId : 'none');
+  ok('南征八路领主互不重复',
+    !!cp && cp.attackerIds.every(function (id, i, arr) { return arr.indexOf(id) === i; }),
+    cp ? cp.attackerIds.join(',') : 'none');
+}
+{
+  // 同一套战役逻辑对普通战线仍保持原来的上限，避免所有国家都一次压上八路。
+  const g = stateLib.createGame({ background: 'romance', storyMode: false, seed: 2026112649 });
+  g.player.x = 200; g.player.y = 200; g.parties = [];
+  const cd = worldLib.siteById(g.world, 'chengdu');
+  cd.ownerFaction = 'shu'; cd.faction = 'shu'; cd.playerOwned = false;
+  g.warCampaigns = {}; g.siegeCooldown = {}; g.flags = {}; g.story = null;
+  warLib.init(g);
+  warLib.declare(g, 'shu', 'zhang', true, true);
+  g.factionWars['shu|zhang'] = { since: 1, score: 0 };
+  Object.keys(g.factionWars).forEach(function (k) {
+    if (k.indexOf('shu') >= 0 && k.indexOf('zhang') < 0) delete g.factionWars[k];
+  });
+  g.lords.filter(function (l) { return l.faction === 'shu'; }).forEach(function (l) {
+    l.troops = l.defTroops; l.defending = null; l.order = null;
+  });
+  const cp = warLib.planCampaign(g, 'shu', g.clock.day);
+  ok('普通战线仍按五路上限', !cp || cp.attackerIds.length <= 5,
+    cp ? cp.attackerIds.length + ' 路' : 'none');
 }
 
 /* ---------------------------------------------------------------- 收尾 */

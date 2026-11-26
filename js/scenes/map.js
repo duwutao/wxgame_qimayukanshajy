@@ -2080,8 +2080,10 @@ function focusTaskTarget(app, target, label) {
 function drawQuestCard(ctx, app, box, w) {
   const st = app.state;
   const info = stateLib.campaignInfo(st);
-  if (!info) return;
   const activeSide = (st.quests || []).filter(function (q) { return q && !q.done && !q.failed; });
+  // 史实沙盘没有主线时，只留酒馆支线；一条支线也没有就不占地图。
+  if (!info && !activeSide.length) return;
+  const sideOnly = !info;
   const side = activeSide[0] || null;
   const collapsed = !!app.questTrackCollapsed;
 
@@ -2108,7 +2110,7 @@ function drawQuestCard(ctx, app, box, w) {
   const headerH = 30;
   const mainH = 64;
   const sideH = side ? 56 : 36;
-  const ph = headerH + mainH + sideH + 8;
+  const ph = headerH + (sideOnly ? 0 : mainH) + sideH + 8;
 
   ctx.fillStyle = 'rgba(10,8,6,0.84)';
   ctx.fillRect(x, y, pw, ph);
@@ -2125,28 +2127,30 @@ function drawQuestCard(ctx, app, box, w) {
   });
 
   let ry = y + headerH + 4;
-  // 主线：只显示当前这一章，不再把整条主线摊开
-  const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
-  const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
-  ctx.fillStyle = 'rgba(38,29,18,0.72)';
-  ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
-  ctx.fillStyle = '#d9a441';
-  ctx.fillRect(x + 8, ry, 3, mainH - 4);
-  text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
-  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
-  text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
-  const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
-  mainLines.forEach(function (ln, i) {
-    text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
-  });
-  text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
-  app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
-    const target = stateLib.campaignTargetPos(st);
-    if (target) focusTaskTarget(app, target, '主线目标');
-    else app.push('journal');
-  });
+  if (!sideOnly) {
+    // 主线：只显示当前这一章，不再把整条主线摊开
+    const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
+    const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
+    ctx.fillStyle = 'rgba(38,29,18,0.72)';
+    ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(x + 8, ry, 3, mainH - 4);
+    text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
+    const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
+    text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
+    const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
+    mainLines.forEach(function (ln, i) {
+      text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
+    });
+    text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
+    app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
+      const target = stateLib.campaignTargetPos(st);
+      if (target) focusTaskTarget(app, target, '主线目标');
+      else app.push('journal');
+    });
 
-  ry += mainH;
+    ry += mainH;
+  }
   // 支线：只收一条酒馆差事，点一下把镜头送到目标
   const sideHint = side
     ? (side.type === 'hunt' ? '去地图上找到目标队伍并打散' :

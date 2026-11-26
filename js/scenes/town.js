@@ -234,8 +234,8 @@ function menuItems(app, site) {
       onTap: function () { app.townView.view = 'hall'; },
     });
     list.push({
-      id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
-      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + '金钱',
+      id: 'm_tourney', label: '军机棋盘', sub: '单挑 · 断粮 · 狙哨 · 火攻 · 传令，一局定胜负', fill: '#3a2c1e',
+      right: (app.state.tourney && !app.state.tourney.done) ? '推演中' : '报名 ' + tourney.fee() + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
     const obj = stateLib.campaignObjective(app.state, site);

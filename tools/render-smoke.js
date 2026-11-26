@@ -437,27 +437,45 @@ smoke('牢房页（俘虏能收赎金/放人）', function () {
   app.pop();
 });
 
-smoke('比武大会页（报名 / 三血对决 / 打完）', function () {
+smoke('军机棋盘页（五局入口 / 对局 / 结算）', function () {
   const st = app.state;
-  st.player.gold = 800;
+  const oldRng = st.rng;
+  st.player.gold = 2000;
   st.tourney = null;
   app.push('tourney', { siteId: 'chenliu' });
   app.ui.begin();
   app.top().scene.render(app);
   const sc = app.top().scene;
-  const tourney = require(R + '/core/tourney.js');
-  const r = tourney.enter(st, st.world.sites[0]);
-  ok('能报名', r.ok, r.msg);
-  app.ui.begin();
-  sc.render(app);
-  ok('有对手', !!st.tourney.foe && !!st.tourney.foe.name);
-  ok('开局各三血', st.tourney.hp === 3 && st.tourney.foeHp === 3);
-  let guard = 0;
-  while (st.tourney && !st.tourney.done && guard++ < 20) tourney.play(st, tourney.MOVE_IDS[guard % 4]);
-  app.ui.begin();
-  sc.render(app);
-  ok('打完能出结果', st.tourney && st.tourney.done);
-  tourney.close(st);
+  const board = require(R + '/core/tourney.js');
+  ok('军机棋盘有五局', board.modeList().length === 5);
+
+  board.modeList().forEach(function (mode) {
+    st.tourney = null;
+    const r = board.enter(st, st.world.sites[0], mode.id);
+    ok(mode.name + '能开局', r.ok, r.msg);
+    app.ui.begin();
+    sc.render(app);
+    if (mode.id === 'relay') {
+      st.rng = { int: function () { return 1; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+      const first = board.choose(st, 'east');
+      ok('传令第一关能过', first.ok && first.result === 'continue', JSON.stringify(first));
+      app.ui.begin();
+      sc.render(app);
+      st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+      const second = board.choose(st, 'west');
+      ok('传令第二关能结算', second.ok && second.result === 'win', JSON.stringify(second));
+    } else {
+      st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+      const choice = mode.choices[0].id;
+      const result = board.choose(st, choice);
+      ok(mode.name + '能落子', result.ok, JSON.stringify(result));
+    }
+    app.ui.begin();
+    sc.render(app);
+    board.close(st);
+  });
+
+  st.rng = oldRng;
   app.pop();
 });
 
