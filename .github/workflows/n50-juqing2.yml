@@ -1,0 +1,36 @@
+name: n50 juqing 2
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n50-juqing2.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Sync
+        run: |
+          set +e
+          echo "start $(date -u)" > ci-run.log
+          curl --http1.1 -L --fail --retry 3 -o /tmp/n50src.tgz 'https://aka.doubaocdn.com/s/QqdedC089e' >> ci-run.log 2>&1
+          echo "curl=$?" >> ci-run.log
+          echo '120aa521af63d34adfc201ec1f6096beb1f1e6755ad1aceb2885c75ab2882850  /tmp/n50src.tgz' | sha256sum -c - >> ci-run.log 2>&1
+          echo "sha=$?" >> ci-run.log
+          tar xzf /tmp/n50src.tgz >> ci-run.log 2>&1
+          echo "tar=$?" >> ci-run.log
+          ls -l js/data/history_art.js >> ci-run.log 2>&1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: 20261127n50 军机棋盘六局与史实配图 [skip ci]' >> ci-run.log 2>&1
+          echo "commit=$?" >> ci-run.log
+          git push origin HEAD:juqing >> ci-run.log 2>&1
+          echo "push=$?" >> ci-run.log
+          tail -30 ci-run.log
