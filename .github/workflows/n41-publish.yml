@@ -1,0 +1,32 @@
+name: n41 publish main
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n41-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Take n41 bundle and entry
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin juqing
+          git checkout origin/juqing -- index.html web/game.bundle.js web/index.html
+          echo 'ccbc2ff1a05d83bb31d5aa6ebe6139e4fcdcbb8dc9c4c18e6afff61be2d69e72  web/game.bundle.js' | sha256sum -c -
+          git add index.html web/game.bundle.js web/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n41 成都重心/天机简/马超归蜀/韩遂灭凉 线上发布'
+          git push origin HEAD:main
