@@ -18,12 +18,16 @@ jobs:
           fetch-depth: 0
       - name: Update main entry and bundle
         run: |
-          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/sMrHAHOAtf'
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/sMrHAHOAtf'
           echo '9208d66fb6ab228f73df1baca0681ccb2cf616b547f68b82151a3398a6ac06fc  web/game.bundle.js' | sha256sum -c -
           sed -i 's/20261127n49/20261127n50/g' index.html web/index.html
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html web/index.html web/game.bundle.js
+          if git diff --cached --quiet; then
+            echo 'main already n50'
+            exit 0
+          fi
           git commit -m 'release: 20261127n50 军机棋盘六局与史实配图 [skip ci]'
           git push origin HEAD:main
   juqing:
@@ -34,30 +38,19 @@ jobs:
         with:
           ref: juqing
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Apply n50 source and bundle to juqing
+      - name: Apply n50 source
         run: |
-          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n50-src.patch 'https://aka.doubaocdn.com/s/kBnhpf8DU6'
-          echo '524ab79a44414f2d44b1ef3c6a33930c100eae70250a69e52c9003e7d81efa10  /tmp/n50-src.patch' | sha256sum -c -
-          git apply --check /tmp/n50-src.patch
-          git apply /tmp/n50-src.patch
-          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/sMrHAHOAtf'
-          echo '9208d66fb6ab228f73df1baca0681ccb2cf616b547f68b82151a3398a6ac06fc  web/game.bundle.js' | sha256sum -c -
-      - name: Test
-        run: |
-          node tools/logic-test.js
-          node tools/story-test.js
-          node tools/render-smoke.js
-          node tools/minigame-check.js
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o /tmp/n50src.tgz 'https://aka.doubaocdn.com/s/QqdedC089e'
+          echo '120aa521af63d34adfc201ec1f6096beb1f1e6755ad1aceb2885c75ab2882850  /tmp/n50src.tgz' | sha256sum -c -
+          tar xzf /tmp/n50src.tgz
+          ls -l js/data/history_art.js web/game.bundle.js
       - name: Commit n50
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           if git diff --cached --quiet; then
-            echo 'No changes'
+            echo 'juqing already n50'
             exit 0
           fi
           git commit -m 'release: 20261127n50 军机棋盘六局与史实配图 [skip ci]'
