@@ -2106,15 +2106,18 @@ function drawTop(ctx, app, w) {
   text(ctx, title, 16, 40, { size: 24, color: '#f0c060' });
   text(ctx, '· ' + p.name + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
-  // 倍速
-  const speeds = [1, 2, 3];
+  // 倍速：额外保留 8x 测试档
+  const speeds = [1, 2, 3, 8];
+  const speedW = 40;
+  const speedGap = 6;
+  const speedStart = w - 18 - (speeds.length * speedW + (speeds.length - 1) * speedGap);
   speeds.forEach(function (s, i) {
-    const bx = w - 150 + i * 46;
+    const bx = speedStart + i * (speedW + speedGap);
     const active = (st.timeScale || 1) === s;
     ctx.fillStyle = active ? '#d9a441' : '#2c2318';
-    ctx.fillRect(bx, 12, 40, 32);
-    text(ctx, s + 'x', bx + 20, 18, { size: 18, align: 'center', color: active ? '#201409' : '#9c907a' });
-    app.ui.rect('speed' + s, bx, 12, 40, 32, function () {
+    ctx.fillRect(bx, 12, speedW, 32);
+    text(ctx, s + 'x', bx + speedW / 2, 18, { size: 18, align: 'center', color: active ? '#201409' : '#9c907a' });
+    app.ui.rect('speed' + s, bx, 12, speedW, 32, function () {
       st.timeScale = s;
     });
   });

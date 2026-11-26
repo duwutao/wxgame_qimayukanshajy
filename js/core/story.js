@@ -187,6 +187,31 @@ function pushPeaceEvent(state, title, lines) {
   });
 }
 
+/** 开局军情不抢在第一天弹出：到第三天再一次性说明天下棋局。 */
+function announceOpening(state) {
+  const st = state && state.story;
+  if (!st || st.openingEventShown) return;
+  st.openingEventShown = true;
+  pushWarEvent(state, '天下棋局', [
+    '曹操以“兖州旧怨”向吕布宣战，徐州、兖州边关同时点起烽火。',
+    '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
+    '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
+    '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
+    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
+    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
+    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
+  ]);
+  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
+}
+
+function maybeOpeningEvent(state) {
+  const st = state && state.story;
+  if (!st || st.openingEventShown) return;
+  const due = st.openingEventDay || STORY.openingEventDay || 3;
+  if (state.clock.day < due) return;
+  announceOpening(state);
+}
+
 /* ------------------------------------------------------------ 初始化 */
 
 function freshPhase(firstId) {
@@ -236,6 +261,8 @@ function init(state, logger) {
     endgame: null,
     headline: '',
     openingDeclared: false,
+    openingEventDay: STORY.openingEventDay || 3,
+    openingEventShown: false,
     yuanWeak: false,
     yuanBattleLost: false,
     edgeWarsDeclared: false,
@@ -283,16 +310,6 @@ function init(state, logger) {
   });
   st.openingDeclared = true;
   if (state) state.openingWarsDeclared = true;
-  pushWarEvent(state, '天下棋局', [
-    '曹操以“兖州旧怨”向吕布宣战，徐州、兖州边关同时点起烽火。',
-    '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
-    '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
-    '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
-    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
-    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
-    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
-  ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
   refreshHeadline(state);
   return st;
 }
@@ -317,6 +334,12 @@ function resume(state, logger) {
     state.story.proxyWarsDeclared = true;
   }
   if (!state.story.proxyWars) state.story.proxyWars = STORY.proxyWars || {};
+  if (state.story.openingEventDay === undefined) {
+    state.story.openingEventDay = STORY.openingEventDay || 3;
+  }
+  if (state.story.openingEventShown === undefined) {
+    state.story.openingEventShown = state.clock.day >= state.story.openingEventDay;
+  }
   applyYuanCombat(state, !!state.story.yuanWeak);
   refreshHeadline(state);
   return state.story;
@@ -1040,6 +1063,7 @@ function tick(state) {
   applyYuanCombat(state, !!st.yuanWeak);
   yuanMoraleTick(state);
   if (state.gameOver) return;
+  maybeOpeningEvent(state);
 
   maybeEmperor(state);
   maybeEdgeWars(state);

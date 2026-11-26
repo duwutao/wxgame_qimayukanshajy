@@ -9,6 +9,8 @@
 const STORY = {
   label: '汉末战略',
   yearDays: 360,
+  // “天下棋局”开局军情不在第一天弹出，留到第三天再报。
+  openingEventDay: 3,
   // 剧情阶段不设超时：目标未达成，就不允许进入下一阶段。
   mandatoryAll: true,
 

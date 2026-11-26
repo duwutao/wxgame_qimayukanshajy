@@ -96,9 +96,17 @@ group('开局战略');
   const weiCp = st.warCampaigns && st.warCampaigns.wei;
   ok('第一阶段战书落下即点兵', !!weiCp && weiCp.enemy === 'lv' && weiCp.attackerIds.length >= 6,
     JSON.stringify(weiCp && { target: weiCp.targetId, attackers: weiCp.attackerIds.length }));
-  ok('开局军情写明了四家战略', st.events.some(function (e) {
-    return e.title === '天下棋局' && e.lines.join('').indexOf('收取西川') >= 0;
-  }));
+  function openingEvents() {
+    return st.events.filter(function (e) { return e.title === '天下棋局'; });
+  }
+  ok('开局不弹出天下棋局', openingEvents().length === 0);
+  tickDay(st, 2);
+  ok('第二天仍不弹出天下棋局', openingEvents().length === 0);
+  tickDay(st, 3);
+  ok('第三天弹出天下棋局', openingEvents().length === 1 &&
+    openingEvents()[0].lines.join('').indexOf('收取西川') >= 0);
+  tickDay(st, 4);
+  ok('天下棋局只弹一次', openingEvents().length === 1);
   ok('天下大势条显示四家战略', st.story.headline.indexOf('收取西川') >= 0 &&
     st.story.headline.indexOf('为父报仇') >= 0 && st.story.headline.indexOf('不死不休') >= 0,
     st.story.headline);
