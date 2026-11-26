@@ -88,6 +88,11 @@ group('开局战略');
   }) && ['huanggai', 'zhuran', 'sunshao'].every(function (id) {
     return st.lords.some(function (l) { return l.id === id && l.faction === 'wu'; });
   }));
+  ok('袁绍补入麴义、田丰、沮授', ['quyi', 'tianfeng', 'jushou'].every(function (id) {
+    return st.lords.some(function (l) { return l.id === id && l.faction === 'yuan'; });
+  }) && st.lords.filter(function (l) { return l.faction === 'yuan'; }).length >= 15);
+  ok('公孙瓒国别战力降到半兵', FACTION_COMBAT.gongsun && FACTION_COMBAT.gongsun.power === 0.5,
+    String(FACTION_COMBAT.gongsun && FACTION_COMBAT.gongsun.power));
   const weiCp = st.warCampaigns && st.warCampaigns.wei;
   ok('第一阶段战书落下即点兵', !!weiCp && weiCp.enemy === 'lv' && weiCp.attackerIds.length >= 6,
     JSON.stringify(weiCp && { target: weiCp.targetId, attackers: weiCp.attackerIds.length }));
@@ -129,6 +134,22 @@ group('地图：公孙、南越、长沙、新野、荆州三点');
   })());
   ok('新野断许昌、连汝南', !roadAdjacent('xuchang', 'xinye') && roadAdjacent('runan', 'xinye'));
   ok('牂牁—武陵连成山道', roadAdjacent('zangke', 'wuling'));
+  ok('南越沿新开的武陵道能打到刘表南线', roadAdjacent('shanyue', 'wuling') &&
+    warLib.canSiegeSiteFromFaction(st, 'shanyue', sites.filter(function (s) { return s.id === 'wuling'; })[0]).ok);
+  ok('居延归马腾，且不与汉廷、韩遂直接接壤',
+    sites.filter(function (s) { return s.id === 'juyan'; })[0].ownerFaction === 'ma' &&
+    sites.filter(function (s) { return s.ownerFaction === 'han' || s.ownerFaction === 'hansui'; })
+      .every(function (s) { return !roadAdjacent('juyan', s.id); }));
+  ok('天水归韩遂，汉廷与韩遂直接相邻',
+    sites.filter(function (s) { return s.id === 'tianshui'; })[0].ownerFaction === 'hansui' &&
+    warLib.factionsAdjacent(st, 'han', 'hansui') && !warLib.factionsAdjacent(st, 'ma', 'han'));
+  const nanCp = warLib.planCampaign(st, 'nanman', st.clock.day);
+  ok('南蛮先打刘璋，只野战不围城', !!nanCp && nanCp.enemy === 'zhang' && nanCp.harass === true,
+    JSON.stringify(nanCp && { enemy: nanCp.enemy, target: nanCp.targetId, harass: nanCp.harass }));
+  const yueCp = warLib.planCampaign(st, 'shanyue', st.clock.day);
+  ok('南越先打刘表，只取长沙以南', !!yueCp && yueCp.enemy === 'biao' &&
+    ['wuling', 'changsha', 'guiyang'].indexOf(yueCp.targetId) >= 0,
+    JSON.stringify(yueCp && { enemy: yueCp.enemy, target: yueCp.targetId }));
   ok('荆州三镇按襄阳—新野—江陵排序',
     JSON.stringify(STORY.jingzhouSites) === JSON.stringify(['xiangyang', 'xinye', 'jiangling']));
 }
@@ -172,9 +193,14 @@ group('蜀：第一战略 · 收取西川');
   tickDay(st, 12);
   ok('西川平定后进入休整', st.story.phases.shu.status === 'rest' && st.story.phases.shu.success);
   ok('第一战略记完成', st.story.phases.shu.completed >= 1);
-  ok('收取西川达成文书存在', st.events.some(function (e) {
+  const shuMark = st.events.filter(function (e) {
     return e.title && e.title.indexOf('收取西川') >= 0 && e.title.indexOf('达成') >= 0;
-  }));
+  }).pop();
+  ok('收取西川达成文书存在', !!shuMark);
+  ok('收取西川达成不是议和弹窗', !!shuMark && shuMark.type === 'story' && !shuMark.kind);
+  ok('收取西川达成不预告下一阶段', !!shuMark && shuMark.lines.join('').indexOf('下一阶段') < 0 &&
+    shuMark.lines.join('').indexOf('荆州') < 0);
+  ok('收取西川达成没有议和字样', !!shuMark && shuMark.lines.join('').indexOf('议和') < 0);
 
   // 休整结束后开荆州
   tickDay(st, 12 + 121);
@@ -184,6 +210,27 @@ group('蜀：第一战略 · 收取西川');
   ok('荆州战书写着问鼎', st.events.some(function (e) {
     return e.title === '荆州问鼎' && e.lines.join('').indexOf('问鼎中原') >= 0;
   }));
+}
+
+/* ---------------------------------------------------------------- 第一阶段达成 */
+
+group('第一阶段灭国：不递议和书、不预告下一步');
+{
+  const st = game(1010);
+  tickDay(st, 3);
+  st.factionState.lv = Object.assign({}, st.factionState.lv || {}, { lastConqueror: 'wei' });
+  takeAll(st, 'lv', 'wei');
+  stateLib.fallFaction(st, 'lv');
+  tickDay(st, 4);
+  const weiMark = st.events.filter(function (e) {
+    return e.title && e.title.indexOf('灭吕布') >= 0 && e.title.indexOf('达成') >= 0;
+  }).pop();
+  ok('灭吕布达成文书存在', !!weiMark);
+  ok('灭吕布达成不是议和弹窗', !!weiMark && weiMark.type === 'story' && !weiMark.kind);
+  ok('不再写与吕布遣使议和', !!weiMark && weiMark.lines.join('').indexOf('议和') < 0 &&
+    weiMark.lines.join('').indexOf('吕布遣使') < 0);
+  ok('不预告曹操下一步西入关中', !!weiMark && weiMark.lines.join('').indexOf('下一阶段') < 0 &&
+    weiMark.lines.join('').indexOf('西入关中') < 0);
 }
 
 /* ---------------------------------------------------------------- 阶段超时 */
@@ -267,6 +314,11 @@ group('袁绍：兴盛、官渡、衰亡');
     return e.title === '幽冀不死不休 · 达成' &&
       e.lines.join('').indexOf('大摆宴席') >= 0 &&
       e.lines.join('').indexOf('田丰') >= 0;
+  }));
+  ok('宴席文书不预告下一步打谁', st.events.some(function (e) {
+    return e.title === '幽冀不死不休 · 达成' &&
+      e.lines.join('').indexOf('东取吕布') < 0 &&
+      e.lines.join('').indexOf('北扫鲜卑') < 0;
   }));
 
   // 第二阶段：东取吕布、北扫鲜卑。
@@ -374,6 +426,19 @@ group('灭国：最后一座城的主人优先收人');
   ok('亡国文书说明归属', st.events.some(function (e) {
     return e.type === 'faction-fall' && e.lines.join('').indexOf('最后一座城') >= 0;
   }));
+  const aliveOld = before.filter(function (id) {
+    const l = st.lords.filter(function (x) { return x.id === id; })[0];
+    return l && l.alive && l.faction === 'lv';
+  });
+  ok('灭国后没有仍打旧旗号的活领主', aliveOld.length === 0, aliveOld.join(','));
+  const defected = before.filter(function (id) {
+    const l = st.lords.filter(function (x) { return x.id === id; })[0];
+    return l && l.alive && l.faction !== 'lv' && l.faction !== 'bandit';
+  });
+  ok('投靠者都带兵进了新势力', defected.every(function (id) {
+    const l = st.lords.filter(function (x) { return x.id === id; })[0];
+    return Object.keys(l.troops || {}).some(function (k) { return (l.troops[k] || 0) > 0; });
+  }), defected.join(','));
 }
 
 /* ---------------------------------------------------------------- 三国循环 */
@@ -402,6 +467,36 @@ group('乱国叙事：三国循环');
   ok('两败俱伤后三家休兵', eg.phase === 'rest');
   ok('三家之间没有战事', !warLib.atWar(st, 'wei', 'shu') &&
     !warLib.atWar(st, 'wei', 'wu') && !warLib.atWar(st, 'shu', 'wu'));
+}
+
+/* ---------------------------------------------------------------- 出城循环 */
+
+group('城主不再在城门口反复出进');
+{
+  const st = game(424242);
+  const watch = ['yanghuai', 'songjian', 'chunyuqiong', 'yanxing'];
+  const inCity = {};
+  const flips = {};
+  watch.forEach(function (id) {
+    const l = st.lords.filter(function (x) { return x.id === id; })[0];
+    if (l) inCity[id] = l.inCity || null;
+  });
+  for (let i = 0; i < 120 * 8; i++) {
+    stateLib.update(st, 0.78, { ignoreEvents: true, idleTime: true });
+    watch.forEach(function (id) {
+      const l = st.lords.filter(function (x) { return x.id === id; })[0];
+      if (!l || !l.alive) return;
+      const now = l.inCity || null;
+      if (inCity[id] !== now) {
+        flips[id] = (flips[id] || 0) + 1;
+        inCity[id] = now;
+      }
+    });
+  }
+  // 旧逻辑里上洛的杨怀 120 天出进 47 次；修好后只该有正常的出征/回城。
+  ok('杨怀不再每三小时出城进城', (flips.yanghuai || 0) <= 8, String(flips.yanghuai || 0));
+  ok('宋建不再高频出进', (flips.songjian || 0) <= 10, String(flips.songjian || 0));
+  ok('淳于琼不再高频出进', (flips.chunyuqiong || 0) <= 10, String(flips.chunyuqiong || 0));
 }
 
 /* ---------------------------------------------------------------- 存档 */

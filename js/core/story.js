@@ -202,6 +202,17 @@ function freshPhase(firstId) {
   };
 }
 
+/** 牵制战：南蛮只骚扰刘璋、南越只打长沙以南；两家开局就递战书。 */
+function declareProxyWars(state) {
+  const proxy = STORY.proxyWars || {};
+  Object.keys(proxy).forEach(function (attacker) {
+    const cfg = proxy[attacker];
+    if (!cfg || !cfg.target) return;
+    if (!factionAlive(state, attacker) || !factionAlive(state, cfg.target)) return;
+    war.declare(state, attacker, cfg.target, true, true);
+  });
+}
+
 function init(state, logger) {
   if (logger) bindLogger(logger);
   if (!state || !state.storyMode) return null;
@@ -229,6 +240,8 @@ function init(state, logger) {
     yuanBattleLost: false,
     edgeWarsDeclared: false,
     waitEvents: {},
+    proxyWars: STORY.proxyWars || {},
+    proxyWarsDeclared: false,
   };
   state.story = st;
 
@@ -247,6 +260,8 @@ function init(state, logger) {
       war.declare(state, a, b, true, true);
     });
   });
+  declareProxyWars(state);
+  st.proxyWarsDeclared = true;
   applyYuanCombat(state, false);
 
   Object.keys(FACTIONS).forEach(function (f) {
@@ -274,9 +289,10 @@ function init(state, logger) {
     '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
     '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
     '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
-    '马腾、韩遂与汉廷在凉州、关中互相开战，三家都只盯着与本土相邻的一座城。',
+    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
+    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
   ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮与南越、马腾韩遂汉廷也各点烽火。', 'war');
+  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
   refreshHeadline(state);
   return st;
 }
@@ -296,6 +312,11 @@ function resume(state, logger) {
   if (!state.story.waitEvents) state.story.waitEvents = {};
   if (state.story.yuanWeak === undefined) state.story.yuanWeak = false;
   if (state.story.edgeWarsDeclared === undefined) state.story.edgeWarsDeclared = false;
+  if (state.story.proxyWarsDeclared === undefined) {
+    declareProxyWars(state);
+    state.story.proxyWarsDeclared = true;
+  }
+  if (!state.story.proxyWars) state.story.proxyWars = STORY.proxyWars || {};
   applyYuanCombat(state, !!state.story.yuanWeak);
   refreshHeadline(state);
   return state.story;

@@ -182,7 +182,7 @@ const SITE_ROWS = [
   // ---- 塞北 / 幽燕 ----
   ['longcheng', '龙城', 'town', 'xianbei', 7, 3, 1.12, 120, 'xianbei', '鲜卑王庭。帐篷连成城，马比人多。'],
   ['tanhanshan', '弹汗山', 'castle', 'xianbei', 13, 5, 1.16, 100, 'xianbei', '轲比能的老营，山后有整片的马场。'],
-  ['juyan', '居延', 'town', 'xianbei', 5, 9, 1.08, 95, 'xianbei', '居延塞。弱水从城下绕过，往北是草原，往南是河西。'],
+  ['juyan', '居延', 'town', 'ma', 5, 9, 1.08, 95, 'ma', '居延塞。弱水从城下绕过，往北是草原，往南是河西。马腾在这里放牧养马，与汉廷、韩遂都不接壤。'],
   ['ji', '蓟', 'town', 'gongsun', 26, 4, 1.05, 110, 'gongsun', '幽州治所。公孙瓒的白马义从在城外列阵，旌旗一色皆白。'],
   ['xiangping', '襄平', 'town', null, 34, 4, 1.02, 90, 'none', '辽东郡治，离中原很远，离塞外很近。如今城中无主，只有郡吏守着旧仓。'],
   ['beiping', '北平', 'castle', 'gongsun', 31, 7, 1.1, 85, 'gongsun', '右北平的边堡。公孙家的白马常从这里出塞。'],
@@ -209,7 +209,7 @@ const SITE_ROWS = [
   ['xiping', '西平', 'town', 'hansui', 3, 17, 1.06, 90, 'hansui', '湟水谷地的粮城。韩遂的旗插在城头，羌汉商队都在这里歇脚。'],
   ['fuhan', '枹罕', 'castle', 'hansui', 2, 20, 1.14, 85, 'hansui', '河州旧垒。城墙夯了又夯，挡住过无数次羌骑。'],
   ['jincheng', '金城', 'town', 'hansui', 4, 22, 1.06, 85, 'hansui', '黄河边上的渡口城。韩遂与马腾在这里喝过酒，也在这里翻过脸。'],
-  ['tianshui', '天水', 'castle', 'ma', 10, 22, 1.1, 95, 'ma', '陇右的要冲，姜维的老家。'],
+  ['tianshui', '天水', 'castle', 'hansui', 10, 22, 1.1, 95, 'hansui', '陇右的要冲，姜维的老家。如今城门上插着韩字旗，与长安只隔一条驿道。'],
   ['longxi', '陇西村', 'village', 'ma', 8, 24, 0.72, 12, 'village', '黄土坡上的村子，家家有马，家家缺粮。'],
   ['wudu', '武都', 'castle', 'zhang', 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。'],
   // ---- 中原 ----
@@ -336,6 +336,7 @@ const ROADS = [
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
   ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'shangluo'], ['shangluo', 'luoyang'],
+  ['shanyue', 'wuling'],
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'], ['jiaozhi', 'shanyue'],
   ['taishanguan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
@@ -472,6 +473,7 @@ const FACTION_COMBAT = {
   wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
   shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
+  gongsun: { power: 0.5, note: '公孙瓒军：白马义从已老，两兵只当一兵用，给袁绍第一阶段让路' },
 };
 
 /**
@@ -611,7 +613,7 @@ const LORDS = [
   { id: 'zhangren', name: '张任', faction: 'zhang', home: 'jiange', soldiers: { militia: 40, spear: 45, archer: 25 }, morale: 84, sight: 7, title: '从事' },
   { id: 'kebineng', name: '轲比能', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 80, qishe: 40, xianbei: 30, tengri: 12 }, morale: 86, sight: 9, title: '鲜卑单于' },
   { id: 'mateng', name: '马腾', faction: 'ma', home: 'wuwei', soldiers: { militia: 30, spear: 50, qishe: 30, tiefu: 15 }, morale: 82, sight: 8, title: '征西将军' },
-  { id: 'machao', name: '马超', faction: 'ma', home: 'tianshui', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
+  { id: 'machao', name: '马超', faction: 'ma', home: 'wuwei', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
   { id: 'huangfusong', name: '皇甫嵩', faction: 'han', home: 'changan', soldiers: { militia: 40, spear: 40, crossbow: 25, jinjun: 6 }, morale: 74, sight: 6, title: '车骑将军' },
   // ---- 魏：宗亲与五子 ----
   { id: 'caoren', name: '曹仁', faction: 'wei', home: 'puyang', soldiers: { spear: 45, crossbow: 25, cav: 20, guard: 8 }, morale: 86, sight: 7, title: '征南将军' },

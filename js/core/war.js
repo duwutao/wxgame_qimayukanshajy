@@ -2046,6 +2046,8 @@ function ensureLiuBeiYiWar(state, day) {
 function planCampaign(state, faction, day) {
   const story = state.story;
   const passive = !!(story && story.mode && story.passive && story.passive[faction]);
+  // 牵制战配置：南蛮只野战不围城；南越只取长沙以南。
+  const proxy = story && story.mode && story.proxyWars ? story.proxyWars[faction] : null;
   // 官渡合战进行时，曹袁两军都被这场战役占住，不再另开围城战役。
   const guanduField = (state.fieldBattles || []).some(function (bf) {
     return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
@@ -2070,6 +2072,10 @@ function planCampaign(state, faction, day) {
   if (story && story.priority && story.priority[faction] &&
       foes.indexOf(story.priority[faction]) >= 0) {
     foes = [story.priority[faction]];
+  }
+  // 牵制战先咬指定的那一家：南蛮先打刘璋，南越先打刘表，别被旁边的世仇吸走。
+  if (proxy && proxy.target && foes.indexOf(proxy.target) >= 0) {
+    foes = [proxy.target];
   }
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
@@ -2109,6 +2115,9 @@ function planCampaign(state, faction, day) {
     enemyTargets.forEach(function (s) {
       // 任何有主目标都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
       if (!s.ownerFaction) return;
+      // 南越只取长沙以南，不碰襄阳、江陵、夏口；其他敌人仍按正常规则。
+      if (proxy && proxy.target === enemy && proxy.siegeSites &&
+          proxy.siegeSites.indexOf(s.id) < 0) return;
       // 只打与本势力城网道路直接相连的敌城；第一座城由 canSiegeSiteFromFaction 放行。
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
       // 边缘小国与袁术只骚扰与本土直接相邻的城，不向远处延伸。
@@ -2120,7 +2129,9 @@ function planCampaign(state, faction, day) {
           return o && o.ownerFaction === faction;
         });
         const adjacent = anchors.some(function (id) { return siteRoadAdjacent(id, s.id); });
-        if (retake.indexOf(s.id) < 0 && !adjacent) return;
+        const proxyAllowed = proxy && proxy.target === enemy && proxy.siegeSites &&
+          proxy.siegeSites.indexOf(s.id) >= 0;
+        if (retake.indexOf(s.id) < 0 && !adjacent && !proxyAllowed) return;
       }
       // 荆州会战期间，三国只打荆州境内的城。
       if (story && story.targetRegion && story.targetRegion[faction] &&
@@ -2199,6 +2210,7 @@ function planCampaign(state, faction, day) {
     attackerIds: chosen.map(function (l) { return l.id; }),
     defenderIds: [],
     arrivedIds: [],
+    harass: !!(proxy && proxy.siege === false),
     done: false,
   };
   // 只有主帅先去集结城会合；其余人马留在各自封地继续巡逻，
@@ -2280,8 +2292,18 @@ function notifyCapture(state, site, oldFaction, byFaction) {
   if (captureHook) captureHook(state, site, oldFaction, byFaction);
 }
 
+/** 南蛮式牵制：到了城下只掠野、不围城，过几天就退回去。 */
+function beginRaid(state, cp, site, day) {
+  cp.stage = 'raid';
+  cp.raidUntil = day + 8 + state.rng.int(0, 4);
+  attackersOf(state, cp).forEach(clearOrder);
+  logFn(state, '【' + FACTIONS[cp.faction].name + '】的兵马压到' + site.name + '城下，只掠野不围城，城头守军不敢出。', 'war');
+  return true;
+}
+
 function startSiege(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
+  if (cp.harass) return beginRaid(state, cp, site, day);
   if (!canSiegeSiteFromFaction(state, cp.faction, site).ok) {
     cp.done = true;
     logFn(state, '【' + FACTIONS[cp.faction].name + '】与' + site.name + '之间没有连上的城道，围城军停在半路。', 'siege');
@@ -2789,6 +2811,15 @@ function strategyTick(state) {
       }
       const near = attackers.some(function (l) { return siteDistance(l, target) <= 1; });
       if (near) startSiege(state, cp, target, day);
+      return;
+    }
+
+    if (cp.stage === 'raid') {
+      if (day >= cp.raidUntil) {
+        cp.done = true;
+        attackersOf(state, cp).forEach(clearOrder);
+        logFn(state, '【' + FACTIONS[faction].name + '】掠完野，收兵回山。', 'war');
+      }
       return;
     }
 

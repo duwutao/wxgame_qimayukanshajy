@@ -2604,6 +2604,8 @@ function enterLordCity(state, lord, site) {
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
   lord.orderDetourTarget = null;
+  // 进城不清补兵目标：到了目标城就守住这个选择，别一进门又嫌别处更快，
+  // 再次出城，形成 A—B—A 的来回跑。
   pushLog(state, lord.name + '带人进了' + site.name + '，旗卷起来，歇在城里。');
   return true;
 }
@@ -2659,12 +2661,18 @@ function leaveLordCity(state, lord, reason) {
   lord.routePath = null;
   lord.routePathFor = null;
   lord.patrolPath = null;
+  lord.recoveryTargetId = null;
   // 出城只挪到城边一格，并按一步 6 时辰做插值；
   // 不做“从城中心直接闪到三格外的空地”。
-  const spot = findFreeSpotNear(state, site.x, site.y, 1, lord);
+  // 同城几位领主一起出城时，贴身一圈可能全被友军占住；这时往两格、三格外找，
+  // 绝不能退回城中心——否则下一拍又被判成“踩在城中心”，当场收旗进城，形成出出进进。
+  const spot = findFreeSpotNear(state, site.x, site.y, 1, lord) ||
+    findFreeSpotNear(state, site.x, site.y, 2, lord) ||
+    findFreeSpotNear(state, site.x, site.y, 3, lord);
   if (!spot) {
-    lord.x = site.x;
-    lord.y = site.y;
+    // 三圈都满了：这次先留在城里，等有空位再出，不要假装出城又立刻回城。
+    lord.inCity = site.id;
+    lord.resting = true;
     lord.nextMoveH = gameHours(state) + 1;
     return;
   }
@@ -3068,16 +3076,22 @@ function lordRestTick(state) {
     const now = army.troopCount(lord.troops || {});
     const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
     if (lord.order && lord.order.siteId) {
-      if (low && lord.order.type !== 'defend') {
-        lord.order = null;
-        lord.defending = null;
-      } else if (lord.order.hold && lord.order.siteId === lord.inCity) {
-        // 守城令就在本城：留在城里补兵，不算抗令
-        return;
-      } else {
-        leaveLordCity(state, lord, '军令到了');
+      if (low) {
+        // 兵还没补到三分之二：不管军令是集结还是去守别城，都先留在城里补人。
+        // 以前守城令会让他带四十人出城，下一拍又被“门口这座城”吸回来，
+        // 于是整座城的领主一起出出进进。
+        if (lord.order.type !== 'defend') {
+          lord.order = null;
+          lord.defending = null;
+        }
         return;
       }
+      if (lord.order.hold && lord.order.siteId === lord.inCity) {
+        // 守城令就在本城：留在城里补兵，不算抗令
+        return;
+      }
+      leaveLordCity(state, lord, '军令到了');
+      return;
     }
     // 兵少时优先招兵，不出去巡逻
     if (low) return;
@@ -3808,13 +3822,18 @@ function moveLords(state, slot) {
       const now = army.troopCount(lord.troops || {});
       const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
       // 已经在城里但城不是十五格内恢复最快的：趁低兵转往更快的城。
-      if (low && full > 0 && !siteUnderAttack(state, lord, city)) {
+      if (low && full > 0 && !siteUnderAttack(state, lord, city) &&
+          lord.recoveryTargetId !== city.id) {
         const best = bestRecoveryCity(state, lord, LORD_RECOVERY_SEARCH_RANGE);
         if (best && best.site.id !== city.id) {
           leaveLordCity(state, lord, '转往' + best.site.name + '补兵');
+          // 记住这次转城目标：否则刚出城门又被“门口这座城”吸回去，
+          // 领主会在城门口反复出城/进城，正是玩家看到的怪循环。
+          lord.recoveryTargetId = best.site.id;
           return;
         }
       }
+      if (!low) lord.recoveryTargetId = null;
       if (lord.order && lord.order.siteId && !lord.order.hold &&
           (yiRush || now >= Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO)))) {
         leaveLordCity(state, lord, '军令到了');
@@ -3917,12 +3936,20 @@ function moveLords(state, slot) {
     } else if (needRest) {
       // 兵力不到三分之二：已经在城门口就先进城，不再为了“更快的城”绕路；
       // 离城较远时，在十五格内找恢复最快的本方/友军城，找不到再退回最近的本城。
-      const gate = (state.world.sites || []).filter(function (s) {
+      // 但如果刚从某城出来、正转往更好的补兵城，就不能被门口的原城重新吸回去。
+      let recoverySite = siteById(state.world, lord.recoveryTargetId);
+      if (recoverySite && (!siteFriendlyToLord(state, lord, recoverySite) ||
+          siteUnderAttack(state, lord, recoverySite))) {
+        lord.recoveryTargetId = null;
+        recoverySite = null;
+      }
+      const gate = recoverySite ? null : (state.world.sites || []).filter(function (s) {
         if (s.type !== 'town' && s.type !== 'castle') return false;
         if (Math.max(Math.abs(s.x - lord.x), Math.abs(s.y - lord.y)) > 1) return false;
         return siteFriendlyToLord(state, lord, s);
       })[0];
-      const best = gate ? { site: gate } : bestRecoveryCity(state, lord, LORD_RECOVERY_SEARCH_RANGE);
+      const best = recoverySite ? { site: recoverySite } :
+        (gate ? { site: gate } : bestRecoveryCity(state, lord, LORD_RECOVERY_SEARCH_RANGE));
       const rest = best || fleeSiteFor(state, lord);
       const restingSite = rest && rest.site;
       if (restingSite) {
@@ -6227,7 +6254,12 @@ function moveLordToFaction(state, lord, target) {
   lord.fleePath = null;
   lord.resting = false;
   lord.hidden = null;
-  lord.troops = takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
+  // 亡国残部投靠时，手里还剩多少兵就带多少兵走；只有原本就打空了的，
+  // 才按旧编制补一小队，别让“剩余的兵力”在换旗时凭空消失。
+  const left = army.troopCount(lord.troops || {});
+  lord.troops = left > 0
+    ? takeSomeTroops(lord.troops, left)
+    : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
 }
 
@@ -6249,6 +6281,10 @@ function fallFaction(state, id) {
     ruler.troops = {};
     ruler.prisoner = null;
     ruler.inCity = null;
+    // 亡国后旧主不再挂旧国旗：他只剩“隐居的旧主”这层身份，等玩家去请。
+    // 旧国名留在 hidden.faction 里，只用来判断关系与出山概率。
+    ruler.faction = null;
+    ruler.retired = true;
     ruler.hidden = { siteId: v ? v.id : null, since: state.clock.day, faction: id };
     fs.fate = 'hidden';
     fs.hiddenLordId = ruler.id;
@@ -6268,11 +6304,14 @@ function fallFaction(state, id) {
   const conquerorAlive = !!(conqueror && (conqueror === 'player'
     ? state.player.faction === 'player' && state.world.sites.some(function (s) { return s.playerOwned; })
     : factionAlive(state, conqueror)));
-  const shareQuota = conquerorAlive
-    ? Math.ceil(others.filter(function (l) { return !LOYAL_GONE[l.id] && !DEFECT_TO[l.id]; }).length * 0.7)
-    : 0;
+  // 灭国分三档：史实固定的去向（DEFECT_TO）先走；剩下的六成半归攻破最后城池的人；
+  // 其余没有固定去向的，全部由邻国就近吸纳。只有宁死不降的（LOYAL_GONE）才隐居。
+  // 不能再让带兵的旧部留在原地打旧旗号。
+  const flexible = others.filter(function (l) { return !LOYAL_GONE[l.id] && !DEFECT_TO[l.id]; });
+  const shareQuota = conquerorAlive ? Math.ceil(flexible.length * 0.65) : 0;
   let givenToConqueror = 0;
   const gone = [];
+  const retired = [];
   others.forEach(function (l) {
     if (LOYAL_GONE[l.id]) {
       l.alive = false;
@@ -6292,6 +6331,7 @@ function fallFaction(state, id) {
       l.alive = false;
       l.retired = true;
       l.troops = {};
+      retired.push(l.name);
       return;
     }
     if (target === conqueror) givenToConqueror += 1;
@@ -6304,6 +6344,9 @@ function fallFaction(state, id) {
   }
   if (gone.length) {
     lines.push(gone.slice(0, 4).join('、') + '不肯降，解甲归乡里去了。');
+  }
+  if (retired.length) {
+    lines.push(retired.slice(0, 4).join('、') + '见大势已去，散部归田。');
   }
 
   // 这个势力的旗从此从地图上撤掉（跟你的旧关系留着：村里那个隐者还认这个）

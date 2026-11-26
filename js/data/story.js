@@ -24,12 +24,20 @@ const STORY = {
   noPeacePairs: [
     ['yuan', 'gongsun'],
     ['nanman', 'shanyue'],
+    ['nanman', 'zhang'],
+    ['shanyue', 'biao'],
     ['ma', 'hansui'],
     ['ma', 'han'],
     ['hansui', 'han'],
   ],
   // 凉州—关中的三方混战：开局即互相宣战，只在各自本土一城范围内争夺。
   tripleWar: ['ma', 'hansui', 'han'],
+  // 牵制战：南蛮只下山打刘璋的野战领主，不围城；南越沿新开的武陵道北上，
+  // 只取长沙以南的武陵/长沙/桂阳，不碰襄阳、江陵、夏口。
+  proxyWars: {
+    nanman: { target: 'zhang', mode: 'harass', siege: false },
+    shanyue: { target: 'biao', mode: 'south', siegeSites: ['wuling', 'changsha', 'guiyang'] },
+  },
 
   // 边缘部落：等大国第一阶段结束后再互相攻伐，只打与本土道路直接相邻的领土。
   edgeFactions: ['xianbei', 'ma', 'hansui', 'nanman', 'shanyue'],
@@ -40,7 +48,7 @@ const STORY = {
   // 官渡昏君状态下的袁军对拼系数；一个袁绍兵抵不上三个曹兵。
   yuanWeakPower: 0.33,
 
-  // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴各补三名新人。
+  // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴袁各补新人。
   // 乱世三国不读取这些配置，仍用完整 LORDS 名单。
   lordCuts: {
     lv: ['chengong', 'houcheng', 'weixu'],
@@ -57,6 +65,9 @@ const STORY = {
     { id: 'huanggai', name: '黄盖', faction: 'wu', home: 'wujun', title: '丹阳都尉', soldiers: { militia: 30, archer: 28, boat: 22 }, morale: 86, sight: 6 },
     { id: 'zhuran', name: '朱然', faction: 'wu', home: 'jianye', title: '偏将军', soldiers: { militia: 28, spear: 25, boat: 18 }, morale: 82, sight: 6 },
     { id: 'sunshao', name: '孙韶', faction: 'wu', home: 'kuaiji', title: '广陵太守', soldiers: { militia: 30, archer: 22, cav: 15 }, morale: 80, sight: 7 },
+    { id: 'quyi', name: '麴义', faction: 'yuan', home: 'pingyuan', title: '都督', soldiers: { militia: 35, spear: 45, crossbow: 20 }, morale: 82, sight: 7 },
+    { id: 'tianfeng', name: '田丰', faction: 'yuan', home: 'ye', title: '别驾', soldiers: { militia: 22, spear: 20, archer: 15 }, morale: 76, sight: 7 },
+    { id: 'jushou', name: '沮授', faction: 'yuan', home: 'ye', title: '监军', soldiers: { militia: 25, spear: 22, crossbow: 18 }, morale: 78, sight: 7 },
   ],
 
   // 阶段时长与休整
