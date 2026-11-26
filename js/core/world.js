@@ -365,6 +365,27 @@ function layRoads(world, pairs) {
 }
 
 
+/** 拆除旧档里的旧连线：路面还原为原野，桥还原为河，山口还原为山。 */
+function clearRoads(world, pairs) {
+  world.bridges = world.bridges || [];
+  world.canyons = world.canyons || [];
+  (pairs || []).forEach(function (pair) {
+    const a = siteById(world, pair[0]);
+    const b = siteById(world, pair[1]);
+    if (!a || !b) return;
+    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
+      if (!inBounds(x, y)) return;
+      if (siteAt(world, x, y)) return;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'road') world.tiles[idx(x, y)] = 'plain';
+      else if (t === 'bridge') world.tiles[idx(x, y)] = 'river';
+      else if (t === 'pass') world.tiles[idx(x, y)] = 'mountain';
+      world.bridges = world.bridges.filter(function (m) { return m.x !== x || m.y !== y; });
+      world.canyons = world.canyons.filter(function (m) { return m.x !== x || m.y !== y; });
+    });
+  });
+}
+
 function createWorld(seed) {
   const rng = new RNG(seed);
   const world = {
@@ -717,6 +738,7 @@ module.exports = {
   createWorld,
   siteFromRow,
   layRoads,
+  clearRoads,
   ensureWorldFeatures,
   bridgeHasWater,
   findPath,

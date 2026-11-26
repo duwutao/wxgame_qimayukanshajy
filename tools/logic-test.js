@@ -3728,7 +3728,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   const newIds = ['fanyang', 'changshan', 'yushan', 'shanyue'];
   const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
   ok('n19 新城全部生成', missing.length === 0, missing.join(','));
-  ok('总据点扩到 83', g.world.sites.length === 83, String(g.world.sites.length));
+  ok('总据点扩到 84', g.world.sites.length === 84, String(g.world.sites.length));
 
   function hasRoad(a, b) {
     return ROADS.some(function (p) {
@@ -3810,7 +3810,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     if (l) l.inCity = null;
   });
   const migrated = stateLib.deserialize(old);
-  ok('旧档补齐 n19 四座新城、泰山关与龙编', !!migrated && migrated.world.sites.length === 83,
+  ok('旧档补齐 n19 四座新城、泰山关与龙编', !!migrated && migrated.world.sites.length === 84,
     migrated ? String(migrated.world.sites.length) : 'null');
   ok('旧档襄平转无主', !!migrated && (function () {
     const s = worldLib.siteById(migrated.world, 'xiangping');
@@ -3826,6 +3826,63 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   }).every(function (l) { return l.home === 'changan' || l.home === 'tongguan'; }));
   ok('旧档补入山越六位领主', !!migrated &&
     migrated.lords.filter(function (l) { return l.faction === 'shanyue'; }).length >= 6);
+}
+
+
+/* ---------------------------------------------------------------- n32 西北路网：安定 · 韩遂断线 · 金城天水 */
+group('n32 西北路网：安定 · 韩遂断线 · 金城天水');
+{
+  const roadData = require(R + '/data/china.js');
+  function hasRoad(a, b) {
+    return (roadData.ROADS || []).some(function (r) {
+      return (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a);
+    });
+  }
+  const g = stateLib.createGame({ seed: 2026112632 });
+  const anding = worldLib.siteById(g.world, 'anding');
+  ok('安定新城已生成并归汉廷', !!anding && anding.name === '安定' && anding.ownerFaction === 'han',
+    anding ? anding.name + '/' + anding.ownerFaction : 'missing');
+  ok('安定在武威与长安之间', !!anding && anding.x > worldLib.siteById(g.world, 'wuwei').x &&
+    anding.x < worldLib.siteById(g.world, 'changan').x &&
+    anding.y >= worldLib.siteById(g.world, 'wuwei').y &&
+    anding.y <= worldLib.siteById(g.world, 'changan').y,
+    anding ? anding.x + ',' + anding.y : 'missing');
+  ok('武威—安定—长安成链', hasRoad('wuwei', 'anding') && hasRoad('anding', 'changan'));
+  ok('金城—天水直连', hasRoad('jincheng', 'tianshui'));
+  ok('枹罕—西平已断开', !hasRoad('xiping', 'fuhan'));
+  ok('枹罕仍接金城', hasRoad('fuhan', 'jincheng'));
+
+  // 旧档没有安定：读档时应补城，并把新路铺上；旧枹罕—西平路面要被拆掉。
+  const old = JSON.parse(stateLib.serialize(g));
+  old.world.sites = old.world.sites.filter(function (s) { return s.id !== 'anding'; });
+  worldLib.layRoads(old.world, [['xiping', 'fuhan']]);
+  function tilesOnOldRoad(world) {
+    const a = worldLib.siteById(world, 'xiping');
+    const b = worldLib.siteById(world, 'fuhan');
+    if (!a || !b) return -1;
+    let x0 = a.x, y0 = a.y, x1 = b.x, y1 = b.y;
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy, count = 0;
+    while (true) {
+      if (!(x0 === a.x && y0 === a.y) && !(x0 === b.x && y0 === b.y)) {
+        const t = world.tiles[worldLib.idx(x0, y0)];
+        if (t === 'road' || t === 'bridge' || t === 'pass') count += 1;
+      }
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = err * 2;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx) { err += dx; y0 += sy; }
+    }
+    return count;
+  }
+  const beforeCut = tilesOnOldRoad(old.world);
+  const migrated = stateLib.deserialize(old);
+  const afterCut = tilesOnOldRoad(migrated.world);
+  ok('旧档补入安定并补到 84 据点', !!migrated && migrated.world.sites.length === 84 &&
+    !!worldLib.siteById(migrated.world, 'anding'),
+    migrated ? String(migrated.world.sites.length) : 'null');
+  ok('旧档枹罕—西平路面被拆除', beforeCut > 0 && afterCut === 0, beforeCut + ' -> ' + afterCut);
 }
 
 

@@ -8,6 +8,7 @@ const {
   createWorld,
   siteFromRow,
   layRoads,
+  clearRoads,
   ensureWorldFeatures,
   findPath,
   siteById,
@@ -7228,6 +7229,15 @@ function deserialize(json) {
     ['jianning', 'nanzhong'],
   ];
   layRoads(state.world, N21_ROADS);
+  // n32 西北路网：金城—天水接上，安定接武威与长安；旧档两端都是旧城时也要补。
+  const N32_ROADS = [
+    ['jincheng', 'tianshui'],
+    ['wuwei', 'anding'],
+    ['anding', 'changan'],
+  ];
+  layRoads(state.world, N32_ROADS);
+  // n33 断开枹罕—西平：新开局已不铺这条线，旧档也要把旧路面、旧桥和旧山口还原。
+  clearRoads(state.world, [['xiping', 'fuhan']]);
   // 牂牁从 (18,40) 下移到 (20,44)，贴着交趾；旧档同步搬城，不能让道路悬空。
   const zangkeRow = SITE_ROWS.filter(function (row) { return row[0] === 'zangke'; })[0];
   const zangkeSite = siteById(state.world, 'zangke');

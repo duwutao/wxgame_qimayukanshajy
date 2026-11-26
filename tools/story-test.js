@@ -150,7 +150,13 @@ group('地图：公孙、南越、长沙、新野、荆州三点');
       .every(function (s) { return !roadAdjacent('juyan', s.id); }));
   ok('天水归韩遂，汉廷与韩遂直接相邻',
     sites.filter(function (s) { return s.id === 'tianshui'; })[0].ownerFaction === 'hansui' &&
-    warLib.factionsAdjacent(st, 'han', 'hansui') && !warLib.factionsAdjacent(st, 'ma', 'han'));
+    warLib.factionsAdjacent(st, 'han', 'hansui'));
+  ok('安定归汉，武威—安定—长安成链，马腾与汉廷在安定接壤',
+    (function () {
+      const a = sites.filter(function (s) { return s.id === 'anding'; })[0];
+      return a && a.ownerFaction === 'han' && roadAdjacent('wuwei', 'anding') &&
+        roadAdjacent('anding', 'changan') && warLib.factionsAdjacent(st, 'ma', 'han');
+    })());
   const nanCp = warLib.planCampaign(st, 'nanman', st.clock.day);
   ok('南蛮先打刘璋，只野战不围城', !!nanCp && nanCp.enemy === 'zhang' && nanCp.harass === true,
     JSON.stringify(nanCp && { enemy: nanCp.enemy, target: nanCp.targetId, harass: nanCp.harass }));

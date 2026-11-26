@@ -205,6 +205,7 @@ const SITE_ROWS = [
   ['luoyang', '洛阳', 'town', 'wei', 20, 22, 1.12, 130, 'cao', '董卓烧过一次，如今又有人回来重新点灯。'],
   ['hulao', '虎牢关', 'castle', 'wei', 21, 20, 1.15, 90, 'cao', '洛阳东面的关口。三英战吕布，就在这下面。'],
   // ---- 凉州 ----
+  ['anding', '安定', 'town', 'han', 11, 18, 1.08, 95, 'han', '汉家西面的门户，卡在武威通往长安的驿道上，城头还挂着汉廷赤旗。'],
   ['wuwei', '武威', 'town', 'ma', 6, 17, 1.04, 100, 'ma', '凉州治所，马市开在城外，一天能换三百匹。'],
   ['xiping', '西平', 'town', 'hansui', 3, 17, 1.06, 90, 'hansui', '湟水谷地的粮城。韩遂的旗插在城头，羌汉商队都在这里歇脚。'],
   ['fuhan', '枹罕', 'castle', 'hansui', 2, 20, 1.14, 85, 'hansui', '河州旧垒。城墙夯了又夯，挡住过无数次羌骑。'],
@@ -311,7 +312,8 @@ const ROADS = [
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
   ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
-  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['wuwei', 'xiping'], ['xiping', 'fuhan'], ['fuhan', 'jincheng'],
+  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['jincheng', 'tianshui'], ['wuwei', 'xiping'], ['fuhan', 'jincheng'],
+  ['wuwei', 'anding'], ['anding', 'changan'],
   ['wuwei', 'tianshui'], ['tianshui', 'wudu'], ['wudu', 'hanzhong'],
   ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
