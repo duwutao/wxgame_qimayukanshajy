@@ -1,0 +1,32 @@
+name: n31 publish main
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n31-publish.yml'
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Take n31 bundle and index
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin juqing
+          git checkout origin/juqing -- web/game.bundle.js web/index.html
+          sed -i 's/20261126n19/20261126n31/g' index.html
+          echo 'c0b7618ac269c2953f3c95959506a7735106f7942877486c421c89ba519d7a14  web/game.bundle.js' | sha256sum -c -
+          git add web/game.bundle.js web/index.html index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n31 征战汉末 线上发布'
+          git push origin HEAD:main
