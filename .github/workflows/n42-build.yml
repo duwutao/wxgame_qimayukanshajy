@@ -1,0 +1,47 @@
+name: n42 build juqing
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n42-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n42 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n42.patch 'https://aka.doubaocdn.com/s/lsGCmIabKd'
+          git apply --check /tmp/juqing-n42.patch
+          git apply /tmp/juqing-n42.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Verify bundle
+        run: echo '373d5239312eba705f1fe138241a7322ff3b1d906f50bb3af87545de14178f55  web/game.bundle.js' | sha256sum -c -
+      - name: Commit n42
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js/core/state.js js/core/war.js js/data/china.js js/data/story.js js/data/lord-rank.js js/scenes/lord.js tools/logic-test.js tools/story-test.js web/game.bundle.js web/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n42 50人名将榜带兵上限/招兵倍率 [skip ci]'
+          git push origin HEAD:juqing
