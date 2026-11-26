@@ -7,6 +7,7 @@ const path = require('path');
 const R = path.join(__dirname, '..', 'js');
 
 const stateLib = require(R + '/core/state.js');
+const flows = require(R + '/scenes/flows.js');
 const { lookFor } = require(R + '/data/extra.js');
 const { TILE } = { TILE: 64 };
 
@@ -523,21 +524,52 @@ smoke('天下通报页（国亡弹窗）', function () {
   app.pop();
 });
 
-smoke('三国演义：史实文书不自动跳过', function () {
+smoke('乱世三国：榜文停十息再走', function () {
   app.state = stateLib.createGame({ seed: 4244, background: 'romance', storyMode: true });
   app.replace('map');
   app.push('news', {
     title: '史实文书',
-    lines: ['这一页要玩家自己看完。'],
+    lines: ['这一页停十息。'],
     auto: 8,
   });
   app.ui.begin();
   app.top().scene.render(app);
-  ok('剧情文书 auto 归零', !!app.newsView && app.newsView.auto === 0);
-  ok('剧情文书不吃点屏跳过', !!app.newsView && app.newsView.skipAny === false);
+  ok('榜文 auto 拉长到十息', !!app.newsView && app.newsView.auto === 10, app.newsView && app.newsView.auto);
+  ok('榜文不吃点屏跳过', !!app.newsView && app.newsView.skipAny === false);
   const ids = app.ui.items.map(function (b) { return b.id; });
   ok('保留知道了按钮', ids.indexOf('news_ok') >= 0, ids.join(','));
   app.pop();
+});
+
+smoke('史实配图按标题认图', function () {
+  app.state = stateLib.createGame({ seed: 4245, background: 'romance', storyMode: true });
+  app.replace('map');
+  const cases = [
+    ['董卓焚洛阳', 'luoyang'],
+    ['官渡败讯', 'guandu'],
+    ['赤壁火起', 'chibi'],
+    ['西川易主', 'shu'],
+    ['南中瘴气', 'nanman'],
+    ['汉廷禅让', 'throne'],
+    ['无名小事', 'war'],
+  ];
+  cases.forEach(function (c) {
+    app.push('news', { title: c[0], lines: ['……'], auto: 10 });
+    app.ui.begin();
+    app.top().scene.render(app);
+    ok('配图 ' + c[0], !!app.newsView && app.newsView.art === c[1], app.newsView && app.newsView.art);
+    app.pop();
+  });
+});
+
+smoke('三国演义：史实文书只进史册不弹窗', function () {
+  const st = stateLib.createGame({ seed: 4244, background: 'romance' });
+  st.historicalSandbox = true;
+  st.events = [{ type: 'story', title: '天下棋局', lines: ['四封战书同一天递出。'], tag: '大势' }];
+  app.state = st;
+  app.replace('map');
+  flows.process(app, st);
+  ok('沙盘不推史实弹窗', app.top().name !== 'news', app.top().name);
 });
 
 smoke('乱世三国：普通军情仍可按原节奏自散', function () {

@@ -100,12 +100,14 @@ function process(app) {
       return;
     }
     if (ev.type === 'story') {
+      // 三国演义是史实沙盘：天下大势只进史册，不打断行军。
+      if (st.historicalSandbox) continue;
       app.push('news', {
         title: ev.title || '天下大势',
         lines: ev.lines || [],
         tag: ev.tag || '大势',
         art: ev.art || null,
-        auto: ev.auto || 7,
+        auto: ev.auto || 10,
         skipAny: ev.skipAny !== false,
       });
       return;

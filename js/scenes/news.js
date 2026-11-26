@@ -7,18 +7,40 @@ const { text, wrap, panel } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const NEWS_ART = require('../data/news_art.js');
+const HISTORY_ART = require('../data/history_art.js');
+
+const ART = Object.assign({}, NEWS_ART, HISTORY_ART);
+
+/** 标题和正文里认得出是哪一段，就用对应的史实图；认不出再按战/和退回旧底图。 */
+const ART_RULES = [
+  [/洛阳|董卓|焚城|焦土|迁都|长安西迁/, 'luoyang'],
+  [/官渡|乌巢|袁绍|河北|黎阳/, 'guandu'],
+  [/赤壁|连环船|火船|夏口|江陵|乌林/, 'chibi'],
+  [/西川|成都|剑阁|汉中|入蜀|刘璋|益州/, 'shu'],
+  [/南中|南蛮|南越|牂牁|交趾|藤甲|孟获|朱提/, 'nanman'],
+  [/称帝|禅让|受禅|玉玺|登基|魏王|帝位|汉廷|许都/, 'throne'],
+];
+
+function pickArt(ev) {
+  if (ev.art && ART[ev.art]) return ev.art;
+  const body = (ev.title || '') + ' ' + (ev.lines || []).join(' ');
+  for (let i = 0; i < ART_RULES.length; i += 1) {
+    if (ART_RULES[i][0].test(body)) return ART_RULES[i][1];
+  }
+  return ev.tag === '战略' ? 'peace' : 'war';
+}
 
 const ART_CACHE = {};
 
 /** 取内置背景图；浏览器/微信/抖音都通过平台 createImage 加载 data URL。 */
 function artImage(app, id) {
-  if (!id || !NEWS_ART[id] || !app || !app.runtime || !app.runtime.createImage) return null;
+  if (!id || !ART[id] || !app || !app.runtime || !app.runtime.createImage) return null;
   let img = ART_CACHE[id];
   if (!img) {
     img = app.runtime.createImage();
     if (!img) return null;
     img.onload = function () { img.__ready = true; };
-    try { img.src = NEWS_ART[id]; } catch (e) { return null; }
+    try { img.src = ART[id]; } catch (e) { return null; }
     ART_CACHE[id] = img;
   }
   return img.width > 0 && (img.complete || img.__ready) ? img : null;
@@ -62,7 +84,7 @@ function drawArt(app, ctx, w, h, id, t) {
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
-    // 三国演义是史实剧本：历史文书不读秒自动跳过，必须玩家自己看完确认。
+    // 乱世三国：榜文停十息再自己散；三国演义的史实文书已在 flows 里直接跳过，不走这里。
     const storyMode = !!(app.state && app.state.storyMode);
     app.newsView = {
       title: ev.title || '榜文',
@@ -70,8 +92,8 @@ const NewsScene = {
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: storyMode ? 0 : (ev.auto || 0),
-      art: ev.art || null,
+      auto: storyMode ? 10 : (ev.auto || 10),
+      art: pickArt(ev),
       skipAny: storyMode ? false : !!ev.skipAny,
       t: 0,
     };

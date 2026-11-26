@@ -1,13 +1,15 @@
 /**
- * 军机棋盘：原城池“比武大会”改成五种军情博弈。
+ * 军机棋盘：城池里的六局军情博弈。
  *
- * 五种玩法都只押一局：报名 40 金钱，胜者得 200 金钱。
+ * 六局都只押一注：报名 40 金钱，胜者得 200 金钱；每七天只摆十局，满十局要等下一轮。
  * 规则全部由本文件计算，场景层只负责把选择画成棋盘。
- *   单挑斩将：劈克刺，刺克闪，闪克劈
- *   断粮道：三处粮道猜伏兵，AI 会避开上次设伏点
- *   狙杀敌哨：明哨/暗哨 × 换防/不换
- *   火攻时机：顺风放火/等风停 × 防备/不备
+ *   单挑斩将：劈克刺，刺克闪，闪克劈（三分之一的胜面）
+ *   校场夺魁：左挡 / 右挡 / 左攻 / 右攻，对手四滴血、挡对可反手重击
+ *   断粮道：三处粮道，AI 拦两处，只剩一条空档
+ *   狙杀敌哨：两处明哨一处暗哨 × 换防/不换
+ *   火攻时机：顺风放火 / 等风停 / 严阵以待 × 防备/不备
  *   烽火传令：三选一避开伏兵，再在剩下两条道中二选一
+ * 六局摊下来，赢面都在四成以下，棋盘是消遣，不是提款机。
  */
 
 const heroes = require('./heroes.js');
@@ -34,6 +36,11 @@ const ARENA_MOVES = [
 const ARENA_BY_ID = {};
 ARENA_MOVES.forEach(function (m) { ARENA_BY_ID[m.id] = m; });
 const ARENA_HP = 3;
+// 校场对手是常年下场的老手：多一件护心镜，多撑一刀；你挡对方向能反手重击。
+const ARENA_FOE_HP = 4;
+const SUPPLY_BLOCK_COUNT = 2;
+const WEEK_LIMIT = 10;
+const WEEK_DAYS = 7;
 
 const SUPPLY_NODES = [
   { id: 'east', name: '东粮道', short: '东', desc: '靠河，车辙最深。' },
@@ -44,8 +51,9 @@ const SUPPLY_BY_ID = {};
 SUPPLY_NODES.forEach(function (n) { SUPPLY_BY_ID[n.id] = n; });
 
 const SENTRY_TARGETS = [
-  { id: 'bright', name: '明哨', desc: '火把下的哨兵，站得最直。' },
-  { id: 'hidden', name: '暗哨', desc: '营外阴影里的眼睛，最难找。' },
+  { id: 'brightA', name: '前门明哨', desc: '火把底下站着，换防要从火前走过。' },
+  { id: 'brightB', name: '侧门明哨', desc: '侧门那盏灯下，换防只是转身，箭贴不着。' },
+  { id: 'hidden', name: '帐后暗哨', desc: '营帐阴影里的一双眼睛，不动才露头。' },
 ];
 const SENTRY_AIS = [
   { id: 'change', name: '换防', desc: '哨兵互换位置。' },
@@ -53,7 +61,8 @@ const SENTRY_AIS = [
 ];
 const FIRE_MOVES = [
   { id: 'burn', name: '顺风放火', desc: '趁风势把火船送过去。' },
-  { id: 'wait', name: '等风停', desc: '先按兵不动，等风向定。' },
+  { id: 'wait', name: '等风停', desc: '先按住火船，等风向定。' },
+  { id: 'hold', name: '不再放火', desc: '严阵以待，今夜只守不攻。' },
 ];
 const FIRE_AIS = [
   { id: 'ready', name: '防备', desc: '沿江布下拒火船。' },
@@ -80,19 +89,19 @@ const MODES = [
   },
   {
     id: 'arena', name: '校场夺魁', icon: 'arena', color: '#3a2c1e',
-    short: '左挡 · 右挡 · 左攻 · 右攻',
+    short: '挡与攻 · 四手',
     intro: '校场画了个圈，你与好手各持木刀，护住左右两肩。每合一招：要么护住一边，要么从那一边切进去。',
-    rule: '各三滴血，先见底者输。同招相抵白打一合；两败俱伤退报名费。',
+    rule: '你三滴血，对手四滴血；挡对方向可反手重击。同招相抵白打一合；两败俱伤退报名费。',
     choiceTitle: '这一合怎么走？',
     choices: ARENA_MOVES.map(function (m) {
-      return { id: m.id, name: m.name, desc: m.desc };
+      return { id: m.id, name: m.name, desc: m.desc, kind: m.kind };
     }),
   },
   {
     id: 'supply', name: '断粮道', icon: 'supply', color: '#3b3020',
-    short: '三处粮道 · 猜伏兵',
-    intro: '敌营粮道分东、中、西三处。你选一处偷袭，AI 选一处设伏；同时亮出，撞上伏兵即输，避开即赢。',
-    rule: 'AI 会避开上次设伏点。胜者烧掉敌粮，得 200 金钱。',
+    short: '三条粮道 · 留一条',
+    intro: '敌营粮道分东、中、西三处。你先选一处偷袭，AI 同时把两处卡死；只剩一条道是空的。',
+    rule: '三条道里 AI 拦两条，撞上任何一处伏兵即输。烧掉敌粮得 200 金钱。',
     choiceTitle: '偷袭哪一处粮道？',
     choices: SUPPLY_NODES.map(function (n) {
       return { id: n.id, name: n.name, desc: n.desc };
@@ -100,9 +109,9 @@ const MODES = [
   },
   {
     id: 'sentry', name: '狙杀敌哨', icon: 'sentry', color: '#26372e',
-    short: '明哨 / 暗哨',
-    intro: '敌营外两名哨兵轮换，一明一暗。你狙明哨或暗哨，AI 决定换防或不换；同时亮出。',
-    rule: '狙中暗哨且不换，或狙中明哨且换防，你赢；其余你输。',
+    short: '两明一暗 · 换防',
+    intro: '敌营外三处哨位：前门明哨、侧门明哨、帐后暗哨。你挑一处放箭，AI 决定换防或不换。',
+    rule: '只有前门明哨换防时会走过火把，帐后暗哨不换才露头；侧门转身、明哨站定都空。',
     choiceTitle: '先狙哪一个？',
     choices: SENTRY_TARGETS.map(function (n) {
       return { id: n.id, name: n.name, desc: n.desc };
@@ -110,9 +119,9 @@ const MODES = [
   },
   {
     id: 'fire', name: '火攻时机', icon: 'fire', color: '#4a2a18',
-    short: '顺风 / 等风',
-    intro: '风向不定。你选顺风放火或等风停，AI 选防备或不备；同时亮出。',
-    rule: '顺风放火遇不备，或等风停遇防备，你赢；其余你输。',
+    short: '顺风 / 等风 / 严阵',
+    intro: '风向不定。你选顺风放火、等风停，或者干脆不再放火；AI 选防备或不备。',
+    rule: '顺风遇不备、等风遇防备才得手；严阵以待只是收兵，退你报名费。',
     choiceTitle: '何时点火？',
     choices: FIRE_MOVES.map(function (n) {
       return { id: n.id, name: n.name, desc: n.desc };
@@ -120,7 +129,7 @@ const MODES = [
   },
   {
     id: 'relay', name: '烽火传令', icon: 'relay', color: '#2c2a40',
-    short: '两道关 · 三选一',
+    short: '三选一 · 再二选一',
     intro: '你是传令兵，要把军信送到前线。第一关三条驿道，AI 在其中一条设卡；避开后，第二关只剩两条道，AI 再补一道卡。',
     rule: '两关都避开伏兵，军信送到，得 200 金钱；任一次撞上即输。',
     choiceTitle: '第一关走哪条道？',
@@ -197,21 +206,25 @@ function resolveDuel(playerMove, aiMove) {
   return p.beats === aiMove ? 'win' : 'lose';
 }
 
-/** 断粮道：避开伏兵即胜。 */
-function resolveSupply(playerNode, ambushNode) {
-  if (!SUPPLY_BY_ID[playerNode] || !SUPPLY_BY_ID[ambushNode]) return null;
-  return playerNode !== ambushNode ? 'win' : 'lose';
+/** 断粮道：三条道 AI 拦两条，只剩一条空档。 */
+function resolveSupply(playerNode, blocks) {
+  if (!SUPPLY_BY_ID[playerNode]) return null;
+  const list = Array.isArray(blocks) ? blocks : [blocks];
+  if (!list.length || list.some(function (id) { return !SUPPLY_BY_ID[id]; })) return null;
+  return list.indexOf(playerNode) >= 0 ? 'lose' : 'win';
 }
 
-/** 狙杀敌哨 2×2 表。 */
+/** 狙杀敌哨：只有前门明哨换防时会走过火把，暗哨不换才露头。 */
 function resolveSentry(target, aiMove) {
+  if (!SENTRY_TARGETS.some(function (n) { return n.id === target; })) return null;
   const ok = (target === 'hidden' && aiMove === 'stay') ||
-    (target === 'bright' && aiMove === 'change');
+    (target === 'brightA' && aiMove === 'change');
   return ok ? 'win' : 'lose';
 }
 
-/** 火攻时机 2×2 表。 */
+/** 火攻时机：严阵以待是收兵，退报名费。 */
 function resolveFire(move, aiMove) {
+  if (move === 'hold') return 'draw';
   const ok = (move === 'burn' && aiMove === 'unready') ||
     (move === 'wait' && aiMove === 'ready');
   return ok ? 'win' : 'lose';
@@ -249,8 +262,9 @@ function resolveArena(pMoveId, fMoveId) {
       line = '你从' + pDir + '边虚晃一招，人却从另一边切进去，一刀拍在他护肩上。';
     }
   } else if (pm.dir === fm.dir) {
-    dmgFoe = 1;
-    line = '他攻你' + fDir + '边，你' + pDir + '手木刀迎上去，磕开刀锋还推了他一把。';
+    // 挡对了顺势反手一记重刀，比寻常一刀更沉
+    dmgFoe = 2;
+    line = '他攻你' + fDir + '边，你' + pDir + '手木刀迎上去，磕开刀锋，反手一记重刀抽在他背上。';
   } else {
     dmgPlayer = 1;
     line = '他攻你' + fDir + '边，你挡在' + pDir + '边——护不住，肋下吃了一记。';
@@ -300,14 +314,48 @@ function pickDuelAI(state) {
   return pickFrom(state, DUEL_MOVES).id;
 }
 
-/** AI 会避开上次设伏点；没有上次记录时三处随机。 */
-function pickSupplyAmbush(state, last) {
-  let pool = SUPPLY_NODES.slice();
-  if (last) {
-    const filtered = pool.filter(function (n) { return n.id !== last; });
-    if (filtered.length) pool = filtered;
+/** AI 一次拦两道：三条道只给你留一条空档。 */
+function pickSupplyBlocks(state) {
+  const pool = SUPPLY_NODES.map(function (n) { return n.id; });
+  const first = pickFrom(state, SUPPLY_NODES).id;
+  const rest = pool.filter(function (id) { return id !== first; });
+  const j = Math.max(0, Math.min(rest.length - 1, state.rng.int(0, rest.length - 1)));
+  const second = rest[j];
+  const out = [first, second];
+  safeFlags(state).warboardSupplyLastBlocks = out.slice();
+  return out;
+}
+
+/* ---------------------------------------------------------- 七天十局 */
+
+/** 每七天摆十局；跨过七天自动重开一轮。 */
+function weekState(state) {
+  if (!state.tourneyWeek || typeof state.tourneyWeek.startDay !== 'number') {
+    state.tourneyWeek = { startDay: state.clock ? state.clock.day : 1, used: 0 };
   }
-  return pickFrom(state, pool).id;
+  const w = state.tourneyWeek;
+  const day = state.clock ? state.clock.day : w.startDay;
+  if (day - w.startDay >= WEEK_DAYS || day < w.startDay) {
+    w.startDay = day;
+    w.used = 0;
+  }
+  return w;
+}
+
+function remaining(state) {
+  const w = weekState(state);
+  return Math.max(0, WEEK_LIMIT - w.used);
+}
+
+function weekInfo(state) {
+  const w = weekState(state);
+  return {
+    used: w.used,
+    limit: WEEK_LIMIT,
+    remaining: Math.max(0, WEEK_LIMIT - w.used),
+    startDay: w.startDay,
+    resetIn: Math.max(0, WEEK_DAYS - ((state.clock ? state.clock.day : w.startDay) - w.startDay)),
+  };
 }
 
 function pickSentryAI(state) {
@@ -332,8 +380,13 @@ function enter(state, site, modeId) {
   }
   const gold = Number(state.player.gold || 0);
   if (gold < FEE) return { ok: false, msg: '报名要 ' + FEE + ' 金钱，你身上不够。' };
+  const week = weekState(state);
+  if (week.used >= WEEK_LIMIT) {
+    return { ok: false, msg: '这七天的十局已经下满，' + Math.max(1, WEEK_DAYS - ((state.clock ? state.clock.day : week.startDay) - week.startDay)) + ' 天后再开张。' };
+  }
 
   state.player.gold = gold - FEE;
+  week.used += 1;
   const t = {
     mode: mode.id,
     modeName: mode.name,
@@ -353,7 +406,7 @@ function enter(state, site, modeId) {
   if (mode.id === 'arena') {
     t.arena = {
       hp: ARENA_HP,
-      foeHp: ARENA_HP,
+      foeHp: ARENA_FOE_HP,
       foe: pickArenaFoe(state),
       moves: [],
     };
@@ -371,7 +424,7 @@ function enter(state, site, modeId) {
   state.tourney = t;
   return {
     ok: true,
-    msg: '交 ' + FEE + ' 金钱，军机棋盘摆开：' + mode.name + '。',
+    msg: '交 ' + FEE + ' 金钱，军机棋盘摆开：' + mode.name + '（本周还剩 ' + remaining(state) + ' 局）。',
     mode: mode.id,
   };
 }
@@ -481,21 +534,23 @@ function choose(state, choice) {
     }
   } else if (t.mode === 'supply') {
     if (!SUPPLY_BY_ID[choice]) return { ok: false, msg: '没有这处粮道。' };
-    const last = safeFlags(state).warboardSupplyLastAmbush || null;
-    const ambush = pickSupplyAmbush(state, last);
-    safeFlags(state).warboardSupplyLastAmbush = ambush;
-    const result = resolveSupply(choice, ambush);
+    const blocks = pickSupplyBlocks(state);
+    const result = resolveSupply(choice, blocks);
     const win = result === 'win';
-    addLog(t, ['你偷袭「' + labelFor('supply', choice) + '」，伏兵藏在「' + labelFor('supply', ambush) + '」。', win ? '粮车起火，敌营连夜断炊。' : '你一头撞进伏兵圈，火把从两侧亮起。']);
+    const blockText = blocks.map(function (id) { return labelFor('supply', id); }).join('、');
+    addLog(t, ['你偷袭「' + labelFor('supply', choice) + '」，伏兵卡住「' + blockText + '」两处。',
+      win ? '剩下那条空道没人守，粮车一把火烧了。' : '这条道正撞在伏兵枪口上，火把从两侧亮起。']);
     finish(state, t, win, [win ? '断粮成功，敌营军心大乱。' : '偷袭失败，你带伤退回。']);
+    t.lastBlocks = blocks.slice();
   } else if (t.mode === 'sentry') {
     if (!SENTRY_TARGETS.some(function (n) { return n.id === choice; })) {
-      return { ok: false, msg: '哨位只有明哨和暗哨。' };
+      return { ok: false, msg: '哨位只有两处明哨和一处暗哨。' };
     }
     const ai = pickSentryAI(state);
     const result = resolveSentry(choice, ai);
     const win = result === 'win';
-    addLog(t, ['你瞄准「' + labelFor('sentry', choice) + '」，敌营选择「' + aiLabelFor('sentry', ai) + '」。', win ? '弩箭穿过换防的空档，哨兵无声倒下。' : '哨兵恰好不在你的箭路上，营门立刻警觉。']);
+    addLog(t, ['你瞄准「' + labelFor('sentry', choice) + '」，敌营今夜「' + aiLabelFor('sentry', ai) + '」。',
+      win ? '弩箭擦着火光过去，哨兵无声倒下。' : '箭钉在木桩上，哨兵一缩身，营门立刻警觉。']);
     finish(state, t, win, [win ? '敌哨已除，营门开了一条暗路。' : '一箭落空，你只能退入夜色。']);
   } else if (t.mode === 'fire') {
     if (!FIRE_MOVES.some(function (n) { return n.id === choice; })) {
@@ -503,6 +558,23 @@ function choose(state, choice) {
     }
     const ai = pickFireAI(state);
     const result = resolveFire(choice, ai);
+    if (result === 'draw') {
+      t.done = true;
+      t.draw = true;
+      t.win = false;
+      t.champion = false;
+      t.result = 'draw';
+      state.player.gold = Number(state.player.gold || 0) + FEE;
+      state.player.renown = Number(state.player.renown || 0) + 1;
+      addLog(t, ['你传令收兵，火船拖回港内，沿江列阵守到天亮。',
+        '敌营「' + aiLabelFor('fire', ai) + '」也没等到你点火。报名费 ' + FEE + ' 退回，赏格作废。']);
+      return {
+        ok: true, mode: t.mode, result: 'draw', done: true,
+        playerChoice: choice, aiChoice: ai,
+        playerLabel: labelFor('fire', choice), aiLabel: aiLabelFor('fire', ai),
+        lines: ['严阵以待，今夜不战。'],
+      };
+    }
     const win = result === 'win';
     addLog(t, ['你选「' + labelFor('fire', choice) + '」，敌营选择「' + aiLabelFor('fire', ai) + '」。', win ? '火船顺风撞入水寨，江面烧成一条火龙。' : '风向不对，火船还未靠近就被拒火船拦住。']);
     finish(state, t, win, [win ? '火攻得手，敌营水寨尽毁。' : '火攻失手，你折了火船退回。']);
@@ -555,6 +627,8 @@ function choose(state, choice) {
     champion: !!t.champion,
     playerChoice: choice,
     playerLabel: labelFor(t.mode, choice),
+    aiChoice: t.mode === 'supply' ? null : undefined,
+    blocks: t.mode === 'supply' ? (t.lastBlocks || []).slice() : undefined,
     lines: t.log.length ? t.log[t.log.length - 1].split('\n') : [],
   };
 }
@@ -566,8 +640,10 @@ function close(state) {
 module.exports = {
   FEE, PRIZE, MODES, DUEL_MOVES, SUPPLY_NODES, SENTRY_TARGETS,
   SENTRY_AIS, FIRE_MOVES, FIRE_AIS, RELAY_LANES, ARENA_MOVES, ARENA_HP,
+  ARENA_FOE_HP, SUPPLY_BLOCK_COUNT, WEEK_LIMIT, WEEK_DAYS,
   fee, prize, modeById, modeList, choiceList, labelFor, aiLabelFor,
   resolveDuel, resolveSupply, resolveSentry, resolveFire, resolveRelayStage, resolveArena,
-  pickDuelAI, pickSupplyAmbush, pickSentryAI, pickFireAI, pickArenaAI, pickArenaFoe,
+  pickDuelAI, pickSupplyBlocks, pickSentryAI, pickFireAI, pickArenaAI, pickArenaFoe,
+  weekState, weekInfo, remaining,
   enter, choose, close,
 };

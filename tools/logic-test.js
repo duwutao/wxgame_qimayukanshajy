@@ -964,9 +964,10 @@ ok('两边都抢攻各掉一血',
 ok('两边都挡白打一合',
   tourney.resolveArena('blockR', 'blockL').dmgPlayer === 0 &&
   tourney.resolveArena('blockR', 'blockL').dmgFoe === 0);
-ok('挡住他的抢攻可以反手一刀',
+ok('挡住他的抢攻可以反手重击，削两滴',
   tourney.resolveArena('blockL', 'attackL').dmgPlayer === 0 &&
-  tourney.resolveArena('blockL', 'attackL').dmgFoe === 1);
+  tourney.resolveArena('blockL', 'attackL').dmgFoe === 2);
+ok('校场对手四滴血（护心镜）', tourney.ARENA_FOE_HP === 4);
 ok('挡错方向自己挨刀',
   tourney.resolveArena('blockL', 'attackR').dmgPlayer === 1 &&
   tourney.resolveArena('blockL', 'attackR').dmgFoe === 0);
@@ -980,24 +981,30 @@ ok('刺克闪', tourney.resolveDuel('ci', 'shan') === 'win');
 ok('闪克劈', tourney.resolveDuel('shan', 'pi') === 'win');
 ok('单挑同招相抵', tourney.resolveDuel('pi', 'pi') === 'tie');
 
-// 断粮道：避开伏兵即胜
-ok('避开伏兵赢', tourney.resolveSupply('east', 'center') === 'win');
-ok('撞上伏兵输', tourney.resolveSupply('east', 'east') === 'lose');
-st10.flags.warboardSupplyLastAmbush = 'east';
+// 断粮道：三条道，AI 拦两条
+ok('只走空档才赢', tourney.resolveSupply('east', ['center', 'west']) === 'win');
+ok('撞上任意一处伏兵即输', tourney.resolveSupply('east', ['east', 'west']) === 'lose');
 st10.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
-ok('AI 避开上次设伏点', tourney.pickSupplyAmbush(st10, 'east') !== 'east');
+(function () {
+  const blocks = tourney.pickSupplyBlocks(st10);
+  ok('AI 一次拦两条道', blocks.length === 2 && blocks[0] !== blocks[1], JSON.stringify(blocks));
+  ok('拦的两条都在三条道内', blocks.every(function (id) { return !!tourney.SUPPLY_NODES.filter(function (n) { return n.id === id; }).length; }));
+})();
 
-// 狙杀敌哨 2×2
-ok('暗哨且不换 = 赢', tourney.resolveSentry('hidden', 'stay') === 'win');
-ok('明哨且换防 = 赢', tourney.resolveSentry('bright', 'change') === 'win');
-ok('暗哨但换防 = 输', tourney.resolveSentry('hidden', 'change') === 'lose');
-ok('明哨且不换 = 输', tourney.resolveSentry('bright', 'stay') === 'lose');
+// 狙杀敌哨：两明一暗 × 换防/不换
+ok('哨位一共三处', tourney.SENTRY_TARGETS.length === 3);
+ok('前门明哨换防时要过火把，这一箭能中', tourney.resolveSentry('brightA', 'change') === 'win');
+ok('侧门明哨换防只是转身，箭路不到', tourney.resolveSentry('brightB', 'change') === 'lose');
+ok('暗哨不动才露头', tourney.resolveSentry('hidden', 'stay') === 'win');
+ok('暗哨换防就缩回帐后', tourney.resolveSentry('hidden', 'change') === 'lose');
+ok('明哨不换就藏在灯影里', tourney.resolveSentry('brightA', 'stay') === 'lose');
 
-// 火攻时机 2×2
+// 火攻时机：三手 × 两备
 ok('顺风且不备 = 赢', tourney.resolveFire('burn', 'unready') === 'win');
 ok('等风且防备 = 赢', tourney.resolveFire('wait', 'ready') === 'win');
 ok('顺风但防备 = 输', tourney.resolveFire('burn', 'ready') === 'lose');
 ok('等风但不备 = 输', tourney.resolveFire('wait', 'unready') === 'lose');
+ok('不再放火算收兵，退报名费', tourney.resolveFire('hold', 'ready') === 'draw' && tourney.resolveFire('hold', 'unready') === 'draw');
 
 // 烽火传令：第一关避开后，第二关只剩两条道
 (function () {
@@ -1025,9 +1032,8 @@ ok('等风但不备 = 输', tourney.resolveFire('wait', 'unready') === 'lose');
 (function () {
   const st = stateLib.createGame({ seed: 777016 });
   st.player.gold = 500;
-  st.flags.warboardSupplyLastAmbush = 'east';
   tourney.enter(st, st.world.sites[0], 'supply');
-  st.rng = { int: function () { return 0; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
+  st.rng = { int: function () { return 2; }, next: function () { return 0.5; }, random: function () { return 0.5; } };
   const r = tourney.choose(st, 'east');
   ok('断粮结算发赏金', r.ok && r.result === 'win' && st.player.gold === 660, JSON.stringify(r));
 })();
@@ -1042,6 +1048,115 @@ ok('等风但不备 = 输', tourney.resolveFire('wait', 'unready') === 'lose');
   ok('单挑同招不结束', tie.ok && tie.result === 'tie' && !st.tourney.done && st.player.gold === 460, JSON.stringify(tie));
   const r = tourney.choose(st, 'ci');
   ok('同招后可再出一手', r.ok, JSON.stringify(r));
+})();
+
+// 七天十局：用完要等下一轮，过了七天自动重开
+(function () {
+  const st = stateLib.createGame({ seed: 777020 });
+  st.player.gold = 99999;
+  let okCount = 0;
+  for (let i = 0; i < 10; i++) {
+    st.tourneyWeek = { startDay: 1, used: i };
+    const r = tourney.enter(st, st.world.sites[0], 'duel');
+    if (r.ok) { okCount += 1; tourney.close(st); }
+  }
+  ok('七天能下满十局', okCount === 10, String(okCount));
+  st.tourneyWeek = { startDay: 1, used: 10 };
+  const r11 = tourney.enter(st, st.world.sites[0], 'duel');
+  ok('第十一局要等下一轮', !r11.ok, r11.msg);
+  st.clock.day = 8;
+  const week = tourney.weekState(st);
+  ok('过了七天自动重开', week.used === 0 && week.startDay === 8, JSON.stringify(week));
+  const r12 = tourney.enter(st, st.world.sites[0], 'duel');
+  ok('新一轮能再开局', r12.ok, r12.msg);
+  tourney.close(st);
+})();
+
+// 六局胜面都在四成以下
+(function () {
+  const rate = {};
+  // 断粮道：三选一 × 三组双拦截
+  let win = 0; let all = 0;
+  const lanes = tourney.SUPPLY_NODES.map(function (n) { return n.id; });
+  for (let i = 0; i < lanes.length; i++) {
+    for (let a = 0; a < lanes.length; a++) {
+      for (let b = a + 1; b < lanes.length; b++) {
+        all += 1;
+        if (tourney.resolveSupply(lanes[i], [lanes[a], lanes[b]]) === 'win') win += 1;
+      }
+    }
+  }
+  rate.supply = win / all;
+  // 狙杀敌哨：三处哨位 × 两套换防
+  win = 0; all = 0;
+  tourney.SENTRY_TARGETS.forEach(function (t) {
+    tourney.SENTRY_AIS.forEach(function (a) {
+      all += 1;
+      if (tourney.resolveSentry(t.id, a.id) === 'win') win += 1;
+    });
+  });
+  rate.sentry = win / all;
+  // 火攻：三手 × 两备（平局不算赢）
+  win = 0; all = 0;
+  tourney.FIRE_MOVES.forEach(function (m) {
+    tourney.FIRE_AIS.forEach(function (a) {
+      all += 1;
+      if (tourney.resolveFire(m.id, a.id) === 'win') win += 1;
+    });
+  });
+  rate.fire = win / all;
+  // 单挑：三手对三手（同招重出，按三成三算）
+  win = 0; all = 0;
+  tourney.DUEL_MOVES.forEach(function (m) {
+    tourney.DUEL_MOVES.forEach(function (a) {
+      all += 1;
+      if (tourney.resolveDuel(m.id, a.id) === 'win') win += 1;
+    });
+  });
+  rate.duel = win / all;
+  // 传令：第一关三选一，第二关二选一
+  win = 0; all = 0;
+  const lanes2 = tourney.RELAY_LANES.map(function (n) { return n.id; });
+  for (let i = 0; i < lanes2.length; i++) {
+    for (let b = 0; b < lanes2.length; b++) {
+      if (lanes2[i] === lanes2[b]) { all += 4; continue; }
+      const rest = lanes2.filter(function (id) { return id !== lanes2[b]; });
+      for (let j = 0; j < rest.length; j++) {
+        for (let b2 = 0; b2 < rest.length; b2++) {
+          all += 1;
+          if (tourney.resolveRelayStage(rest[j], rest[b2]) === 'win') win += 1;
+        }
+      }
+    }
+  }
+  rate.relay = win / all;
+  // 校场：随机出招跑四百局
+  (function () {
+    const st = stateLib.createGame({ seed: 777021 });
+    st.player.gold = 999999;
+    let w = 0; let n = 0; let d = 0;
+    for (let g = 0; g < 240; g++) {
+      st.tourneyWeek = { startDay: 1, used: 0 };
+      st.clock.day = 1;
+      if (!tourney.enter(st, st.world.sites[0], 'arena').ok) break;
+      let guard = 0;
+      while (st.tourney && !st.tourney.done && guard++ < 24) {
+        const ids = tourney.ARENA_MOVES.map(function (m) { return m.id; });
+        tourney.choose(st, ids[st.rng.int(0, ids.length - 1)]);
+      }
+      if (st.tourney.win) w += 1;
+      else if (st.tourney.result === 'draw') d += 1;
+      n += 1;
+      tourney.close(st);
+    }
+    rate.arena = w / n;
+    ok('校场两败俱伤只是平局，不算赢', d >= 0);
+  })();
+  const keys = Object.keys(rate);
+  ok('六局胜面都压在四成以下', keys.every(function (k) { return rate[k] < 0.4; }),
+    keys.map(function (k) { return k + ' ' + (rate[k] * 100).toFixed(1) + '%'; }).join(' / '));
+  ok('校场胜面在两成半到四成之间', rate.arena > 0.25 && rate.arena < 0.4,
+    (rate.arena * 100).toFixed(1) + '%');
 })();
 
 tourney.close(st10);

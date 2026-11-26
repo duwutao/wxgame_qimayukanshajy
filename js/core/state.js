@@ -7361,6 +7361,7 @@ function serialize(state) {
     playerWarSince: state.playerWarSince || {},
     fiefTaxDay: state.fiefTaxDay || 0,
     arc: state.arc || null,
+    tourneyWeek: state.tourneyWeek || null,
   };
   copy.player.route = [];
   copy.player.fieldBattleId = null;
@@ -7430,6 +7431,7 @@ function deserialize(json) {
     events: [],
     stats: data.stats || { battlesWon: 0, battlesLost: 0, troopsLost: 0, goldEarned: 0, distance: 0, days: 0, sitesTaken: 0, villagesRaided: 0 },
     flags: data.flags || {},
+    tourneyWeek: data.tourneyWeek || null,
     campaign: data.campaign || { stage: 0, done: [] },
     gameOver: !!data.gameOver,
     ending: data.ending || null,
