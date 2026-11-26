@@ -1,0 +1,31 @@
+name: n33 publish main
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n33-publish.yml'
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Take n33 bundle and entry
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin juqing
+          git checkout origin/juqing -- index.html web/game.bundle.js web/index.html
+          echo '17d2378b84108c0c8730f85b3c87122709ff1303eabd10e3a72ba657fe88c0ab  web/game.bundle.js' | sha256sum -c -
+          git add index.html web/game.bundle.js web/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n33 征战汉末 线上发布'
+          git push origin HEAD:main
