@@ -16,17 +16,17 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Take n42 bundle and entry
+      - name: Take n42b bundle and entry
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin juqing
           git checkout origin/juqing -- index.html web/game.bundle.js web/index.html
-          echo '373d5239312eba705f1fe138241a7322ff3b1d906f50bb3af87545de14178f55  web/game.bundle.js' | sha256sum -c -
+          echo 'd5d2df9956179fb0d057dac1bd5387591c15e31c5de2c67e4b2f87b5d0150358  web/game.bundle.js' | sha256sum -c -
           git add index.html web/game.bundle.js web/index.html
           if git diff --cached --quiet; then
             echo 'No changes'
             exit 0
           fi
-          git commit -m 'release: 20261126n42 50人名将榜带兵上限/招兵倍率 线上发布'
+          git commit -m 'release: 20261126n42b 君主募兵1.5/马韩保城/入川巴西补线 线上发布'
           git push origin HEAD:main
