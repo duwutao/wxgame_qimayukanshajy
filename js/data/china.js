@@ -212,7 +212,7 @@ const SITE_ROWS = [
   ['jincheng', '金城', 'town', 'hansui', 4, 22, 1.06, 85, 'hansui', '黄河边上的渡口城。韩遂与马腾在这里喝过酒，也在这里翻过脸。'],
   ['tianshui', '天水', 'castle', 'hansui', 10, 22, 1.1, 95, 'hansui', '陇右的要冲，姜维的老家。如今城门上插着韩字旗，与长安只隔一条驿道。'],
   ['longxi', '陇西村', 'village', 'ma', 8, 24, 0.72, 12, 'village', '黄土坡上的村子，家家有马，家家缺粮。'],
-  ['wudu', '武都', 'castle', 'zhang', 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。'],
+  ['wudu', '武都', 'castle', null, 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。城头如今无旗。'],
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 23, 21, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
@@ -245,7 +245,7 @@ const SITE_ROWS = [
   ['yiling', '夷陵', 'castle', null, 24, 41, 1.12, 75, 'none', '三峡的出口。连营七百里，说的就是这一线。'],
   // ---- 益州 ----
   ['hanzhong', '汉中', 'town', 'zhang', 16, 29, 1.04, 105, 'zhang', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
-  ['shangluo', '上洛', 'castle', 'zhang', 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。'],
+  ['shangluo', '上洛', 'castle', null, 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。城头如今无旗。'],
   ['jiange', '剑阁', 'castle', 'zhang', 16, 32, 1.18, 100, 'zhang', '一夫当关，万夫莫开。说的不是城，是那条路。'],
   ['chengdu', '成都', 'town', 'zhang', 11, 35, 1.07, 160, 'zhang', '益州治所。锦官城的织机声，隔一条街都听得见。'],
   ['jiangzhou', '江州', 'town', 'zhang', 14, 38, 1.05, 90, 'zhang', '巴郡的水码头，盐船从这里下行。'],
@@ -303,7 +303,7 @@ const RECRUIT_SETS = {
 
 /** 道路连线 */
 const ROADS = [
-  ['longcheng', 'tanhanshan'], ['longcheng', 'juyan'], ['juyan', 'wuwei'],
+  ['longcheng', 'tanhanshan'], ['juyan', 'wuwei'],
   ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
   ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
@@ -390,6 +390,9 @@ const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
   'shouchun', 'ji', 'jincheng', 'jianning', 'shanyue',
 ];
+
+/** 汉中北面两座自由城：无主，谁先打通城道谁就能争。 */
+const FREE_CITY_IDS = ['wudu', 'shangluo'];
 
 /** 势力 */
 const FACTIONS = {
@@ -830,22 +833,46 @@ const EQUIPMENT = {
 /** 天机简：能改一次战局的一句话；只有增益，没有反噬 */
 const HISTORY_MARKS = {
   wind: {
-    id: 'wind', name: '南风起', text: '你写下“南风起”，风真的转了向。',
+    id: 'wind', name: '南风起', text: '你写下“南风起”，整片战场忽然换了风向。',
     timing: 'battle', timingLabel: '战中生效',
-    atkMul: 2.80, fireMul: 2.00,
-    desc: '本场我方攻击 +180%，火攻类战斗额外 +100%；战中落笔也即时起风。',
+    tierBoost: 2, fireMul: 2.00,
+    desc: '本场我方攻防按高两阶结算：T1 打 T3、T2 打 T4、T3 打 T5、T4 可敌两个 T5；一人足以打四路同阶。火攻战再 +100%。',
   },
-  calm: {
-    id: 'calm', name: '风止', text: '你写下“风止”，风停了，火也停了。',
+  fireball: {
+    id: 'fireball', name: '天降火球', text: '你写下“天降火球”，天上坠下一团火。',
     timing: 'battle', timingLabel: '战中生效',
-    enemyMul: 0.10, rounds: 3,
-    desc: '只压敌军攻势九成，持续 3 回合；战中落笔从下一回合算起，我方不受反噬。',
+    burnPct: 0.40, burnCap: 80,
+    desc: '立刻烧掉敌军四成兵力，单次最多 80 人；守城、野战、合战都能落。',
+  },
+  gale: {
+    id: 'gale', name: '风行', text: '你写下“风行”，全军化作一阵风散出战场。',
+    timing: 'battle', timingLabel: '战中生效',
+    escape: true, enemyLossPct: 0.10, pinHours: 8,
+    desc: '立刻脱离战场，我军不再折人；敌军当场损失一成兵力，并在原地停 8 小时。',
+  },
+  night: {
+    id: 'night', name: '夜袭', text: '你写下“夜袭”，敌营的火把一盏盏灭了。',
+    timing: 'battle', timingLabel: '战中生效',
+    enemyAtkMul: 0, rounds: 3,
+    desc: '敌军接下来 3 回合完全打不出伤害，我军可以白打三回合。',
+  },
+  defector: {
+    id: 'defector', name: '倒戈', text: '你写下“倒戈”，敌军阵中有人调转了枪头。',
+    timing: 'battle', timingLabel: '战中生效',
+    turnPct: 0.15, turnCap: 60,
+    desc: '敌军一成半的士兵当场倒向我军，单次最多 60 人；倒戈的人立刻参战。',
+  },
+  miasma: {
+    id: 'miasma', name: '瘴气', text: '你写下“瘴气”，林间的雾忽然浓得化不开。',
+    timing: 'battle', timingLabel: '战中生效',
+    attritionPct: 0.04, rounds: 5,
+    desc: '敌军每回合额外折损当前兵力的 4%，连折 5 回合，越拖越虚。',
   },
   roll: {
-    id: 'roll', name: '名册', text: '你写下阵亡者的名字，他们又站了起来。',
+    id: 'roll', name: '回魂', text: '你写下“回魂”，阵亡者的名字从纸上走回队列。',
     timing: 'after', timingLabel: '战后生效',
-    backPct: 1.00,
-    desc: '战后本场阵亡的我方士兵全部归队；战中落笔也留到这场打完再结算。',
+    backPct: 0.80,
+    desc: '战后本场阵亡的我方士兵复活八成；战中落笔也留到这场打完再结算。',
   },
 };
 
@@ -987,6 +1014,7 @@ module.exports = {
   MOUNTAINS,
   SITE_ROWS,
   CAPITAL_IDS,
+  FREE_CITY_IDS,
   RECRUIT_SETS,
   ROADS,
   BANDIT_EXCLUDE_ZONES,

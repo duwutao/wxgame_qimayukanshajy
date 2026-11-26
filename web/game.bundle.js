@@ -839,7 +839,7 @@ const SITE_ROWS = [
   ['jincheng', '金城', 'town', 'hansui', 4, 22, 1.06, 85, 'hansui', '黄河边上的渡口城。韩遂与马腾在这里喝过酒，也在这里翻过脸。'],
   ['tianshui', '天水', 'castle', 'hansui', 10, 22, 1.1, 95, 'hansui', '陇右的要冲，姜维的老家。如今城门上插着韩字旗，与长安只隔一条驿道。'],
   ['longxi', '陇西村', 'village', 'ma', 8, 24, 0.72, 12, 'village', '黄土坡上的村子，家家有马，家家缺粮。'],
-  ['wudu', '武都', 'castle', 'zhang', 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。'],
+  ['wudu', '武都', 'castle', null, 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。城头如今无旗。'],
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 23, 21, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
@@ -872,7 +872,7 @@ const SITE_ROWS = [
   ['yiling', '夷陵', 'castle', null, 24, 41, 1.12, 75, 'none', '三峡的出口。连营七百里，说的就是这一线。'],
   // ---- 益州 ----
   ['hanzhong', '汉中', 'town', 'zhang', 16, 29, 1.04, 105, 'zhang', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
-  ['shangluo', '上洛', 'castle', 'zhang', 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。'],
+  ['shangluo', '上洛', 'castle', null, 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。城头如今无旗。'],
   ['jiange', '剑阁', 'castle', 'zhang', 16, 32, 1.18, 100, 'zhang', '一夫当关，万夫莫开。说的不是城，是那条路。'],
   ['chengdu', '成都', 'town', 'zhang', 11, 35, 1.07, 160, 'zhang', '益州治所。锦官城的织机声，隔一条街都听得见。'],
   ['jiangzhou', '江州', 'town', 'zhang', 14, 38, 1.05, 90, 'zhang', '巴郡的水码头，盐船从这里下行。'],
@@ -930,7 +930,7 @@ const RECRUIT_SETS = {
 
 /** 道路连线 */
 const ROADS = [
-  ['longcheng', 'tanhanshan'], ['longcheng', 'juyan'], ['juyan', 'wuwei'],
+  ['longcheng', 'tanhanshan'], ['juyan', 'wuwei'],
   ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
   ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
@@ -1017,6 +1017,9 @@ const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
   'shouchun', 'ji', 'jincheng', 'jianning', 'shanyue',
 ];
+
+/** 汉中北面两座自由城：无主，谁先打通城道谁就能争。 */
+const FREE_CITY_IDS = ['wudu', 'shangluo'];
 
 /** 势力 */
 const FACTIONS = {
@@ -1457,22 +1460,46 @@ const EQUIPMENT = {
 /** 天机简：能改一次战局的一句话；只有增益，没有反噬 */
 const HISTORY_MARKS = {
   wind: {
-    id: 'wind', name: '南风起', text: '你写下“南风起”，风真的转了向。',
+    id: 'wind', name: '南风起', text: '你写下“南风起”，整片战场忽然换了风向。',
     timing: 'battle', timingLabel: '战中生效',
-    atkMul: 2.80, fireMul: 2.00,
-    desc: '本场我方攻击 +180%，火攻类战斗额外 +100%；战中落笔也即时起风。',
+    tierBoost: 2, fireMul: 2.00,
+    desc: '本场我方攻防按高两阶结算：T1 打 T3、T2 打 T4、T3 打 T5、T4 可敌两个 T5；一人足以打四路同阶。火攻战再 +100%。',
   },
-  calm: {
-    id: 'calm', name: '风止', text: '你写下“风止”，风停了，火也停了。',
+  fireball: {
+    id: 'fireball', name: '天降火球', text: '你写下“天降火球”，天上坠下一团火。',
     timing: 'battle', timingLabel: '战中生效',
-    enemyMul: 0.10, rounds: 3,
-    desc: '只压敌军攻势九成，持续 3 回合；战中落笔从下一回合算起，我方不受反噬。',
+    burnPct: 0.40, burnCap: 80,
+    desc: '立刻烧掉敌军四成兵力，单次最多 80 人；守城、野战、合战都能落。',
+  },
+  gale: {
+    id: 'gale', name: '风行', text: '你写下“风行”，全军化作一阵风散出战场。',
+    timing: 'battle', timingLabel: '战中生效',
+    escape: true, enemyLossPct: 0.10, pinHours: 8,
+    desc: '立刻脱离战场，我军不再折人；敌军当场损失一成兵力，并在原地停 8 小时。',
+  },
+  night: {
+    id: 'night', name: '夜袭', text: '你写下“夜袭”，敌营的火把一盏盏灭了。',
+    timing: 'battle', timingLabel: '战中生效',
+    enemyAtkMul: 0, rounds: 3,
+    desc: '敌军接下来 3 回合完全打不出伤害，我军可以白打三回合。',
+  },
+  defector: {
+    id: 'defector', name: '倒戈', text: '你写下“倒戈”，敌军阵中有人调转了枪头。',
+    timing: 'battle', timingLabel: '战中生效',
+    turnPct: 0.15, turnCap: 60,
+    desc: '敌军一成半的士兵当场倒向我军，单次最多 60 人；倒戈的人立刻参战。',
+  },
+  miasma: {
+    id: 'miasma', name: '瘴气', text: '你写下“瘴气”，林间的雾忽然浓得化不开。',
+    timing: 'battle', timingLabel: '战中生效',
+    attritionPct: 0.04, rounds: 5,
+    desc: '敌军每回合额外折损当前兵力的 4%，连折 5 回合，越拖越虚。',
   },
   roll: {
-    id: 'roll', name: '名册', text: '你写下阵亡者的名字，他们又站了起来。',
+    id: 'roll', name: '回魂', text: '你写下“回魂”，阵亡者的名字从纸上走回队列。',
     timing: 'after', timingLabel: '战后生效',
-    backPct: 1.00,
-    desc: '战后本场阵亡的我方士兵全部归队；战中落笔也留到这场打完再结算。',
+    backPct: 0.80,
+    desc: '战后本场阵亡的我方士兵复活八成；战中落笔也留到这场打完再结算。',
   },
 };
 
@@ -1614,6 +1641,7 @@ module.exports = {
   MOUNTAINS,
   SITE_ROWS,
   CAPITAL_IDS,
+  FREE_CITY_IDS,
   RECRUIT_SETS,
   ROADS,
   BANDIT_EXCLUDE_ZONES,
@@ -5487,7 +5515,7 @@ module.exports = {
 /**
  * 战斗层：回合制战术结算 + 天机简
  * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
- * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
+ * 天机简可改一次规则（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）。
  */
 
 const { TROOPS } = __require(10);
@@ -5519,6 +5547,12 @@ const MAX_ROUNDS = 12;
 
 function clamp(v, min, max) {
   return v < min ? min : v > max ? max : v;
+}
+
+function lossSum(losses) {
+  let n = 0;
+  Object.keys(losses || {}).forEach(function (id) { n += losses[id] || 0; });
+  return n;
 }
 
 function moraleFactor(morale) {
@@ -5635,6 +5669,9 @@ class Battle {
     this.shiTiming = '';
     this.shiRounds = 0;
     this.shiName = '';
+    this.shiEffect = null;
+    this.galeEscape = false;
+    this.galePinHours = 0;
   }
 
   tacticOf(side) {
@@ -5655,15 +5692,125 @@ class Battle {
     return troopCount(this.b.troops);
   }
 
+  sideOf(key) {
+    return key === 'b' ? this.b : this.a;
+  }
+
+  playerSideKey() {
+    if (this.a.isPlayer) return 'a';
+    if (this.b.isPlayer) return 'b';
+    return 'a';
+  }
+
+  foeSideKey() {
+    return this.playerSideKey() === 'a' ? 'b' : 'a';
+  }
+
+  sideRemain(key) {
+    return troopCount(this.sideOf(key).troops);
+  }
+
+  /** 把一次直接伤亡记进本方战损，供战果页统计 */
+  recordLosses(sideKey, losses) {
+    if (!losses || !Object.keys(losses).length) return;
+    const target = sideKey === 'a' ? this.lossesA : this.lossesB;
+    Object.keys(losses).forEach(function (id) {
+      target[id] = (target[id] || 0) + (losses[id] || 0);
+    });
+  }
+
+  /** 绕过回合结算，立刻从某一方扣人；返回实际伤亡明细 */
+  directLosses(sideKey, total) {
+    const side = this.sideOf(sideKey);
+    const n = Math.max(0, Math.round(total || 0));
+    if (!side || n <= 0) return {};
+    const real = distributeLosses(side.troops, n);
+    this.recordLosses(sideKey, real);
+    return real;
+  }
+
+  /** 倒戈：按低阶先走，把敌军一部分人直接拨到我方，并同步合战编队 */
+  transferFromFoe(pct, cap) {
+    const foeKey = this.foeSideKey();
+    const playerKey = this.playerSideKey();
+    const foe = this.sideOf(foeKey);
+    const player = this.sideOf(playerKey);
+    const total = troopCount(foe.troops);
+    if (total <= 0) return { count: 0, troops: {} };
+    const want = Math.max(0, Math.round(total * (pct || 0)));
+    const take = Math.min(cap || want || total, want);
+    if (take <= 0) return { count: 0, troops: {} };
+    const moved = {};
+    let left = take;
+    Object.keys(foe.troops || {})
+      .map(function (id) { return { id: id, tier: TROOPS[id] ? TROOPS[id].tier : 1, count: foe.troops[id] || 0 }; })
+      .sort(function (a, b) { return a.tier - b.tier; })
+      .forEach(function (item) {
+        if (left <= 0 || item.count <= 0) return;
+        const n = Math.min(item.count, left);
+        foe.troops[item.id] -= n;
+        if (foe.troops[item.id] <= 0) delete foe.troops[item.id];
+        moved[item.id] = (moved[item.id] || 0) + n;
+        left -= n;
+      });
+    const count = lossSum(moved);
+    if (count <= 0) return { count: 0, troops: {} };
+    Object.keys(moved).forEach(function (id) {
+      player.troops[id] = (player.troops[id] || 0) + moved[id];
+      player.initialTroops[id] = (player.initialTroops[id] || 0) + moved[id];
+    });
+    player.initialCount += count;
+    player.lastCount = troopCount(player.troops);
+    this.recordLosses(foeKey, moved);
+    const pc = (player.contingents || []).filter(function (c) { return c.isPlayer; })[0];
+    if (pc) {
+      pc.count = (pc.count || 0) + count;
+      pc.initialCount = (pc.initialCount || 0) + count;
+      Object.keys(moved).forEach(function (id) {
+        pc.snapshot[id] = (pc.snapshot[id] || 0) + moved[id];
+      });
+    }
+    return { count: count, troops: moved };
+  }
+
+  /** 直接伤害把敌军打空时按玩家胜负收场，避免玩家在 b 侧时把胜负判反 */
+  finishForPlayer(playerWin) {
+    const aWin = this.a.isPlayer ? !!playerWin : !playerWin;
+    this.finish(aWin ? 'win' : 'lose');
+  }
+
   /** 写一笔天机简 */
   applyShiMark(id) {
     const mark = HISTORY_MARKS[id];
     this.shiMark = id;
-    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
-    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
+    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'fireball' ? '天降火球' : id === 'gale' ? '风行' : '回魂');
     this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
-    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
-    if (id === 'wind') this.fireGround = true;
+    this.shiRounds = (mark && mark.rounds) || 0;
+    if (id === 'wind' || id === 'fireball') this.fireGround = true;
+
+    if (id === 'fireball') {
+      const foeKey = this.foeSideKey();
+      const before = this.sideRemain(foeKey);
+      const burn = Math.max(0, Math.min(mark.burnCap || 0, Math.round(before * (mark.burnPct || 0))));
+      const real = this.directLosses(foeKey, burn);
+      const amount = lossSum(real);
+      this.shiEffect = { kind: 'burn', amount: amount, cap: mark.burnCap || 0 };
+      if (amount > 0 && this.sideRemain(foeKey) <= 0) this.finishForPlayer(true);
+    } else if (id === 'gale') {
+      const foeKey = this.foeSideKey();
+      const before = this.sideRemain(foeKey);
+      const cut = Math.max(1, Math.round(before * (mark.enemyLossPct || 0)));
+      const real = this.directLosses(foeKey, cut);
+      const amount = lossSum(real);
+      this.galeEscape = true;
+      this.galePinHours = mark.pinHours || 8;
+      this.retreated = true;
+      this.shiEffect = { kind: 'gale', amount: amount, pinHours: this.galePinHours };
+      this.finish('retreat');
+    } else if (id === 'defector') {
+      const moved = this.transferFromFoe(mark.turnPct, mark.turnCap);
+      this.shiEffect = { kind: 'defect', amount: moved.count };
+    }
   }
 
   /** 推进一个回合 */
@@ -5699,19 +5846,33 @@ class Battle {
 
     // 天机简效果：只利己，不反噬
     const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
+    const playerKey = this.playerSideKey();
+    const foeKey = this.foeSideKey();
+    let nightFree = false;
     if (shi && this.shiMark === 'wind') {
-      atkA *= shi.atkMul;
-      if (this.fireGround) atkA *= shi.fireMul;
+      // 南风起不是单纯加攻击：攻防一起按“高两阶”算，才能 T1 打 T3、T4 敌双 T5。
+      const boost = Math.pow(2, shi.tierBoost || 0);
+      if (playerKey === 'a') {
+        atkA *= boost;
+        defA *= boost;
+        if (this.fireGround) atkA *= shi.fireMul;
+      } else {
+        atkB *= boost;
+        defB *= boost;
+        if (this.fireGround) atkB *= shi.fireMul;
+      }
     }
-    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
-      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
-      if (this.a.isPlayer) atkB *= shi.enemyMul;
-      else if (this.b.isPlayer) atkA *= shi.enemyMul;
+    if (shi && this.shiMark === 'night' && this.shiRounds > 0) {
+      // 夜袭：敌军三回合完全打不出伤害，不是削一成那种看不出来的效果。
+      if (playerKey === 'a') atkB *= shi.enemyAtkMul;
+      else atkA *= shi.enemyAtkMul;
+      nightFree = true;
       this.shiRounds -= 1;
     }
 
     // 火攻战：带火船/火计的兵种威力翻倍的一部分
-    if (this.fireGround && sa.fireRatio > 0.05) atkA *= 1.15;
+    if (this.fireGround && playerKey === 'a' && sa.fireRatio > 0.05) atkA *= 1.15;
+    if (this.fireGround && playerKey === 'b' && sb.fireRatio > 0.05) atkB *= 1.15;
 
     // 弓弩首轮齐射
     let alphaStrike = 0;
@@ -5723,23 +5884,33 @@ class Battle {
     // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
     let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
-    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
+    if (nightFree && playerKey === 'a') lossA = 0;
+    if (nightFree && playerKey === 'b') lossB = 0;
 
     const realA = distributeLosses(this.a.troops, lossA);
     const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
 
-    const self = this;
-    Object.keys(realA).forEach(function (id) {
-      self.lossesA[id] = (self.lossesA[id] || 0) + realA[id];
-    });
-    Object.keys(realB).forEach(function (id) {
-      self.lossesB[id] = (self.lossesB[id] || 0) + realB[id];
-    });
+    this.recordLosses('a', realA);
+    this.recordLosses('b', realB);
+
+    // 瘴气：每回合额外折损敌军当前兵力的一小块，连折数回合。
+    let miasmaReal = null;
+    if (shi && this.shiMark === 'miasma' && this.shiRounds > 0) {
+      const before = this.sideRemain(foeKey);
+      if (before > 0) {
+        const n = Math.max(1, Math.round(before * shi.attritionPct));
+        miasmaReal = this.directLosses(foeKey, n);
+        this.shiRounds -= 1;
+      }
+    }
+    const miasmaText = miasmaReal ? ' · 瘴气 ' + lossText({}, miasmaReal) : '';
 
     const entry = {
       round: this.round,
-      aLossText: lossText(this.a.troops, realA),
-      bLossText: lossText(this.b.troops, realB),
+      aLossText: lossText(this.a.troops, realA) + (foeKey === 'a' ? miasmaText : ''),
+      bLossText: lossText(this.b.troops, realB) + (foeKey === 'b' ? miasmaText : ''),
       remainA: this.remainA(),
       remainB: this.remainB(),
       alphaStrike,
@@ -5859,6 +6030,15 @@ class Battle {
     return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
   }
 
+  shiNoteText() {
+    const e = this.shiEffect;
+    if (!e) return '';
+    if (e.kind === 'burn') return '天降火球烧掉 ' + e.amount + ' 人';
+    if (e.kind === 'gale') return '风行脱战，敌军 -' + e.amount + ' 人，原地停 ' + e.pinHours + ' 小时';
+    if (e.kind === 'defect') return '倒戈 ' + e.amount + ' 人，敌军调转枪头';
+    return '';
+  }
+
   summary() {
     return {
       result: this.result,
@@ -5876,6 +6056,10 @@ class Battle {
       shiMark: this.shiMark,
       shiName: this.shiName,
       shiTiming: this.shiTiming,
+      shiEffect: this.shiEffect,
+      shiNote: this.shiNoteText(),
+      galeEscape: !!this.galeEscape,
+      galePinHours: this.galePinHours,
       contingentsA: this.a.contingents || [],
       contingentsB: this.b.contingents || [],
     };
@@ -5918,7 +6102,7 @@ module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFa
  *  - 逃脱概率起初几乎为零，关一天涨一点。
  */
 
-const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES } = __require(5);
+const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES, FREE_CITY_IDS } = __require(5);
 const { TROOPS } = __require(10);
 const army = __require(9);
 const { Battle } = __require(16);
@@ -5932,6 +6116,8 @@ const DUEL_FLEE_GAP = 10;
 const MAX_WAR_PARTNERS = 99;
 // 刘备入川不是随机外交：天下开始动过几天，必然让刘璋与刘备翻脸。
 const LIUBEI_YI_WAR_DAY = 8;
+// 韩遂灭凉：马超归蜀这条线固定之后，由韩遂在凉州动手，不再等随机国战。
+const HANSUI_MIE_MA_DAY = 12;
 // 不再给开局设“曹袁三十天不能打”的停战罩；各国从第一天起就可以互相吞并。
 const OPENING_FORBIDDEN = {};
 const OPENING_DAYS = 0;
@@ -6030,7 +6216,15 @@ function canSiegeSiteFromFaction(state, faction, site) {
   }
   const linked = own.some(function (o) { return roadAdjacent(o.id, site.id); });
   if (!linked) {
-    return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
+    // 巴西是村，不算“城”，但刘备入川的成都路线正是剑阁—巴西—成都。
+    // 只对蜀军打成都放这一格：占住巴西村后，成都就不再被城网判定卡在门外。
+    const baxi = siteById(state, 'baxi');
+    const viaBaxi = faction === 'shu' && site.id === 'chengdu' &&
+      baxi && baxi.ownerFaction === 'shu' && !baxi.playerOwned &&
+      roadAdjacent(baxi.id, site.id);
+    if (!viaBaxi) {
+      return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
+    }
   }
   return { ok: true, msg: '', linked: true };
 }
@@ -7313,6 +7507,22 @@ function settleFieldBattle(state, battlefield, summary, options) {
     }
   });
 
+  // 风行：玩家借风脱阵，敌军被甩在原地八小时，地图上不许立刻追上来。
+  if (battle.galeEscape) {
+    const nowH = state.clock.day * 24 + state.clock.hour;
+    const playerSide = bf.playerSide || (battle.a.isPlayer ? 'a' : 'b');
+    const pinH = battle.galePinHours || 8;
+    bf.participants.forEach(function (p) {
+      if (p.side === playerSide) return;
+      const unit = unitForParticipant(state, p);
+      if (!unit) return;
+      unit.pauseUntil = Math.max(unit.pauseUntil || 0, nowH + pinH);
+      unit.fleeing = false;
+      unit.fleeTargetId = null;
+      unit.scuffle = Math.max(unit.scuffle || 0, pinH);
+    });
+  }
+
   // 玩家不在场：按胜负让败方溃逃或被俘；两败俱伤则各自收兵。
   if (!playerBattle) {
     const loserSide = winnerSide === null ? null : winnerSide === 'a' ? 'b' : 'a';
@@ -7901,6 +8111,25 @@ function pairBlocked(state, a, b, day) {
 }
 
 /**
+ * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都。
+ * 成都是“重心城市”，不先绕去汉中、江州；巴西只是成都城下的踏板。
+ * 只有当前一站还挂在刘璋旗下、且道路能接上时才返回它，否则交回普通选城。
+ */
+function liubeiYiFocusSite(state, own) {
+  if (!state || !state.flags || !state.flags.liubeiYiWar) return null;
+  if (!state.factionState || (state.factionState.shu || {}).dead) return null;
+  if (!atWar(state, 'shu', 'zhang')) return null;
+  const chain = ['jiange', 'baxi', 'chengdu'];
+  for (let i = 0; i < chain.length; i += 1) {
+    const site = siteById(state, chain[i]);
+    if (!site || site.playerOwned || site.ownerFaction !== 'zhang') continue;
+    if (!canSiegeSiteFromFaction(state, 'shu', site).ok) continue;
+    return site;
+  }
+  return null;
+}
+
+/**
  * 刘备入川：天下开始后第 8 天，若双方都没灭国，强制补上“璋|蜀”这条战事。
  * 旧档已经有这场的只打标记；被随机议和过也不会每天重宣。
  */
@@ -7952,6 +8181,107 @@ function ensureLiuBeiYiWar(state, day) {
   return true;
 }
 
+/**
+ * 韩遂灭凉的用兵主轴：金城出兵 → 武威 → 居延 → 陇西村。
+ * 龙城与居延的城道已经断开，居延只能从武威方向进；这条链保证韩遂不会
+ * 因为居延变成飞地就卡在半路。
+ */
+function hansuiMieMaFocusSite(state, own) {
+  if (!state || !state.flags || !state.flags.hanSuiMieMa) return null;
+  if (!state.factionState || (state.factionState.hansui || {}).dead) return null;
+  if ((state.factionState.ma || {}).dead) return null;
+  if (!atWar(state, 'hansui', 'ma')) return null;
+  const chain = ['wuwei', 'juyan', 'longxi'];
+  for (let i = 0; i < chain.length; i += 1) {
+    const site = siteById(state, chain[i]);
+    if (!site || site.playerOwned || site.ownerFaction !== 'ma') continue;
+    if (!canSiegeSiteFromFaction(state, 'hansui', site).ok) continue;
+    return site;
+  }
+  return null;
+}
+
+/**
+ * 韩遂灭凉前的一次总动员：马超带走本部后，韩遂把金城、西平、天水的部曲
+ * 重新点齐，并把武威、居延两城的守备按“马家军心已散”削掉一截。
+ * 这是剧情战，不让它因为前面和汉廷的零星消耗打成一百天。
+ */
+function mobilizeHanSuiMieMa(state) {
+  if (!state || !state.flags) return;
+  if (state.flags.hanSuiMieMaMobilized) return;
+  factionLords(state, 'hansui').forEach(function (l) {
+    if (!l || !l.alive || l.dead || l.prisoner) return;
+    const base = l.defTroops || {};
+    const cur = l.troops || {};
+    const full = {};
+    Object.keys(base).forEach(function (id) {
+      full[id] = Math.max(base[id] || 0, cur[id] || 0);
+    });
+    // 剧情总动员：金城、西平、天水的部曲全部点齐，再按一点五倍备足攻城粮道。
+    Object.keys(full).forEach(function (id) {
+      full[id] = Math.round(full[id] * 1.5);
+    });
+    l.troops = full;
+    l.morale = Math.max(l.morale || 0, 88);
+    l.pauseUntil = 0;
+    l.chasing = false;
+    l.hunting = false;
+    l.fleeing = false;
+    l.fleeTargetId = null;
+  });
+  ['wuwei', 'juyan'].forEach(function (id) {
+    const s = siteById(state, id);
+    if (!s || s.ownerFaction !== 'ma') return;
+    s.garrison = Math.max(58, Math.round((s.garrison || s.garrisonBase || 60) * 0.68));
+    s.garrisonBase = s.garrison;
+  });
+  // 马超一走，马家诸将各自守城，不再分兵反攻韩遂；这二十天只挨打不主动出击。
+  const nowH = state.clock.day * 24 + state.clock.hour;
+  factionLords(state, 'ma').forEach(function (l) {
+    if (!l || !l.alive || l.dead || l.prisoner) return;
+    l.pauseUntil = Math.max(l.pauseUntil || 0, nowH + 20 * 24);
+    l.chasing = false;
+    l.hunting = false;
+    l.order = null;
+    l.defending = null;
+  });
+  if (state.warCampaigns && state.warCampaigns.ma) abortCampaign(state, 'ma');
+  state.flags.maPassiveDuringMie = true;
+  state.flags.hanSuiMieMaMobilized = true;
+}
+
+/**
+ * 韩遂灭凉：天下开始后第 12 天，若韩遂与马腾都还在，必然由韩遂点兵吞凉。
+ * 这条线只做一件事——把“谁去灭马家”钉死，不再让随机国战分兵。
+ */
+function ensureHanSuiMieMaWar(state, day) {
+  if (!state || !state.diplomacyStarted || !state.flags) return false;
+  if (state.flags.hanSuiMieMaDone) return false;
+  if (day < HANSUI_MIE_MA_DAY) return false;
+  const fstate = state.factionState || {};
+  if ((fstate.hansui || {}).dead || (fstate.ma || {}).dead) {
+    state.flags.hanSuiMieMaDone = true;
+    return false;
+  }
+  if (state.flags.hanSuiMieMa) return false;
+  if (atWar(state, 'hansui', 'ma')) {
+    state.flags.hanSuiMieMa = true;
+  } else if (canOpenWar(state, 'hansui', 'ma') && declare(state, 'hansui', 'ma', false)) {
+    state.flags.hanSuiMieMa = true;
+  } else {
+    return false;
+  }
+  // 旧的韩遂战役（可能指向汉廷/西平）先撤掉，下一拍战略会改走灭凉主轴。
+  const old = state.warCampaigns && state.warCampaigns.hansui;
+  if (old) abortCampaign(state, 'hansui');
+  mobilizeHanSuiMieMa(state);
+  const mc = state.lords.find(function (l) { return l.id === 'machao'; });
+  const chaoGone = !mc || mc.dead || mc.faction !== 'ma';
+  logFn(state, '韩遂在金城点兵，借口“马腾老病、凉州无主”，要把武威、居延一并吞下。' +
+    (chaoGone ? '马超已经投了蜀，西凉再无铁骑回援。' : '马超若还在西凉，这一仗就是他和马家的最后一战。'), 'war');
+  return true;
+}
+
 /** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
 function planCampaign(state, faction, day) {
   const story = state.story;
@@ -7963,6 +8293,8 @@ function planCampaign(state, faction, day) {
     return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
   });
   if (guanduField && (faction === 'wei' || faction === 'yuan')) return null;
+  // 马超走后，马家在二十天内只守不攻；韩遂灭凉这段不再被马家反包围打断。
+  if (faction === 'ma' && state.flags && state.flags.maPassiveDuringMie) return null;
   // 剧情阶段先赶战略：已进入交战阶段的国家多带一路、少在集结城磨蹭，
   // 让魏蜀吴的第一阶段能尽快打出结果，方便观察天下演绎。
   const phaseWar = !!(story && story.mode && story.phases && story.phases[faction] &&
@@ -7970,13 +8302,11 @@ function planCampaign(state, faction, day) {
   let foes = warPartners(state, faction).filter(function (id) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
-  if (!foes.length) return null;
   // 剧情阶段只打该打的敌人；休整阶段 targets 为空，就一门不出。
   if (!passive && story && story.targets && story.targets[faction]) {
     const allowed = story.targets[faction];
     if (!allowed.length) return null;
     foes = foes.filter(function (id) { return allowed.indexOf(id) >= 0; });
-    if (!foes.length) return null;
   }
   // 袁术称帝后的联合剿灭：魏吴优先打寿春，不许分兵去别处。
   if (story && story.priority && story.priority[faction] &&
@@ -8000,6 +8330,10 @@ function planCampaign(state, faction, day) {
       foes.indexOf('zhang') >= 0) {
     foes = ['zhang'];
   }
+  // 韩遂灭凉：这路兵只认马家，不跟汉廷、西平方向分兵。
+  if (faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) {
+    foes = foes.filter(function (id) { return id === 'ma'; });
+  }
 
   const lords = factionLords(state, faction).filter(function (l) {
     return army.troopCount(l.troops || {}) >= 1 && !l.defending;
@@ -8007,14 +8341,22 @@ function planCampaign(state, faction, day) {
   if (!lords.length) return null;
 
   let target = null;
-  // 入川第一仗必须落在剑阁：上庸—江州的新路会把“最近敌城”算成江州，
-  // 但刘备入川的叙事和测试都以剑阁为首攻，这里直接锁首攻目标。
-  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-      foes.indexOf('zhang') >= 0 && !pairBlocked(state, 'shu', 'zhang', day)) {
-    const jiange = ownedSites(state, 'zhang', true).filter(function (s) { return s.id === 'jiange'; })[0];
-    if (jiange && canSiegeSiteFromFaction(state, 'shu', jiange).ok) {
-      const near = nearestSiteOf(state, own, jiange);
-      target = { site: jiange, score: -1, distance: near.distance };
+  // 入川主轴：剑阁首攻之后不绕汉中、江州，沿剑阁—巴西—成都一路压到成都城下。
+  if (faction === 'shu' && foes.indexOf('zhang') >= 0 &&
+      !pairBlocked(state, 'shu', 'zhang', day)) {
+    const focus = liubeiYiFocusSite(state, own);
+    if (focus) {
+      const near = nearestSiteOf(state, own, focus);
+      target = { site: focus, score: -1, distance: near.distance };
+    }
+  }
+  // 灭凉主轴：武威 → 居延 → 陇西村，按城道顺序推，不抢旁边的汉廷城。
+  if (faction === 'hansui' && foes.indexOf('ma') >= 0 &&
+      !pairBlocked(state, 'hansui', 'ma', day)) {
+    const focus = hansuiMieMaFocusSite(state, own);
+    if (focus) {
+      const near = nearestSiteOf(state, own, focus);
+      target = { site: focus, score: -1, distance: near.distance };
     }
   }
   if (!target) foes.forEach(function (enemy) {
@@ -8059,6 +8401,21 @@ function planCampaign(state, faction, day) {
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
+  // 汉中北面两座自由城：没有敌国战役时，任何能接上城道的势力都可以来争。
+  // 刘璋开局先盯刘备与南中，不抢这两座空城；过了开局窗口才按普通势力算。
+  // 韩遂在灭凉期间不捡自由城，免得把兵锋从武威、居延挪到汉中北面。
+  if (!target && faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) return null;
+  if (!target && FREE_CITY_IDS.length) {
+    FREE_CITY_IDS.forEach(function (id) {
+      if (faction === 'zhang' && day <= 30) return;
+      const s = siteById(state, id);
+      if (!s || s.playerOwned || s.ownerFaction) return;
+      if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
+      const near = nearestSiteOf(state, own, s);
+      const score = near.distance * 0.6 + s.garrison * 0.35 + 18;
+      if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
+    });
+  }
   if (!target) return null;
 
   const nearestOwn = nearestSiteOf(state, own, target.site).site;
@@ -8069,6 +8426,16 @@ function planCampaign(state, faction, day) {
     const toTarget = siteDistance(s, target.site);
     if (toTarget < siteDistance(rally, target.site) - 3 && s.garrison >= 55) rally = s;
   });
+  // 巴西是村，不在 ownedCities 里。刘备占了巴西后要直下成都，
+  // 集结地就放在巴西，别让主力再退回剑阁白走半个月。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      target.site.id === 'chengdu') {
+    const baxi = siteById(state, 'baxi');
+    if (baxi && baxi.ownerFaction === 'shu' && !baxi.playerOwned &&
+        siteRoadAdjacent('baxi', 'chengdu')) {
+      rally = baxi;
+    }
+  }
 
   let chosen = lords.slice().sort(function (a, b) {
     return siteDistance(a, rally) - siteDistance(b, rally);
@@ -8092,6 +8459,15 @@ function planCampaign(state, faction, day) {
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
     const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
     const rest = lords.filter(function (l) { return l.id !== 'liubei'; })
+      .slice().sort(function (a, b) {
+        return army.troopCount(b.troops || {}) - army.troopCount(a.troops || {});
+      }).slice(0, 4);
+    if (leader) chosen = [leader].concat(rest);
+  }
+  // 韩遂灭凉：韩遂本人挂帅，不把这件“灭马家”的事交给别的小领主。
+  if (faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) {
+    const leader = state.lords.filter(function (l) { return l.id === 'hansui' && l.alive && !l.prisoner; })[0];
+    const rest = lords.filter(function (l) { return l.id !== 'hansui'; })
       .slice().sort(function (a, b) {
         return army.troopCount(b.troops || {}) - army.troopCount(a.troops || {});
       }).slice(0, 4);
@@ -8224,7 +8600,16 @@ function startSiege(state, cp, site, day) {
   // 刘备入川第一仗：刘璋“开关迎客”，五路兵马按剧情一起压到剑阁城下，三日定城。
   // 之后的城仍按正常围城天数走，不能把整张图都变成速攻。
   const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
-  cp.siegeUntil = historyRush ? day + 3 : day + Math.max(SIEGE_MIN_DAYS,
+  // 成都打了七十多天，守军按都城恢复涨到两百多；入川主线到城下时按刘璋军心已散，
+  // 把城内守备压到一百以内，让刘备的五路人马能真正打下这座大本营。
+  const chengduRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'chengdu';
+  if (chengduRush && site.garrison > 100) {
+    site.garrison = 100;
+    site.garrisonBase = Math.min(site.garrisonBase || 100, 100);
+  }
+  const maRush = cp.faction === 'hansui' && state.flags && state.flags.hanSuiMieMa &&
+    (site.id === 'wuwei' || site.id === 'juyan' || site.id === 'longxi');
+  cp.siegeUntil = maRush ? day + 2 : (historyRush || chengduRush) ? day + 3 : day + Math.max(SIEGE_MIN_DAYS,
     SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
     (site.garrison > 110 ? 1 : 0));
   const attackers = attackersOf(state, cp);
@@ -8250,9 +8635,12 @@ function startSiege(state, cp, site, day) {
     l.defending = site.id;
     l.order.campaign = cp.faction;
   });
+  const ownerFaction = site.ownerFaction;
+  const siegeLine = ownerFaction
+    ? '，营寨一圈圈扎到城下。守军闭门，烽火向' + ((FACTIONS[ownerFaction] || {}).name || ownerFaction) + '各地求援。'
+    : '，营寨一圈圈扎到城下。这是一座无主城，四周没有援旗。';
   logFn(state,
-    '【' + FACTIONS[cp.faction].name + '】的 ' + attackers.length + ' 路领主围住' + site.name +
-    '，营寨一圈圈扎到城下。守军闭门，烽火向' + FACTIONS[site.ownerFaction].name + '各地求援。',
+    '【' + FACTIONS[cp.faction].name + '】的 ' + attackers.length + ' 路领主围住' + site.name + siegeLine,
     'siege');
   return true;
 }
@@ -8292,7 +8680,6 @@ function resolveSiege(state, cp, day) {
 
   if (attackPower > defendPower * 1.06) {
     const oldOwner = site.ownerFaction;
-    const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
     site.ownerFaction = cp.faction;
     site.faction = cp.faction;
     site.playerOwned = false;
@@ -8332,9 +8719,9 @@ function resolveSiege(state, cp, day) {
       const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
       if (home) { l.home = home.id; }
     });
-    logFn(state,
-      site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
-      '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
+    logFn(state, captureLogText(site, oldOwner, cp.faction), 'siege');
+    markShuChengduBase(state, site, cp.faction);
+    markMaSurrenderClock(state, site, cp.faction, day);
     return;
   }
 
@@ -8409,7 +8796,7 @@ function beginSiegeAssault(state, cp, site, day) {
   // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
   // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
   const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-    site.id === 'jiange';
+    (site.id === 'jiange' || site.id === 'chengdu');
   const attackers = attackersOf(state, cp).filter(function (l) {
     return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
@@ -8530,9 +8917,53 @@ function reinforceSiegeBattle(state, cp, site) {
 }
 
 /** 一场攻城战打赢：只在这里换旗，和野战结算一样有明确的胜负瞬间。 */
+/** 城头换旗的战报：无主城不写“从 null 手里”，也不硬编一个旧主。 */
+function captureLogText(site, oldOwner, faction) {
+  const byName = (FACTIONS[faction] || {}).full || faction;
+  if (!oldOwner) {
+    return site.name + '城头换旗，' + byName + '把这座无主城纳入旗下，守军残部退回山里。';
+  }
+  const oldName = (FACTIONS[oldOwner] || {}).full || oldOwner;
+  return site.name + '城头换了旗。' + byName + '从' + oldName + '手里夺下这座城，' +
+    oldName + '的残部退往野地。';
+}
+
+/** 武威一破，给马家最后三天的献城倒计时；居延、陇西随后一起换旗。 */
+function markMaSurrenderClock(state, site, byFaction, day) {
+  if (!state || !site || site.id !== 'wuwei') return false;
+  if ((byFaction || site.ownerFaction) !== 'hansui') return false;
+  if (!state.flags || !state.flags.hanSuiMieMa || state.flags.maSurrenderDay) return false;
+  state.flags.maSurrenderDay = day + 3;
+  logFn(state, '武威既破，马家在西凉再没有第二座能发号施令的城。居延、陇西的守将已经在暗里递降书。', 'war');
+  return true;
+}
+
+/**
+ * 成都既下：刘备把治所迁到成都，成都成为蜀军大本营。
+ * 这里只改君主的驻地与势力标记，不瞬移城外的军队；下次回城、补员、
+ * 继任时都会以成都为根。
+ */
+function markShuChengduBase(state, site, byFaction) {
+  if (!state || !site || site.id !== 'chengdu') return false;
+  if ((byFaction || site.ownerFaction) !== 'shu') return false;
+  if (site.playerOwned) return false;
+  const fs = state.factionState.shu = state.factionState.shu || {};
+  const first = fs.baseCity !== 'chengdu';
+  fs.baseCity = 'chengdu';
+  state.flags = state.flags || {};
+  state.flags.shuChengduBase = true;
+  const lords = state.lords || [];
+  const ruler = (fs.rulerId && lords.filter(function (l) { return l.id === fs.rulerId; })[0])
+    || lords.filter(function (l) { return l.id === 'liubei'; })[0];
+  if (ruler && ruler.alive && !ruler.dead && !ruler.prisoner) ruler.home = 'chengdu';
+  if (first) {
+    logFn(state, '成都既下，刘备把治所迁到成都，以成都为蜀军大本营。', 'story');
+  }
+  return true;
+}
+
 function captureSiegeSite(state, cp, site, day, battle) {
   const oldOwner = site.ownerFaction;
-  const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
   // 三国循环里 NPC 不能互相灭国：最后一座城由剧本保下来。
   if (keepsMajorLastCity(state, site, cp.faction)) {
     cp.done = true;
@@ -8593,9 +9024,9 @@ function captureSiegeSite(state, cp, site, day, battle) {
     const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
     if (home) l.home = home.id;
   });
-  logFn(state,
-    site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
-    '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
+  logFn(state, captureLogText(site, oldOwner, cp.faction), 'siege');
+  markShuChengduBase(state, site, cp.faction);
+  markMaSurrenderClock(state, site, cp.faction, day);
 }
 
 /** 攻城战打崩：攻方溃退，守军惨胜；伤亡已经逐回合写回，不再追加一刀。 */
@@ -8643,6 +9074,7 @@ function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
   ensureLiuBeiYiWar(state, day);
+  ensureHanSuiMieMaWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
     if ((state.factionState[faction] || {}).dead) {
@@ -8838,8 +9270,10 @@ module.exports = {
   strategicDefenseAt, strategicDefenseForSite,
   nearestFoe,
   strategyTick, siegeTick, abortCampaign, bindCaptureHook, notifyCapture,
+  markShuChengduBase,
   planCampaign,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
+  ensureHanSuiMieMaWar, HANSUI_MIE_MA_DAY,
   bindFleeGuard, bindPartyDestroyer, bindMovement,
   ESCAPE_BASE, ESCAPE_STEP,
   tierPower, tierForce, FIELD_BATTLE_RADIUS, FIELD_BATTLE_LIMIT,
@@ -8968,17 +9402,17 @@ const STORY = {
         casusBelli: '刘备自新野誓师，以“收取西川，作为问鼎天下的资本”为名，只向刘璋递了战书。',
         warLines: [
           '刘备自新野起兵，以“收取西川，作为问鼎天下的资本”为名，只向刘璋一家宣战。',
-          '蜀军沿江而上，先取汉中，再下成都；刘璋开关迎客，却把剑阁让成了前线。',
-          '诸葛亮在帐中说得明白：益州一入囊中，才有与中原诸侯争锋的本钱。',
+          '蜀军以成都为重心：先取剑阁，再经巴西直下成都；刘璋开关迎客，却把剑阁让成了前线。',
+          '诸葛亮在帐中说得明白：成都一入囊中，便以成都为大本营，才有与中原诸侯争锋的本钱。',
         ],
         successLines: [
           '成都城头换旗，刘璋势力覆灭，西川诸郡归入刘备手中。',
-          '刘备下令收兵，汉中、成都开仓赈济，诸将清点降卒，休养生息。',
+          '刘备把治所迁到成都，以成都为蜀军大本营，汉中、成都开仓赈济，诸将清点降卒，休养生息。',
           '下一阶段：向右看，取荆州刘表之地，问鼎中原。',
         ],
         timeoutLines: [
-          '西川战事拖得太久，汉中、成都的粮道已经吃紧。',
-          '刘备只得暂收兵锋，留魏延守剑阁，主力回成都休整。',
+          '西川战事拖得太久，剑阁到成都的粮道已经吃紧。',
+          '刘备只得暂收兵锋，留魏延守剑阁，主力退回剑阁休整。',
           '下一阶段：先取荆州，再图中原。',
         ],
       },
@@ -10752,7 +11186,7 @@ const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
-  CAPITAL_IDS, STRATEGIC_SITES,
+  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS,
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
@@ -10762,6 +11196,8 @@ const { LORD_BIOS } = __require(19);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+/** 马超固定归蜀：天下动起来后第 12 天，只要人还在凉州，就带本部南下投刘备。 */
+const MA_CHAO_TO_SHU_DAY = 12;
 /** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
 const LORD_STEP_HOURS = 6;
 // 同一格连续两个行军步（12 时辰）还走不动，就判定为卡点，换一个可达目的地。
@@ -12246,6 +12682,69 @@ function maybeStartDiplomacy(state) {
   return true;
 }
 
+/**
+ * 马超固定归蜀：到第 12 天，若他还在马腾旗下、没有被困在牢里或战场上，
+ * 就带本部投刘备。凉州剩下的人由韩遂去收拾，这条线不再靠随机灭国。
+ */
+function ensureMaChaoToShu(state) {
+  if (!state || !state.flags) return false;
+  if (state.flags.machaoToShuDone) return false;
+  if (state.clock.day < MA_CHAO_TO_SHU_DAY) return false;
+  const mc = (state.lords || []).filter(function (l) { return l.id === 'machao'; })[0];
+  if (!mc || mc.dead || !mc.alive) {
+    state.flags.machaoToShuDone = true;
+    return false;
+  }
+  if (mc.faction === 'shu') {
+    state.flags.machaoToShuDone = true;
+    return false;
+  }
+  if (mc.faction !== 'ma') return false;
+  if (mc.prisoner || mc.fieldBattleId) return false;
+  if ((state.factionState.shu || {}).dead || (state.factionState.ma || {}).dead) return false;
+  moveLordToFaction(state, mc, 'shu');
+  // 马超已经不在凉军里，旧战役名单里的人要撤掉，免得他继续替马家攻城。
+  if (state.warCampaigns && state.warCampaigns.ma) war.abortCampaign(state, 'ma');
+  state.flags.machaoToShuDone = true;
+  pushLog(state, '马超带着西凉铁骑离开武威，南下投了刘备；凉州军心从此散了一半。', 'war');
+  return true;
+}
+
+/**
+ * 武威破后三天：居延、陇西守将献城，马家正式亡国。
+ * 这一步接在韩遂的攻城钩子上，避免居延变成飞地后双方在城下磨一百天。
+ */
+function resolveMaSurrender(state) {
+  if (!state || !state.flags || !state.flags.maSurrenderDay) return false;
+  if (state.clock.day < state.flags.maSurrenderDay) return false;
+  if ((state.factionState.ma || {}).dead) {
+    state.flags.maSurrenderDone = true;
+    state.flags.maSurrenderDay = 0;
+    return false;
+  }
+  if ((state.factionState.hansui || {}).dead) return false;
+  const fac = FACTIONS.hansui;
+  const sites = (state.world.sites || []).filter(function (s) {
+    return s.ownerFaction === 'ma' && !s.playerOwned;
+  });
+  sites.forEach(function (s) {
+    s.ownerFaction = 'hansui';
+    s.faction = 'hansui';
+    s.color = fac.color;
+    s.banner = fac.banner;
+    s.lordId = null;
+    s.selfFief = false;
+  });
+  if (!sites.length) {
+    // 城已经被别人拿光了，只补亡国流程
+  }
+  fallFaction(state, 'ma');
+  state.flags.maSurrenderDone = true;
+  state.flags.maSurrenderDay = 0;
+  pushLog(state, '居延、陇西开城投降，韩遂把马家的旗从西凉撤下；马腾只余一身，往民间去了。', 'war');
+  return true;
+}
+
 function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
@@ -12311,6 +12810,8 @@ function dailyTick(state) {
   war.diplomacyTick(state);
   war.peaceOfferTick(state);
   war.prisonerTick(state);
+  // 马超归蜀这条线先走：他走了以后韩遂再动凉州，才是“马家被灭”的顺序。
+  ensureMaChaoToShu(state);
   // 国战 AI：各家的集结、开拔、围城与守城，一天只做一次决策
   if (war.strategyTick) war.strategyTick(state);
   // 领主重生（关在牢里的不算，等着被赎、被救或自己跑）
@@ -12347,6 +12848,7 @@ function dailyTick(state) {
   }
 
   // 灭国：城丢光、人也没了，七天倒计时
+  resolveMaSurrender(state);
   factionTick(state);
   // 统一之后的长夜：三十天大旱 / 再统一
   arcTick(state);
@@ -15561,25 +16063,35 @@ function resolveBattle(state, battle) {
   const hbLoot = heroes.heroBonus(state).lootPct;
   if (hbLoot > 0 && summary.loot > 0) summary.loot = Math.round(summary.loot * (1 + hbLoot));
 
-  // 天机简「名册」：阵亡者更多归队
+  // 天机简「回魂」：阵亡者八成归队，按本场实际阵亡人数算，不再按初始兵力算。
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
-    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.70;
-    const back = Math.max(0, Math.round(summary.initialA * rollPct));
+    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.80;
+    const dead = Math.max(0, summary.initialA - summary.remainA);
+    const back = Math.max(0, Math.round(dead * rollPct));
     if (back > 0) {
       const t = battle.a.initialTroops;
       let put = 0;
+      const putByType = {};
       Object.keys(t).forEach(function (id) {
         if (put >= back) return;
         const n = Math.min(t[id] - (battle.a.troops[id] || 0), back - put);
         if (n > 0) {
           battle.a.troops[id] = (battle.a.troops[id] || 0) + n;
+          putByType[id] = (putByType[id] || 0) + n;
           put += n;
         }
       });
+      if (playerContingent && put > 0) {
+        playerContingent.count = (playerContingent.count || 0) + put;
+        Object.keys(putByType).forEach(function (id) {
+          playerContingent.snapshot[id] = (playerContingent.snapshot[id] || 0) + putByType[id];
+        });
+      }
       syncPlayerTroopsFromField();
       summary.remainA = battle.remainA();
       summary.rollBack = put;
-      pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
+      summary.shiNote = '回魂：' + put + ' 名阵亡者归队（本场阵亡 ' + dead + ' 人，复活八成）';
+      pushLog(state, '天机简「回魂」生效：' + put + ' 个名字又从纸上站了起来。');
     }
   }
 
@@ -16679,6 +17191,8 @@ const DEFECT_TO = {
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
   pangde: 'wei', maxiu: 'shu', matie: 'shu', chengyin: 'wei',
+  // 马超无论凉州最后由谁打下来，都固定归蜀，不留在西凉当降将。
+  machao: 'shu',
   // 公孙瓒灭亡后，赵云固定流向刘备；无论河北最后由谁拿下都适用。
   zhaoyun: 'shu',
   huangfusong: 'wei', zhujun: 'wei', luzhi: 'wei',
@@ -17829,6 +18343,28 @@ function deserialize(json) {
     oldShouchun.color = FACTIONS.yuanshu.color;
   }
 
+  // n41：汉中北面的武都、上洛改为自由城。只迁移一次，避免刘璋日后
+  // 重新占回时又被读档逻辑抹成无主；玩家已经打下的城绝不覆盖。
+  state.flags = state.flags || {};
+  if (!state.flags.wuduShangluoFree) {
+    FREE_CITY_IDS.forEach(function (id) {
+      const site = siteById(state.world, id);
+      if (!site || site.playerOwned) return;
+      if (site.ownerFaction && site.ownerFaction !== 'zhang') return;
+      site.ownerFaction = null;
+      site.faction = null;
+      site.lordId = null;
+      site.banner = '';
+      site.color = '#8f8f86';
+    });
+    state.flags.wuduShangluoFree = true;
+  }
+  // n41：已经由刘备拿下成都的旧档，补上“以成都为大本营”的治所迁移。
+  const chengduSite = siteById(state.world, 'chengdu');
+  if (chengduSite && chengduSite.ownerFaction === 'shu' && !chengduSite.playerOwned) {
+    war.markShuChengduBase(state, chengduSite, 'shu');
+  }
+
   // n18 老档换旗：只在城池仍是旧主且没有被玩家占下时迁移，避免覆盖玩家的战果。
   const LEGACY_OWNER_MOVES = [
     { id: 'ji', from: ['han'], to: 'gongsun' },
@@ -18177,6 +18713,9 @@ module.exports = {
   fallFaction,
   pickFactionFor,
   moveLordToFaction,
+  ensureMaChaoToShu,
+  MA_CHAO_TO_SHU_DAY,
+  resolveMaSurrender,
   tavernRumor,
   hiddenLordsAt,
   hiddenLordVisible,
@@ -25038,7 +25577,7 @@ module.exports = ShopScene;
   __defs[33] = function (module, exports, __require) {
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
- * 战中可落一笔天机简（南风起 / 风止 / 名册）
+ * 战中可落一笔天机简（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）
  */
 
 const { text, panel, bar, wrap } = __require(6);
@@ -25451,7 +25990,15 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
-  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+  if (sum.shiMark) {
+    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+    if (sum.shiNote) {
+      const lines = wrap(ctx, sum.shiNote, w - 32, 15).slice(0, 2);
+      lines.forEach(function (line, i) {
+        text(ctx, line, 16, y0 + 202 + i * 18, { size: 15, color: '#a2947a' });
+      });
+    }
+  }
 
   if (pending) {
     panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
@@ -25524,31 +26071,47 @@ function renderShi(app, w, h, b) {
   const ctx = app.runtime.ctx;
   ctx.fillStyle = 'rgba(8,6,4,0.94)';
   ctx.fillRect(0, 0, w, h);
-  text(ctx, '落一笔天机简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
-  text(ctx, '前两笔战中生效，名册战后结算 · 战中落笔即时生效 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
-    size: 16, align: 'center', color: '#a2947a',
+  text(ctx, '落一笔天机简', w / 2, 46, { size: 32, align: 'center', color: '#d9a441' });
+  text(ctx, '七笔可选 · 战中落笔即时生效 · 回魂留到战后结算 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 92, {
+    size: 14, align: 'center', color: '#a2947a',
   });
 
-  let y = 250;
-  Object.keys(HISTORY_MARKS).forEach(function (id) {
+  const gap = 12;
+  const cols = 2;
+  const cw = Math.floor((w - 48 - gap) / cols);
+  const ch = 176;
+  const step = 184;
+  const startX = 24;
+  const startY = 128;
+  Object.keys(HISTORY_MARKS).forEach(function (id, i) {
     const m = HISTORY_MARKS[id];
-    panel(ctx, 24, y, w - 48, 150, { fill: '#241c14' });
-    text(ctx, m.name, 48, y + 16, { size: 29, color: '#d9a441' });
-    text(ctx, m.timingLabel || '', 188, y + 28, { size: 15, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0' });
-    text(ctx, m.desc, 48, y + 58, { size: 16, color: '#c9bda2' });
-    text(ctx, '“' + m.text + '”', 48, y + 94, { size: 15, color: '#8a8070' });
-    app.ui.button(ctx, w - 176, y + 70, 132, 60, '落笔', {
-      id: 'shi_' + id, size: 22, onTap: function () {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (cw + gap);
+    const y = startY + row * step;
+    panel(ctx, x, y, cw, ch, { fill: '#241c14' });
+    text(ctx, m.name, x + 12, y + 10, { size: 23, color: '#d9a441' });
+    text(ctx, m.timing === 'after' ? '战后生效 · 本场阵亡八成归队' : '战中生效 · 落笔即时', x + 12, y + 38, {
+      size: 12, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0',
+    });
+    const lines = wrap(ctx, m.desc, cw - 24, 14).slice(0, 4);
+    if (m.desc && wrap(ctx, m.desc, cw - 24, 14).length > 4 && lines.length) {
+      lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1) + '…';
+    }
+    lines.forEach(function (line, li) {
+      text(ctx, line, x + 12, y + 60 + li * 17, { size: 14, color: '#c9bda2' });
+    });
+    app.ui.button(ctx, x + 12, y + 136, cw - 24, 32, '落笔', {
+      id: 'shi_' + id, size: 18, onTap: function () {
         const r = stateLib.useHistory(app.state, id);
         app.showToast(r.msg, 2);
         app.battleView.shiOpen = false;
       },
     });
-    y += 162;
   });
 
-  app.ui.button(ctx, 24, y + 10, w - 48, 70, '收起笔', {
-    id: 'shi_close', size: 24, fill: '#241c14', onTap: function () {
+  app.ui.button(ctx, 24, Math.min(h - 58, 862), w - 48, 54, '收起笔', {
+    id: 'shi_close', size: 22, fill: '#241c14', onTap: function () {
       app.battleView.shiOpen = false;
     },
   });
@@ -27287,8 +27850,8 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '减员到三成半以下就溃。打不过可以撤——战前能"撤出"（不算败），战中"撤退"额外损失 25%。' });
     ops.push({ t: 'p', s: '撤退后有一段时间对方不会再贴上来，趁机走远。' });
     ops.push({ t: 'h1', s: '天机简' });
-    ops.push({ t: 'p', s: '战斗中能落一笔：南风起（我方攻击近三倍）、风止（敌军攻势只剩一成，持续三回合）、名册（阵亡者全部归队）。' });
-    ops.push({ t: 'p', s: '每落一笔，所有势力对你的好感 -6。用得越多，越没人信你写的东西。' });
+    ops.push({ t: 'p', s: '战斗中能落一笔天机简，共七种：南风起（本场攻防按高两阶结算，T1 打 T3、T2 打 T4、T3 打 T5，一人可敌四路同阶）、天降火球（敌军当场折四成，单次最多 80 人）、风行（立刻脱离战场，敌军折一成并原地停 8 小时）、夜袭（敌军 3 回合完全打不出伤害）、倒戈（一成半敌军当场倒戈，最多 60 人）、瘴气（敌军每回合额外折 4%，连折 5 回合）、回魂（战后复活本场阵亡的我方八成士兵）。' });
+    ops.push({ t: 'p', s: '除回魂留到战后结算，其余六笔落笔即生效。每落一笔，所有势力对你的好感 -6。用得越多，越没人信你写的东西。' });
     ops.push({ t: 'h1', s: '史册：翻旧账' });
     ops.push({ t: 'p', s: '底栏「史册」记天下事：近十二天一条不落，再往前只留城破、围城、斩将、归降这类大事；往下拖能翻旧账。' });
     ops.push({ t: 'p', s: '条目按类别着色：围城橙、集结青、战事金、天下蓝、归降绿；真正的大事前面加一枚 ◆。' });

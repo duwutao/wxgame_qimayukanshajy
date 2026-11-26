@@ -16,7 +16,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
+const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN, FREE_CITY_IDS } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -471,33 +471,108 @@ const wind = runWith('wind');
 ok('南风起让我方打得更快、少折人', wind.summary().round < plain.summary().round && wind.summary().remainA > plain.summary().remainA,
   wind.summary().round + '轮/' + plain.summary().round + '轮 · 剩' + wind.summary().remainA + '/' + plain.summary().remainA);
 
-const calm = runWith('calm');
-function firstRoundRemain(mark) {
+/** 跨阶对撞：attTroop/defTroop 用兵种 id，wind 与否决定是否落笔 */
+function duelTest(attTroop, attN, defTroop, defN, mark, seed) {
   const b = new Battle({
-    rng: new RNG(4242),
-    attacker: { name: '我', troops: { militia: 120 }, morale: 70, isPlayer: true },
-    defender: { name: '袁军', troops: { militia: 120 }, morale: 70 },
+    rng: new RNG(seed || 4242),
+    attacker: { name: '我', troops: (function () { const t = {}; t[attTroop] = attN; return t; })(), morale: 70, isPlayer: true },
+    defender: { name: '敌', troops: (function () { const t = {}; t[defTroop] = defN; return t; })(), morale: 70 },
   });
   if (mark) b.applyShiMark(mark);
-  b.step();
-  return { a: b.remainA(), b: b.remainB() };
+  fightToEnd(b);
+  return b;
 }
-const p1 = firstRoundRemain(null);
-const c1 = firstRoundRemain('calm');
-ok('风止不削我方攻势，只压敌军', c1.a >= p1.a && c1.b <= p1.b,
-  '我' + c1.a + '/' + p1.a + ' 敌' + c1.b + '/' + p1.b);
+
+const cr1 = duelTest('militia', 80, 'cav', 80, null, 4242);
+const cr1w = duelTest('militia', 80, 'cav', 80, 'wind', 4242);
+ok('T1 不带南风起打不过 T3', cr1.summary().result !== 'win', cr1.summary().result + ' 剩' + cr1.summary().remainA);
+ok('T1 + 南风起可胜 T3', cr1w.summary().result === 'win' && cr1w.summary().remainA > 0,
+  cr1w.summary().result + ' 剩' + cr1w.summary().remainA + ' / ' + cr1w.summary().remainB);
+
+const cr2 = duelTest('spear', 80, 'heavy', 80, null, 4243);
+const cr2w = duelTest('spear', 80, 'heavy', 80, 'wind', 4243);
+ok('T2 不带南风起打不过 T4', cr2.summary().result !== 'win', cr2.summary().result);
+ok('T2 + 南风起可胜 T4', cr2w.summary().result === 'win' && cr2w.summary().remainA > 0,
+  cr2w.summary().result + ' 剩' + cr2w.summary().remainA);
+
+const cr3 = duelTest('cav', 80, 'jinjun', 80, null, 4244);
+const cr3w = duelTest('cav', 80, 'jinjun', 80, 'wind', 4244);
+ok('T3 不带南风起打不过 T5', cr3.summary().result !== 'win', cr3.summary().result);
+ok('T3 + 南风起可胜 T5', cr3w.summary().result === 'win' && cr3w.summary().remainA > 0,
+  cr3w.summary().result + ' 剩' + cr3w.summary().remainA);
+
+const cr4w = duelTest('heavy', 80, 'jinjun', 160, 'wind', 4245);
+ok('T4 + 南风起可敌两个 T5', cr4w.summary().result === 'win' && cr4w.summary().remainA > 0,
+  cr4w.summary().result + ' 剩' + cr4w.summary().remainA + ' / ' + cr4w.summary().remainB);
+
+const cr4v = duelTest('cav', 80, 'cav', 320, 'wind', 4246);
+ok('南风起一人可打四路同阶（80 对 320）', cr4v.summary().result === 'win' && cr4v.summary().remainA > 0,
+  cr4v.summary().result + ' 剩' + cr4v.summary().remainA + ' / ' + cr4v.summary().remainB);
+
+const fb = new Battle({
+  rng: new RNG(4247),
+  attacker: { name: '我', troops: { militia: 100 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 200 }, morale: 70 },
+});
+fb.applyShiMark('fireball');
+ok('天降火球烧掉敌军四成、封顶 80', fb.remainB() === 120 && fb.summary().shiEffect.amount === 80 && fb.summary().shiEffect.cap === 80,
+  '敌 ' + fb.remainB() + ' / ' + JSON.stringify(fb.summary().shiEffect));
+
+const galeB = new Battle({
+  rng: new RNG(4248),
+  attacker: { name: '我', troops: { militia: 100 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 200 }, morale: 70 },
+});
+galeB.applyShiMark('gale');
+ok('风行立刻脱离且我方不折人', galeB.finished && galeB.summary().result === 'retreat' && galeB.summary().remainA === 100,
+  galeB.summary().result + ' 我' + galeB.summary().remainA);
+ok('风行让敌军折一成并原地停 8 小时', galeB.summary().remainB === 180 && galeB.summary().galePinHours === 8,
+  '敌 ' + galeB.summary().remainB + ' 停' + galeB.summary().galePinHours + 'h');
+
+const defB = new Battle({
+  rng: new RNG(4249),
+  attacker: { name: '我', troops: { militia: 100 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 200 }, morale: 70 },
+});
+defB.applyShiMark('defector');
+ok('倒戈把一成半敌军拨到我方、封顶 60', defB.remainA() === 130 && defB.remainB() === 170 && defB.summary().shiEffect.amount === 30,
+  '我' + defB.remainA() + ' 敌' + defB.remainB());
+
+const nightB = new Battle({
+  rng: new RNG(4250),
+  attacker: { name: '我', troops: { militia: 100 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 200 }, morale: 70 },
+});
+nightB.applyShiMark('night');
+nightB.step();
+ok('夜袭三回合内敌军完全打不出伤害', nightB.remainA() === 100 && nightB.remainB() <= 200,
+  '我' + nightB.remainA() + ' 敌' + nightB.remainB());
+
+const miasmaB = new Battle({
+  rng: new RNG(4251),
+  attacker: { name: '我', troops: { militia: 100 }, morale: 70, isPlayer: true },
+  defender: { name: '袁军', troops: { militia: 200 }, morale: 70 },
+});
+miasmaB.applyShiMark('miasma');
+miasmaB.step();
+ok('瘴气每回合额外折损敌军', miasmaB.remainB() < 200 && miasmaB.summary().shiMark === 'miasma',
+  '敌 ' + miasmaB.remainB());
 
 const rollB = runWith('roll');
-ok('名册可记录', rollB.shiMark === 'roll');
+ok('回魂可记录', rollB.shiMark === 'roll');
 ok('南风起是战中效果', wind.shiTiming === 'battle');
-ok('风止是战中效果', calm.shiTiming === 'battle');
-ok('名册是战后效果', rollB.shiTiming === 'after');
-ok('名册在战斗过程中不提前结算', rollB.summary().round === plain.summary().round &&
+ok('回魂是战后效果', rollB.shiTiming === 'after');
+ok('回魂在战斗过程中不提前结算', rollB.summary().round === plain.summary().round &&
   rollB.summary().remainA === plain.summary().remainA,
   rollB.summary().remainA + '/' + plain.summary().remainA);
-ok('天机简效果已整体翻倍', HISTORY_MARKS.wind.atkMul === 2.80 && HISTORY_MARKS.wind.fireMul === 2.00 &&
-  HISTORY_MARKS.calm.enemyMul === 0.10 && HISTORY_MARKS.roll.backPct === 1.00,
-  JSON.stringify({ wind: HISTORY_MARKS.wind.atkMul, calm: HISTORY_MARKS.calm.enemyMul, roll: HISTORY_MARKS.roll.backPct }));
+ok('天机简七笔数值正确', Object.keys(HISTORY_MARKS).length === 7 &&
+  HISTORY_MARKS.wind.tierBoost === 2 && HISTORY_MARKS.wind.fireMul === 2.00 &&
+  HISTORY_MARKS.fireball.burnPct === 0.40 && HISTORY_MARKS.fireball.burnCap === 80 &&
+  HISTORY_MARKS.gale.enemyLossPct === 0.10 && HISTORY_MARKS.gale.pinHours === 8 &&
+  HISTORY_MARKS.night.rounds === 3 && HISTORY_MARKS.defector.turnPct === 0.15 &&
+  HISTORY_MARKS.defector.turnCap === 60 && HISTORY_MARKS.miasma.attritionPct === 0.04 &&
+  HISTORY_MARKS.miasma.rounds === 5 && HISTORY_MARKS.roll.backPct === 0.80,
+  JSON.stringify({ n: Object.keys(HISTORY_MARKS).length, wind: HISTORY_MARKS.wind.tierBoost, roll: HISTORY_MARKS.roll.backPct }));
 
 const midWind = new Battle({
   rng: new RNG(4242),
@@ -507,16 +582,16 @@ const midWind = new Battle({
 midWind.step();
 midWind.applyShiMark('wind');
 ok('战中落笔南风起即时生效', midWind.shiTiming === 'battle' && midWind.fireGround === true);
-const midCalm = new Battle({
+const midNight = new Battle({
   rng: new RNG(4242),
   attacker: { name: '我', troops: { militia: 80 }, morale: 70, isPlayer: true },
   defender: { name: '袁军', troops: { militia: 80 }, morale: 70 },
 });
-midCalm.step();
-midCalm.applyShiMark('calm');
-ok('战中落笔风止从下一回合起算三回合', midCalm.shiTiming === 'battle' && midCalm.shiRounds === 3);
+midNight.step();
+midNight.applyShiMark('night');
+ok('战中落笔夜袭即时生效', midNight.shiTiming === 'battle' && midNight.shiRounds === 3);
 
-// 走完整流程：用 state 应用名册
+// 走完整流程：用 state 应用回魂
 st.player.shi = 3;
 st.battle = new Battle({
   rng: new RNG(99),
@@ -527,15 +602,17 @@ const hres = stateLib.useHistory(st, 'roll');
 ok('用史简扣一支', hres.ok && st.player.shi === 2, hres.msg + ' 剩' + st.player.shi);
 ok('史简计入已用', st.player.shiUsed === 1, String(st.player.shiUsed));
 ok('用天机简没有副作用', st.relations.wei === 0, String(st.relations.wei));
-  while (!st.battle.finished) {
-    if (st.battle.batchDone) st.battle.nextBatch();
-    else st.battle.step();
-  }
+while (!st.battle.finished) {
+  if (st.battle.batchDone) st.battle.nextBatch();
+  else st.battle.step();
+}
+const rollBeforeResolve = armyLib.troopCount(st.battle.a.troops);
+const rollInitial = st.battle.a.initialCount;
 const sum = stateLib.resolveBattle(st, st.battle);
-ok('名册战后回归士兵', sum.remainA > 0 && armyLib.troopCount(st.player.troops) > sum.remainA - 1,
-  '剩' + sum.remainA);
-ok('名册翻倍后全部阵亡者归队', sum.remainA === sum.initialA && sum.rollBack > 0,
-  '归队 ' + (sum.rollBack || 0) + ' / 初始 ' + sum.initialA);
+ok('回魂战后复活本场阵亡者', sum.result === 'win' && sum.rollBack > 0 && sum.remainA === rollBeforeResolve + sum.rollBack,
+  '战前 ' + rollInitial + ' 战后 ' + rollBeforeResolve + ' 归队 ' + (sum.rollBack || 0));
+ok('回魂按实际阵亡的八成复活', (sum.rollBack || 0) === Math.round(Math.max(0, rollInitial - rollBeforeResolve) * 0.80),
+  '归队 ' + (sum.rollBack || 0) + ' / 阵亡 ' + Math.max(0, rollInitial - rollBeforeResolve));
 
 /* ---------------------------------------------------------------- 势力 */
 
@@ -3093,7 +3170,8 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
     cp0 ? cp0.targetId : 'none');
   ok('刘备亲自在入川队伍里', !!cp0 && cp0.attackerIds.indexOf('liubei') >= 0,
     cp0 ? cp0.attackerIds.join(',') : 'none');
-  for (let d = 0; d < 16; d++) {
+  // 入川路程受随机行军速度影响，给足 30 天再断言剑阁易手。
+  for (let d = 0; d < 30; d++) {
     for (let h = 0; h < 24; h++) { stateLib.advanceTime(gl, 1); stateLib.update(gl, 0, { ignoreEvents: true }); }
   }
   const jg = worldLib.siteById(gl.world, 'jiange');
@@ -3620,7 +3698,7 @@ group('n18 版：扩图 · 三新势力 · 打散三天');
   ok('寿春—庐江—历阳—濡须—建业成链',
     hasRoad('shouchun', 'lujiang') && hasRoad('lujiang', 'liyang2') &&
     hasRoad('liyang2', 'ruxu') && hasRoad('ruxu', 'jianye'));
-  ok('武威—居延—龙城成链', hasRoad('wuwei', 'juyan') && hasRoad('juyan', 'longcheng'));
+  ok('居延只通武威，龙城与居延断开', hasRoad('wuwei', 'juyan') && !hasRoad('juyan', 'longcheng') && hasRoad('longcheng', 'tanhanshan'));
   ok('晋阳—雁门—弹汗山成链', hasRoad('jinyang', 'yanmen') && hasRoad('yanmen', 'tanhanshan'));
   ok('江州—朱提—建宁—云南—永昌成链',
     hasRoad('jiangzhou', 'zhuti') && hasRoad('zhuti', 'jianning') &&
@@ -4028,6 +4106,78 @@ group('n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景');
   const saved = stateLib.deserialize(stateLib.serialize(romance));
   ok('存档保留游戏背景', !!saved && saved.background === 'romance',
     saved ? saved.background : 'null');
+}
+
+/* ---------------------------------------------------------------- n41 成都 · 自由城 · 马超归蜀 */
+
+group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉');
+{
+  const g41 = stateLib.createGame({ seed: 777001 });
+  const wudu0 = worldLib.siteById(g41.world, 'wudu');
+  const shangluo0 = worldLib.siteById(g41.world, 'shangluo');
+  ok('武都、上洛开局无主', !wudu0.ownerFaction && !shangluo0.ownerFaction,
+    (wudu0.ownerFaction || 'null') + '/' + (shangluo0.ownerFaction || 'null'));
+  ok('自由城表含武都与上洛', FREE_CITY_IDS.indexOf('wudu') >= 0 && FREE_CITY_IDS.indexOf('shangluo') >= 0,
+    FREE_CITY_IDS.join(','));
+  ok('居延只连武威，龙城只连弹汗山', !ROADS.some(function (p) {
+    return (p[0] === 'longcheng' && p[1] === 'juyan') || (p[1] === 'longcheng' && p[0] === 'juyan');
+  }), 'longcheng-juyan removed');
+
+  warLib.init(g41);
+  warLib.startDiplomacy(g41);
+  let machaoAt12 = null;
+  let chengduDay = 0;
+  let baseDay = 0;
+  let maDeadDay = 0;
+  let zhangFreeTarget = false;
+  let seenChengduTarget = false;
+  for (let d = 0; d < 120; d++) {
+    for (let h = 0; h < 24; h++) {
+      stateLib.advanceTime(g41, 1);
+      stateLib.update(g41, 0, { ignoreEvents: true });
+    }
+    const day = g41.clock.day;
+    const mc = g41.lords.filter(function (l) { return l.id === 'machao'; })[0];
+    if (day >= 12 && !machaoAt12 && mc) machaoAt12 = mc.faction;
+    const cps = g41.warCampaigns || {};
+    if (day <= 30 && cps.zhang && FREE_CITY_IDS.indexOf(cps.zhang.targetId) >= 0) zhangFreeTarget = true;
+    if (cps.shu && cps.shu.targetId === 'chengdu') seenChengduTarget = true;
+    const cd = worldLib.siteById(g41.world, 'chengdu');
+    if (cd.ownerFaction === 'shu' && !chengduDay) chengduDay = day;
+    const shuFs = g41.factionState.shu || {};
+    if (shuFs.baseCity === 'chengdu' && g41.flags && g41.flags.shuChengduBase && !baseDay) baseDay = day;
+    if ((g41.factionState.ma || {}).dead && !maDeadDay) maDeadDay = day;
+  }
+  ok('马超第 12 天已归蜀', machaoAt12 === 'shu', String(machaoAt12));
+  ok('马超归蜀后一直留在蜀', (function () {
+    const mc = g41.lords.filter(function (l) { return l.id === 'machao'; })[0];
+    return !!mc && mc.faction === 'shu' && !mc.dead;
+  })(), (function () {
+    const mc = g41.lords.filter(function (l) { return l.id === 'machao'; })[0];
+    return mc ? mc.faction : 'gone';
+  })());
+  ok('刘璋开局三十天不抢武都、上洛', !zhangFreeTarget);
+  ok('刘备入川最终目标是成都', seenChengduTarget);
+  ok('刘备攻下成都', chengduDay > 0 && worldLib.siteById(g41.world, 'chengdu').ownerFaction === 'shu',
+    '第 ' + chengduDay + ' 天');
+  ok('成都成为蜀军大本营', baseDay > 0 && (g41.factionState.shu || {}).baseCity === 'chengdu' &&
+    g41.flags.shuChengduBase === true, '第 ' + baseDay + ' 天 / ' + (g41.factionState.shu || {}).baseCity);
+  ok('刘备迁治所到成都', (function () {
+    const lb = g41.lords.filter(function (l) { return l.id === 'liubei'; })[0];
+    return !!lb && lb.home === 'chengdu';
+  })(), (function () {
+    const lb = g41.lords.filter(function (l) { return l.id === 'liubei'; })[0];
+    return lb ? lb.home : 'gone';
+  })());
+  ok('韩遂在五十天内灭掉马家', maDeadDay > 0 && maDeadDay <= 50 && g41.flags.maSurrenderDone === true,
+    '第 ' + maDeadDay + ' 天');
+  ok('武威、居延、陇西尽归韩遂', ['wuwei', 'juyan', 'longxi'].every(function (id) {
+    return worldLib.siteById(g41.world, id).ownerFaction === 'hansui';
+  }), ['wuwei', 'juyan', 'longxi'].map(function (id) {
+    return id + ':' + (worldLib.siteById(g41.world, id).ownerFaction || 'none');
+  }).join(' '));
+  const maLords = g41.lords.filter(function (l) { return l.faction === 'ma'; });
+  ok('马家没有残党留在原阵营', maLords.length === 0, String(maLords.length));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

@@ -1,6 +1,6 @@
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
- * 战中可落一笔天机简（南风起 / 风止 / 名册）
+ * 战中可落一笔天机简（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）
  */
 
 const { text, panel, bar, wrap } = require('../render/ui.js');
@@ -413,7 +413,15 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
     size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
   });
-  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+  if (sum.shiMark) {
+    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+    if (sum.shiNote) {
+      const lines = wrap(ctx, sum.shiNote, w - 32, 15).slice(0, 2);
+      lines.forEach(function (line, i) {
+        text(ctx, line, 16, y0 + 202 + i * 18, { size: 15, color: '#a2947a' });
+      });
+    }
+  }
 
   if (pending) {
     panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
@@ -486,31 +494,47 @@ function renderShi(app, w, h, b) {
   const ctx = app.runtime.ctx;
   ctx.fillStyle = 'rgba(8,6,4,0.94)';
   ctx.fillRect(0, 0, w, h);
-  text(ctx, '落一笔天机简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
-  text(ctx, '前两笔战中生效，名册战后结算 · 战中落笔即时生效 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
-    size: 16, align: 'center', color: '#a2947a',
+  text(ctx, '落一笔天机简', w / 2, 46, { size: 32, align: 'center', color: '#d9a441' });
+  text(ctx, '七笔可选 · 战中落笔即时生效 · 回魂留到战后结算 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 92, {
+    size: 14, align: 'center', color: '#a2947a',
   });
 
-  let y = 250;
-  Object.keys(HISTORY_MARKS).forEach(function (id) {
+  const gap = 12;
+  const cols = 2;
+  const cw = Math.floor((w - 48 - gap) / cols);
+  const ch = 176;
+  const step = 184;
+  const startX = 24;
+  const startY = 128;
+  Object.keys(HISTORY_MARKS).forEach(function (id, i) {
     const m = HISTORY_MARKS[id];
-    panel(ctx, 24, y, w - 48, 150, { fill: '#241c14' });
-    text(ctx, m.name, 48, y + 16, { size: 29, color: '#d9a441' });
-    text(ctx, m.timingLabel || '', 188, y + 28, { size: 15, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0' });
-    text(ctx, m.desc, 48, y + 58, { size: 16, color: '#c9bda2' });
-    text(ctx, '“' + m.text + '”', 48, y + 94, { size: 15, color: '#8a8070' });
-    app.ui.button(ctx, w - 176, y + 70, 132, 60, '落笔', {
-      id: 'shi_' + id, size: 22, onTap: function () {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (cw + gap);
+    const y = startY + row * step;
+    panel(ctx, x, y, cw, ch, { fill: '#241c14' });
+    text(ctx, m.name, x + 12, y + 10, { size: 23, color: '#d9a441' });
+    text(ctx, m.timing === 'after' ? '战后生效 · 本场阵亡八成归队' : '战中生效 · 落笔即时', x + 12, y + 38, {
+      size: 12, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0',
+    });
+    const lines = wrap(ctx, m.desc, cw - 24, 14).slice(0, 4);
+    if (m.desc && wrap(ctx, m.desc, cw - 24, 14).length > 4 && lines.length) {
+      lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1) + '…';
+    }
+    lines.forEach(function (line, li) {
+      text(ctx, line, x + 12, y + 60 + li * 17, { size: 14, color: '#c9bda2' });
+    });
+    app.ui.button(ctx, x + 12, y + 136, cw - 24, 32, '落笔', {
+      id: 'shi_' + id, size: 18, onTap: function () {
         const r = stateLib.useHistory(app.state, id);
         app.showToast(r.msg, 2);
         app.battleView.shiOpen = false;
       },
     });
-    y += 162;
   });
 
-  app.ui.button(ctx, 24, y + 10, w - 48, 70, '收起笔', {
-    id: 'shi_close', size: 24, fill: '#241c14', onTap: function () {
+  app.ui.button(ctx, 24, Math.min(h - 58, 862), w - 48, 54, '收起笔', {
+    id: 'shi_close', size: 22, fill: '#241c14', onTap: function () {
       app.battleView.shiOpen = false;
     },
   });

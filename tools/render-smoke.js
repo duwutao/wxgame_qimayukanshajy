@@ -349,6 +349,24 @@ smoke('战斗：史简面板', function () {
   app.battleView.shiOpen = true;
   app.ui.begin();
   app.top().scene.render(app);
+  const ids = app.ui.items.map(function (it) { return it.id; });
+  ok('天机简七笔都有落笔按钮', ['wind', 'fireball', 'gale', 'night', 'defector', 'miasma', 'roll'].every(function (id) {
+    return ids.indexOf('shi_' + id) >= 0;
+  }), ids.join(','));
+  ok('天机简抽屉按钮在屏内', app.ui.items.filter(function (it) { return it.id === 'shi_close'; }).every(function (it) {
+    return it.x >= 0 && it.y >= 0 && it.x + it.w <= 750 && it.y + it.h <= 1334;
+  }));
+  // 540×960 的手机屏：七笔必须全部排进两列四行，不能把后三笔落到屏外。
+  app.runtime.width = 540;
+  app.runtime.height = 960;
+  app.ui.begin();
+  app.top().scene.render(app);
+  const phoneShi = app.ui.items.filter(function (it) { return it.id.indexOf('shi_') === 0; });
+  ok('540×960 下七笔天机简全部可点', phoneShi.length === 8 && phoneShi.every(function (it) {
+    return it.x >= 0 && it.y >= 0 && it.x + it.w <= 540 && it.y + it.h <= 960;
+  }), phoneShi.map(function (it) { return it.id + '@' + Math.round(it.y); }).join(','));
+  app.runtime.width = 750;
+  app.runtime.height = 1334;
 });
 
 smoke('战斗：战役火攻战', function () {

@@ -1,7 +1,7 @@
 /**
  * 战斗层：回合制战术结算 + 天机简
  * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
- * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
+ * 天机简可改一次规则（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）。
  */
 
 const { TROOPS } = require('../data/troops.js');
@@ -33,6 +33,12 @@ const MAX_ROUNDS = 12;
 
 function clamp(v, min, max) {
   return v < min ? min : v > max ? max : v;
+}
+
+function lossSum(losses) {
+  let n = 0;
+  Object.keys(losses || {}).forEach(function (id) { n += losses[id] || 0; });
+  return n;
 }
 
 function moraleFactor(morale) {
@@ -149,6 +155,9 @@ class Battle {
     this.shiTiming = '';
     this.shiRounds = 0;
     this.shiName = '';
+    this.shiEffect = null;
+    this.galeEscape = false;
+    this.galePinHours = 0;
   }
 
   tacticOf(side) {
@@ -169,15 +178,125 @@ class Battle {
     return troopCount(this.b.troops);
   }
 
+  sideOf(key) {
+    return key === 'b' ? this.b : this.a;
+  }
+
+  playerSideKey() {
+    if (this.a.isPlayer) return 'a';
+    if (this.b.isPlayer) return 'b';
+    return 'a';
+  }
+
+  foeSideKey() {
+    return this.playerSideKey() === 'a' ? 'b' : 'a';
+  }
+
+  sideRemain(key) {
+    return troopCount(this.sideOf(key).troops);
+  }
+
+  /** 把一次直接伤亡记进本方战损，供战果页统计 */
+  recordLosses(sideKey, losses) {
+    if (!losses || !Object.keys(losses).length) return;
+    const target = sideKey === 'a' ? this.lossesA : this.lossesB;
+    Object.keys(losses).forEach(function (id) {
+      target[id] = (target[id] || 0) + (losses[id] || 0);
+    });
+  }
+
+  /** 绕过回合结算，立刻从某一方扣人；返回实际伤亡明细 */
+  directLosses(sideKey, total) {
+    const side = this.sideOf(sideKey);
+    const n = Math.max(0, Math.round(total || 0));
+    if (!side || n <= 0) return {};
+    const real = distributeLosses(side.troops, n);
+    this.recordLosses(sideKey, real);
+    return real;
+  }
+
+  /** 倒戈：按低阶先走，把敌军一部分人直接拨到我方，并同步合战编队 */
+  transferFromFoe(pct, cap) {
+    const foeKey = this.foeSideKey();
+    const playerKey = this.playerSideKey();
+    const foe = this.sideOf(foeKey);
+    const player = this.sideOf(playerKey);
+    const total = troopCount(foe.troops);
+    if (total <= 0) return { count: 0, troops: {} };
+    const want = Math.max(0, Math.round(total * (pct || 0)));
+    const take = Math.min(cap || want || total, want);
+    if (take <= 0) return { count: 0, troops: {} };
+    const moved = {};
+    let left = take;
+    Object.keys(foe.troops || {})
+      .map(function (id) { return { id: id, tier: TROOPS[id] ? TROOPS[id].tier : 1, count: foe.troops[id] || 0 }; })
+      .sort(function (a, b) { return a.tier - b.tier; })
+      .forEach(function (item) {
+        if (left <= 0 || item.count <= 0) return;
+        const n = Math.min(item.count, left);
+        foe.troops[item.id] -= n;
+        if (foe.troops[item.id] <= 0) delete foe.troops[item.id];
+        moved[item.id] = (moved[item.id] || 0) + n;
+        left -= n;
+      });
+    const count = lossSum(moved);
+    if (count <= 0) return { count: 0, troops: {} };
+    Object.keys(moved).forEach(function (id) {
+      player.troops[id] = (player.troops[id] || 0) + moved[id];
+      player.initialTroops[id] = (player.initialTroops[id] || 0) + moved[id];
+    });
+    player.initialCount += count;
+    player.lastCount = troopCount(player.troops);
+    this.recordLosses(foeKey, moved);
+    const pc = (player.contingents || []).filter(function (c) { return c.isPlayer; })[0];
+    if (pc) {
+      pc.count = (pc.count || 0) + count;
+      pc.initialCount = (pc.initialCount || 0) + count;
+      Object.keys(moved).forEach(function (id) {
+        pc.snapshot[id] = (pc.snapshot[id] || 0) + moved[id];
+      });
+    }
+    return { count: count, troops: moved };
+  }
+
+  /** 直接伤害把敌军打空时按玩家胜负收场，避免玩家在 b 侧时把胜负判反 */
+  finishForPlayer(playerWin) {
+    const aWin = this.a.isPlayer ? !!playerWin : !playerWin;
+    this.finish(aWin ? 'win' : 'lose');
+  }
+
   /** 写一笔天机简 */
   applyShiMark(id) {
     const mark = HISTORY_MARKS[id];
     this.shiMark = id;
-    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
-    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
+    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'fireball' ? '天降火球' : id === 'gale' ? '风行' : '回魂');
     this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
-    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
-    if (id === 'wind') this.fireGround = true;
+    this.shiRounds = (mark && mark.rounds) || 0;
+    if (id === 'wind' || id === 'fireball') this.fireGround = true;
+
+    if (id === 'fireball') {
+      const foeKey = this.foeSideKey();
+      const before = this.sideRemain(foeKey);
+      const burn = Math.max(0, Math.min(mark.burnCap || 0, Math.round(before * (mark.burnPct || 0))));
+      const real = this.directLosses(foeKey, burn);
+      const amount = lossSum(real);
+      this.shiEffect = { kind: 'burn', amount: amount, cap: mark.burnCap || 0 };
+      if (amount > 0 && this.sideRemain(foeKey) <= 0) this.finishForPlayer(true);
+    } else if (id === 'gale') {
+      const foeKey = this.foeSideKey();
+      const before = this.sideRemain(foeKey);
+      const cut = Math.max(1, Math.round(before * (mark.enemyLossPct || 0)));
+      const real = this.directLosses(foeKey, cut);
+      const amount = lossSum(real);
+      this.galeEscape = true;
+      this.galePinHours = mark.pinHours || 8;
+      this.retreated = true;
+      this.shiEffect = { kind: 'gale', amount: amount, pinHours: this.galePinHours };
+      this.finish('retreat');
+    } else if (id === 'defector') {
+      const moved = this.transferFromFoe(mark.turnPct, mark.turnCap);
+      this.shiEffect = { kind: 'defect', amount: moved.count };
+    }
   }
 
   /** 推进一个回合 */
@@ -213,19 +332,33 @@ class Battle {
 
     // 天机简效果：只利己，不反噬
     const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
+    const playerKey = this.playerSideKey();
+    const foeKey = this.foeSideKey();
+    let nightFree = false;
     if (shi && this.shiMark === 'wind') {
-      atkA *= shi.atkMul;
-      if (this.fireGround) atkA *= shi.fireMul;
+      // 南风起不是单纯加攻击：攻防一起按“高两阶”算，才能 T1 打 T3、T4 敌双 T5。
+      const boost = Math.pow(2, shi.tierBoost || 0);
+      if (playerKey === 'a') {
+        atkA *= boost;
+        defA *= boost;
+        if (this.fireGround) atkA *= shi.fireMul;
+      } else {
+        atkB *= boost;
+        defB *= boost;
+        if (this.fireGround) atkB *= shi.fireMul;
+      }
     }
-    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
-      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
-      if (this.a.isPlayer) atkB *= shi.enemyMul;
-      else if (this.b.isPlayer) atkA *= shi.enemyMul;
+    if (shi && this.shiMark === 'night' && this.shiRounds > 0) {
+      // 夜袭：敌军三回合完全打不出伤害，不是削一成那种看不出来的效果。
+      if (playerKey === 'a') atkB *= shi.enemyAtkMul;
+      else atkA *= shi.enemyAtkMul;
+      nightFree = true;
       this.shiRounds -= 1;
     }
 
     // 火攻战：带火船/火计的兵种威力翻倍的一部分
-    if (this.fireGround && sa.fireRatio > 0.05) atkA *= 1.15;
+    if (this.fireGround && playerKey === 'a' && sa.fireRatio > 0.05) atkA *= 1.15;
+    if (this.fireGround && playerKey === 'b' && sb.fireRatio > 0.05) atkB *= 1.15;
 
     // 弓弩首轮齐射
     let alphaStrike = 0;
@@ -237,23 +370,33 @@ class Battle {
     // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
     let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
-    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
+    if (nightFree && playerKey === 'a') lossA = 0;
+    if (nightFree && playerKey === 'b') lossB = 0;
 
     const realA = distributeLosses(this.a.troops, lossA);
     const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
 
-    const self = this;
-    Object.keys(realA).forEach(function (id) {
-      self.lossesA[id] = (self.lossesA[id] || 0) + realA[id];
-    });
-    Object.keys(realB).forEach(function (id) {
-      self.lossesB[id] = (self.lossesB[id] || 0) + realB[id];
-    });
+    this.recordLosses('a', realA);
+    this.recordLosses('b', realB);
+
+    // 瘴气：每回合额外折损敌军当前兵力的一小块，连折数回合。
+    let miasmaReal = null;
+    if (shi && this.shiMark === 'miasma' && this.shiRounds > 0) {
+      const before = this.sideRemain(foeKey);
+      if (before > 0) {
+        const n = Math.max(1, Math.round(before * shi.attritionPct));
+        miasmaReal = this.directLosses(foeKey, n);
+        this.shiRounds -= 1;
+      }
+    }
+    const miasmaText = miasmaReal ? ' · 瘴气 ' + lossText({}, miasmaReal) : '';
 
     const entry = {
       round: this.round,
-      aLossText: lossText(this.a.troops, realA),
-      bLossText: lossText(this.b.troops, realB),
+      aLossText: lossText(this.a.troops, realA) + (foeKey === 'a' ? miasmaText : ''),
+      bLossText: lossText(this.b.troops, realB) + (foeKey === 'b' ? miasmaText : ''),
       remainA: this.remainA(),
       remainB: this.remainB(),
       alphaStrike,
@@ -373,6 +516,15 @@ class Battle {
     return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
   }
 
+  shiNoteText() {
+    const e = this.shiEffect;
+    if (!e) return '';
+    if (e.kind === 'burn') return '天降火球烧掉 ' + e.amount + ' 人';
+    if (e.kind === 'gale') return '风行脱战，敌军 -' + e.amount + ' 人，原地停 ' + e.pinHours + ' 小时';
+    if (e.kind === 'defect') return '倒戈 ' + e.amount + ' 人，敌军调转枪头';
+    return '';
+  }
+
   summary() {
     return {
       result: this.result,
@@ -390,6 +542,10 @@ class Battle {
       shiMark: this.shiMark,
       shiName: this.shiName,
       shiTiming: this.shiTiming,
+      shiEffect: this.shiEffect,
+      shiNote: this.shiNoteText(),
+      galeEscape: !!this.galeEscape,
+      galePinHours: this.galePinHours,
       contingentsA: this.a.contingents || [],
       contingentsB: this.b.contingents || [],
     };

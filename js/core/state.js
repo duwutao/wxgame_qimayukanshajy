@@ -30,7 +30,7 @@ const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
-  CAPITAL_IDS, STRATEGIC_SITES,
+  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS,
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
@@ -40,6 +40,8 @@ const { LORD_BIOS } = require('../data/bios.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
+/** 马超固定归蜀：天下动起来后第 12 天，只要人还在凉州，就带本部南下投刘备。 */
+const MA_CHAO_TO_SHU_DAY = 12;
 /** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
 const LORD_STEP_HOURS = 6;
 // 同一格连续两个行军步（12 时辰）还走不动，就判定为卡点，换一个可达目的地。
@@ -1524,6 +1526,69 @@ function maybeStartDiplomacy(state) {
   return true;
 }
 
+/**
+ * 马超固定归蜀：到第 12 天，若他还在马腾旗下、没有被困在牢里或战场上，
+ * 就带本部投刘备。凉州剩下的人由韩遂去收拾，这条线不再靠随机灭国。
+ */
+function ensureMaChaoToShu(state) {
+  if (!state || !state.flags) return false;
+  if (state.flags.machaoToShuDone) return false;
+  if (state.clock.day < MA_CHAO_TO_SHU_DAY) return false;
+  const mc = (state.lords || []).filter(function (l) { return l.id === 'machao'; })[0];
+  if (!mc || mc.dead || !mc.alive) {
+    state.flags.machaoToShuDone = true;
+    return false;
+  }
+  if (mc.faction === 'shu') {
+    state.flags.machaoToShuDone = true;
+    return false;
+  }
+  if (mc.faction !== 'ma') return false;
+  if (mc.prisoner || mc.fieldBattleId) return false;
+  if ((state.factionState.shu || {}).dead || (state.factionState.ma || {}).dead) return false;
+  moveLordToFaction(state, mc, 'shu');
+  // 马超已经不在凉军里，旧战役名单里的人要撤掉，免得他继续替马家攻城。
+  if (state.warCampaigns && state.warCampaigns.ma) war.abortCampaign(state, 'ma');
+  state.flags.machaoToShuDone = true;
+  pushLog(state, '马超带着西凉铁骑离开武威，南下投了刘备；凉州军心从此散了一半。', 'war');
+  return true;
+}
+
+/**
+ * 武威破后三天：居延、陇西守将献城，马家正式亡国。
+ * 这一步接在韩遂的攻城钩子上，避免居延变成飞地后双方在城下磨一百天。
+ */
+function resolveMaSurrender(state) {
+  if (!state || !state.flags || !state.flags.maSurrenderDay) return false;
+  if (state.clock.day < state.flags.maSurrenderDay) return false;
+  if ((state.factionState.ma || {}).dead) {
+    state.flags.maSurrenderDone = true;
+    state.flags.maSurrenderDay = 0;
+    return false;
+  }
+  if ((state.factionState.hansui || {}).dead) return false;
+  const fac = FACTIONS.hansui;
+  const sites = (state.world.sites || []).filter(function (s) {
+    return s.ownerFaction === 'ma' && !s.playerOwned;
+  });
+  sites.forEach(function (s) {
+    s.ownerFaction = 'hansui';
+    s.faction = 'hansui';
+    s.color = fac.color;
+    s.banner = fac.banner;
+    s.lordId = null;
+    s.selfFief = false;
+  });
+  if (!sites.length) {
+    // 城已经被别人拿光了，只补亡国流程
+  }
+  fallFaction(state, 'ma');
+  state.flags.maSurrenderDone = true;
+  state.flags.maSurrenderDay = 0;
+  pushLog(state, '居延、陇西开城投降，韩遂把马家的旗从西凉撤下；马腾只余一身，往民间去了。', 'war');
+  return true;
+}
+
 function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
@@ -1589,6 +1654,8 @@ function dailyTick(state) {
   war.diplomacyTick(state);
   war.peaceOfferTick(state);
   war.prisonerTick(state);
+  // 马超归蜀这条线先走：他走了以后韩遂再动凉州，才是“马家被灭”的顺序。
+  ensureMaChaoToShu(state);
   // 国战 AI：各家的集结、开拔、围城与守城，一天只做一次决策
   if (war.strategyTick) war.strategyTick(state);
   // 领主重生（关在牢里的不算，等着被赎、被救或自己跑）
@@ -1625,6 +1692,7 @@ function dailyTick(state) {
   }
 
   // 灭国：城丢光、人也没了，七天倒计时
+  resolveMaSurrender(state);
   factionTick(state);
   // 统一之后的长夜：三十天大旱 / 再统一
   arcTick(state);
@@ -4839,25 +4907,35 @@ function resolveBattle(state, battle) {
   const hbLoot = heroes.heroBonus(state).lootPct;
   if (hbLoot > 0 && summary.loot > 0) summary.loot = Math.round(summary.loot * (1 + hbLoot));
 
-  // 天机简「名册」：阵亡者更多归队
+  // 天机简「回魂」：阵亡者八成归队，按本场实际阵亡人数算，不再按初始兵力算。
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
-    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.70;
-    const back = Math.max(0, Math.round(summary.initialA * rollPct));
+    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.80;
+    const dead = Math.max(0, summary.initialA - summary.remainA);
+    const back = Math.max(0, Math.round(dead * rollPct));
     if (back > 0) {
       const t = battle.a.initialTroops;
       let put = 0;
+      const putByType = {};
       Object.keys(t).forEach(function (id) {
         if (put >= back) return;
         const n = Math.min(t[id] - (battle.a.troops[id] || 0), back - put);
         if (n > 0) {
           battle.a.troops[id] = (battle.a.troops[id] || 0) + n;
+          putByType[id] = (putByType[id] || 0) + n;
           put += n;
         }
       });
+      if (playerContingent && put > 0) {
+        playerContingent.count = (playerContingent.count || 0) + put;
+        Object.keys(putByType).forEach(function (id) {
+          playerContingent.snapshot[id] = (playerContingent.snapshot[id] || 0) + putByType[id];
+        });
+      }
       syncPlayerTroopsFromField();
       summary.remainA = battle.remainA();
       summary.rollBack = put;
-      pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
+      summary.shiNote = '回魂：' + put + ' 名阵亡者归队（本场阵亡 ' + dead + ' 人，复活八成）';
+      pushLog(state, '天机简「回魂」生效：' + put + ' 个名字又从纸上站了起来。');
     }
   }
 
@@ -5957,6 +6035,8 @@ const DEFECT_TO = {
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
   pangde: 'wei', maxiu: 'shu', matie: 'shu', chengyin: 'wei',
+  // 马超无论凉州最后由谁打下来，都固定归蜀，不留在西凉当降将。
+  machao: 'shu',
   // 公孙瓒灭亡后，赵云固定流向刘备；无论河北最后由谁拿下都适用。
   zhaoyun: 'shu',
   huangfusong: 'wei', zhujun: 'wei', luzhi: 'wei',
@@ -7107,6 +7187,28 @@ function deserialize(json) {
     oldShouchun.color = FACTIONS.yuanshu.color;
   }
 
+  // n41：汉中北面的武都、上洛改为自由城。只迁移一次，避免刘璋日后
+  // 重新占回时又被读档逻辑抹成无主；玩家已经打下的城绝不覆盖。
+  state.flags = state.flags || {};
+  if (!state.flags.wuduShangluoFree) {
+    FREE_CITY_IDS.forEach(function (id) {
+      const site = siteById(state.world, id);
+      if (!site || site.playerOwned) return;
+      if (site.ownerFaction && site.ownerFaction !== 'zhang') return;
+      site.ownerFaction = null;
+      site.faction = null;
+      site.lordId = null;
+      site.banner = '';
+      site.color = '#8f8f86';
+    });
+    state.flags.wuduShangluoFree = true;
+  }
+  // n41：已经由刘备拿下成都的旧档，补上“以成都为大本营”的治所迁移。
+  const chengduSite = siteById(state.world, 'chengdu');
+  if (chengduSite && chengduSite.ownerFaction === 'shu' && !chengduSite.playerOwned) {
+    war.markShuChengduBase(state, chengduSite, 'shu');
+  }
+
   // n18 老档换旗：只在城池仍是旧主且没有被玩家占下时迁移，避免覆盖玩家的战果。
   const LEGACY_OWNER_MOVES = [
     { id: 'ji', from: ['han'], to: 'gongsun' },
@@ -7455,6 +7557,9 @@ module.exports = {
   fallFaction,
   pickFactionFor,
   moveLordToFaction,
+  ensureMaChaoToShu,
+  MA_CHAO_TO_SHU_DAY,
+  resolveMaSurrender,
   tavernRumor,
   hiddenLordsAt,
   hiddenLordVisible,
