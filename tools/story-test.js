@@ -47,6 +47,9 @@ group('n43 开局与地图归属');
   ok('濮阳—泰山关直连', ROADS.some(function (r) {
     return r[0] === 'puyang' && r[1] === 'taishanguan' || r[0] === 'taishanguan' && r[1] === 'puyang';
   }));
+  ok('北平—蓟直连', ROADS.some(function (r) {
+    return r[0] === 'beiping' && r[1] === 'ji' || r[0] === 'ji' && r[1] === 'beiping';
+  }));
   ok('交趾归山越', site(st, 'jiaozhi').ownerFaction === 'shanyue');
   ok('除边陲小镇外没有无主战略要地', st.world.sites.every(function (s) {
     return s.type === 'camp' || s.id === 'edge_town' || !!s.ownerFaction;
@@ -59,6 +62,18 @@ group('n43 开局与地图归属');
   tickDay(st, 8);
   ok('第八天刘备向刘璋宣战', warLib.atWar(st, 'shu', 'zhang'));
   ok('刘备第一阶段进入战斗', st.story.phases.shu.status === 'war' && st.story.phases.shu.id === 'shu_yizhou');
+}
+
+group('n45 开局不误报叛军亡国');
+{
+  const st = game(2026112645);
+  stateLib.advanceTime(st, 24 * 9);
+  ok('叛军没有进入灭国倒计时', !(st.factionState.rebel || {}).dead,
+    JSON.stringify(st.factionState.rebel || {}));
+  ok('开局九天内没有“叛军 亡了”弹窗', !st.events.some(function (e) {
+    return e.type === 'faction-fall' && e.factionId === 'rebel';
+  }), (st.events || []).filter(function (e) { return e.type === 'faction-fall'; })
+    .map(function (e) { return e.factionId; }).join(','));
 }
 
 group('n43 阶段表与两年防卡死');
@@ -220,8 +235,12 @@ group('n43 统一背叛与边陲小镇');
       s.playerOwned = true;
     }
   });
+  // 模拟被旧版误判“叛军亡了”的存档：统一背叛开始时必须把这面旗重新立起来。
+  st.factionState.rebel = { dead: true, doomDays: 7, deadDay: 8 };
   const r = stateLib.startUnification(st);
   ok('统一瞬间触发全国背叛', r === true && st.arc && st.arc.phase === 'retreat');
+  ok('统一背叛后叛军不再处于已亡状态', !(st.factionState.rebel || {}).dead,
+    JSON.stringify(st.factionState.rebel || {}));
   ok('边陲小镇迷雾在背叛后打开', st.world.edgeTown.fogOpen === true);
   ok('除小镇外全部城旗换为叛军', st.world.sites.every(function (s) {
     return s.type === 'camp' || s.id === 'edge_town' || s.ownerFaction === 'rebel';

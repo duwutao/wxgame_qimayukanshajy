@@ -933,7 +933,7 @@ const RECRUIT_SETS = {
 /** 道路连线 */
 const ROADS = [
   ['longcheng', 'tanhanshan'], ['juyan', 'wuwei'],
-  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
+  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['beiping', 'ji'], ['zhuo', 'beiping'],
   ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
   ['shangdang', 'jinyang'], ['jinyang', 'yanmen'], ['yanmen', 'tanhanshan'], ['jinyang', 'puyang'],
@@ -18031,6 +18031,8 @@ function moveLordToFaction(state, lord, target) {
 
 /** 一个势力连城带人都没了，满七天：亡国 */
 function fallFaction(state, id) {
+  // 叛军只在统一背叛后才是真正的势力；开局没有城时不能被判亡国。
+  if (id === 'rebel' && !state.arc) return false;
   const fs = state.factionState[id] || (state.factionState[id] = {});
   fs.dead = true;
   fs.deadDay = state.clock.day;
@@ -18134,6 +18136,10 @@ function factionTick(state) {
   if (!state.factionState) state.factionState = {};
   Object.keys(FACTIONS).forEach(function (id) {
     if (id === 'bandit' || id === 'player') return;
+    // 叛军不是开局的正常诸侯：它在“全国背叛”前没有城也没有人，
+    // 不能按普通势力跑七天灭国倒计时，否则开局就会误弹“叛军 亡了”。
+    // 统一背叛后 state.arc 存在，叛军才真正接管全国，重新参与存亡判定。
+    if (id === 'rebel' && !state.arc) return;
     const fs = state.factionState[id] || (state.factionState[id] = {});
     if (fs.dead) return;
     if (factionAlive(state, id)) {
@@ -18497,6 +18503,13 @@ function startUnification(state) {
     arrivalDay: 0,
   };
   state.arc.rescueRoute = true;
+  // 开局阶段叛军没有城，factionTick 不把它当普通势力倒计时；旧档若已经
+  // 误判过“叛军亡了”，在统一背叛真正开始时要把这面旗重新立起来。
+  const rebelFs = state.factionState.rebel || (state.factionState.rebel = {});
+  rebelFs.dead = false;
+  rebelFs.deadDay = 0;
+  rebelFs.doomDays = 0;
+  rebelFs.doomDay = 0;
   p.renown += 300;
   p.gold += 600;
 
@@ -19087,6 +19100,22 @@ function deserialize(json) {
     site.lordRecruits = {};
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
+  // n45：开局叛军没有城，不能被七天灭国逻辑误判；旧档如果已经弹出过
+  // “叛军 亡了”，在读档时把这面旗恢复，统一背叛后才有叛军可打。
+  const legacyRebel = state.factionState.rebel;
+  if (legacyRebel && legacyRebel.dead &&
+      (!state.arc || state.arc.phase === 'retreat')) {
+    legacyRebel.dead = false;
+    legacyRebel.deadDay = 0;
+    legacyRebel.doomDays = 0;
+    legacyRebel.doomDay = 0;
+  }
+  // n45：北平—蓟直连。蓟原先只靠涿（村）接路，而村庄不计入城网，
+  // 袁绍拿下北平、涿、范阳后仍无法把蓟算作“道路相接”的敌城。
+  const N45_ROADS = [
+    ['beiping', 'ji'],
+  ];
+  layRoads(state.world, N45_ROADS);
   // 边陲小镇：老档没有这张图，补城并挂上雾圈元数据。
   const edgeSite = siteById(state.world, 'edge_town');
   if (edgeSite && !state.world.edgeTown) {

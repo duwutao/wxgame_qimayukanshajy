@@ -4195,6 +4195,40 @@ group('n43 成都重心 · 武都上洛归张鲁 · 马超归蜀 · 韩遂灭凉
   }), String(maLords.length) + ' ' + maLords.map(function (l) { return l.id + '@' + (l.inCity || l.home); }).join(','));
 }
 
+/* ---------------------------------------------------------------- n45 袁绍北伐蓟 · 叛军误报 */
+
+group('n45 袁绍北伐蓟 · 叛军误报');
+{
+  const g = stateLib.createGame({ seed: 2026112645, storyMode: true });
+  const ji = worldLib.siteById(g.world, 'ji');
+  const beiping = worldLib.siteById(g.world, 'beiping');
+  ok('北平—蓟直连', ROADS.some(function (r) {
+    return r[0] === 'beiping' && r[1] === 'ji' || r[0] === 'ji' && r[1] === 'beiping';
+  }));
+  const oldOwner = beiping.ownerFaction;
+  beiping.ownerFaction = 'yuan';
+  beiping.faction = 'yuan';
+  const siege = warLib.canSiegeSiteFromFaction(g, 'yuan', ji);
+  ok('袁绍从北平可以攻蓟', siege.ok, siege.msg);
+  beiping.ownerFaction = oldOwner;
+  beiping.faction = oldOwner;
+
+  const g2 = stateLib.createGame({ seed: 2026112646, storyMode: true });
+  stateLib.advanceTime(g2, 24 * 9);
+  ok('开局九天内不误报叛军亡国', !g2.events.some(function (e) {
+    return e.type === 'faction-fall' && e.factionId === 'rebel';
+  }), (g2.events || []).filter(function (e) { return e.type === 'faction-fall'; })
+    .map(function (e) { return e.factionId; }).join(','));
+  ok('叛军没有进入灭国倒计时', !(g2.factionState.rebel || {}).dead,
+    JSON.stringify(g2.factionState.rebel || {}));
+
+  const legacy = stateLib.createGame({ seed: 2026112647, storyMode: true });
+  legacy.factionState.rebel = { dead: true, doomDays: 7, deadDay: 8 };
+  const loaded = stateLib.deserialize(stateLib.serialize(legacy));
+  ok('旧档误判叛军亡国后读档恢复', !!loaded && !(loaded.factionState.rebel || {}).dead,
+    loaded ? JSON.stringify(loaded.factionState.rebel || {}) : 'null');
+}
+
 /* ---------------------------------------------------------------- 名将榜 · 带兵上限 · 招兵倍率 */
 
 group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');

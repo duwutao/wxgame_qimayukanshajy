@@ -306,7 +306,7 @@ const RECRUIT_SETS = {
 /** 道路连线 */
 const ROADS = [
   ['longcheng', 'tanhanshan'], ['juyan', 'wuwei'],
-  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
+  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['beiping', 'ji'], ['zhuo', 'beiping'],
   ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
   ['shangdang', 'jinyang'], ['jinyang', 'yanmen'], ['yanmen', 'tanhanshan'], ['jinyang', 'puyang'],
