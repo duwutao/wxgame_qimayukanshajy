@@ -99,6 +99,17 @@ function process(app) {
       });
       return;
     }
+    if (ev.type === 'story') {
+      app.push('news', {
+        title: ev.title || '天下大势',
+        lines: ev.lines || [],
+        tag: ev.tag || '大势',
+        art: ev.art || null,
+        auto: ev.auto || 7,
+        skipAny: ev.skipAny !== false,
+      });
+      return;
+    }
     if (ev.type === 'diplomacy') {
       // 宣战/议和停 7 秒，背景是战场或使团交书；点屏幕任意处直接跳过。
       const peace = ev.kind === 'peace';

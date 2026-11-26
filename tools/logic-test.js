@@ -3037,15 +3037,17 @@ group('n9 版：道路连通 · 邻国宣战 · 战略要地');
     (roadData.ROADS || []).some(function (r) {
       return (r[0] === 'jiange' && r[1] === 'xinye') || (r[0] === 'xinye' && r[1] === 'jiange');
     }));
-  ok('战略要地共 11 处且半径 8、防御 1.5',
-    Object.keys(roadData.STRATEGIC_SITES).length === 11 &&
+  ok('战略要地共 12 处且半径 8、防御 1.5',
+    Object.keys(roadData.STRATEGIC_SITES).length === 12 &&
     Object.keys(roadData.STRATEGIC_SITES).every(function (id) {
       const c = roadData.STRATEGIC_SITES[id];
       return c.radius === 8 && c.defense === 1.5;
     }), Object.keys(roadData.STRATEGIC_SITES).join(','));
-  ['hulao', 'tongguan', 'jiange', 'guandu', 'hanzhong', 'xiangyang', 'hefei', 'chaisang'].forEach(function (id) {
+  ['hulao', 'tongguan', 'jiange', 'guandu', 'hanzhong', 'xiangyang', 'hefei', 'chaisang', 'taishanguan'].forEach(function (id) {
     const n = (roadData.ROADS || []).filter(function (r) { return r[0] === id || r[1] === id; }).length;
-    ok('要地 ' + id + ' 是多路枢纽', n >= 4, 'roads=' + n);
+    // 官渡按新路网只保留陈留/白马/虎牢三条通道，新野线已断。
+    const need = (id === 'guandu' || id === 'taishanguan') ? 3 : 4;
+    ok('要地 ' + id + ' 是多路枢纽', n >= need, 'roads=' + n);
   });
 }
 {
@@ -3726,7 +3728,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   const newIds = ['fanyang', 'changshan', 'yushan', 'shanyue'];
   const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
   ok('n19 新城全部生成', missing.length === 0, missing.join(','));
-  ok('总据点扩到 81', g.world.sites.length === 81, String(g.world.sites.length));
+  ok('总据点扩到 82', g.world.sites.length === 82, String(g.world.sites.length));
 
   function hasRoad(a, b) {
     return ROADS.some(function (p) {
@@ -3808,7 +3810,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     if (l) l.inCity = null;
   });
   const migrated = stateLib.deserialize(old);
-  ok('旧档补齐 n19 四座新城', !!migrated && migrated.world.sites.length === 81,
+  ok('旧档补齐 n19 四座新城与泰山关', !!migrated && migrated.world.sites.length === 82,
     migrated ? String(migrated.world.sites.length) : 'null');
   ok('旧档襄平转无主', !!migrated && (function () {
     const s = worldLib.siteById(migrated.world, 'xiangping');
@@ -3824,6 +3826,64 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   }).every(function (l) { return l.home === 'changan' || l.home === 'tongguan'; }));
   ok('旧档补入山越六位领主', !!migrated &&
     migrated.lords.filter(function (l) { return l.faction === 'shanyue'; }).length >= 6);
+}
+
+
+/* ---------------------------------------------------------------- n20 版：官渡断线 · 青徐连城 · 泰山关 · 零兵打散 */
+group('n20 版：官渡断线 · 青徐连城 · 泰山关 · 零兵打散');
+{
+  const roadData = require(R + '/data/china.js');
+  function hasRoad(a, b) {
+    return (roadData.ROADS || []).some(function (r) {
+      return (r[0] === a && r[1] === b) || (r[0] === b && r[1] === a);
+    });
+  }
+  const g = stateLib.createGame({ seed: 2026112620 });
+  ok('新野—官渡直连已断', !hasRoad('guandu', 'xinye'));
+  ok('小沛—彭城已接上', hasRoad('xiaopei', 'pengcheng'));
+  ok('彭城—徐州已接上', hasRoad('pengcheng', 'xuzhou'));
+  ok('平原—泰山关—彭城成走廊', hasRoad('pingyuan', 'taishanguan') && hasRoad('taishanguan', 'pengcheng'));
+  const pass = worldLib.siteById(g.world, 'taishanguan');
+  ok('泰山关是独立关城', !!pass && pass.type === 'castle' && pass.ownerFaction === null,
+    pass ? pass.type + '/' + pass.ownerFaction : 'missing');
+  ok('泰山关登记为 1.5 倍要地', roadData.STRATEGIC_SITES.taishanguan &&
+    roadData.STRATEGIC_SITES.taishanguan.defense === 1.5);
+  pass.ownerFaction = 'wei';
+  pass.faction = 'wei';
+  ok('占据泰山关后享 1.5 倍城防', warLib.strategicDefenseForSite(g, pass) === 1.5,
+    String(warLib.strategicDefenseForSite(g, pass)));
+  pass.ownerFaction = null;
+  pass.faction = null;
+
+  // 0 兵：野战自动打散，不当俘虏；三天内不复活，三天后在本土城满编重立。
+  const home = g.world.sites.filter(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'wei';
+  })[0];
+  const lord = g.lords.filter(function (l) { return l.faction === 'wei' && l.alive; })[0];
+  const bandit = g.parties.filter(function (p) { return p.faction === 'bandit' && !p.dead; })[0];
+  lord.home = home.id;
+  lord.inCity = null;
+  lord.troops = {};
+  lord.defTroops = { militia: 100 };
+  lord.defending = true;
+  lord.x = bandit.x;
+  lord.y = bandit.y;
+  warLib.clash(g, lord, bandit);
+  const scatterDay = g.clock.day;
+  ok('0 兵守城也按打散处理，不当俘虏',
+    lord.alive && lord.scattered === true && !lord.prisoner && armyLib.troopCount(lord.troops) === 0,
+    'scattered=' + lord.scattered + ' prisoner=' + !!lord.prisoner);
+  ok('打散后记下本土城与三天期限',
+    lord.scatterHomeId === home.id && lord.respawnDay === scatterDay + 3,
+    'home=' + lord.scatterHomeId + ' respawn=' + lord.respawnDay);
+  stateLib.advanceTime(g, 48);
+  ok('不到三天仍是打散状态', lord.scattered === true && armyLib.troopCount(lord.troops) === 0,
+    'day=' + g.clock.day + ' scattered=' + lord.scattered);
+  stateLib.advanceTime(g, 25);
+  ok('三天期满在本土城满编复活',
+    lord.scattered === false && lord.inCity === home.id &&
+    armyLib.troopCount(lord.troops) === 100,
+    'scattered=' + lord.scattered + ' inCity=' + lord.inCity + ' troops=' + armyLib.troopCount(lord.troops));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

@@ -1731,7 +1731,16 @@ function drawUnits(ctx, app, cam, box, w) {
         size: Math.round(19 * z), align: 'center', color: '#fff',
       });
     }
-    if (lord.fleeing) {
+    if (lord.scattered) {
+      ctx.fillStyle = 'rgba(48,36,22,0.92)';
+      ctx.fillRect(sx - 36 * z, sy - 80 * z, 72 * z, 28 * z);
+      ctx.strokeStyle = 'rgba(190,160,110,0.45)';
+      ctx.lineWidth = Math.max(1, 1.2 * z);
+      ctx.strokeRect(sx - 36 * z, sy - 80 * z, 72 * z, 28 * z);
+      text(ctx, '打散', sx, sy - 78 * z, {
+        size: Math.max(13, Math.round(18 * z)), align: 'center', color: '#e5c890',
+      });
+    } else if (lord.fleeing) {
       ctx.fillStyle = 'rgba(60,42,18,0.9)';
       ctx.fillRect(sx - 32 * z, sy - 78 * z, 64 * z, 26 * z);
       text(ctx, '逃遁', sx, sy - 76 * z, {

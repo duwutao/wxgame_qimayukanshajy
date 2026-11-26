@@ -89,6 +89,9 @@ const AtlasScene = {
 
     text(ctx, '天下大势', 16, 22, { size: 34, color: '#f0c060' });
     text(ctx, '魏 · 蜀 · 吴 · 群雄割据', 16, 66, { size: 17, color: '#a2947a' });
+    if (st.story && st.story.mode && st.story.headline) {
+      text(ctx, st.story.headline, 16, 88, { size: 13, color: '#c8b48a' });
+    }
 
     app.ui.button(ctx, w - 146, 20, 130, 56, '返回', {
       id: 'atlas_back', size: 22, onTap: function () { app.pop(); },

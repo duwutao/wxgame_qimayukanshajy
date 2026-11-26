@@ -65,9 +65,9 @@ const TitleScene = {
     const bh = 70;
     const gapY = 78;
     const bw = w - 160;
-    app.ui.button(ctx, 80, by, bw, bh, '新的开始 · 洛阳溃兵', {
+    app.ui.button(ctx, 80, by, bw, bh, '新的开始 · 汉末战略', {
       id: 'new', size: 28, fill: '#3a2c1e', onTap: function () {
-        app.state = stateLib.createGame({});
+        app.state = stateLib.createGame({ storyMode: true });
         app.replace('map');
       },
     });
