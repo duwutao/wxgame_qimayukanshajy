@@ -1,57 +1,64 @@
 name: n50 publish
-
 on:
   push:
+    branches: [main]
     paths:
       - '.github/workflows/n50-publish.yml'
   workflow_dispatch:
-
+permissions:
+  contents: write
 jobs:
   main:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: 拉取新包体
+          fetch-depth: 0
+      - name: Update main entry and bundle
         run: |
-          curl -fsSL "https://aka.doubaocdn.com/s/sMrHAHOAtf" -o web/game.bundle.js
-          echo "9208d66fb6ab228f73df1baca0681ccb2cf616b547f68b82151a3398a6ac06fc  web/game.bundle.js" | sha256sum -c -
-      - name: 改版本号
-        run: |
-          sed -i 's#game\.bundle\.js?v=[0-9A-Za-z]*#game.bundle.js?v=20261127n50#g' index.html web/index.html
-          grep -o 'game.bundle.js?v=[0-9A-Za-z]*' index.html web/index.html
-      - name: 提交 main
-        run: |
-          git config user.name "doubao-bot"
-          git config user.email "bot@users.noreply.github.com"
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/sMrHAHOAtf'
+          echo '9208d66fb6ab228f73df1baca0681ccb2cf616b547f68b82151a3398a6ac06fc  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261127n49/20261127n50/g' index.html web/index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html web/index.html web/game.bundle.js
-          git commit -m "release: 20261127n50 军机棋盘六局与史实配图 [skip ci]"
+          git commit -m 'release: 20261127n50 军机棋盘六局与史实配图 [skip ci]'
           git push origin HEAD:main
-
   juqing:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: juqing
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: 应用源码补丁
+      - name: Apply n50 source and bundle to juqing
         run: |
-          curl -fsSL "https://aka.doubaocdn.com/s/kBnhpf8DU6" -o /tmp/n50.patch
-          echo "524ab79a44414f2d44b1ef3c6a33930c100eae70250a69e52c9003e7d81efa10  /tmp/n50.patch" | sha256sum -c -
-          git apply /tmp/n50.patch
-      - name: 回归测试
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n50-src.patch 'https://aka.doubaocdn.com/s/kBnhpf8DU6'
+          echo '524ab79a44414f2d44b1ef3c6a33930c100eae70250a69e52c9003e7d81efa10  /tmp/n50-src.patch' | sha256sum -c -
+          git apply --check /tmp/n50-src.patch
+          git apply /tmp/n50-src.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/sMrHAHOAtf'
+          echo '9208d66fb6ab228f73df1baca0681ccb2cf616b547f68b82151a3398a6ac06fc  web/game.bundle.js' | sha256sum -c -
+      - name: Test
         run: |
           node tools/logic-test.js
           node tools/story-test.js
           node tools/render-smoke.js
-      - name: 提交 juqing
+          node tools/minigame-check.js
+      - name: Commit n50
         run: |
-          git config user.name "doubao-bot"
-          git config user.email "bot@users.noreply.github.com"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m "feat: 军机棋盘六局界面、七天十局与史实配图 [skip ci]"
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n50 军机棋盘六局与史实配图 [skip ci]'
           git push origin HEAD:juqing
