@@ -11,7 +11,10 @@ const root = path.join(__dirname, '..');
 
 let html = fs.readFileSync(path.join(root, 'web', 'index.html'), 'utf8');
 html = html
-  .replace('<script src="./game.bundle.js"></script>', '<script src="./web/game.bundle.js"></script>')
+  // 入口脚本带 ?v= 版本号，必须用正则替换，否则根目录入口会继续指向
+  // ./game.bundle.js 而仓库里 bundle 实际在 web/ 下，线上会 404。
+  .replace(/<script src="\.\/game\.bundle\.js(\?v=[^"]*)?"><\/script>/,
+    '<script src="./web/game.bundle.js$1"></script>')
   .replace('href="./apple-touch-icon.png"', 'href="./web/apple-touch-icon.png"');
 fs.writeFileSync(path.join(root, 'index.html'), html, 'utf8');
 
