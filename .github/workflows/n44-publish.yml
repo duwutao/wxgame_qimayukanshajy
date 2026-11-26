@@ -1,0 +1,48 @@
+name: n44 publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n44-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update main entry and bundle
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/PW5iX2WNsz'
+          echo '924ba065d66747e9fc719e77878edd4d09ec1c7320354b11654817db509b7e8c  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261126n43/20261126n44/g' index.html web/index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html web/game.bundle.js
+          git commit -m 'release: 20261126n44 夷陵归吴 泰山关归袁绍 濮阳直连泰山关 [skip ci]'
+          git push origin HEAD:main
+  juqing:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n44 source and bundle to juqing
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n44-source.patch 'https://aka.doubaocdn.com/s/7KJY3snvDs'
+          git apply --check /tmp/n44-source.patch
+          git apply /tmp/n44-source.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/PW5iX2WNsz'
+          echo '924ba065d66747e9fc719e77878edd4d09ec1c7320354b11654817db509b7e8c  web/game.bundle.js' | sha256sum -c -
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: 20261126n44 夷陵归吴 泰山关归袁绍 濮阳直连泰山关 [skip ci]'
+          git push origin HEAD:juqing
