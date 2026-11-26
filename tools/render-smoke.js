@@ -7,6 +7,7 @@ const path = require('path');
 const R = path.join(__dirname, '..', 'js');
 
 const stateLib = require(R + '/core/state.js');
+const { lookFor } = require(R + '/data/extra.js');
 const { TILE } = { TILE: 64 };
 
 let pass = 0;
@@ -105,7 +106,13 @@ const rt = makeRuntime();
 let app = null;
 smoke('App 构造 + 资源生成', function () {
   app = new App(rt);
-  ok('assets 有玩家贴图', !!app.assets.player && app.assets.player.width === 48 && app.assets.player.height === 56);
+  ok('玩家仍是骑马重甲将 48x56', !!app.assets.player && app.assets.player.width === 48 && app.assets.player.height === 56);
+  const monarch = app.assets.monarchIconFor('#8a2a24', { weapon: 'ji', helm: 'plume', cape: '#b03a30' });
+  ok('君主 Q 版步将 64x80', monarch.width === 64 && monarch.height === 80);
+  ok('君主模型与领主骑队分开缓存', monarch !== app.assets.partyIconFor('#8a2a24', { weapon: 'ji', helm: 'plume', cape: '#b03a30' }));
+  const monarchSword = app.assets.monarchIconFor('#8a2a24', { weapon: 'jian', helm: 'crown', cape: '#7a2118' });
+  ok('不同君主造型不会共用同一贴图', monarch !== monarchSword);
+  ok('同一君主造型命中独立缓存', monarch === app.assets.monarchIconFor('#8a2a24', { weapon: 'ji', helm: 'plume', cape: '#b03a30' }));
   ok('地形贴图懒生成', !!app.assets.terrainFor('zhongyuan', 'farm'));
   ok('新地形贴图能生成', ['bridge', 'foothill', 'pass', 'oasis'].every(function (t) {
     return !!app.assets.terrainFor('zhongyuan', t);
@@ -128,6 +135,46 @@ smoke('新游戏 + 大地图', function () {
   app.replace('map');
   app.tick();
   ok('地图渲染帧完成', true);
+});
+
+smoke('各国君主：识别与 Q 版贴图', function () {
+  const kings = app.state.lords.filter(function (l) {
+    return l.rank === 'king' || (stateLib.factionLord(app.state, l.faction) === l);
+  });
+  ok('开局至少识别出 6 位君主', kings.length >= 6, '实际 ' + kings.length);
+  ok('曹操 / 刘备 / 孙权 / 吕布 / 袁绍 都在君主列',
+    ['caocao', 'liubei', 'sunquan', 'lvbu', 'yuanshao'].every(function (id) {
+      return kings.some(function (l) { return l.id === id; });
+    }));
+  ok('每位君主都生成 64x80 单人步战贴图', kings.every(function (l) {
+    const icon = app.assets.monarchIconFor('#8a2a24', lookFor(l.id));
+    return icon && icon.width === 64 && icon.height === 80;
+  }));
+  const normal = app.state.lords.filter(function (l) {
+    return !(l.rank === 'king' || stateLib.factionLord(app.state, l.faction) === l);
+  })[0];
+  ok('普通领主仍走骑马队伍贴图', !!normal && app.assets.partyIconFor('#8a2a24', lookFor(normal.id)).width === 42);
+});
+
+smoke('地图：君主走 Q 版步战模型，普通领主仍骑马', function () {
+  const st = app.state;
+  const king = st.lords.filter(function (l) {
+    return l.rank === 'king' || stateLib.factionLord(st, l.faction) === l;
+  })[0];
+  ok('地图测试能找到君主', !!king);
+  if (!king) return;
+  const old = { x: king.x, y: king.y, inCity: king.inCity, scattered: king.scattered, scatterHidden: king.scatterHidden };
+  king.x = st.player.x;
+  king.y = st.player.y;
+  king.inCity = null;
+  king.scattered = false;
+  king.scatterHidden = false;
+  app.mapZoom = 1.6;
+  app.replace('map');
+  app.tick();
+  ok('君主模型已进入大地图缓存', Object.keys(app.assets.monarchCache || {}).length > 0);
+  king.x = old.x; king.y = old.y; king.inCity = old.inCity;
+  king.scattered = old.scattered; king.scatterHidden = old.scatterHidden;
 });
 
 smoke('地图：行军路径渲染', function () {

@@ -75,6 +75,21 @@ function zoomName(z) {
   return ZOOM_NAMES[3];
 }
 
+/** 当前势力君主：兼容开局静态君主表、动态继任与君主 rank 三种来源 */
+function isKingLord(st, lord) {
+  if (!st || !lord || !lord.faction) return false;
+  if (lord.faction === 'player' || lord.faction === 'bandit') return false;
+  if (lord.rank === 'king') return true;
+  const fs = st.factionState && st.factionState[lord.faction];
+  if (fs) {
+    if (fs.rulerId) return fs.rulerId === lord.id;
+    if (fs.rulerName) return fs.rulerName === lord.name;
+  }
+  const def = FACTIONS[lord.faction];
+  if (def && (def.lord === lord.name || def.full === lord.name)) return true;
+  return stateLib.lordRank(lord) === 'king';
+}
+
 function setZoom(app) {
   if (app.mapZoom === undefined || app.mapZoom === null) app.mapZoom = 1;
   app.mapZoom = clamp(app.mapZoom, minZoom(app), ZOOM_MAX);
@@ -1660,8 +1675,11 @@ function drawUnits(ctx, app, cam, box, w) {
     }
   });
 
-  // 领主
-  st.lords.forEach(function (lord) {
+  // 领主：君主最后画，避免被周围骑队和名牌压住
+  const drawLords = st.lords.slice().sort(function (a, b) {
+    return (isKingLord(st, a) ? 1 : 0) - (isKingLord(st, b) ? 1 : 0);
+  });
+  drawLords.forEach(function (lord) {
     if (!lord.alive || lord.inCity || lord.scatterHidden || lord.scattered) return;
     const up = stateLib.unitAnimPos(lord, nowH);
     const sx = up.x * TS - cam.x + TS / 2;
@@ -1686,18 +1704,41 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.arc(sx, sy, 28 * z, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
+    // 君主：单人 Q 版无双步将，不再骑马、不再带两卒；普通领主仍是骑马队伍
     const look = lookFor(lord.id);
-    const icon = assets.partyIconFor(col, look);
-    const isz = (lord.id === 'lvbu' ? 122 : look.big ? 112 : 100) * z;
-    ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
+    const isKing = isKingLord(st, lord);
+    const bw = isKing ? 24 * z : 28 * z;
+    const bh = isKing ? 26 * z : 30 * z;
+    let bxx = sx + 16 * z;
+    let byy = sy - 42 * z;
+    if (isKing) {
+      // 金环踩在脚边，远看也能从一片骑队里认出君主
+      ctx.fillStyle = 'rgba(240,196,92,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 19 * z, 31 * z, 9 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,214,120,0.7)';
+      ctx.lineWidth = Math.max(1, 2 * z);
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 19 * z, 26 * z, 7 * z, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const icon = assets.monarchIconFor(col, look);
+      const iw = 84 * z;
+      const ih = iw * 80 / 64;
+      const bottom = sy + 20 * z;
+      ctx.drawImage(icon, sx - iw / 2, bottom - ih, iw, ih);
+      bxx = sx - bw / 2;
+      byy = bottom - ih - bh - 5 * z;
+    } else {
+      // 普通领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
+      const icon = assets.partyIconFor(col, look);
+      const isz = (lord.id === 'lvbu' ? 122 : look.big ? 112 : 100) * z;
+      ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
+    }
 
     // 势力简写：一面小旗，全国地图上也认得出是哪家的
     const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
-    const bw = 28 * z;
-    const bh = 30 * z;
-    const bxx = sx + 16 * z;
-    const byy = sy - 42 * z;
     ctx.fillStyle = 'rgba(12,9,6,0.6)';
     ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;
@@ -1710,18 +1751,20 @@ function drawUnits(ctx, app, cam, box, w) {
     });
 
     const nsz = Math.max(12, Math.round(18 * z));
+    const nameY = isKing ? sy + 30 * z : sy + 21 * z;
     if (z >= 0.4) {
       ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(lord.name).width;
       ctx.fillStyle = 'rgba(10,8,6,0.75)';
-      ctx.fillRect(sx - tw / 2 - 7, sy + 20 * z, tw + 14, nsz + 6);
-      text(ctx, lord.name, sx, sy + 21 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
+      ctx.fillRect(sx - tw / 2 - 7, nameY - 1, tw + 14, nsz + 6);
+      text(ctx, lord.name, sx, nameY, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
     }
     // 拉近到半图视野就写兵力，远望只认旗
     if (z >= 0.5) {
-      text(ctx, String(army.troopCount(lord.troops || {})), sx + 24 * z, sy - 58 * z, {
-        size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
-      });
+      text(ctx, String(army.troopCount(lord.troops || {})), isKing ? sx + 43 * z : sx + 24 * z,
+        isKing ? sy - 62 * z : sy - 58 * z, {
+          size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
+        });
     }
 
     if (stateLib.lordEngagementValid(st, lord)) {

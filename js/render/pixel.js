@@ -614,6 +614,238 @@ function makeFlagSprite(runtime, color) {
   return c;
 }
 
+/**
+ * 各国君主：Q 版无双步将（64 x 80）
+ * 与普通领主的三骑队伍完全分开：大头短身、单人步行、放大到近景仍是君主轮廓。
+ * 势力色做胸甲与披风，兵器/头饰沿用该君主的 look，保留曹操、刘备、吕布等人的识别特征。
+ */
+function makeMonarchSprite(runtime, color, look) {
+  const L = look || {};
+  const W = 64;
+  const H = 80;
+  const c = newCanvas(runtime, W, H);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, W, H);
+
+  const main = color || '#d9a441';
+  const mainHi = shade(main, 0.34);
+  const mainDk = shade(main, -0.34);
+  const cape = L.cape || mainDk;
+  const capeHi = shade(cape, 0.24);
+  const capeDk = shade(cape, -0.28);
+  const armor = '#e0b24a';
+  const armorHi = '#ffe6a0';
+  const armorDk = '#8f641c';
+  const red = '#b52b24';
+  const redHi = '#ef5a45';
+  const redDk = '#6f1713';
+  const steel = '#dbe6f2';
+  const steelHi = '#ffffff';
+  const steelDk = '#8996a8';
+  const jade = '#2f8f8a';
+  const jadeHi = '#7ce0d2';
+  const skin = '#f0c49a';
+  const skinDk = '#c68e66';
+  const hair = '#241a14';
+  const hairHi = '#4b3224';
+  const pants = '#2a2830';
+  const boot = '#5c3a25';
+  const bootDk = '#3a2416';
+  const big = !!L.big;
+
+  // 披风：君主背后拖出势力色的长披，和普通领主的土色骑队拉开
+  px(g, 24, 31, capeDk, 20, 28);
+  px(g, 20, 35, cape, 12, 23);
+  px(g, 16, 41, capeHi, 7, 13);
+  px(g, 21, 31, capeHi, 20, 3);
+  px(g, 14, 50, capeDk, 6, 8);
+  px(g, 18, 58, capeDk, 11, 5);
+
+  // 短腿与战靴：步将，不画马身、不画马腿
+  px(g, 24, 53, pants, 8, 14);
+  px(g, 34, 53, pants, 8, 14);
+  px(g, 23, 65, bootDk, 10, 7);
+  px(g, 34, 65, bootDk, 10, 7);
+  px(g, 23, 70, boot, 10, 5);
+  px(g, 34, 70, boot, 10, 5);
+  px(g, 24, 62, armor, 7, 4);
+  px(g, 34, 62, armor, 7, 4);
+  px(g, 25, 62, armorHi, 5, 1);
+  px(g, 35, 62, armorHi, 5, 1);
+  px(g, 26, 68, '#b58b55', 5, 1);
+  px(g, 36, 68, '#b58b55', 5, 1);
+
+  // 胸甲：势力色内衬 + 金甲外框 + 青玉护心
+  px(g, 22, 35, armorDk, 21, 20);
+  px(g, 23, 36, armor, 19, 16);
+  px(g, 24, 37, armorHi, 17, 3);
+  px(g, 25, 40, mainDk, 15, 8);
+  px(g, 27, 41, main, 11, 6);
+  px(g, 29, 43, mainHi, 7, 2);
+  px(g, 25, 46, red, 15, 4);
+  px(g, 26, 47, redHi, 13, 2);
+  px(g, 31, 45, jade, 5, 5);
+  px(g, 32, 46, jadeHi, 3, 3);
+  px(g, 24, 52, armorDk, 17, 4);
+  px(g, 26, 54, mainDk, 13, 3);
+
+  // 兽吞肩甲：big 的君主肩更宽，普通君主略收
+  const sw = big ? 14 : 12;
+  px(g, 14, 34, armorDk, sw, 10);
+  px(g, 15, 35, armor, sw - 1, 7);
+  px(g, 15, 35, armorHi, sw - 1, 2);
+  px(g, 12, 37, steelDk, 3, 4);
+  px(g, 43, 34, armorDk, sw, 10);
+  px(g, 44, 35, armor, sw - 1, 7);
+  px(g, 44, 35, armorHi, sw - 1, 2);
+  px(g, 44, 37, mainHi, sw - 3, 2);
+
+  // 左臂叉腰，右手持兵器
+  px(g, 18, 42, armor, 6, 10);
+  px(g, 17, 48, armorDk, 5, 3);
+  px(g, 17, 51, skin, 5, 5);
+
+  // 大头：颈、发、脸
+  px(g, 29, 30, skinDk, 8, 5);
+  px(g, 30, 31, skin, 6, 4);
+  px(g, 20, 6, hair, 26, 11);
+  px(g, 18, 10, hair, 4, 14);
+  px(g, 46, 10, hair, 3, 13);
+  px(g, 22, 4, hair, 20, 5);
+  px(g, 23, 11, skin, 20, 21);
+  px(g, 23, 10, skinDk, 20, 1);
+  px(g, 22, 28, skinDk, 22, 2);
+  px(g, 21, 8, hair, 24, 6);
+  px(g, 24, 13, hair, 8, 3);
+  px(g, 36, 12, hair, 7, 3);
+  px(g, 30, 10, hairHi, 8, 2);
+  px(g, 21, 14, armor, 24, 2);
+  px(g, 22, 14, armorHi, 22, 1);
+  px(g, 45, 15, main, 3, 3);
+
+  // 无双式大眼；君主比普通棋子更有表情
+  px(g, 27, 19, '#fff8ea', 6, 5);
+  px(g, 37, 19, '#fff8ea', 6, 5);
+  px(g, 29, 20, '#20140e', 3, 3);
+  px(g, 39, 20, '#20140e', 3, 3);
+  px(g, 30, 20, '#ffffff', 1, 1);
+  px(g, 40, 20, '#ffffff', 1, 1);
+  px(g, 26, 17, '#2a1a12', 7, 1);
+  px(g, 37, 17, '#2a1a12', 6, 1);
+  px(g, 33, 23, skinDk, 3, 2);
+  px(g, 32, 26, '#9c4438', 5, 1);
+  px(g, 34, 27, '#c47a62', 3, 1);
+  px(g, 21, 20, skin, 3, 5);
+  px(g, 45, 20, skin, 3, 5);
+
+  // 长髯君主：从下巴往下压，不遮住胸甲
+  if (L.beard) {
+    px(g, 30, 28, '#2c2018', 4, 4);
+    px(g, 31, 32, '#3a2a20', 2, 3);
+    px(g, 30, 28, '#5a4030', 1, 4);
+  }
+
+  // 头饰：crown 高冠 / plume 双翎 / horn 红缨盔 / band 头巾
+  const helm = L.helm || 'crown';
+  if (helm === 'crown') {
+    px(g, 24, 4, armorDk, 16, 6);
+    px(g, 24, 4, armor, 16, 4);
+    px(g, 24, 3, armorHi, 16, 1);
+    px(g, 26, 1, armor, 3, 3);
+    px(g, 31, 0, armorHi, 3, 3);
+    px(g, 36, 1, armor, 3, 3);
+    px(g, 30, 5, red, 4, 3);
+    px(g, 31, 5, redHi, 2, 1);
+  } else if (helm === 'plume') {
+    px(g, 24, 4, steelDk, 16, 4);
+    px(g, 24, 3, steel, 16, 2);
+    px(g, 26, 0, red, 2, 8);
+    px(g, 30, 0, redHi, 2, 7);
+    px(g, 38, 0, red, 2, 8);
+    px(g, 42, 1, redHi, 2, 7);
+    px(g, 31, 5, armor, 5, 2);
+  } else if (helm === 'horn') {
+    px(g, 23, 5, steelDk, 18, 5);
+    px(g, 23, 4, steel, 18, 3);
+    px(g, 20, 7, armor, 4, 3);
+    px(g, 18, 4, armorHi, 3, 5);
+    px(g, 40, 7, armor, 4, 3);
+    px(g, 43, 4, armorHi, 3, 5);
+    px(g, 29, 1, red, 6, 4);
+    px(g, 31, 0, redHi, 2, 2);
+  } else {
+    px(g, 21, 13, mainDk, 24, 3);
+    px(g, 22, 13, main, 22, 2);
+    px(g, 16, 6, hair, 6, 4);
+    px(g, 12, 9, hair, 6, 3);
+    px(g, 8, 12, hair, 5, 2);
+    px(g, 10, 14, hairHi, 3, 1);
+    px(g, 20, 5, hairHi, 4, 1);
+  }
+
+  // 兵器：按照 look.weapon 给君主不同的无双兵器，统一在右手侧
+  const weapon = L.weapon || 'jian';
+  if (weapon === 'ji') {
+    px(g, 51, 11, '#5a4028', 3, 59);
+    px(g, 52, 12, '#8a6440', 1, 56);
+    px(g, 44, 2, steelDk, 16, 2);
+    px(g, 41, 4, steel, 3, 8);
+    px(g, 42, 10, steelHi, 2, 3);
+    px(g, 46, 5, steel, 8, 4);
+    px(g, 54, 4, steelHi, 4, 2);
+    px(g, 56, 1, steel, 3, 6);
+    px(g, 57, 2, steelHi, 1, 4);
+    px(g, 47, 8, '#2a3440', 6, 1);
+    px(g, 49, 11, armor, 7, 3);
+    px(g, 50, 13, red, 5, 5);
+    px(g, 51, 17, redDk, 3, 4);
+  } else if (weapon === 'qiang') {
+    px(g, 51, 11, '#5a4028', 3, 59);
+    px(g, 52, 12, '#8a6440', 1, 56);
+    px(g, 50, 2, steelDk, 4, 12);
+    px(g, 51, 1, steel, 2, 10);
+    px(g, 51, 2, steelHi, 1, 5);
+    px(g, 49, 12, armor, 6, 3);
+    px(g, 48, 14, red, 4, 5);
+    px(g, 49, 18, redDk, 2, 3);
+  } else if (weapon === 'dao') {
+    px(g, 51, 12, '#5a4028', 3, 56);
+    px(g, 45, 8, steelDk, 10, 22);
+    px(g, 42, 12, steel, 6, 14);
+    px(g, 43, 13, steelHi, 3, 9);
+    px(g, 45, 7, steelDk, 8, 3);
+    px(g, 47, 9, steelHi, 6, 2);
+    px(g, 47, 28, armor, 8, 3);
+    px(g, 48, 31, red, 5, 4);
+    px(g, 49, 34, redDk, 3, 3);
+  } else if (weapon === 'gong') {
+    px(g, 49, 12, '#6a4a2c', 2, 22);
+    px(g, 48, 6, '#8a6a3a', 2, 8);
+    px(g, 55, 11, steelDk, 2, 36);
+    px(g, 53, 9, steel, 2, 6);
+    px(g, 53, 41, steel, 2, 6);
+    px(g, 49, 23, '#d8b24a', 6, 2);
+    px(g, 50, 22, '#f0d77a', 4, 1);
+    px(g, 46, 20, red, 3, 4);
+    px(g, 47, 23, redDk, 2, 2);
+  } else {
+    px(g, 50, 12, steelDk, 4, 44);
+    px(g, 51, 11, steel, 2, 44);
+    px(g, 51, 12, steelHi, 1, 38);
+    px(g, 47, 53, armor, 8, 3);
+    px(g, 49, 56, redDk, 4, 9);
+    px(g, 50, 57, '#8a6a3a', 2, 7);
+  }
+
+  // 握兵器的手：盖在杆/柄上，避免像浮空道具
+  px(g, 43, 43, armor, 7, 5);
+  px(g, 46, 45, armorDk, 8, 3);
+  px(g, 46, 48, skin, 7, 4);
+  px(g, 47, 49, skinDk, 5, 1);
+
+  return c;
+}
+
 let CACHE = null;
 
 /* ================================================================
@@ -1027,6 +1259,14 @@ function buildAssets(runtime) {
       if (!this.lordCache) this.lordCache = {};
       if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, look);
       return this.lordCache[key];
+    },
+    /** 君主单人 Q 版步战模型：独立缓存键，不能和普通领主队伍共用 */
+    monarchIconFor: function (color, look) {
+      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
+      const key = (color || 'x') + '|' + lookKey;
+      if (!this.monarchCache) this.monarchCache = {};
+      if (!this.monarchCache[key]) this.monarchCache[key] = makeMonarchSprite(runtime, color, look);
+      return this.monarchCache[key];
     },
     /** 领主队伍模型（骑马 + 两卒 + 旗） */
     partyIconFor: function (color, look) {
