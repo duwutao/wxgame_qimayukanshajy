@@ -1396,6 +1396,23 @@ const LORDS = [
   { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
   { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
   { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
+
+  // ---- 名将榜补录：原先名单里没有、按榜单补进来的领主 ----
+  { id: 'sunce', name: '孙策', faction: 'wu', home: 'wujun', soldiers: { cav: 35, spear: 30, danyang: 22, boat: 15 }, morale: 95, sight: 8, title: '讨逆将军' },
+  { id: 'zhangxiu', name: '张绣', faction: 'biao', home: 'wan', soldiers: { cav: 35, spear: 30, crossbow: 12, militia: 18 }, morale: 86, sight: 7, title: '建忠将军' },
+  { id: 'wenyang', name: '文鸯', faction: 'wei', home: 'qiao', soldiers: { cav: 40, spear: 28, militia: 15 }, morale: 92, sight: 8, title: '牙门将' },
+  { id: 'dengai', name: '邓艾', faction: 'wei', home: 'runan', soldiers: { spear: 35, crossbow: 28, cav: 22, militia: 15 }, morale: 88, sight: 9, title: '征西将军' },
+  { id: 'jiangwei', name: '姜维', faction: 'shu', home: 'hanzhong', soldiers: { spear: 35, crossbow: 22, cav: 22, militia: 15 }, morale: 90, sight: 8, title: '奉义将军' },
+  { id: 'wangshuang', name: '王双', faction: 'wei', home: 'chenliu', soldiers: { cav: 35, spear: 30, militia: 18 }, morale: 84, sight: 7, title: '虎威将军' },
+  { id: 'caozhang', name: '曹彰', faction: 'wei', home: 'puyang', soldiers: { cav: 40, spear: 25, militia: 20 }, morale: 90, sight: 8, title: '任城王' },
+  { id: 'huaxiong', name: '华雄', faction: 'han', home: 'tongguan', soldiers: { cav: 35, spear: 38, militia: 20 }, morale: 86, sight: 7, title: '都督' },
+  { id: 'guanhai', name: '管亥', faction: 'yuan', home: 'beihai', soldiers: { militia: 40, spear: 30, huangjin: 10 }, morale: 82, sight: 6, title: '黄巾渠帅' },
+  { id: 'ehuang', name: '鄂焕', faction: 'nanman', home: 'jianning', soldiers: { spear: 35, militia: 25, wudang: 10 }, morale: 82, sight: 7, title: '越嶲夷帅' },
+  { id: 'liyan', name: '李严', faction: 'zhang', home: 'jiangzhou', soldiers: { spear: 35, crossbow: 25, militia: 20 }, morale: 84, sight: 7, title: '兴业将军' },
+  { id: 'wulan', name: '吴兰', faction: 'zhang', home: 'baxi', soldiers: { militia: 35, spear: 22, cav: 12 }, morale: 78, sight: 6, title: '裨将' },
+  { id: 'wuangou', name: '武安国', faction: 'yuan', home: 'beihai', soldiers: { spear: 35, militia: 25, guard: 8 }, morale: 80, sight: 6, title: '校尉' },
+  { id: 'xingdaorong', name: '邢道荣', faction: 'biao', home: 'wuling', soldiers: { spear: 30, militia: 28, cav: 10 }, morale: 76, sight: 6, title: '零陵上将' },
+  { id: 'zhangbao', name: '张苞', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 20, cav: 15 }, morale: 86, sight: 7, title: '牙门将' },
 ];
 
 /** 声望等级 */
@@ -8407,7 +8424,10 @@ function planCampaign(state, faction, day) {
   if (!target && faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) return null;
   if (!target && FREE_CITY_IDS.length) {
     FREE_CITY_IDS.forEach(function (id) {
-      if (faction === 'zhang' && day <= 30) return;
+      // 刘备入川期间刘璋只守剑阁，不去捡汉中北面的空城；否则一旦剑阁换旗，
+      // 刘璋主力会被自由城吸走，刘备反而卡在巴西城下。
+      if (faction === 'zhang' &&
+          (day <= 30 || (state.flags && state.flags.liubeiYiWar))) return;
       const s = siteById(state, id);
       if (!s || s.playerOwned || s.ownerFaction) return;
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
@@ -8501,8 +8521,12 @@ function planCampaign(state, faction, day) {
   };
   // 只有主帅先去集结城会合；其余人马留在各自封地继续巡逻，
   // 等开拔令下来再一起向目标城走，避免整国军队在城边杵成一片。
+  // 入川五路先在剑阁（或当前集结城）会合，再一起开拔。新增的姜维、马超
+  // 等领主封地可能在上庸、汉中方向，若只让主帅先走，他们会从山道另一侧
+  // 直接找巴西而卡在断开的路上。
+  const yiGather = !!(faction === 'shu' && state.flags && state.flags.liubeiYiWar);
   chosen.forEach(function (l, i) {
-    if (i === 0) {
+    if (i === 0 || yiGather) {
       giveOrder(l, 'rally', rally.id, true);
       l.order.since = day;
       l.order.campaign = faction;
@@ -9345,7 +9369,7 @@ const STORY = {
   lordCuts: {
     lv: ['chengong', 'houcheng', 'weixu'],
     biao: ['zhangyun', 'wangwei', 'liupan', 'huangshe'],
-    zhang: ['lengbao', 'liugui', 'gaopei'],
+    zhang: ['liugui', 'gaopei'],
   },
   lordAdds: [
     { id: 'caozhen', name: '曹真', faction: 'wei', home: 'chenliu', title: '镇西将军', soldiers: { militia: 35, spear: 30, cav: 20, guard: 8 }, morale: 84, sight: 7 },
@@ -11152,6 +11176,105 @@ module.exports = { LORD_BIOS };
 
   };
 
+  /* js/data/lord-rank.js */
+  __defs[20] = function (module, exports, __require) {
+/**
+ * 名将榜：决定历史领主的带兵上限与招兵速度。
+ *
+ * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
+ * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
+ * 普通领主按 1.0 计算。
+ */
+
+const LORD_POWER_LIST = [
+  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
+  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
+  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
+  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
+  { rank: 5, id: 'machao', name: '马超', score: 96 },
+  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
+  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
+  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
+  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
+  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
+  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
+  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
+  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
+  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
+  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
+  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
+  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
+  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
+  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
+  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
+  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
+  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
+  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
+  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
+  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
+  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
+  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
+  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
+  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
+  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
+  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
+  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
+  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
+  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
+  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
+  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
+  { rank: 37, id: 'madai', name: '马岱', score: 76 },
+  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
+  { rank: 39, id: 'handang', name: '韩当', score: 75 },
+  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
+  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
+  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
+  { rank: 43, id: 'liyan', name: '李严', score: 81 },
+  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
+  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
+  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
+  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
+  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
+  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
+  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
+];
+
+function capForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  return 270 - Math.round((r - 1) * 2.2);
+}
+
+function recruitMulForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  if (r <= 3) return 2.0;
+  if (r <= 9) return 1.8;
+  if (r <= 19) return 1.6;
+  if (r <= 29) return 1.4;
+  if (r <= 39) return 1.2;
+  return 1.1;
+}
+
+const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
+  out[item.id] = {
+    rank: item.rank,
+    id: item.id,
+    name: item.name,
+    score: item.score,
+    cap: capForRank(item.rank),
+    recruitMul: recruitMulForRank(item.rank),
+  };
+  return out;
+}, {});
+
+module.exports = {
+  LORD_POWER_LIST,
+  LORD_POWER_BY_ID,
+  capForRank,
+  recruitMulForRank,
+};
+
+  };
+
   /* js/core/state.js */
   __defs[7] = function (module, exports, __require) {
 /**
@@ -11193,6 +11316,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
 const { LORD_BIOS } = __require(19);
+const { LORD_POWER_BY_ID } = __require(20);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -11900,6 +12024,7 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordPowerRoster(state);
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -13696,7 +13821,7 @@ function lordRecoveryRate(state, lord, site, stationary) {
   const mult = siteRecoveryMultiplier(site);
   if (!mult) return 0;
   const base = story.recruitRate(state, lord && lord.faction);
-  return base * mult * (stationary ? 1 : LORD_PATROL_RECRUIT_RATIO);
+  return base * mult * lordRecruitMul(lord) * (stationary ? 1 : LORD_PATROL_RECRUIT_RATIO);
 }
 
 /**
@@ -13956,7 +14081,7 @@ function lordRecruitTick(state) {
     if (!site) return;
     if (lord.inCity && (site.type !== 'town' && site.type !== 'castle')) return;
     if (!siteFriendlyToLord(state, lord, site)) return;
-    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = lordTroopCap(lord);
     const now = army.troopCount(lord.troops || {});
     if (full <= 0 || now >= full) return;
     // 驻城/驻在村口按据点倍率补兵；行军巡逻路过只按两成。
@@ -14297,7 +14422,7 @@ function lordRestTick(state) {
       return;
     }
     // 有军令（集结 / 围城 / 守城）就出城；但兵太少时先留在城里招兵，不跟着去送。
-    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = lordTroopCap(lord);
     const now = army.troopCount(lord.troops || {});
     const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
     if (lord.order && lord.order.siteId) {
@@ -16728,6 +16853,8 @@ const LORD_RANK = {
   liubiao: 'king', liuzhang: 'king', kebineng: 'king', mateng: 'king', huangfusong: 'king',
   xiahou: 'lord', zhangliao: 'lord', guanyu: 'lord', zhangfei: 'lord', zhouyu: 'lord',
   taishici: 'lord', yanliang: 'lord', gaoshun: 'lord', caimao: 'lord', zhangren: 'lord', machao: 'lord',
+  sunce: 'lord', zhangxiu: 'lord', wenyang: 'lord', dengai: 'lord', jiangwei: 'lord',
+  caozhang: 'lord', huaxiong: 'lord', liyan: 'lord',
 };
 const RANK_NAME = { king: '君主', lord: '领兵者', general: '将领' };
 const RANK_RATE = { king: 5, lord: 3, general: 2 };
@@ -16757,10 +16884,55 @@ function lordCapForLevel(level) {
   return 50 + lv * 20;
 }
 
+function lordPowerInfo(lord) {
+  return LORD_POWER_BY_ID[lord && lord.id] || null;
+}
+
 function lordTroopCap(lord) {
   if (!lord) return 30;
+  const power = lordPowerInfo(lord);
+  if (power) return power.cap;
   const defCount = army.troopCount(lord.defTroops || lord.troops || {});
   return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
+}
+
+function lordRecruitMul(lord) {
+  const power = lordPowerInfo(lord);
+  return power ? power.recruitMul : 1;
+}
+
+/** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
+function lordRosterToCap(base, cap) {
+  const src = base && Object.keys(base).length ? base : { militia: 1 };
+  const total = army.troopCount(src);
+  const target = Math.max(1, Math.round(Number(cap) || 0));
+  if (target <= total) return deepCopy(src);
+  const ids = Object.keys(src);
+  const out = {};
+  let assigned = 0;
+  ids.forEach(function (id, i) {
+    if (i === ids.length - 1) {
+      out[id] = Math.max(1, target - assigned);
+    } else {
+      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
+    }
+    assigned += out[id];
+  });
+  return out;
+}
+
+/** 新开局与旧档迁移共用：给榜单领主补足满编编制，并写入名次/倍率。 */
+function applyLordPowerRoster(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    const power = lordPowerInfo(lord);
+    if (!power) return;
+    lord.powerRank = power.rank;
+    lord.powerScore = power.score;
+    lord.recruitMul = power.recruitMul;
+    const defCount = army.troopCount(lord.defTroops || {});
+    if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
+  });
 }
 
 function lordLines(lord) {
@@ -17191,6 +17363,8 @@ const DEFECT_TO = {
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
   pangde: 'wei', maxiu: 'shu', matie: 'shu', chengyin: 'wei',
+  zhangxiu: 'wei', liyan: 'shu', wulan: 'shu', xingdaorong: 'shu', ehuang: 'shu',
+  guanhai: 'wei', wuangou: 'wei', huaxiong: 'wei',
   // 马超无论凉州最后由谁打下来，都固定归蜀，不留在西凉当降将。
   machao: 'shu',
   // 公孙瓒灭亡后，赵云固定流向刘备；无论河北最后由谁拿下都适用。
@@ -18575,6 +18749,10 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  if (!state.flags.lordPowerV1) {
+    applyLordPowerRoster(state);
+    state.flags.lordPowerV1 = true;
+  }
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
@@ -18738,6 +18916,9 @@ module.exports = {
   lordLevel,
   lordCapForLevel,
   lordTroopCap,
+  lordRecruitMul,
+  lordPowerInfo,
+  applyLordPowerRoster,
   useHistory,
   adShiInfo,
   claimAdShi,
@@ -18797,7 +18978,7 @@ module.exports = {
   };
 
   /* js/core/audio.js */
-  __defs[20] = function (module, exports, __require) {
+  __defs[21] = function (module, exports, __require) {
 /**
  * 程序化音乐：没有音频文件，用 WebAudio 现场合成两首循环
  *  - field  大地图：五声音阶长笛，慢，带一点空旷感
@@ -18983,7 +19164,7 @@ module.exports = {
   };
 
   /* js/scenes/title.js */
-  __defs[21] = function (module, exports, __require) {
+  __defs[22] = function (module, exports, __require) {
 /**
  * 标题：征战汉末
  */
@@ -19350,7 +19531,7 @@ module.exports.SAVE_KEY = SAVE_KEY;
   };
 
   /* js/core/territory.js */
-  __defs[23] = function (module, exports, __require) {
+  __defs[24] = function (module, exports, __require) {
 /**
  * 势力领土网格：天下大势与大地图共用。
  *
@@ -19421,7 +19602,7 @@ module.exports = {
   };
 
   /* js/scenes/flows.js */
-  __defs[24] = function (module, exports, __require) {
+  __defs[25] = function (module, exports, __require) {
 /**
  * 场景流转：把 state.events 翻成场景切换
  * map / town 都会调用，保证事件不丢。
@@ -19574,7 +19755,7 @@ module.exports = { process, tryCampaign };
   };
 
   /* js/scenes/map.js */
-  __defs[22] = function (module, exports, __require) {
+  __defs[23] = function (module, exports, __require) {
 /**
  * 大地图场景：三国全图、区域风景、玩家骑马立绘、城池名牌、行军
  */
@@ -19585,10 +19766,10 @@ const { UI_COLORS } = pixel;
 const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt, bridgeHasWater } = __require(8);
-const territory = __require(23);
+const territory = __require(24);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = __require(5);
 const { lookFor } = __require(12);
-const flows = __require(24);
+const flows = __require(25);
 
 const TILE = 64;
 // 缩放后的格宽：TS = TILE × 缩放档位，render 时按当前档位刷新
@@ -22008,7 +22189,7 @@ module.exports = MapScene;
   };
 
   /* js/scenes/atlas.js */
-  __defs[25] = function (module, exports, __require) {
+  __defs[26] = function (module, exports, __require) {
 /**
  * 天下大势：可缩放的势力总图
  * 任何缩放级别都保留城与关隘的名字；放大时铺上各势力领土色、描州界。
@@ -22017,7 +22198,7 @@ module.exports = MapScene;
 const { REGIONS, FACTIONS, CAPITAL_IDS } = __require(5);
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const territory = __require(23);
+const territory = __require(24);
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
@@ -22433,7 +22614,7 @@ module.exports = AtlasScene;
   };
 
   /* js/render/scenery.js */
-  __defs[27] = function (module, exports, __require) {
+  __defs[28] = function (module, exports, __require) {
 /**
  * 场景背景：不引入外部图片，用 Canvas 画出“像照片一样”的场所剪影。
  * 城是街市、村是田埂、扎营是帐篷、比武是彩棚、牢房是铁栏。
@@ -22839,7 +23020,7 @@ module.exports = { drawBackdrop };
   };
 
   /* js/core/tourney.js */
-  __defs[28] = function (module, exports, __require) {
+  __defs[29] = function (module, exports, __require) {
 /**
  * 比武大会：押一注报名费，跟一位好手在彩棚底下比三招血。
  *
@@ -23060,7 +23241,7 @@ module.exports = {
   };
 
   /* js/scenes/town.js */
-  __defs[26] = function (module, exports, __require) {
+  __defs[27] = function (module, exports, __require) {
 /**
  * 城池 / 村庄 / 匪巢界面
  * 布局：顶部城名 → 自己状态条（金/粮/兵/望/简/士气）→ 大按钮菜单 → 子页
@@ -23070,13 +23251,13 @@ module.exports = {
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const pixel = __require(3);
-const scenery = __require(27);
+const scenery = __require(28);
 const stateLib = __require(7);
 const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
 const army = __require(9);
-const tourney = __require(28);
+const tourney = __require(29);
 const { siteById, regionDef } = __require(8);
 const { TROOPS } = __require(10);
 
@@ -23089,7 +23270,7 @@ function siteSeed(id) {
 }
 const { FACTIONS, EQUIPMENT, STRATEGIC_SITES } = __require(5);
 const { VILLAGE_FOOD } = __require(12);
-const flows = __require(24);
+const flows = __require(25);
 
 const PAD = 16;
 
@@ -24432,7 +24613,7 @@ module.exports = TownScene;
   };
 
   /* js/scenes/founding.js */
-  __defs[29] = function (module, exports, __require) {
+  __defs[30] = function (module, exports, __require) {
 /**
  * 立国页：打下第一座城后选一个字的国号，再选旗色。
  * 扎营里的“国号与旗色”也复用这一页，只改两个字。
@@ -24716,7 +24897,7 @@ module.exports = FoundingScene;
   };
 
   /* js/scenes/fief.js */
-  __defs[30] = function (module, exports, __require) {
+  __defs[31] = function (module, exports, __require) {
 /**
  * 封地页：把打下来的城、关隘、村庄封给任意领主。
  *
@@ -24728,7 +24909,7 @@ module.exports = FoundingScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(27);
+const scenery = __require(28);
 const army = __require(9);
 const heroes = __require(14);
 const { siteById, regionDef } = __require(8);
@@ -25104,7 +25285,7 @@ module.exports = FiefScene;
   };
 
   /* js/scenes/govern.js */
-  __defs[31] = function (module, exports, __require) {
+  __defs[32] = function (module, exports, __require) {
 /**
  * 处理政务：一张案上同时管封地、外交。
  * 从自己的城/村菜单进来；封地分配复用原 fief 页，外交在这里谈。
@@ -25112,7 +25293,7 @@ module.exports = FiefScene;
 
 const { text, panel, bar } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(27);
+const scenery = __require(28);
 const { FACTIONS } = __require(5);
 const { siteById } = __require(8);
 
@@ -25422,7 +25603,7 @@ module.exports = GovernScene;
   };
 
   /* js/scenes/shop.js */
-  __defs[32] = function (module, exports, __require) {
+  __defs[33] = function (module, exports, __require) {
 /**
  * 局内商店：看一段军情广告，领取金钱、粮草或天机简。
  * 每个现实自然日刷新，三种奖励各自 10 次，互不占用；过本地零点自动重置。
@@ -25574,7 +25755,7 @@ module.exports = ShopScene;
   };
 
   /* js/scenes/battle.js */
-  __defs[33] = function (module, exports, __require) {
+  __defs[34] = function (module, exports, __require) {
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
  * 战中可落一笔天机简（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）
@@ -25587,7 +25768,7 @@ const army = __require(9);
 const { TROOPS } = __require(10);
 const { TACTICS, TACTIC_LIST } = __require(16);
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = __require(5);
-const { drawBackdrop } = __require(27);
+const { drawBackdrop } = __require(28);
 
 /** 打完/撤出后一路退回地图，不在城门口再被弹一次 */
 function backToMap(app) {
@@ -26122,7 +26303,7 @@ module.exports = BattleScene;
   };
 
   /* js/scenes/contact.js */
-  __defs[34] = function (module, exports, __require) {
+  __defs[35] = function (module, exports, __require) {
 /**
  * 遭遇页：撞上匪团先看清对面是谁，再决定打还是走。
  * 不再一点碰上就推进战斗画面。
@@ -26246,7 +26427,7 @@ module.exports = ContactScene;
   };
 
   /* js/scenes/army.js */
-  __defs[35] = function (module, exports, __require) {
+  __defs[36] = function (module, exports, __require) {
 /**
  * 队伍页：兵力构成、遣返士兵、随行英雄（点进去能说话）
  * 内容是长列表，可上下拖
@@ -26537,7 +26718,7 @@ module.exports = ArmyScene;
   };
 
   /* js/scenes/hero.js */
-  __defs[36] = function (module, exports, __require) {
+  __defs[37] = function (module, exports, __require) {
 /**
  * 英雄对话页：从队伍页点名字进来，能聊两句，也能请他离开。
  */
@@ -26743,7 +26924,7 @@ module.exports = HeroScene;
   };
 
   /* js/scenes/prison.js */
-  __defs[37] = function (module, exports, __require) {
+  __defs[38] = function (module, exports, __require) {
 /**
  * 牢房：营后捆着的领主，收赎金或者白放换人情。
  * 也列出天下各处牢里关着的人（只读）。
@@ -26751,7 +26932,7 @@ module.exports = HeroScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(27);
+const scenery = __require(28);
 const { FACTIONS } = __require(5);
 const { lookFor } = __require(12);
 
@@ -26969,7 +27150,7 @@ module.exports = PrisonScene;
   };
 
   /* js/scenes/tourney.js */
-  __defs[38] = function (module, exports, __require) {
+  __defs[39] = function (module, exports, __require) {
 /**
  * 比武大会：彩棚底下的"猜手"赌局。
  * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
@@ -26977,9 +27158,9 @@ module.exports = PrisonScene;
  */
 
 const { text, wrap, panel } = __require(6);
-const tourney = __require(28);
+const tourney = __require(29);
 const { siteById } = __require(8);
-const scenery = __require(27);
+const scenery = __require(28);
 const { lookFor } = __require(12);
 const { FACTIONS } = __require(5);
 
@@ -27130,7 +27311,7 @@ module.exports = TourneyScene;
   };
 
   /* js/scenes/journal.js */
-  __defs[39] = function (module, exports, __require) {
+  __defs[40] = function (module, exports, __require) {
 /**
  * 史册：主线进度 + 全部记事 + 统计。
  * 近十二天的事一条不落；再往前，只留改旗、围城、斩将这类大事。
@@ -27364,7 +27545,7 @@ module.exports = JournalScene;
   };
 
   /* js/scenes/camp.js */
-  __defs[40] = function (module, exports, __require) {
+  __defs[41] = function (module, exports, __require) {
 /**
  * 扎营：军令与天下事都在这里。
  * 天下大势、玩法说明从底栏收进来；另添"在这里待一会儿"和"招降俘虏"。
@@ -27373,11 +27554,11 @@ module.exports = JournalScene;
 const { text, panel, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const scenery = __require(27);
+const scenery = __require(28);
 const { siteById } = __require(8);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const flows = __require(24);
+const flows = __require(25);
 
 const PAD = 16;
 
@@ -27796,7 +27977,7 @@ module.exports = CampScene;
   };
 
   /* js/scenes/help.js */
-  __defs[41] = function (module, exports, __require) {
+  __defs[42] = function (module, exports, __require) {
 /**
  * 玩法：分类页（基础 / 战役 / 势力 / 兵种 / 结局）
  * 内容超出屏幕时可上下拖动。
@@ -28160,7 +28341,7 @@ module.exports = HelpScene;
   };
 
   /* js/scenes/chapter.js */
-  __defs[42] = function (module, exports, __require) {
+  __defs[43] = function (module, exports, __require) {
 /**
  * 章节提示：浮在地图中央的一张卡片，让玩家看见"现在该干什么"
  * 3.6 秒后自动收起，也可以点一下直接收
@@ -28280,7 +28461,7 @@ module.exports = ChapterScene;
   };
 
   /* js/data/news_art.js */
-  __defs[44] = function (module, exports, __require) {
+  __defs[45] = function (module, exports, __require) {
 /**
  * 宣战 / 议和全屏背景：内置 JPEG，不依赖网络和小游戏下载域名。
  * 两图为画面素材，界面文字由 NewsScene 居中叠加。
@@ -28293,7 +28474,7 @@ module.exports = { war: WAR, peace: PEACE };
   };
 
   /* js/scenes/news.js */
-  __defs[43] = function (module, exports, __require) {
+  __defs[44] = function (module, exports, __require) {
 /**
  * 天下通报：国亡、君主下落、两国宣战/议和这类大事，全屏弹一张榜文。
  * 宣战/议和现在用内置战场、使团图片做底，文案整体居中。
@@ -28302,7 +28483,7 @@ module.exports = { war: WAR, peace: PEACE };
 const { text, wrap, panel } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const NEWS_ART = __require(44);
+const NEWS_ART = __require(45);
 
 const ART_CACHE = {};
 
@@ -28501,7 +28682,7 @@ module.exports = NewsScene;
   };
 
   /* js/scenes/arc.js */
-  __defs[45] = function (module, exports, __require) {
+  __defs[46] = function (module, exports, __require) {
 /**
  * 长夜篇：第一次统一后的庆祝、三十天大旱、流亡边陲、再统一与尾声。
  * 这一页只负责把大事讲清楚；真正的倒计时和天下局势在大地图左上角。
@@ -28509,7 +28690,7 @@ module.exports = NewsScene;
 
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
-const { drawBackdrop } = __require(27);
+const { drawBackdrop } = __require(28);
 
 const ArcScene = {
   enter(app, params) {
@@ -28643,7 +28824,7 @@ module.exports = ArcScene;
   };
 
   /* js/scenes/chase.js */
-  __defs[46] = function (module, exports, __require) {
+  __defs[47] = function (module, exports, __require) {
 /**
  * 被追上：处于战争状态的人贴到你身上，就没有"自选撤离"了。
  * 三条路：给钱买路（一天内不追）/ 坦然开战 / 留人断后（折兵换他停几个时辰）。
@@ -28896,7 +29077,7 @@ module.exports = ChaseScene;
   };
 
   /* js/scenes/ending.js */
-  __defs[47] = function (module, exports, __require) {
+  __defs[48] = function (module, exports, __require) {
 /**
  * 结局页
  */
@@ -28980,7 +29161,7 @@ module.exports = EndingScene;
   };
 
   /* js/scenes/lord.js */
-  __defs[48] = function (module, exports, __require) {
+  __defs[49] = function (module, exports, __require) {
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
  * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
@@ -29167,8 +29348,11 @@ function act(app, id) {
   }
   if (id === 'troops') {
     const rows = stateLib.lordTroopLine(lord);
-    d.line = '“我的家底？”\n' + (rows.length ? rows.join(' · ') : '人已经打光了') +
-      '\n合计 ' + army.troopCount(lord.troops) + ' 人，士气 ' + Math.round(lord.morale) +
+    const power = stateLib.lordPowerInfo(lord);
+    d.line = '“我的家底？”\n' + (power ? '名将榜第 ' + power.rank + ' 位 · ' : '') +
+      (rows.length ? rows.join(' · ') : '人已经打光了') +
+      '\n合计 ' + army.troopCount(lord.troops) + ' / 上限 ' + stateLib.lordTroopCap(lord) +
+      ' 人，士气 ' + Math.round(lord.morale) +
       (stateLib.isHostileFaction(st, lord.faction) ? '。他手按着刀柄。' : '。');
     d.page = 'troops';
     return;
@@ -29204,7 +29388,7 @@ module.exports = LordScene;
   };
 
   /* js/scenes/revive.js */
-  __defs[49] = function (module, exports, __require) {
+  __defs[50] = function (module, exports, __require) {
 /**
  * 复活提示：全灭之后回到一天前，用一段文字说明这是第几次
  * （次数只在这个界面上出现，别处不提示）
@@ -29297,7 +29481,7 @@ module.exports = ReviveScene;
   };
 
   /* js/scenes/saves.js */
-  __defs[51] = function (module, exports, __require) {
+  __defs[52] = function (module, exports, __require) {
 /**
  * 存档槽：九个位置
  * mode = 'load' 读档 / 'save' 存到某个槽
@@ -29478,16 +29662,16 @@ module.exports.slotKey = slotKey;
   };
 
   /* js/scenes/menu.js */
-  __defs[50] = function (module, exports, __require) {
+  __defs[51] = function (module, exports, __require) {
 /**
  * 系统菜单：九个存档槽 / 最近存档 / 退回战前 / 回标题
  */
 
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(20);
+const audio = __require(21);
 const { formatClock } = __require(8);
-const savesLib = __require(51);
+const savesLib = __require(52);
 
 const AUTO_KEY = 'bw_save_v4';
 const AUTO_1 = 'bw_save_v4_a1';
@@ -29651,7 +29835,7 @@ const { createRuntime } = __require(2);
 const pixel = __require(3);
 const { UI, text, wrap, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(20);
+const audio = __require(21);
 
 // 存档槽：最新 / 上一份 / 上上一份，外加开打前的快照
 const AUTO_KEY = 'bw_save_v4';
@@ -29667,33 +29851,33 @@ class App {
     this.stack = [];
     this.state = null;
     this.scenes = {
-      title: __require(21),
-      map: __require(22),
-      atlas: __require(25),
-      town: __require(26),
-      founding: __require(29),
-      fief: __require(30),
-      govern: __require(31),
-      shop: __require(32),
-      battle: __require(33),
-      contact: __require(34),
-      army: __require(35),
-      hero: __require(36),
-      prison: __require(37),
-      tourney: __require(38),
-      journal: __require(39),
-      camp: __require(40),
-      help: __require(41),
+      title: __require(22),
+      map: __require(23),
+      atlas: __require(26),
+      town: __require(27),
+      founding: __require(30),
+      fief: __require(31),
+      govern: __require(32),
+      shop: __require(33),
+      battle: __require(34),
+      contact: __require(35),
+      army: __require(36),
+      hero: __require(37),
+      prison: __require(38),
+      tourney: __require(39),
+      journal: __require(40),
+      camp: __require(41),
+      help: __require(42),
       nested: null,
-      chapter: __require(42),
-      news: __require(43),
-      arc: __require(45),
-      chase: __require(46),
-      ending: __require(47),
-      lord: __require(48),
-      revive: __require(49),
-      menu: __require(50),
-      saves: __require(51),
+      chapter: __require(43),
+      news: __require(44),
+      arc: __require(46),
+      chase: __require(47),
+      ending: __require(48),
+      lord: __require(49),
+      revive: __require(50),
+      menu: __require(51),
+      saves: __require(52),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;
