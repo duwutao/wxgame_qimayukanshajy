@@ -811,7 +811,7 @@ const SITE_ROWS = [
   ['tanhanshan', '弹汗山', 'castle', 'xianbei', 13, 5, 1.16, 100, 'xianbei', '轲比能的老营，山后有整片的马场。'],
   ['juyan', '居延', 'town', 'ma', 5, 9, 1.08, 95, 'ma', '居延塞。弱水从城下绕过，往北是草原，往南是河西。马腾在这里放牧养马，与汉廷、韩遂都不接壤。'],
   ['ji', '蓟', 'town', 'gongsun', 26, 4, 1.05, 110, 'gongsun', '幽州治所。公孙瓒的白马义从在城外列阵，旌旗一色皆白。'],
-  ['xiangping', '襄平', 'town', null, 34, 4, 1.02, 90, 'none', '辽东郡治，离中原很远，离塞外很近。如今城中无主，只有郡吏守着旧仓。'],
+  ['xiangping', '襄平', 'town', 'gongsun', 34, 4, 1.02, 90, 'gongsun', '辽东郡治，离中原很远，离塞外很近。公孙氏据城自守，城门上挂着白旗。'],
   ['beiping', '北平', 'castle', 'gongsun', 31, 7, 1.1, 85, 'gongsun', '右北平的边堡。公孙家的白马常从这里出塞。'],
   ['zhuo', '涿', 'village', 'gongsun', 27, 8, 0.74, 14, 'village', '桃园结义的地方。现在归了公孙瓒，村口插着一面白旗。'],
   ['fanyang', '范阳', 'town', 'gongsun', 27, 10, 1.05, 95, 'gongsun', '涿郡与邺城之间的驿城，北来粮车在这里换马，南来驿使在这里过夜。'],
@@ -839,7 +839,7 @@ const SITE_ROWS = [
   ['jincheng', '金城', 'town', 'hansui', 4, 22, 1.06, 85, 'hansui', '黄河边上的渡口城。韩遂与马腾在这里喝过酒，也在这里翻过脸。'],
   ['tianshui', '天水', 'castle', 'hansui', 10, 22, 1.1, 95, 'hansui', '陇右的要冲，姜维的老家。如今城门上插着韩字旗，与长安只隔一条驿道。'],
   ['longxi', '陇西村', 'village', 'ma', 8, 24, 0.72, 12, 'village', '黄土坡上的村子，家家有马，家家缺粮。'],
-  ['wudu', '武都', 'castle', null, 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。城头如今无旗。'],
+  ['wudu', '武都', 'castle', 'zhanglu', 12, 27, 1.14, 75, 'zhanglu', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。张鲁的教众在此把守。'],
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 23, 21, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
@@ -851,7 +851,7 @@ const SITE_ROWS = [
   ['xiapi', '下邳', 'town', 'lv', 31, 24, 1.1, 150, 'lv', '吕布守着这座城。泗水绕着城墙流，水能灌进来。'],
   ['xiaopei', '小沛', 'castle', 'lv', 29, 23, 1.12, 80, 'lv', '刘备借住过的地方，现在插着吕字旗。'],
   ['pengcheng', '彭城', 'village', 'lv', 30, 21, 0.78, 15, 'village', '徐州旧治的残垣，集市还开在墙根下。'],
-  ['taishanguan', '泰山关', 'castle', null, 29, 18, 1.16, 80, 'none', '青徐之间的山口关城。北接平原，南压彭城，谁占住这里，谁就卡住两州的粮道。'],
+  ['taishanguan', '泰山关', 'castle', 'lv', 29, 18, 1.16, 80, 'lv', '青徐之间的山口关城。北接平原，南压彭城，谁占住这里，谁就卡住两州的粮道。'],
   ['xuzhou', '徐州', 'town', 'lv', 33, 21, 1.07, 120, 'lv', '泗水与沂水在这里交汇，城头插着吕字旗，商队仍从城门下过。'],
   ['guangling', '广陵', 'town', 'yuanshu', 32, 26, 1.06, 95, 'yuanshu', '淮南的盐粮码头，袁术的船队从这里北上。'],
   ['hefei', '合肥', 'castle', 'yuanshu', 31, 29, 1.12, 85, 'yuanshu', '合肥新城压在江淮之间，谁占住这里，谁就能卡住寿春的北门。'],
@@ -868,11 +868,11 @@ const SITE_ROWS = [
   ['xiakou', '夏口', 'castle', 'wu', 27, 36, 1.14, 90, 'wu', '汉水入江处。谁在这里扎营，谁就卡住了荆州。'],
   ['chaisang', '柴桑', 'town', 'wu', 28, 38, 1.06, 95, 'wu', '江东的水军基地，船比房子多。'],
   ['yushan', '玉山', 'town', 'wu', 32, 39, 1.04, 85, 'wu', '柴桑与会稽之间的山城，浙赣山道从城下过，往西还能转进夷陵。'],
-  ['chibi', '赤壁', 'castle', null, 26, 38, 1.16, 70, 'none', '江边的石壁。风从东南来，火能烧到对岸。'],
-  ['yiling', '夷陵', 'castle', null, 24, 41, 1.12, 75, 'none', '三峡的出口。连营七百里，说的就是这一线。'],
+  ['chibi', '赤壁', 'castle', 'biao', 26, 38, 1.16, 70, 'biao', '江边的石壁。风从东南来，火能烧到对岸。'],
+  ['yiling', '夷陵', 'castle', 'biao', 24, 41, 1.12, 75, 'biao', '三峡的出口。连营七百里，说的就是这一线。'],
   // ---- 益州 ----
-  ['hanzhong', '汉中', 'town', 'zhang', 16, 29, 1.04, 105, 'zhang', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
-  ['shangluo', '上洛', 'castle', null, 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。城头如今无旗。'],
+  ['hanzhong', '汉中', 'town', 'zhanglu', 16, 29, 1.04, 105, 'zhanglu', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
+  ['shangluo', '上洛', 'castle', 'zhanglu', 18, 26, 1.16, 80, 'zhanglu', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。张鲁的旗插在关楼上。'],
   ['jiange', '剑阁', 'castle', 'zhang', 16, 32, 1.18, 100, 'zhang', '一夫当关，万夫莫开。说的不是城，是那条路。'],
   ['chengdu', '成都', 'town', 'zhang', 11, 35, 1.07, 160, 'zhang', '益州治所。锦官城的织机声，隔一条街都听得见。'],
   ['jiangzhou', '江州', 'town', 'zhang', 14, 38, 1.05, 90, 'zhang', '巴郡的水码头，盐船从这里下行。'],
@@ -888,12 +888,13 @@ const SITE_ROWS = [
   ['kuaiji', '会稽', 'town', 'wu', 34, 40, 1.05, 110, 'wu', '东南的海盐与稻米，一半从这会稽出去。'],
   ['danyang', '丹阳村', 'village', 'wu', 31, 33, 0.76, 15, 'village', '出精兵的地方。山越与汉人混着住。'],
   // ---- 交州 ----
-  ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
+  ['jiaozhi', '交趾', 'town', 'shanyue', 24, 46, 1.02, 70, 'shanyue', '最南边的郡城。中原的官来了先病三个月。'],
   ['shanyue', '南越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的南越王城。铜鼓藏在洞里，山路比城墙更难走。'],
   ['longbian', '龙编', 'town', 'shanyue', 25, 47, 1.0, 72, 'shanyue', '红河口的南越城。码头连着交趾，铜鼓与盐船都在这里靠岸。'],
-  ['changsha', '长沙', 'town', null, 23, 42, 1.0, 88, 'none', '湘水与浏水交汇的荆州城。谁握住长沙，谁就能把荆南的粮船扣在港里。'],
+  ['changsha', '长沙', 'town', 'biao', 23, 42, 1.0, 88, 'biao', '湘水与浏水交汇的荆州城。谁握住长沙，谁就能把荆南的粮船扣在港里。'],
   ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
-  ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
+  ['guiyang', '桂阳村', 'village', 'biao', 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
+  ['edge_town', '边陲小镇', 'village', null, 2, 40, 0.7, 10, 'village', '地图西缘的一座无名小镇。一年四季被浓雾裹着，没人说得清镇里还住着谁。'],
   // ---- 匪巢 ----
   ['heishan', '黑山营', 'camp', 'bandit', 24, 16, 0, 45, 'bandit', '太行山里的黄巾余部，张燕带着几万人钻山沟。'],
   ['taishan', '泰山寇', 'camp', 'bandit', 32, 19, 0, 38, 'bandit', '泰山周边的山贼，专抢青徐之间的粮队。'],
@@ -917,6 +918,7 @@ const RECRUIT_SETS = {
   yuanshu: ['militia', 'spear', 'cav', 'guard'],
   biao: ['militia', 'spear', 'archer', 'cav'],
   zhang: ['militia', 'spear', 'archer', 'wudang'],
+  zhanglu: ['militia', 'spear', 'archer', 'wudang'],
   xianbei: ['militia', 'qishe', 'xianbei', 'tengri'],
   ma: ['militia', 'spear', 'qishe', 'tiefu'],
   hansui: ['militia', 'spear', 'cav', 'qishe'],
@@ -1018,8 +1020,8 @@ const CAPITAL_IDS = [
   'shouchun', 'ji', 'jincheng', 'jianning', 'shanyue',
 ];
 
-/** 汉中北面两座自由城：无主，谁先打通城道谁就能争。 */
-const FREE_CITY_IDS = ['wudu', 'shangluo'];
+/** 战略地图上不再保留无主要地：武都、上洛归张鲁，长沙归刘表。 */
+const FREE_CITY_IDS = [];
 
 /** 势力 */
 const FACTIONS = {
@@ -1054,6 +1056,14 @@ const FACTIONS = {
   zhang: {
     id: 'zhang', name: '璋', full: '刘璋', color: '#8a8a52', banner: '璋',
     lord: '刘璋', desc: '益州天府，闭门自守。兵不少，将不多。',
+  },
+  zhanglu: {
+    id: 'zhanglu', name: '鲁', full: '张鲁', color: '#b08a5a', banner: '鲁',
+    lord: '张鲁', desc: '五斗米道据汉中，北守秦岭，南望巴蜀。政教合一，山险为城。',
+  },
+  rebel: {
+    id: 'rebel', name: '叛', full: '叛军', color: '#6d2f2a', banner: '叛',
+    lord: '叛将', desc: '统一之后突然翻脸的全国旧臣。旗号杂乱，人数众多。',
   },
   xianbei: {
     id: 'xianbei', name: '鲜卑', full: '轲比能', color: '#7a6a4a', banner: '鲜',
@@ -1106,6 +1116,7 @@ const FACTION_COMBAT = {
   shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
   gongsun: { power: 0.5, note: '公孙瓒军：白马义从已老，两兵只当一兵用，给袁绍第一阶段让路' },
+  zhanglu: { power: 1.0, note: '张鲁军：汉中教众守山，不主动扩张' },
 };
 
 /**
@@ -1165,6 +1176,17 @@ const SUCCESSION = {
     { id: 'yanghuai', name: '杨怀', title: '白水军督' },
     { id: 'gaopei', name: '高沛', title: '白水关守将' },
   ],
+  zhanglu: [
+    { id: 'zhangfu', name: '张富', title: '汉中督' },
+    { id: 'yangren', name: '杨任', title: '大将' },
+    { id: 'yang`ang', name: '杨昂', title: '部将' },
+    { id: 'yanpu', name: '阎圃', title: '谋主' },
+  ],
+
+
+
+
+
   xianbei: [
     { id: 'suli', name: '素利', title: '东部大人' },
     { id: 'mijia', name: '弥加', title: '部帅' },
@@ -1243,6 +1265,12 @@ const LORDS = [
   { id: 'caimao', name: '蔡瑁', faction: 'biao', home: 'jiangling', soldiers: { militia: 40, archer: 30, boat: 20 }, morale: 72, sight: 6, title: '水军统领' },
   { id: 'liuzhang', name: '刘璋', faction: 'zhang', home: 'chengdu', soldiers: { militia: 80, spear: 60, archer: 35 }, morale: 74, sight: 6, title: '益州牧' },
   { id: 'zhangren', name: '张任', faction: 'zhang', home: 'jiange', soldiers: { militia: 40, spear: 45, archer: 25 }, morale: 84, sight: 7, title: '从事' },
+  { id: 'zhanglu', name: '张鲁', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 55, spear: 45, archer: 30, wudang: 8 }, morale: 82, sight: 6, title: '师君' },
+  { id: 'yangren', name: '杨任', faction: 'zhanglu', home: 'wudu', soldiers: { militia: 35, spear: 40, archer: 20 }, morale: 80, sight: 6, title: '大将' },
+  { id: 'yang`ang', name: '杨昂', faction: 'zhanglu', home: 'shangluo', soldiers: { militia: 30, spear: 35, archer: 20 }, morale: 78, sight: 6, title: '部将' },
+  { id: 'yanpu', name: '阎圃', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 25, spear: 20, archer: 15 }, morale: 74, sight: 5, title: '谋主' },
+  { id: 'zhangwei', name: '张卫', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 35, spear: 30, archer: 20 }, morale: 78, sight: 6, title: '都尉' },
+  { id: 'yangbo', name: '杨柏', faction: 'zhanglu', home: 'wudu', soldiers: { militia: 28, spear: 28, archer: 18 }, morale: 76, sight: 5, title: '校尉' },
   { id: 'kebineng', name: '轲比能', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 80, qishe: 40, xianbei: 30, tengri: 12 }, morale: 86, sight: 9, title: '鲜卑单于' },
   { id: 'mateng', name: '马腾', faction: 'ma', home: 'wuwei', soldiers: { militia: 30, spear: 50, qishe: 30, tiefu: 15 }, morale: 82, sight: 8, title: '征西将军' },
   { id: 'machao', name: '马超', faction: 'ma', home: 'wuwei', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
@@ -1256,9 +1284,9 @@ const LORDS = [
   { id: 'litong', name: '李通', faction: 'wei', home: 'runan', soldiers: { militia: 35, spear: 25, cav: 15 }, morale: 78, sight: 6, title: '裨将军' },
   // ---- 蜀：荆益之间 ----
   { id: 'huangzhong', name: '黄忠', faction: 'shu', home: 'jiangling', soldiers: { archer: 40, spear: 30, militia: 20 }, morale: 90, sight: 7, title: '中郎将' },
-  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'hanzhong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
+  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'shangyong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
   { id: 'chendao', name: '陈到', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 35, baier: 15, militia: 20 }, morale: 88, sight: 6, title: '白毦统领' },
-  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'baxi', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
+  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'shangyong', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
   { id: 'mengda', name: '孟达', faction: 'shu', home: 'shangyong', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '宜都太守' },
   { id: 'mizhu', name: '糜竺', faction: 'shu', home: 'chengdu', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 72, sight: 5, title: '别从事' },
   // ---- 吴：四都督与老将 ----
@@ -1355,7 +1383,7 @@ const LORDS = [
   { id: 'dianwei', name: '典韦', faction: 'wei', home: 'xuchang', soldiers: { spear: 35, guard: 28, militia: 20 }, morale: 93, sight: 6, title: '都尉' },
   { id: 'lidian', name: '李典', faction: 'wei', home: 'qiao', soldiers: { militia: 35, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '破虏将军' },
   // 蜀：荆州旧部与汉中守将
-  { id: 'madai', name: '马岱', faction: 'shu', home: 'hanzhong', soldiers: { cav: 32, spear: 30, militia: 18 }, morale: 88, sight: 8, title: '平北将军' },
+  { id: 'madai', name: '马岱', faction: 'shu', home: 'shangyong', soldiers: { cav: 32, spear: 30, militia: 18 }, morale: 88, sight: 8, title: '平北将军' },
   { id: 'guanping', name: '关平', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 28, cav: 15 }, morale: 90, sight: 7, title: '军前都督' },
   { id: 'liaohua', name: '廖化', faction: 'shu', home: 'xinye', soldiers: { militia: 35, spear: 25, archer: 12 }, morale: 82, sight: 6, title: '主簿' },
   { id: 'yanyan', name: '严颜', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 38, militia: 25, archer: 16 }, morale: 86, sight: 7, title: '巴郡太守' },
@@ -1402,7 +1430,7 @@ const LORDS = [
   { id: 'zhangxiu', name: '张绣', faction: 'biao', home: 'wan', soldiers: { cav: 35, spear: 30, crossbow: 12, militia: 18 }, morale: 86, sight: 7, title: '建忠将军' },
   { id: 'wenyang', name: '文鸯', faction: 'wei', home: 'qiao', soldiers: { cav: 40, spear: 28, militia: 15 }, morale: 92, sight: 8, title: '牙门将' },
   { id: 'dengai', name: '邓艾', faction: 'wei', home: 'runan', soldiers: { spear: 35, crossbow: 28, cav: 22, militia: 15 }, morale: 88, sight: 9, title: '征西将军' },
-  { id: 'jiangwei', name: '姜维', faction: 'shu', home: 'hanzhong', soldiers: { spear: 35, crossbow: 22, cav: 22, militia: 15 }, morale: 90, sight: 8, title: '奉义将军' },
+  { id: 'jiangwei', name: '姜维', faction: 'shu', home: 'shangyong', soldiers: { spear: 35, crossbow: 22, cav: 22, militia: 15 }, morale: 90, sight: 8, title: '奉义将军' },
   { id: 'wangshuang', name: '王双', faction: 'wei', home: 'chenliu', soldiers: { cav: 35, spear: 30, militia: 18 }, morale: 84, sight: 7, title: '虎威将军' },
   { id: 'caozhang', name: '曹彰', faction: 'wei', home: 'puyang', soldiers: { cav: 40, spear: 25, militia: 20 }, morale: 90, sight: 8, title: '任城王' },
   { id: 'huaxiong', name: '华雄', faction: 'han', home: 'tongguan', soldiers: { cav: 35, spear: 38, militia: 20 }, morale: 86, sight: 7, title: '都督' },
@@ -3341,6 +3369,19 @@ function terrainAt(world, x, y) {
   return TERRAIN[world.tiles[idx(x, y)]] || TERRAIN.plain;
 }
 
+function edgeTownDistance(world, x, y) {
+  const e = world && world.edgeTown;
+  if (!e) return Infinity;
+  return Math.max(Math.abs(x - e.x), Math.abs(y - e.y));
+}
+
+function edgeTownBlocked(world, x, y, opts) {
+  const e = world && world.edgeTown;
+  if (!e) return false;
+  if (opts && opts.allowEdge) return false;
+  return edgeTownDistance(world, x, y) <= (e.radius || 10);
+}
+
 function isPassable(world, x, y) {
   const t = terrainAt(world, x, y);
   return !!(t && t.passable);
@@ -3823,6 +3864,13 @@ function createWorld(seed) {
   SITE_ROWS.forEach(function (row) {
     world.sites.push(siteFromRow(world, row));
   });
+  // 边陲小镇从开局就存在，但被十格浓雾封着；复国阶段才开雾。
+  const edgeTown = siteById(world, 'edge_town');
+  if (edgeTown) {
+    edgeTown.fogSealed = true;
+    edgeTown.specialEdge = true;
+    world.edgeTown = { id: edgeTown.id, x: edgeTown.x, y: edgeTown.y, radius: 10, fogOpen: false };
+  }
 
   // 7. 道路
   layRoads(world, ROADS);
@@ -4016,7 +4064,7 @@ module.exports = {
   idx,
   inBounds,
   terrainAt,
-  isPassable,
+  isPassable, edgeTownDistance, edgeTownBlocked,
   regionAt,
   inBanditExclusion,
   regionDef,
@@ -8381,9 +8429,14 @@ function planCampaign(state, faction, day) {
     // 村庄也能被攻占：不再只列敌国的城/关，村口同样是可打的目标。
     // 计分给村庄加一笔“优先打城”的惩罚，避免 AI 有城不打、专挑空地村庄。
     const enemyTargets = ownedSites(state, enemy, false);
+    const edgeTown = state.world && state.world.edgeTown;
     enemyTargets.forEach(function (s) {
       // 任何有主目标都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
       if (!s.ownerFaction) return;
+      // NPC 不能进入边陲小镇十格，更不能把它当围城目标。
+      if (edgeTown && Math.max(Math.abs(s.x - edgeTown.x), Math.abs(s.y - edgeTown.y)) <= (edgeTown.radius || 10)) return;
+      // 复国阶段：叛军只追人，不主动攻主角已经打下的城。
+      if (faction === 'rebel' && state.arc && state.arc.phase === 'reconquest' && s.playerOwned) return;
       // 南越只取长沙以南，不碰襄阳、江陵、夏口；其他敌人仍按正常规则。
       if (proxy && proxy.target === enemy && proxy.siegeSites &&
           proxy.siegeSites.indexOf(s.id) < 0) return;
@@ -8585,6 +8638,8 @@ function abortCampaign(state, faction) {
 function keepsMajorLastCity(state, site, attacker) {
   if (!state || !site) return false;
   if (attacker === 'player') return false;
+  // 第 10 轮荆州争霸进入 final：不再给三国套“最后一座城不灭”的罩子。
+  if (state.story && state.story.endgame && state.story.endgame.final) return false;
   const owner = site.ownerFaction;
   // 马腾、韩遂之间只分高下，不互相灭国：最后一座城沿用既有的“保城”判定。
   const maHanPair = (owner === 'ma' && attacker === 'hansui') ||
@@ -9338,9 +9393,10 @@ const STORY = {
 
   // 主动经营天下的大国；其余势力都是边缘/守成势力
   majors: ['wei', 'shu', 'wu'],
+  kingdoms: ['wei', 'shu', 'wu'],
   duelFactions: ['yuan', 'gongsun'],
   passiveFactions: [
-    'lv', 'yuanshu', 'biao', 'zhang',
+    'lv', 'yuanshu', 'biao', 'zhang', 'zhanglu',
     'xianbei', 'ma', 'hansui', 'nanman', 'shanyue', 'han',
   ],
 
@@ -9369,6 +9425,18 @@ const STORY = {
 
   // 荆州三点：襄阳第一、新野第二、江陵第三，三镇尽归一家即最终争霸之位。
   jingzhouSites: ['xiangyang', 'xinye', 'jiangling'],
+  // 三家都完成第三阶段后，先休整一个月，再聚战荆州。
+  jingzhouUnlockRestDays: 30,
+  // 每一轮荆州争霸：占领方休整一个月，联盟两国同时多点开战。
+  jingzhouCycleRestDays: 30,
+  // 第 10 次循环不再休战，强势方与弱势联盟不死不休。
+  jingzhouMaxCycles: 10,
+  // 占领荆州三镇的国家，全国募兵效率 +20%。
+  jingzhouStrongRecruitMul: 1.2,
+  // 袁术称帝：曹、孙两国完成第一阶段后三天触发。
+  emperorDelayDays: 3,
+  emperorAttackers: ['wei', 'wu'],
+  emperorTargets: ['yuanshu'],
   // 官渡昏君状态下的袁军对拼系数；一个袁绍兵抵不上三个曹兵。
   yuanWeakPower: 0.33,
 
@@ -9384,7 +9452,7 @@ const STORY = {
     { id: 'caoxiu', name: '曹休', faction: 'wei', home: 'qiao', title: '征东将军', soldiers: { militia: 30, spear: 25, cav: 25 }, morale: 82, sight: 7 },
     { id: 'xunyou', name: '荀攸', faction: 'wei', home: 'xuchang', title: '军师', soldiers: { militia: 20, spear: 18, crossbow: 18, guard: 5 }, morale: 80, sight: 7 },
     { id: 'wuban', name: '吴班', faction: 'shu', home: 'xinye', title: '牙门将', soldiers: { militia: 32, spear: 28, archer: 16 }, morale: 80, sight: 6 },
-    { id: 'huojun', name: '霍峻', faction: 'shu', home: 'hanzhong', title: '中郎将', soldiers: { spear: 35, militia: 25, archer: 18 }, morale: 86, sight: 7 },
+    { id: 'huojun', name: '霍峻', faction: 'shu', home: 'shangyong', title: '中郎将', soldiers: { spear: 35, militia: 25, archer: 18 }, morale: 86, sight: 7 },
     { id: 'masu', name: '马谡', faction: 'shu', home: 'xinye', title: '参军', soldiers: { militia: 22, spear: 18, crossbow: 15 }, morale: 74, sight: 6 },
     { id: 'huanggai', name: '黄盖', faction: 'wu', home: 'wujun', title: '丹阳都尉', soldiers: { militia: 30, archer: 28, boat: 22 }, morale: 86, sight: 6 },
     { id: 'zhuran', name: '朱然', faction: 'wu', home: 'jianye', title: '偏将军', soldiers: { militia: 28, spear: 25, boat: 18 }, morale: 82, sight: 6 },
@@ -9396,13 +9464,10 @@ const STORY = {
 
   // 阶段时长与休整
   phaseTimeout: 360,
+  // 防卡死：玩家可能故意阻挠某一阶段；两年没完成就自动进入下一阶段。
+  phaseDeadlineDays: 720,
   restDays: 120,
   bleedDays: 150,
-  emperorDay: 360,
-  jingzhouDay: 540,
-  jingzhouDays: 360,
-  endgameRestDays: 240,
-  twoStrongDays: 240,
   weakCityFloor: 4,
   weakCityRatio: 0.42,
 
@@ -9417,78 +9482,67 @@ const STORY = {
    *  - parallel：进入本阶段时额外保留的战线
    */
   phases: {
+    // 蜀：刘璋 → 张鲁 → 南蛮 → 待天下大势 → 荆州
     shu: [
       {
         id: 'shu_yizhou',
         label: '收取西川',
         short: '收取西川',
+        stage: 1,
         targets: ['zhang'],
         objective: { type: 'destroy', factions: ['zhang'] },
-        notBeforeDay: 8,
         noTimeout: true,
-        restDays: 120,
-        next: 'shu_jingzhou',
-        successNext: 'shu_jingzhou',
-        timeoutNext: 'shu_jingzhou',
+        notBeforeDay: 8,
+        restDays: 3,
+        next: 'shu_zhanglu',
         title: '收取西川',
         casusBelli: '刘备自新野誓师，以“收取西川，作为问鼎天下的资本”为名，只向刘璋递了战书。',
         warLines: [
-          '刘备自新野起兵，以“收取西川，作为问鼎天下的资本”为名，只向刘璋一家宣战。',
-          '蜀军以成都为重心：先取剑阁，再经巴西直下成都；刘璋开关迎客，却把剑阁让成了前线。',
+          '刘备自新野起兵，以“收取西川”为名，只向刘璋一家宣战。',
+          '蜀军先取剑阁，再经巴西直下成都；刘璋开关迎客，却把剑阁让成了前线。',
           '诸葛亮在帐中说得明白：成都一入囊中，便以成都为大本营，才有与中原诸侯争锋的本钱。',
         ],
         successLines: [
           '成都城头换旗，刘璋势力覆灭，西川诸郡归入刘备手中。',
-          '刘备把治所迁到成都，以成都为蜀军大本营，汉中、成都开仓赈济，诸将清点降卒，休养生息。',
-          '下一阶段：向右看，取荆州刘表之地，问鼎中原。',
-        ],
-        timeoutLines: [
-          '西川战事拖得太久，剑阁到成都的粮道已经吃紧。',
-          '刘备只得暂收兵锋，留魏延守剑阁，主力退回剑阁休整。',
-          '下一阶段：先取荆州，再图中原。',
+          '刘备把治所迁到成都，以成都为蜀军大本营，汉中、成都开仓赈济。',
+          '三日后，兵锋北指汉中：张鲁盘踞秦岭，是西川门户，也是刘备统一西南的第一道关。',
         ],
       },
       {
-        id: 'shu_jingzhou',
-        label: '荆州问鼎',
-        short: '荆州问鼎',
-        targets: ['biao'],
-        objective: { type: 'captureOrDestroy', sites: ['xiangyang', 'jiangling'], factions: ['biao'] },
-        timeout: 360,
-        restDays: 120,
+        id: 'shu_zhanglu',
+        label: '讨伐张鲁',
+        short: '讨伐张鲁',
+        stage: 2,
+        targets: ['zhanglu'],
+        objective: { type: 'destroy', factions: ['zhanglu'] },
+        noTimeout: true,
+        restDays: 3,
         next: 'shu_nanman',
-        successNext: 'shu_han',
-        timeoutNext: 'shu_nanman',
-        title: '荆州问鼎',
-        casusBelli: '西川既定，刘备把兵锋转向荆州，要以刘表之地作为问鼎中原的跳板。',
+        title: '讨伐张鲁',
+        casusBelli: '西川既定，刘备以“汉中本属益州”为名，向张鲁递出战书，要取汉中、武都、上洛。',
         warLines: [
-          '刘备以“荆州乃用武之地”为名，向刘表递出战书，关羽、张飞两路压上。',
-          '襄阳、江陵是荆州门户，水网密布，行军一日只能挪几里。',
-          '刘备在江陵誓师，要以荆州为跳板，问鼎中原。',
-          '若一年之内拿不下荆州，汉中、成都的粮秣也撑不住两线。',
+          '刘备命张飞、魏延出阳平关，马岱、黄忠自剑阁北上，兵锋直指汉中。',
+          '张鲁据秦岭山口而守，五斗米道教众遍布山谷，汉中城头挂起“鲁”字旗。',
+          '汉中一破，秦岭以南尽归刘备，益州才真正连成一片。',
         ],
         successLines: [
-          '襄阳、江陵相继易手，荆州大半归蜀，刘表势力再无力北顾。',
-          '刘备在江陵设宴犒军，关羽镇襄阳，诸葛亮督粮，准备问鼎中原。',
-          '下一阶段：北上长安、洛阳，匡扶汉室。',
-        ],
-        timeoutLines: [
-          '一年已过，襄阳城下仍未破，荆州水军把江面封得死死的。',
-          '刘备只得与刘表遣使议和，收兵回江陵休整。',
-          '荆州暂缓：先南下收南蛮，再从长计议。',
+          '汉中、武都、上洛相继易手，张鲁降蜀，五斗米道教众归刘备约束。',
+          '刘备在汉中设宴，以魏延督汉中，马岱守武都，益州北门自此稳固。',
+          '下一阶段：南征南蛮，收孟获丁壮，完成西南一统。',
         ],
       },
       {
         id: 'shu_nanman',
         label: '南征南蛮',
         short: '南征南蛮',
+        stage: 3,
         targets: ['nanman'],
         objective: { type: 'destroy', factions: ['nanman'] },
-        timeout: 360,
-        restDays: 120,
-        next: 'shu_han',
+        noTimeout: true,
+        restDays: 30,
+        next: 'shu_sworn',
         title: '南征南蛮',
-        casusBelli: '荆州未下，刘备转兵南方，先收南蛮诸部，吸纳其大将为蜀所用。',
+        casusBelli: '汉中已定，刘备转兵南方，要收南蛮诸部，完成西南一统，成为一方枭雄。',
         warLines: [
           '诸葛亮率军南征，马岱、魏延为先锋，兵锋直指建宁、朱提。',
           '南蛮诸部善走山林，蜀军每下一城都要先修栈道。',
@@ -9497,53 +9551,57 @@ const STORY = {
         successLines: [
           '南蛮王城陷落，孟获以下诸部大半归蜀，小部分残部逃往邻国。',
           '刘备命诸葛亮在南中置庲降都督，安抚夷汉，征发丁壮。',
-          '下一阶段：北上长安、洛阳，匡扶汉室；荆州旧线也可同时再开。',
-        ],
-        timeoutLines: [
-          '南中山高林密，一年未能尽破，蜀军疫病渐起。',
-          '刘备只得收兵回成都，留马忠守朱提，暂缓南征。',
-          '下一阶段：先图长安、洛阳，匡扶汉室。',
+          '西南已定，刘备成为一方枭雄；下一步，只看荆州那三座城。',
         ],
       },
       {
-        id: 'shu_han',
-        label: '匡扶汉室',
-        short: '匡扶汉室',
-        targets: ['han', 'wei'],
-        parallel: 'biao',
-        objective: { type: 'capture', sites: ['changan', 'luoyang'] },
-        timeout: 360,
-        restDays: 120,
+        id: 'shu_sworn',
+        label: '会盟荆州',
+        short: '会盟荆州',
+        stage: 4,
+        targets: [],
+        waitAllMajorsStage3: true,
+        noTimeout: true,
+        restDays: 0,
+        next: 'shu_jingzhou',
+        title: '西南已定',
+        casusBelli: '刘备已统一西南，只等曹操、孙权也完成各自战略，三家再会猎荆州。',
+        waitLines: [
+          '成都的粮仓堆满新谷，汉中的栈道也修到了长安方向。',
+          '刘备按兵不动，只派斥候北上关中、东下荆州，等曹孙两家也走到最后一步。',
+          '天下大势，即将在三家会盟荆州时翻开新的一页。',
+        ],
+      },
+      {
+        id: 'shu_jingzhou',
+        label: '荆州争霸',
+        short: '荆州争霸',
+        stage: 5,
+        targets: [],
+        waitJingzhou: true,
+        noTimeout: true,
+        restDays: 0,
         next: 'end',
-        title: '匡扶汉室',
-        casusBelli: '刘备以汉室宗亲之名，北上攻取长安、洛阳，要挟天子以令诸侯。',
-        warLines: [
-          '刘备在成都誓师，以“匡扶汉室”为名，兵分两路北上长安、洛阳。',
-          '汉廷诸将据潼关而守，曹操的洛阳守军也在城头点起了烽火。',
-          '荆州旧线若仍未定，关羽可从江陵北上，形成荆州与关中两线同时开战的局面。',
-        ],
-        successLines: [
-          '长安、洛阳两座旧都先后易手，汉室旌旗重新立在关中。',
-          '刘备入长安谒陵，三军缟素，天下震动。',
-          '魏蜀吴三足之势已成，乱国叙事由此开启。',
-        ],
-        timeoutLines: [
-          '长安、洛阳久攻不下，蜀道粮运一断，前线便撑不住。',
-          '刘备收兵回汉中，留魏延守潼关，暂缓北伐。',
-          '天下三足之势已现，接下来便是三国相攻的乱世。',
+        title: '荆州争霸',
+        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
+        waitLines: [
+          '襄阳、新野、江陵三镇的探马一日三报，蜀军按剑待发。',
+          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
         ],
       },
     ],
 
+    // 魏：吕布 → 汉廷 → 马腾韩遂 → 官渡/河北 → 待天下大势 → 荆州
     wei: [
       {
         id: 'wei_lv',
         label: '灭吕布',
         short: '灭吕布',
+        stage: 1,
         targets: ['lv'],
         objective: { type: 'destroy', factions: ['lv'] },
         noTimeout: true,
-        restDays: 120,
+        restDays: 3,
         next: 'wei_han',
         title: '兖州旧怨',
         casusBelli: '曹操与吕布争兖州多年，这一次要先把徐州拿下，收吕布麾下的并州骑兵。',
@@ -9555,23 +9613,19 @@ const STORY = {
         successLines: [
           '下邳城破，吕布授首，其麾下并州骑兵大半归入曹操帐下。',
           '曹操下令休整，徐州、兖州连成一片。',
-          '下一阶段：西入关中，攻长安汉室，挟天子以令诸侯。',
-        ],
-        timeoutLines: [
-          '吕布据下邳死守，一年未下，曹军粮道反被吕布骑兵骚扰。',
-          '曹操只得收兵回兖州，留于禁守彭城。',
-          '下一阶段：西入关中，先取长安。',
+          '三日后，兵锋西指长安：汉廷空有其名，曹操要挟天子以令诸侯。',
         ],
       },
       {
         id: 'wei_han',
         label: '挟天子',
         short: '挟天子',
+        stage: 2,
         targets: ['han'],
         objective: { type: 'capture', sites: ['changan'] },
-        timeout: 360,
-        restDays: 120,
-        next: 'wei_yuan',
+        noTimeout: true,
+        restDays: 3,
+        next: 'wei_xiliang',
         title: '挟天子以令诸侯',
         casusBelli: '曹操要入关中攻取长安，把汉廷奉到自己帐下，挟天子以令诸侯。',
         warLines: [
@@ -9581,192 +9635,211 @@ const STORY = {
         ],
         successLines: [
           '长安城头竖起曹字旗，汉廷百官被迁入许都，天子诏书从此出自曹操帐下。',
-          '曹操下令休整，关中、中原连成一线。',
-          '下一阶段：等袁绍、公孙瓒杀到两败俱伤，再北上统一河北。',
-        ],
-        timeoutLines: [
-          '潼关天险难破，曹军一年未能入长安。',
-          '曹操收兵回洛阳，留钟繇守潼关，暂缓西进。',
-          '下一阶段：先看河北，等袁绍、公孙瓒两败俱伤。',
+          '曹操以天子名义下诏，西凉马腾、韩遂割据不服，正好一并扫平。',
+          '下一阶段：扫平马腾、韩遂，把关中与凉州连成一线。',
         ],
       },
       {
-        id: 'wei_yuan',
-        label: '一统河北',
-        short: '一统河北',
-        targets: ['yuan', 'gongsun'],
-        waitBleed: true,
-        objective: { type: 'destroy', factions: ['yuan', 'gongsun'] },
-        timeout: 360,
-        restDays: 150,
-        next: 'wei_jingzhou',
-        title: '河北定鼎',
-        casusBelli: '袁绍与公孙瓒已经杀得两败俱伤，曹操趁虚北上，要一举统一河北。',
-        warLines: [
-          '袁绍、公孙瓒在幽冀之间杀得两败俱伤，曹操按兵不动，等到两家都伤了元气才北上。',
-          '曹军先取黎阳、邺城，再扫常山、范阳；若袁绍尚未灭公孙瓒，便一并把公孙瓒收拾了。',
-          '公孙瓒一亡，赵云便离开幽州，南下投奔刘备。',
-        ],
-        successLines: [
-          '袁绍、公孙瓒先后覆灭，河北诸郡尽归曹操，北方大业已成。',
-          '曹操下令休整，邺城开府，收编河北降卒。',
-          '下一阶段：南下攻荆州，取长江上游。',
-        ],
-        timeoutLines: [
-          '河北战事拖过一年，袁绍与公孙瓒的残部仍在互咬。',
-          '曹操收兵回邺，留张辽守黎阳，暂缓统一河北。',
-          '下一阶段：南下荆州。',
-        ],
-      },
-      {
-        id: 'wei_jingzhou',
-        label: '南下荆州',
-        short: '南下荆州',
-        targets: ['biao'],
-        objective: { type: 'captureOrDestroy', sites: ['xiangyang', 'jiangling'], factions: ['biao'] },
-        timeout: 360,
-        restDays: 120,
+        id: 'wei_xiliang',
+        label: '扫平西凉',
+        short: '扫平西凉',
+        stage: 2,
+        targets: ['ma', 'hansui'],
+        objective: { type: 'destroy', factions: ['ma', 'hansui'] },
+        noTimeout: true,
+        restDays: 30,
         next: 'wei_north',
-        title: '南下荆州',
-        casusBelli: '北方已定，曹操挥师南下，要取襄阳、江陵，控住长江上游。',
+        title: '扫平西凉',
+        casusBelli: '曹操挟天子在手，以“西凉反复”为名兵发武威、金城，要灭马腾、韩遂。',
         warLines: [
-          '曹操以“荆州阻隔王化”为名，向刘表宣战，曹仁、曹洪两路南下。',
-          '襄阳、江陵是荆州门户；刘备、孙权也都盯着这两座城。',
-          '无论这一战成与不成，诸侯的目光都已聚到荆州。',
+          '曹操以天子诏书为名，兵发武威、金城，要灭马腾、韩遂。',
+          '关中诸将随军西进，凉州骑兵来去如风，曹军只能一城一城地推。',
+          '马腾、韩遂互不投降，却也不肯合兵；曹操正好分而破之。',
         ],
         successLines: [
-          '襄阳、江陵易手，曹操控住长江上游，荆州北部尽入魏境。',
-          '曹操下令休整，留曹仁守江陵，于禁督襄阳。',
-          '下一阶段：西灭马腾、韩遂，再扫北边鲜卑。',
-        ],
-        timeoutLines: [
-          '荆州水网不利北军，一年未能拿下襄阳、江陵。',
-          '曹操收兵回许都，留曹仁守宛城，暂缓南下。',
-          '下一阶段：先平西凉，再图北边。',
+          '马腾、韩遂相继败亡，凉州诸郡归入曹操手中。',
+          '曹操在长安休整，关中、凉州连成一线，北方只剩河北袁绍未平。',
+          '一个月后，曹操将尽起中原兵马北上，与袁绍在官渡决战。',
         ],
       },
       {
         id: 'wei_north',
-        label: '扫平西凉',
-        short: '扫平西凉',
-        targets: ['ma', 'hansui', 'xianbei'],
-        objective: { type: 'destroy', factions: ['ma', 'hansui', 'xianbei'] },
-        timeout: 360,
-        restDays: 150,
-        next: 'end',
-        title: '扫平西凉',
-        casusBelli: '曹操要灭马腾、杀韩遂，彻底统一北方，再扫平鲜卑，完成三国鼎立的最后一块拼图。',
+        label: '官渡定河北',
+        short: '官渡定河北',
+        stage: 3,
+        stageFlag: 'guandu',
+        targets: ['yuan', 'gongsun', 'xianbei'],
+        waitDays: 30,
+        objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
+        noTimeout: true,
+        restDays: 30,
+        next: 'wei_sworn',
+        title: '官渡定河北',
+        casusBelli: '西凉已平，曹操等了一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
         warLines: [
-          '曹操以“西凉反复”为名，兵发武威、金城，要灭马腾、杀韩遂。',
-          '关中诸将随军西进，鲜卑轲比能也在北边蠢蠢欲动。',
-          '西凉一平，北方尽归曹操；魏蜀吴三足鼎立之势，至此成形。',
+          '一个月后，曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
+          '袁绍自恃兵多，临阵改令，军心已散；曹操兵精粮足，以逸待劳。',
+          '官渡一战，袁绍一个兵已抵不上曹操三个兵；曹操一路推平河北，顺手灭公孙瓒、逐鲜卑。',
         ],
         successLines: [
-          '马腾、韩遂相继败亡，鲜卑远遁，北方尽归曹操。',
-          '曹操在邺城大会诸将，魏蜀吴三足鼎立之势已成。',
-          '乱国叙事开启：三国相攻，谁强便合纵攻谁。',
+          '官渡火起，袁绍大军溃散，曹操一路追到邺城，袁氏覆灭。',
+          '公孙瓒、鲜卑先后被扫平，河北、幽燕、塞外尽归曹操。',
+          '曹操完成第三阶段，北方已定；只等蜀、吴也走完各自的三步。',
         ],
-        timeoutLines: [
-          '西凉骑兵来去如风，一年未能尽灭。',
-          '曹操收兵回长安，留夏侯渊守天水，暂缓西征。',
-          '三国鼎立之势已现，乱国叙事即将开启。',
+      },
+      {
+        id: 'wei_sworn',
+        label: '会盟荆州',
+        short: '会盟荆州',
+        stage: 4,
+        targets: [],
+        waitAllMajorsStage3: true,
+        noTimeout: true,
+        restDays: 0,
+        next: 'wei_jingzhou',
+        title: '北方已定',
+        casusBelli: '曹操已统一北方，只等刘备、孙权也完成各自战略，三家再会猎荆州。',
+        waitLines: [
+          '许都的粮车一辆接一辆往南运，邺城的降卒也被编入曹军。',
+          '曹操按兵不动，只派曹仁、夏侯惇盯着襄阳、新野、江陵三镇。',
+          '天下大势，即将在三家会盟荆州时翻开新的一页。',
+        ],
+      },
+      {
+        id: 'wei_jingzhou',
+        label: '荆州争霸',
+        short: '荆州争霸',
+        stage: 5,
+        targets: [],
+        waitJingzhou: true,
+        noTimeout: true,
+        restDays: 0,
+        next: 'end',
+        title: '荆州争霸',
+        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
+        waitLines: [
+          '襄阳、新野、江陵三镇的探马一日三报，曹军按剑待发。',
+          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
         ],
       },
     ],
 
+    // 吴：刘表 → 袁术（称帝后）→ 南越 → 待天下大势 → 荆州
     wu: [
       {
         id: 'wu_jiangdong',
         label: '为父报仇',
         short: '为父报仇',
+        stage: 1,
         targets: ['biao'],
-        // 第一阶段是灭国目标：不是占两座城就算完成，必须把刘表势力清零。
         objective: { type: 'destroy', factions: ['biao'] },
         noTimeout: true,
-        restDays: 120,
-        next: 'wu_hefei',
-        successNext: 'wu_hefei',
+        restDays: 3,
+        next: 'wu_yuanshu',
         title: '为父报仇',
         casusBelli: '孙权要报孙坚死于黄祖箭下之仇，先取荆州，统一江东门户。',
         warLines: [
           '孙权以“为父报仇”为名，向刘表宣战，周瑜督水军直取夏口、江陵。',
           '荆州水军与江东水军在三江口对峙，两岸烽火连了百里。',
-          '若拿不下襄阳、江陵，江东的粮秣便要转去南边的南越。',
+          '长沙、武陵、桂阳、夷陵、赤壁皆在刘表旗下，江东要一座一座地拔。',
         ],
         successLines: [
-          '襄阳、江陵易手，黄祖伏诛，孙权在江陵祭告孙坚。',
-          '江东全军休整，周瑜督造战船，准备北上合肥。',
-          '下一阶段：北上攻合肥、寿春，左攻荆州，引三家在荆州搏杀。',
+          '刘表势力覆灭，长沙、武陵、桂阳、夷陵、赤壁尽归江东。',
+          '孙权在江陵祭告孙坚，周瑜督造战船，准备北上。',
+          '只等曹操也走完第一步，天下便会传出袁术称帝的消息。',
         ],
-        timeoutLines: [
-          '一年已过，江陵城下仍未破，周瑜的水军被荆州水寨拖住。',
-          '孙权只得收兵回建业，休整水师。',
-          '荆州暂缓：先南下收南越，再图合肥。',
+      },
+      {
+        id: 'wu_yuanshu',
+        label: '讨伐袁术',
+        short: '讨伐袁术',
+        stage: 2,
+        targets: ['yuanshu'],
+        objective: { type: 'destroy', factions: ['yuanshu'] },
+        waitEmperor: true,
+        noTimeout: true,
+        restDays: 30,
+        next: 'wu_shanyue',
+        title: '讨伐袁术',
+        casusBelli: '袁术在寿春僭号称帝，孙权奉天子诏，与曹操合兵讨伐仲家。',
+        warLines: [
+          '袁术在寿春僭号称帝，建号“仲家”，置百官、修宫室。',
+          '孙权与曹操同时传檄，江东水军自濡须入淮，直取寿春、合肥、庐江。',
+          '袁术原本只守本土，如今四面受敌，术军连城门都不敢开。',
+        ],
+        successLines: [
+          '寿春城破，袁术病亡，仲家百官尽散，淮南之地归孙曹两家分取。',
+          '孙权收编袁术水军，江东声势大振。',
+          '下一阶段：南征南越，把交州、桂阳以南尽收入吴。',
         ],
       },
       {
         id: 'wu_shanyue',
-        label: '南收南越',
-        short: '南收南越',
+        label: '南征南越',
+        short: '南征南越',
+        stage: 3,
         targets: ['shanyue'],
         objective: { type: 'destroy', factions: ['shanyue'] },
-        timeout: 360,
-        restDays: 120,
-        next: 'wu_hefei',
-        title: '南收南越',
-        casusBelli: '荆州未下，孙权转兵南方的南越诸部，先收其丁壮，再图北上。',
+        noTimeout: true,
+        restDays: 30,
+        next: 'wu_sworn',
+        title: '南征南越',
+        casusBelli: '袁术已灭，孙权转兵南方，要收南越诸部，完成江东的第三阶段。',
         warLines: [
           '孙权命贺齐、吕范南征南越，兵锋直指南越王城。',
           '南越诸部据险而守，江东军每进一步都要先开山道。',
-          '南越一平，其丁壮便可补入江东水军，合肥之战才有本钱。',
+          '南越一平，其丁壮便可补入江东水军，荆州争霸才有本钱。',
         ],
         successLines: [
           '南越王城破，潘临等部大半归吴，小部分残部逃往交州。',
           '孙权命贺齐镇南越，征发丁壮，江东休养生息。',
-          '下一阶段：北上合肥、寿春，左攻荆州。',
-        ],
-        timeoutLines: [
-          '南越据险不出，一年未能尽平。',
-          '孙权收兵回建业，留吕范守玉山，暂缓南征。',
-          '下一阶段：先北上合肥、寿春。',
+          '江东三阶段已毕；下一步，只看荆州那三座城。',
         ],
       },
       {
-        id: 'wu_hefei',
-        label: '合肥寿春',
-        short: '合肥寿春',
-        targets: ['yuanshu', 'wei', 'biao'],
-        parallel: 'biao',
-        notBeforeDay: 380,
-        objective: { type: 'capture', sites: ['hefei', 'shouchun'] },
-        timeout: 360,
-        restDays: 120,
+        id: 'wu_sworn',
+        label: '会盟荆州',
+        short: '会盟荆州',
+        stage: 4,
+        targets: [],
+        waitAllMajorsStage3: true,
+        noTimeout: true,
+        restDays: 0,
+        next: 'wu_jingzhou',
+        title: '江东已定',
+        casusBelli: '孙权已统一江东、交州，只等曹操、刘备也完成各自战略，三家再会猎荆州。',
+        waitLines: [
+          '建业的船坞日夜赶工，柴桑的粮船已经排到江心。',
+          '孙权按兵不动，只派吕蒙、甘宁盯着荆州三镇。',
+          '天下大势，即将在三家会盟荆州时翻开新的一页。',
+        ],
+      },
+      {
+        id: 'wu_jingzhou',
+        label: '荆州争霸',
+        short: '荆州争霸',
+        stage: 5,
+        targets: [],
+        waitJingzhou: true,
+        noTimeout: true,
+        restDays: 0,
         next: 'end',
-        title: '合肥寿春',
-        casusBelli: '东吴之势已起，孙权要北上攻合肥、寿春，左攻荆州，把三家都引到荆州城下搏杀。',
-        warLines: [
-          '孙权以“北伐中原”为名，起江东水陆大军，直取合肥、寿春。',
-          '周瑜自江陵北上，吕蒙自濡须入淮，荆州旧线同时再开。',
-          '合肥、寿春一得，魏蜀吴三家便只能在荆州正面相撞。',
-        ],
-        successLines: [
-          '合肥、寿春易手，江东军威震江淮。',
-          '孙权下令休整，周瑜回江陵，吕蒙守濡须。',
-          '三家汇聚荆州之势已成，乱国叙事即将开启。',
-        ],
-        timeoutLines: [
-          '合肥城坚，寿春援军不断，一年未能拿下。',
-          '孙权收兵回建业，留吕蒙守濡须，暂缓北伐。',
-          '三家汇聚荆州之势已现，乱国叙事即将开启。',
+        title: '荆州争霸',
+        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
+        waitLines: [
+          '襄阳、新野、江陵三镇的探马一日三报，吴军按剑待发。',
+          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
         ],
       },
     ],
 
+    // 袁绍：与公孙瓒混战 → 东取吕布、北扫鲜卑 → 等官渡 → 官渡
     yuan: [
       {
         id: 'yuan_duel',
         label: '幽冀不死不休',
         short: '不死不休',
+        stage: 1,
         targets: ['gongsun'],
         objective: { type: 'destroy', factions: ['gongsun'] },
         noTimeout: true,
@@ -9781,7 +9854,7 @@ const STORY = {
         ],
         successLines: [
           '公孙瓒败亡，袁绍尽收幽燕之地，白马义从的旗号从此不再出现。',
-          '邺城大摆宴席，河北兵甲堆满武库，袁绍志得意满，自以为天下已在掌中。',
+          '邺城大摆宴席，河北兵甲堆满武库，袁绍志得意满。',
           '席间田丰、沮授劝他休养生息，袁绍不听，只令大军休整半月，便要继续用兵。',
         ],
       },
@@ -9789,80 +9862,82 @@ const STORY = {
         id: 'yuan_expand',
         label: '东取吕布，北扫鲜卑',
         short: '吕布鲜卑',
+        stage: 2,
         targets: ['lv', 'xianbei'],
         objective: { type: 'destroy', factions: ['lv', 'xianbei'] },
         noTimeout: true,
         restDays: 30,
-        next: 'yuan_wait_yuanshu',
+        next: 'yuan_wait_guandu',
         title: '河北极盛',
         casusBelli: '袁绍灭公孙瓒后兵强马壮，要趁势东取吕布、北扫鲜卑，把河北四州连成一片。',
         warLines: [
           '袁绍席罢，兵分两路：一路东出徐州取吕布，一路北出塞外扫鲜卑。',
           '河北新胜，粮草充足，袁绍自谓兵强马壮，不把曹操、孙权放在眼里。',
-          '他要在曹操、孙权灭袁术之前，先拿下吕布与鲜卑，再回头与曹操争中原。',
+          '他要赶在曹操统一北方之前，先拿下吕布与鲜卑。',
         ],
         successLines: [
           '吕布、鲜卑先后败亡，袁绍坐拥河北、幽燕、塞外，声势到了极点。',
           '袁绍在邺城阅兵，甲士塞满漳水两岸，谋臣武将都不敢再劝他收手。',
-          '他按兵不动，只等曹操与孙权把袁术灭掉，再南下与曹操争锋。',
+          '他按兵不动，只等曹操完成西凉战事，再南下与曹操争锋。',
         ],
       },
       {
-        id: 'yuan_wait_yuanshu',
-        label: '坐观袁术覆灭',
-        short: '等待袁术',
+        id: 'yuan_wait_guandu',
+        label: '坐等官渡',
+        short: '坐等官渡',
+        stage: 3,
         targets: [],
+        waitGuandu: true,
         noTimeout: true,
         restDays: 0,
         next: 'yuan_guandu',
-        waitTitle: '袁绍按兵不动',
+        title: '坐观成败',
+        casusBelli: '袁绍要等曹操北上，再举河北之兵南下，与曹操争夺中原。',
         waitLines: [
-          '袁绍在邺城按兵不动，只派斥候南下打探寿春消息。',
-          '他要等曹操、孙权把袁术灭掉，再以逸待劳，南下与曹操决战。',
+          '袁绍在邺城按兵不动，只派斥候南下打探许都消息。',
+          '他要等曹操先动，再以逸待劳，南下与曹操决战。',
           '田丰、沮授数次进言，劝他趁曹操兵疲先取许都；袁绍只笑不答。',
         ],
-        title: '坐观成败',
-        casusBelli: '袁绍要等曹操、孙权灭掉袁术，再举河北之兵南下，与曹操争夺中原。',
-        waitFactionDead: 'yuanshu',
-        waitAfterDays: 30,
       },
       {
         id: 'yuan_guandu',
         label: '官渡决战',
         short: '官渡决战',
+        stage: 4,
         targets: ['wei'],
         objective: { type: 'destroy', factions: ['wei'] },
         noTimeout: true,
         restDays: 0,
         next: 'end',
-        stage: 'guandu',
+        stageFlag: 'guandu',
         yuanPenalty: true,
         title: '官渡决战',
-        casusBelli: '袁术覆灭一月后，袁绍尽起河北大军南下，曹操把中原兵马全部压上，两军在官渡决战。',
+        casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。',
         warLines: [
-          '袁术覆灭一月后，袁绍尽起河北大军南下，曹操也把中原兵马全部压上。',
-          '两军在官渡相遇，营寨连绵数十里，粮道只隔一条汴水。',
+          '曹操北上，袁绍也把河北大军全部压上，两军在官渡相遇。',
+          '营寨连绵数十里，粮道只隔一条汴水。',
           '袁绍自恃兵多，不肯听田丰、沮授之谏，临阵改令，军心已散。',
           '曹操兵精粮足，以逸待劳；这一战，袁绍一个兵已抵不上曹操三个兵。',
         ],
         successLines: [
-          '官渡一战，曹军粮道被断，前线溃散，袁绍的河北大军竟被曹操翻盘。',
-          '袁绍带着残部退回河北，士气低迷，从此再无力南下。',
-          '袁绍军心涣散，士兵力气只剩三成，直到曹操把袁氏彻底灭亡。',
+          '官渡一战，袁绍大军溃散，曹操一路追到邺城。',
+          '袁绍带着残部退回河北，从此再无力南下。',
         ],
       },
     ],
 
+    // 公孙瓒：与袁绍不死不休；若赢，也只是等曹操北上
     gongsun: [
       {
         id: 'gongsun_duel',
         label: '幽冀不死不休',
         short: '不死不休',
+        stage: 1,
         targets: ['yuan'],
         objective: { type: 'destroy', factions: ['yuan'] },
         noTimeout: true,
         restDays: 0,
-        next: 'end',
+        next: 'gongsun_wait',
         title: '幽冀不死不休',
         casusBelli: '公孙瓒与袁绍开局便撕破脸，幽冀两家不死不休，任何议和书都退回。',
         warLines: [
@@ -9870,37 +9945,91 @@ const STORY = {
           '白马义从自蓟城南下，袁绍的河北步卒自邺城北上。',
           '这一战没有议和，只有一方灭国才会停。',
         ],
+        successLines: [
+          '袁绍败亡，公孙瓒尽收冀州，白马义从的旗号重新立在中原。',
+          '但他还没来得及庆功，曹操的北方大军已经压到幽燕边界。',
+        ],
+      },
+      {
+        id: 'gongsun_wait',
+        label: '坐等幽燕',
+        short: '坐等幽燕',
+        stage: 2,
+        targets: [],
+        noTimeout: true,
+        restDays: 0,
+        next: 'end',
+        title: '坐等幽燕',
+        casusBelli: '公孙瓒守住幽燕，只等曹操与袁绍分出胜负。',
+        waitLines: [
+          '公孙瓒据蓟城而守，北连鲜卑，南望冀州。',
+          '他既不降曹，也不降袁，只想等两家拼到两败俱伤。',
+        ],
       },
     ],
   },
-
   emperor: {
     title: '袁术称帝',
     lines: [
       '袁术在寿春僭号称帝，建号“仲家”，置百官、修宫室。',
-      '周围诸侯同时传檄，魏、吴、刘表等先后对袁术宣战。',
-      '曹操与孙权合兵剿灭仲家，寿春、合肥、庐江一带烽火连天。',
-      '袁术原本只守本土，如今四面受敌，术军连城门都不敢开。',
+      '曹操与孙权同时传檄，尽起两国兵马讨伐仲家。',
+      '寿春、合肥、庐江一带烽火连天；袁术原本只守本土，如今四面受敌。',
+      '袁术覆灭之后，孙曹两家暂不开战，各自去完成自己的第二阶段。',
     ],
   },
 
   jingzhou: {
     title: '荆州会战',
     lines: [
-      '诸国各自战略目标已告一段落，荆州成了天下唯一的焦点。',
-      '魏、蜀、吴三家同时向荆州用兵：襄阳第一，新野第二，江陵第三。',
-      '三镇是荆州的点位，也是最终争霸之位；谁先尽占三镇，谁就握住下一轮天下的门闩。',
-      '这一年里谁也不肯先收手；一年之后，或有三镇归一家，或各自收兵再图后举。',
+      '魏、蜀、吴三家各自完成第三阶段，按兵一个月后，同时把兵锋转向荆州。',
+      '襄阳第一，新野第二，江陵第三；三镇是荆州的点位，也是天下霸主的门闩。',
+      '谁先尽占三镇，谁就夺得霸主之位：全国募兵效率 +20%，另外两家立刻结盟。',
+    ],
+    cycleTitle: '荆州再战',
+    cycleLines: [
+      '霸主占着荆州三镇，另外两家结盟，休整一个月后同时来攻。',
+      '曹刘在汉中到长安、洛阳一线开战；刘孙在夷陵、江陵、长沙、武陵开战；曹孙在合肥、庐江、寿春开战。',
+      '结盟的两家彼此停战，只合力攻打霸主；谁再占尽三镇，谁就是新的霸主。',
+    ],
+    finalTitle: '第十轮·不死不休',
+    finalLines: [
+      '荆州已经易主十次，这一次不再休战。',
+      '霸主与两家联盟不死不休：要么霸主灭掉两家，要么两家合力灭掉霸主。',
+      '霸主灭国的一瞬间，盟友因利益分配不均立刻反目，天下只剩最后一个国家。',
     ],
   },
 
   endgame: {
     title: '乱国叙事',
     lines: [
-      '魏蜀吴三足鼎立，谁最强，另两家便合纵攻谁。',
-      '强国被打到极弱时，会与两家同时停战，让另外两家先拼。',
-      '两家拼到两败俱伤，再一起收兵；三家休整之后，下一轮又从头开始。',
-      '没有玩家插手，单靠 NPC 永远完不成统一。',
+      '魏蜀吴三足鼎立，谁占荆州三镇，谁就做霸主。',
+      '霸主募兵更盛，另外两家结盟来攻；一轮又一轮，直到第十轮不再休战。',
+    ],
+  },
+
+  unification: {
+    title: '天下归一',
+    lines: [
+      '最后一国降旗，九州尽归一统。',
+      '可就在统一的那一刻，除了跟随你起兵的兄弟，所有封臣都翻脸了。',
+      '一支冷箭从背后射来，你失去三分之一的弟兄；他们拼死断后，护着你往西逃。',
+      '边境小镇的雾里还有一条活路。主线已在地图上标出，沿着线条走，不要回头。',
+    ],
+    betrayTitle: '全国背叛',
+    betrayLines: [
+      '统一大典还没结束，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
+      '你身边只剩兄弟旧部；三分之一的弟兄在乱军中倒下，用命换出一条缺口。',
+      '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往边陲小镇走。',
+    ],
+    edgeTitle: '边陲小镇',
+    edgeLines: [
+      '雾散开一线，小镇的灯火在雾里亮着。',
+      '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
+      '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
+    ],
+    fogTitle: '迷雾迷人眼',
+    fogLines: [
+      '迷雾迷人眼，无法深入探索；再往里走，可能会迷失其中，永远无法出来。',
     ],
   },
 };
@@ -9993,7 +10122,12 @@ function isDuel(faction) {
 
 /** 边缘小国领主每天补兵的比例；大国是它的两倍。整体比旧版快一倍。 */
 function recruitRate(state, faction) {
-  return isPassive(state, faction) ? 0.12 : 0.24;
+  const base = isPassive(state, faction) ? 0.12 : 0.24;
+  const st = state && state.story;
+  if (st && st.endgame && st.endgame.active && st.endgame.strongest === faction) {
+    return base * (STORY.jingzhouStrongRecruitMul || 1.2);
+  }
+  return base;
 }
 
 function citiesOf(state, faction) {
@@ -10182,6 +10316,11 @@ function init(state, logger) {
     waitEvents: {},
     proxyWars: STORY.proxyWars || {},
     proxyWarsDeclared: false,
+    stage3Done: {},
+    guanduStarted: false,
+    kingdomsAllAtWar: false,
+    unifiedFaction: null,
+    targetRegion: {},
   };
   state.story = st;
 
@@ -10216,9 +10355,8 @@ function init(state, logger) {
     st.targets[f] = [];
   });
 
-  // 开局四场：曹操讨吕布、孙权报父仇、袁绍与公孙瓒不死不休。
-  // 刘备只在新野按兵，等到第八天才向刘璋递战书。
-  ['wei', 'wu', 'yuan', 'gongsun'].forEach(function (f) {
+  // 开局四场：曹操讨吕布、孙权报父仇、刘备取西川、袁绍与公孙瓒不死不休。
+  ['wei', 'wu', 'shu', 'yuan', 'gongsun'].forEach(function (f) {
     if (st.phases[f]) startPhase(state, f, { silent: true, opening: true });
   });
   st.openingDeclared = true;
@@ -10253,6 +10391,10 @@ function resume(state, logger) {
   if (state.story.openingEventShown === undefined) {
     state.story.openingEventShown = state.clock.day >= state.story.openingEventDay;
   }
+  if (!state.story.stage3Done) state.story.stage3Done = {};
+  if (state.story.guanduStarted === undefined) state.story.guanduStarted = false;
+  if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
+  if (!state.story.targetRegion) state.story.targetRegion = {};
   applyYuanCombat(state, !!state.story.yuanWeak);
   refreshHeadline(state);
   return state.story;
@@ -10285,8 +10427,18 @@ function phaseTargets(state, faction, cfg) {
 
 function canBeginPhase(state, cfg) {
   if (!cfg) return false;
+  const st = state.story || {};
   const day = state.clock.day;
   if (cfg.notBeforeDay && day < cfg.notBeforeDay) return false;
+  if (cfg.waitEmperor && !(st.emperor && st.emperor.declared)) {
+    // 袁术如果已经被别人先灭，称帝事件不会再发生，孙权直接进入下一阶段。
+    if (factionAlive(state, 'yuanshu')) return false;
+  }
+  if (cfg.waitGuandu && !st.guanduStarted) return false;
+  if (cfg.waitJingzhou && !(st.jingzhou && st.jingzhou.active)) return false;
+  if (cfg.waitAllMajorsStage3) {
+    if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
+  }
   if (cfg.waitBleed) {
     if (!state.story.duel.ended) {
       const bleedAt = (state.story.duel.startDay || 1) + STORY.bleedDays;
@@ -10311,8 +10463,43 @@ function startPhase(state, faction, opts) {
   const silent = !!(opts && opts.silent);
   const opening = !!(opts && opts.opening);
 
+  const skipWait = !!(opts && opts.skipWait);
+  // 开局第几天才递战书：到点前保持“等待”，不要提前把仗打起来。
+  if (cfg.notBeforeDay && state.clock.day < cfg.notBeforeDay) {
+    p.status = 'waiting';
+    p.startedDay = state.clock.day;
+    p.waitingForWar = false;
+    p.waitUntil = cfg.notBeforeDay;
+    p.stage = cfg.stage || 0;
+    st.targets[faction] = [];
+    refreshHeadline(state);
+    return true;
+  }
+  if (cfg.waitDays && !skipWait) {
+    p.status = 'waiting';
+    p.waitingForWar = true;
+    p.waitUntil = state.clock.day + cfg.waitDays;
+    p.startedDay = state.clock.day;
+    p.restUntil = 0;
+    p.success = false;
+    p.timedOut = false;
+    p.nextId = cfg.next || null;
+    p.stage = cfg.stage || 0;
+    st.targets[faction] = [];
+    if (!state.story.waitEvents[faction + ':' + cfg.id]) {
+      state.story.waitEvents[faction + ':' + cfg.id] = true;
+      pushStoryEvent(state, cfg.title || displayLabel(cfg), [
+        '大军已经点齐，但还不到出兵的时辰。',
+        '等上' + cfg.waitDays + '天，等粮草到齐、探马回报，再动手。',
+      ], { tag: '战略', art: 'peace', auto: 8 });
+    }
+    refreshHeadline(state);
+    return true;
+  }
+  p.waitingForWar = false;
   const targets = phaseTargets(state, faction, cfg);
   p.status = 'war';
+  p.stage = cfg.stage || 0;
   p.startedDay = state.clock.day;
   p.restUntil = 0;
   p.success = false;
@@ -10324,6 +10511,7 @@ function startPhase(state, faction, opts) {
   if (faction === 'shu' && cfg.id === 'shu_yizhou' && state.flags) {
     state.flags.liubeiYiWar = true;
   }
+  if (cfg.id === 'wei_north' || cfg.id === 'yuan_guandu') st.guanduStarted = true;
 
   war.abortCampaign(state, faction);
   if (cfg.yuanPenalty) applyYuanCombat(state, true);
@@ -10347,7 +10535,7 @@ function startPhase(state, faction, opts) {
     logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
   }
   // 官渡开局：战书落下后再把曹袁两军补满、调到官渡列阵，并直接开一场合战。
-  if (cfg.stage === 'guandu' && state.storyHooks && state.storyHooks.stageGuandu) {
+  if ((cfg.stage === 'guandu' || cfg.stageFlag === 'guandu') && state.storyHooks && state.storyHooks.stageGuandu) {
     state.storyHooks.stageGuandu(state);
   }
   // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
@@ -10409,9 +10597,33 @@ function finishPhase(state, faction, ok) {
   const cfg = currentCfg(state, faction);
   if (!cfg) { p.status = 'done'; return; }
 
-  // 剧情阶段只有“完成”一条出口：目标未达成，就在本阶段继续打，绝不跳关。
+  // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
   if (!ok) {
-    p.timedOut = false;
+    const deadline = STORY.phaseDeadlineDays || 720;
+    if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
+    const peaceTo = phasePeace(state, faction, cfg);
+    p.status = 'rest';
+    p.success = false;
+    p.timedOut = true;
+    p.completed += 1;
+    if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
+    p.nextId = cfg.timeoutNext || cfg.next || 'end';
+    p.restUntil = state.clock.day + (cfg.timeoutRestDays || 0);
+    if (cfg.id === 'yuan_duel' || cfg.id === 'gongsun_duel') {
+      st.duel.ended = true;
+      st.duel.winner = null;
+    }
+    st.targets[faction] = [];
+    delete st.priority[faction];
+    war.abortCampaign(state, faction);
+    const lines = (cfg.timeoutLines || [
+      '两年过去，' + displayLabel(cfg) + '仍未达成。',
+      '再拖下去只会把国力耗空，只能暂且收兵，把这一页翻过去。',
+    ]).slice();
+    if (peaceTo.length) lines.push('与' + peaceTo.map(factionName).join('、') + '遣使议和，两家收兵。');
+    pushStoryEvent(state, displayLabel(cfg) + ' · 逾期', lines, { tag: '战略', art: 'peace', auto: 8 });
+    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '两年未成，自动进入下一阶段。', 'throne');
+    refreshHeadline(state);
     return;
   }
   // 第一阶段（completed===0）是开局灭国战：不递停战书，也不预告下一步；
@@ -10422,6 +10634,7 @@ function finishPhase(state, faction, ok) {
   p.success = true;
   p.timedOut = false;
   p.completed += 1;
+  if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
   p.nextId = cfg.successNext || cfg.next || 'end';
   p.restUntil = state.clock.day + (cfg.restDays || STORY.restDays);
   st.targets[faction] = [];
@@ -10536,6 +10749,12 @@ function tickPhase(state, faction) {
 
   if (p.status === 'waiting') {
     if (!cfg) { p.status = 'done'; return; }
+    if (p.waitingForWar) {
+      if (state.clock.day < (p.waitUntil || 0)) return;
+      p.waitingForWar = false;
+      startPhase(state, faction, { skipWait: true });
+      return;
+    }
     if (!canBeginPhase(state, cfg)) return;
     if (cfg.waitFactionDead) {
       p.status = 'rest';
@@ -10554,9 +10773,9 @@ function tickPhase(state, faction) {
       finishPhase(state, faction, true);
       return;
     }
-    // 剧情模式默认全阶段强制完成（STORY.mandatoryAll），不再有超时跳关。
-    if (!STORY.mandatoryAll && !cfg.noTimeout && cfg.timeout) {
-      if (state.clock.day - p.startedDay >= cfg.timeout) finishPhase(state, faction, false);
+    // 两年防卡死：无论是否 noTimeout，只要玩家把阶段拖满两年，就自动跳过。
+    if (state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
+      finishPhase(state, faction, false);
     }
     return;
   }
@@ -10571,32 +10790,53 @@ function tickPhase(state, faction) {
 
 function maybeEmperor(state) {
   const st = state.story;
-  if (!st || st.emperor.declared) return;
-  if (state.clock.day < STORY.emperorDay) return;
-  st.emperor.declared = true;
-  st.emperor.day = state.clock.day;
-  if (!factionAlive(state, 'yuanshu')) {
-    refreshHeadline(state);
+  if (!st || !st.emperor || st.emperor.declared) return;
+  if (!factionAlive(state, 'yuanshu')) return;
+  const attackers = (STORY.emperorAttackers || ['wei', 'wu']).filter(function (f) {
+    return factionAlive(state, f);
+  });
+  if (!attackers.length) return;
+  // 曹、孙各自完成第一阶段之后，再等三天，才由袁术称帝。
+  const ready = attackers.every(function (f) {
+    const p = st.phases[f];
+    return p && (p.completed || 0) >= 1;
+  });
+  if (!ready) return;
+  if (!st.emperor.pendingDay) {
+    st.emperor.pendingDay = state.clock.day + (STORY.emperorDelayDays || 3);
+    st.emperor.coalition = attackers.slice();
+    st.emperor.coalitionTarget = 'yuanshu';
     return;
   }
-  const around = ['wei', 'wu', 'biao', 'lv'].filter(function (f) { return factionAlive(state, f); });
-  const coalition = ['wei', 'wu'].filter(function (f) { return factionAlive(state, f); });
-  st.emperor.coalition = coalition;
-  st.emperor.coalitionTarget = 'yuanshu';
-  coalition.forEach(function (f) { st.priority[f] = 'yuanshu'; });
+  if (state.clock.day < st.emperor.pendingDay) return;
+  st.emperor.declared = true;
+  st.emperor.day = state.clock.day;
 
-  around.forEach(function (f) {
-    if (f === 'wei' || f === 'wu' || f === 'biao' || f === 'lv') {
-      war.declare(state, f, 'yuanshu', true, true);
-    }
+  attackers.forEach(function (f) {
+    if (!war.atWar(state, f, 'yuanshu')) war.declare(state, f, 'yuanshu', true, true);
+    // 不抢走当前阶段的主目标：袁术只是额外加入可打清单，让一部分兵力分出去。
+    const cur = st.targets[f] || [];
+    if (cur.indexOf('yuanshu') < 0) cur.push('yuanshu');
+    st.targets[f] = cur;
+    war.abortCampaign(state, f);
   });
   const lines = STORY.emperor.lines.slice();
-  if (around.length) {
-    lines[1] = around.map(factionName).join('、') + '同时传檄，集体向袁术宣战。';
-  }
+  lines[1] = attackers.map(factionName).join('、') + '同时传檄，尽起两国兵马讨伐仲家。';
   pushWarEvent(state, STORY.emperor.title, lines);
-  logFn(state, '袁术在寿春称帝，' + around.map(factionName).join('、') + '集体宣战；魏吴合兵剿灭仲家。', 'war');
+  logFn(state, '袁术在寿春称帝，' + attackers.map(factionName).join('、') + '同时宣战；两国分兵攻袁术。', 'war');
   refreshHeadline(state);
+}
+
+/* ------------------------------------------------------------ 荆州解封 */
+
+function maybeJingzhou(state) {
+  const st = state.story;
+  if (!st || st.endgame || st.jingzhouDone) return false;
+  if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
+  if (!STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
+  const last = Math.max.apply(null, STORY.kingdoms.map(function (f) { return st.stage3Done[f] || 0; }));
+  if (state.clock.day < last + (STORY.jingzhouUnlockRestDays || 30)) return false;
+  return startJingzhou(state);
 }
 
 /* ------------------------------------------------------------ 边缘诸部 */
@@ -10633,270 +10873,257 @@ function maybeEdgeWars(state) {
   refreshHeadline(state);
 }
 
-/* ------------------------------------------------------------ 荆州会战 */
+/* ------------------------------------------------------------ 荆州争霸：十轮循环 */
 
-function maybeJingzhou(state) {
+function kingdomAlive(state, f) { return factionAlive(state, f); }
+
+function stage3Done(state) {
   const st = state.story;
-  if (!st || st.jingzhou || st.jingzhouDone || st.endgame) return;
-  if (state.clock.day < STORY.jingzhouDay) return;
-  if (!STORY.majors.every(function (f) { return factionAlive(state, f); })) return;
-  const pWei = st.phases.wei;
-  const pShu = st.phases.shu;
-  const pWu = st.phases.wu;
-  if (!pWei || !pShu || !pWu) return;
-  if ((pWei.completed || 0) < 2 || (pShu.completed || 0) < 1 || (pWu.completed || 0) < 1) return;
-
-  st.jingzhou = {
-    active: true,
-    since: state.clock.day,
-    until: state.clock.day + STORY.jingzhouDays,
-    sites: STORY.jingzhouSites.slice(),
-    winner: null,
-  };
-  st.jingzhouFocus = STORY.jingzhouSites.slice();
-  st.priority = {};
-  st.targetRegion = {};
-  STORY.majors.forEach(function (f) {
-    st.targets[f] = STORY.majors.filter(function (x) { return x !== f; });
-    st.targetRegion[f] = 'jingzhou';
-    war.abortCampaign(state, f);
+  if (!st || !STORY.kingdoms) return false;
+  return STORY.kingdoms.every(function (f) {
+    return !!(st.stage3Done && st.stage3Done[f]);
   });
-  STORY.majors.forEach(function (a) {
-    STORY.majors.forEach(function (b) {
-      if (a < b) war.declare(state, a, b, true, true);
-    });
-  });
-  // 荆州之外暂时收刀，把兵锋留给襄阳、江陵。
-  Object.keys(st.phases).forEach(function (f) {
-    if (isMajor(f)) return;
-    war.warPartners(state, f).forEach(function (other) {
-      if (isMajor(other)) war.makePeace(state, f, other, true);
-    });
-  });
-  pushStoryEvent(state, STORY.jingzhou.title, STORY.jingzhou.lines, { tag: '会战', art: 'war', auto: 8 });
-  logFn(state, '荆州会战开始：魏、蜀、吴三家按襄阳、新野、江陵的次序争夺荆州三镇。', 'war');
-  refreshHeadline(state);
 }
 
-function endJingzhou(state, winner) {
-  const st = state.story;
-  if (!st || !st.jingzhou) return;
-  STORY.majors.forEach(function (a) {
-    STORY.majors.forEach(function (b) {
+function holderOfJingzhou(state) {
+  const sites = (state.story.jingzhou && state.story.jingzhou.sites) || STORY.jingzhouSites || [];
+  return STORY.kingdoms.filter(function (f) {
+    return sites.length && allSitesOwned(state, f, sites);
+  })[0] || null;
+}
+
+function strongestKingdom(state, except) {
+  const list = STORY.kingdoms.filter(function (f) {
+    return factionAlive(state, f) && (!except || except.indexOf(f) < 0);
+  });
+  list.sort(function (a, b) { return powerOf(state, b) - powerOf(state, a); });
+  return list[0] || null;
+}
+
+function jingzhouAllies(state, strong) {
+  return STORY.kingdoms.filter(function (f) {
+    return f !== strong && factionAlive(state, f);
+  });
+}
+
+function stopMajorWars(state) {
+  STORY.kingdoms.forEach(function (a) {
+    STORY.kingdoms.forEach(function (b) {
       if (a < b) war.makePeace(state, a, b, true);
     });
     war.abortCampaign(state, a);
   });
-  const days = STORY.jingzhouDays;
-  STORY.majors.forEach(function (f) {
-    const p = st.phases[f];
-    if (p && p.status === 'war') p.startedDay += days;
-  });
-  const winnerId = winner || st.jingzhou.winner || null;
-  st.jingzhou.winner = winnerId;
-  if (winnerId) st.jingzhou.until = Math.min(st.jingzhou.until, state.clock.day);
-  st.jingzhou.active = false;
-  st.jingzhouDone = true;
-  st.targetRegion = null;
-  st.targets = {};
-  // 一年会战结束，各自回到当前阶段的目标；已经灭国的目标会自动从清单里去掉。
-  STORY.majors.forEach(function (f) {
-    st.targets[f] = [];
-    const p = st.phases[f];
-    if (!p || p.status !== 'war') return;
-    const cfg = currentCfg(state, f);
-    if (!cfg) return;
-    const targets = phaseTargets(state, f, cfg);
-    st.targets[f] = targets;
-    targets.forEach(function (to) {
-      if (factionAlive(state, to) && !war.atWar(state, f, to)) {
-        war.declare(state, f, to, true, true);
-      }
+}
+
+function startJingzhou(state) {
+  const st = state.story;
+  if (!st || st.endgame) return false;
+  if (!STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
+  st.jingzhou = {
+    active: true,
+    sites: STORY.jingzhouSites.slice(),
+    cycle: 1,
+    since: state.clock.day,
+    until: state.clock.day + 120,
+    winner: null,
+    strong: null,
+  };
+  st.jingzhouFocus = STORY.jingzhouSites.slice();
+  st.endgame = {
+    active: true,
+    phase: 'battle',
+    cycle: 1,
+    since: state.clock.day,
+    until: st.jingzhou.until,
+    strongest: null,
+    allies: [],
+    initialCities: {},
+    final: false,
+  };
+  st.kingdomsAllAtWar = true;
+  if (!st.targetRegion) st.targetRegion = {};
+  // 第一轮：三家互相开战，谁先占尽三镇谁就是霸主。
+  STORY.kingdoms.forEach(function (a) {
+    STORY.kingdoms.forEach(function (b) {
+      if (a < b) war.declare(state, a, b, true, true);
     });
+    st.targets[a] = STORY.kingdoms.filter(function (x) { return x !== a; });
+    st.targetRegion[a] = null;
+    war.abortCampaign(state, a);
   });
-  const lines = winnerId ? [
-    '荆州三镇——襄阳、新野、江陵——尽归' + factionName(winnerId) + '，最终争霸之位已定。',
-    '魏、蜀、吴三家收兵，荆州的城头换了一色旗。',
-    '下一阶段：以荆州为根基，去完成尚未完成的目标。',
+  pushStoryEvent(state, STORY.jingzhou.title, STORY.jingzhou.lines, { tag: '会战', art: 'war', auto: 9 });
+  logFn(state, '三家会盟荆州：襄阳、新野、江陵三镇开战。', 'war');
+  refreshHeadline(state);
+  return true;
+}
+
+function beginJingzhouCycle(state) {
+  const st = state.story;
+  const eg = st.endgame;
+  const king = eg.strongest;
+  const allies = eg.allies && eg.allies.length ? eg.allies.slice() : jingzhouAllies(state, king);
+  const round = eg.cycle || 1;
+  if (round >= (STORY.jingzhouMaxCycles || 10)) {
+    beginFinalJingzhou(state);
+    return;
+  }
+  eg.cycle = round + 1;
+  eg.phase = 'battle';
+  eg.since = state.clock.day;
+  eg.until = state.clock.day + 120;
+  st.jingzhou.active = true;
+  st.jingzhou.cycle = eg.cycle;
+  st.jingzhou.until = eg.until;
+  st.jingzhou.winner = null;
+  // 结盟者彼此停战，只合力打霸主；霸主则同时打两家。
+  if (allies.length >= 2) war.makePeace(state, allies[0], allies[1], true);
+  [king].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
+  if (king) {
+    st.targets[king] = allies.slice();
+    allies.forEach(function (a) {
+      if (!war.atWar(state, a, king)) war.declare(state, a, king, true, true);
+      st.targets[a] = [king];
+    });
+  } else {
+    STORY.kingdoms.forEach(function (a) {
+      st.targets[a] = STORY.kingdoms.filter(function (b) { return b !== a; });
+      STORY.kingdoms.forEach(function (b) {
+        if (a < b) war.declare(state, a, b, true, true);
+      });
+    });
+  }
+  pushStoryEvent(state, STORY.jingzhou.cycleTitle, [
+    '第' + eg.cycle + '轮荆州争霸开始。',
+    king ? (factionName(king) + '占着荆州三镇，' + allies.map(factionName).join('、') + '结盟来攻。') : '荆州三镇暂无霸主，三家继续混战。',
+    king ? '曹刘在汉中到长安、洛阳一线开战；刘孙在夷陵、江陵、长沙、武陵开战；曹孙在合肥、庐江、寿春开战。' : '三军混战，谁先占尽三镇，谁就是新的霸主。',
+  ], { tag: '会战', art: 'war', auto: 9 });
+  logFn(state, '荆州第' + eg.cycle + '轮：' + (king ? allies.map(factionName).join('、') + '合攻' + factionName(king) : '三家混战'), 'war');
+  refreshHeadline(state);
+}
+
+function beginFinalJingzhou(state) {
+  const st = state.story;
+  const eg = st.endgame;
+  eg.phase = 'final';
+  eg.final = true;
+  eg.since = state.clock.day;
+  eg.until = 0;
+  st.jingzhou.active = false;
+  st.jingzhou.final = true;
+  st.jingzhouDone = true;
+  stopMajorWars(state);
+  const strong = eg.strongest;
+  const allies = eg.allies || [];
+  // 第 10 轮不再停战：霸主与联盟不死不休。
+  if (strong) {
+    [strong].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
+    st.targets[strong] = allies.slice();
+    allies.forEach(function (a) {
+      if (!war.atWar(state, a, strong)) war.declare(state, a, strong, true, true);
+      st.targets[a] = [strong];
+    });
+    if (allies.length >= 2) war.makePeace(state, allies[0], allies[1], true);
+  } else {
+    STORY.kingdoms.forEach(function (a) {
+      st.targets[a] = STORY.kingdoms.filter(function (b) { return b !== a; });
+      STORY.kingdoms.forEach(function (b) {
+        if (a < b) war.declare(state, a, b, true, true);
+      });
+    });
+  }
+  pushStoryEvent(state, STORY.jingzhou.finalTitle, STORY.jingzhou.finalLines, { tag: '会战', art: 'war', auto: 9 });
+  logFn(state, '第十轮荆州争霸：不再停战，霸主与联盟不死不休。', 'war');
+  refreshHeadline(state);
+}
+
+function endJingzhouRound(state, winner) {
+  const st = state.story;
+  const eg = st.endgame;
+  if (!eg || eg.phase !== 'battle') return;
+  const holder = winner || holderOfJingzhou(state);
+  const strong = holder || eg.strongest || strongestKingdom(state);
+  eg.strongest = strong;
+  eg.allies = jingzhouAllies(state, strong);
+  eg.phase = 'rest';
+  eg.since = state.clock.day;
+  eg.until = state.clock.day + (STORY.jingzhouCycleRestDays || 30);
+  st.jingzhou.active = false;
+  st.jingzhou.winner = holder;
+  st.jingzhou.strong = strong;
+  st.jingzhou.until = eg.until;
+  stopMajorWars(state);
+  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
+  if (!eg.cycle) eg.cycle = 1;
+  if (eg.cycle >= (STORY.jingzhouMaxCycles || 10)) {
+    beginFinalJingzhou(state);
+    return;
+  }
+  const lines = holder ? [
+    factionName(holder) + '占尽襄阳、新野、江陵，成为新一轮霸主。',
+    '全国募兵效率 +20%；另外两国立刻结盟，停战一个月。',
+    '一个月后，两家联盟会从汉中、夷陵、合肥三个方向同时来攻。',
   ] : [
-    '一年战罢，襄阳、新野、江陵城下尸横遍野，三家谁也没能独吞荆州。',
-    '魏、蜀、吴各自收兵，重新回到自己的战略上。',
-    '下一阶段：各自去完成尚未完成的目标。',
+    '这一轮谁也没能独吞荆州三镇。',
+    strongestKingdom(state) ? (factionName(strong) + '兵势最盛，被另外两家视为霸主。') : '三家各自收兵。',
+    '休整一个月，再战荆州。',
   ];
-  pushStoryEvent(state, winnerId ? '荆州三镇归一家' : '荆州会战结束', lines, { tag: '会战', art: 'peace', auto: 8 });
-  logFn(state, winnerId ? '荆州三镇尽归' + factionName(winnerId) + '，最终争霸之位已定。' : '荆州会战结束，三家收兵；各自回到本国战略。', 'war');
+  pushStoryEvent(state, holder ? '荆州霸主：' + factionName(holder) : '荆州休战', lines, { tag: '会战', art: 'peace', auto: 9 });
+  logFn(state, holder ? '荆州霸主：' + factionName(holder) + '，全国募兵 +20%。' : '荆州休战一个月。', 'war');
   refreshHeadline(state);
 }
 
 function tickJingzhou(state) {
   const st = state.story;
   if (!st || !st.jingzhou || !st.jingzhou.active) return;
-  // 三镇尽归一家：不等满一年，直接判定“最终争霸之位”归属。
-  const sites = st.jingzhou.sites || STORY.jingzhouSites || [];
-  const winner = STORY.majors.filter(function (f) {
-    return sites.length && allSitesOwned(state, f, sites);
-  })[0];
-  if (winner) { endJingzhou(state, winner); return; }
-  if (state.clock.day >= st.jingzhou.until) endJingzhou(state);
-}
-
-/* ------------------------------------------------------------ 三国循环 */
-
-function beginGang(state) {
-  const st = state.story;
-  if (!st || !st.endgame) return;
-  if (!STORY.majors.every(function (f) { return factionAlive(state, f); })) return;
-  const scores = STORY.majors.map(function (f) { return { f: f, v: powerOf(state, f) }; });
-  scores.sort(function (a, b) { return b.v - a.v; });
-  const top = scores[0].f;
-  const allies = [scores[1].f, scores[2].f];
-  st.endgame.phase = 'gang';
-  st.endgame.since = state.clock.day;
-  st.endgame.strongest = top;
-  st.endgame.allies = allies;
-  st.endgame.initialCities = {};
-  STORY.majors.forEach(function (f) { st.endgame.initialCities[f] = citiesOf(state, f).length; });
-
-  // 另外两家先罢兵，合纵攻最强的一家。
-  war.makePeace(state, allies[0], allies[1], true);
-  [top].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
-  allies.forEach(function (a) {
-    if (!war.atWar(state, a, top)) war.declare(state, a, top, true, true);
-  });
-  st.targets = {};
-  st.targets[top] = allies.slice();
-  allies.forEach(function (a) { st.targets[a] = [top]; });
-  st.priority = {};
-  pushStoryEvent(state, '合纵攻强', [
-    '魏蜀吴三足鼎立，' + factionName(top) + '最强，' + allies.map(factionName).join('、') + '两家合纵攻之。',
-    '两家使者往来不绝，约定先把最强的这一家打下去。',
-    '天下没有永远的盟友，只有下一轮的强弱。',
-  ], { tag: '乱国', art: 'war', auto: 8 });
-  logFn(state, '三国循环：' + allies.map(factionName).join('、') + '合纵攻' + factionName(top) + '。', 'war');
-  refreshHeadline(state);
-}
-
-function endgameWeak(state, faction) {
-  const st = state.story;
-  const eg = st.endgame;
-  if (!eg) return false;
-  const cities = citiesOf(state, faction).length;
-  const initial = (eg.initialCities && eg.initialCities[faction]) || (STORY.majors.length ? 1 : 1);
-  const floor = Math.max(STORY.weakCityFloor, Math.round(initial * STORY.weakCityRatio));
-  if (cities <= floor) return true;
-  const power = powerOf(state, faction);
-  const maxPower = Math.max.apply(null, STORY.majors.map(function (f) { return powerOf(state, f); }));
-  return maxPower > 0 && power / maxPower < 0.52;
-}
-
-function beginTwoStrong(state) {
-  const st = state.story;
-  const eg = st.endgame;
-  const top = eg.strongest;
-  const allies = eg.allies.slice();
-  if (!allies.length) return;
-  // 强国与两家同时停战，退到后面休养。
-  allies.forEach(function (a) { war.makePeace(state, top, a, true); });
-  [top].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
-
-  // 两个先前联手的一方开始互攻。
-  war.makePeace(state, allies[0], allies[1], true);
-  war.declare(state, allies[0], allies[1], true, true);
-  eg.phase = 'twoStrong';
-  eg.since = state.clock.day;
-  st.targets = {};
-  st.targets[top] = [];
-  allies.forEach(function (a, i) { st.targets[a] = [allies[1 - i]]; });
-  st.priority = {};
-  pushStoryEvent(state, '强国请和，两家反目', [
-    factionName(top) + '被两家打到极弱，只得同时向两家递上停战书。',
-    '停战一成，' + allies.map(factionName).join('、') + '两家立刻翻脸，开始争夺谁才是下一个最强。',
-    factionName(top) + '退到后方休养生息，等着下一轮。',
-  ], { tag: '乱国', art: 'peace', auto: 8 });
-  logFn(state, '三国循环：' + factionName(top) + '请和，' + allies.map(factionName).join('、') + '两家互攻。', 'war');
-  refreshHeadline(state);
-}
-
-function beginTripleRest(state) {
-  const st = state.story;
-  const eg = st.endgame;
-  if (!eg) return;
-  STORY.majors.forEach(function (a) {
-    STORY.majors.forEach(function (b) {
-      if (a < b) war.makePeace(state, a, b, true);
-    });
-    war.abortCampaign(state, a);
-  });
-  eg.phase = 'rest';
-  eg.since = state.clock.day;
-  eg.until = state.clock.day + STORY.endgameRestDays;
-  st.targets = {};
-  STORY.majors.forEach(function (f) { st.targets[f] = []; });
-  st.priority = {};
-  pushStoryEvent(state, '三家休兵', [
-    '两家打到两败俱伤，终于同时收兵。',
-    '魏、蜀、吴三家各自回城，清点伤亡，休养生息。',
-    '等哪一家再次最强，另外两家又会合兵攻来。',
-  ], { tag: '乱国', art: 'peace', auto: 8 });
-  logFn(state, '三国循环：两家停战，三家休养生息。', 'war');
-  refreshHeadline(state);
-}
-
-function startEndgame(state) {
-  const st = state.story;
-  if (!st || st.endgame) return false;
-  if (!STORY.majors.every(function (f) { return factionAlive(state, f); })) return false;
-  st.endgame = {
-    active: true,
-    phase: 'gang',
-    since: state.clock.day,
-    until: 0,
-    strongest: null,
-    allies: [],
-    initialCities: {},
-  };
-  pushStoryEvent(state, STORY.endgame.title, STORY.endgame.lines, { tag: '乱国', art: 'war', auto: 9 });
-  logFn(state, '魏蜀吴三足鼎立，乱国叙事开启；NPC 之间不会互相灭国。', 'throne');
-  beginGang(state);
-  return true;
+  const holder = holderOfJingzhou(state);
+  if (holder) { endJingzhouRound(state, holder); return; }
+  if (state.clock.day >= (st.jingzhou.until || 0)) endJingzhouRound(state, null);
 }
 
 function tickEndgame(state) {
   const st = state.story;
   const eg = st.endgame;
   if (!eg || !eg.active) return;
-  if (!STORY.majors.every(function (f) { return factionAlive(state, f); })) {
-    eg.active = false;
-    return;
-  }
-  if (eg.phase === 'gang') {
-    if (!eg.strongest || !factionAlive(state, eg.strongest)) {
-      beginGang(state);
-      return;
-    }
-    if (endgameWeak(state, eg.strongest)) {
-      beginTwoStrong(state);
-      return;
-    }
-    // 打太久仍没打弱，也要给一个停战窗口，免得循环卡死。
-    if (state.clock.day - eg.since > 360) beginTwoStrong(state);
-    return;
-  }
-  if (eg.phase === 'twoStrong') {
-    const allies = eg.allies || [];
-    if (allies.length < 2) { beginTripleRest(state); return; }
-    const weak = allies.filter(function (f) { return endgameWeak(state, f); }).length;
-    if (weak >= 1 || state.clock.day - eg.since >= STORY.twoStrongDays) {
-      beginTripleRest(state);
-    }
+  if (eg.phase === 'battle') {
+    // 只用还活着的国家判断；若只剩一家，交给统一流程。
+    if (STORY.kingdoms.filter(function (f) { return factionAlive(state, f); }).length <= 1) return;
+    tickJingzhou(state);
     return;
   }
   if (eg.phase === 'rest') {
-    if (state.clock.day >= (eg.until || 0)) beginGang(state);
+    if (state.clock.day >= (eg.until || 0)) beginJingzhouCycle(state);
+    return;
+  }
+  if (eg.phase === 'final') {
+    const alive = STORY.kingdoms.filter(function (f) { return factionAlive(state, f); });
+    if (alive.length <= 1) return;
+    const strong = eg.strongest && factionAlive(state, eg.strongest) ? eg.strongest : null;
+    if (!strong) {
+      // 霸主已灭：联盟因分赃不均立刻反目，直到只剩最后一国。
+      eg.allies = alive.slice();
+      STORY.kingdoms.forEach(function (a) {
+        if (!factionAlive(state, a)) return;
+        st.targets[a] = alive.filter(function (b) { return b !== a; });
+        alive.forEach(function (b) {
+          if (a < b && !war.atWar(state, a, b)) war.declare(state, a, b, true, true);
+        });
+      });
+    }
+    return;
   }
 }
 
-/* ------------------------------------------------------------ 灭国归属 */
+/** 兼容旧导出：旧“乱国循环”的入口等价于新的荆州争霸。 */
+function startEndgame(state) {
+  return startJingzhou(state);
+}
+
+function beginGang(state) { return startJingzhou(state); }
+function beginTwoStrong(state) { return beginJingzhouCycle(state); }
+function beginTripleRest(state) { return beginFinalJingzhou(state); }
+function endJingzhou(state, winner) { return endJingzhouRound(state, winner); }
+
+/* ------------------------------------------------------------ 灭国归属 *//* ------------------------------------------------------------ 灭国归属 */
 
 function recordCapture(state, site, oldFaction, byFaction) {
   const st = state.story;
@@ -10980,34 +11207,20 @@ function tick(state) {
 
   maybeEmperor(state);
   maybeEdgeWars(state);
-  // 袁术一旦覆灭，魏吴的联合剿灭优先级立刻撤掉。
-  if (st.emperor && st.emperor.coalitionTarget && factionDead(state, st.emperor.coalitionTarget)) {
-    (st.emperor.coalition || []).forEach(function (f) { delete st.priority[f]; });
-    st.emperor.coalitionTarget = null;
-  }
   if (st.endgame && st.endgame.active) {
     tickEndgame(state);
     refreshHeadline(state);
     return;
   }
   maybeJingzhou(state);
-  if (st.jingzhou && st.jingzhou.active) {
-    tickJingzhou(state);
+  if (st.endgame && st.endgame.active) {
+    tickEndgame(state);
     refreshHeadline(state);
     return;
   }
   Object.keys(st.phases).forEach(function (f) {
     tickPhase(state, f);
   });
-  if (st.jingzhouDone || Object.keys(st.phases).every(function (f) {
-    const p = st.phases[f];
-    return p && p.status === 'done';
-  })) {
-    // 阶段全走完，或荆州会战已结束：进入三国循环。
-    if (st.jingzhouDone && state.clock.day >= ((st.jingzhou && st.jingzhou.until) || 0) + 120) {
-      if (startEndgame(state)) return;
-    }
-  }
   refreshHeadline(state);
 }
 
@@ -11016,7 +11229,7 @@ module.exports = {
   isPassive, hasStory, siteAdjacent, factionAlive, factionDead, recruitRate,
   startEndgame, startPhase, beginGang, beginTwoStrong, beginTripleRest,
   maybeEmperor, maybeJingzhou, endJingzhou,
-  _private: { phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, endgameWeak, eventLines, displayLabel },
+  _private: { phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, eventLines, displayLabel },
 };
 
   };
@@ -11307,6 +11520,8 @@ const {
   addHours,
   gridDistance,
   isPassable,
+  edgeTownDistance,
+  edgeTownBlocked,
   regionAt,
   inBanditExclusion,
 } = __require(8);
@@ -12995,7 +13210,10 @@ function dailyTick(state) {
   // 灭国：城丢光、人也没了，七天倒计时
   resolveMaSurrender(state);
   factionTick(state);
+  // 玩家效忠的势力（包括 NPC 主公）打完全部要点，也要在这里触发统一背叛。
+  if (!state.arc) checkVictory(state);
   // 统一之后的长夜：三十天大旱 / 再统一
+  edgeFogTick(state);
   arcTick(state);
   // 玩家在陈留歇满一天，诸侯才开始互相宣战
   maybeStartDiplomacy(state);
@@ -14117,9 +14335,47 @@ function lordRecruitTick(state) {
   });
 }
 
+/** 复国阶段的叛军巡逻：自己城优先，其次无人巡逻，再其次人最少，满五进首都。 */
+function rebelPatrolSite(state, lord) {
+  const sites = (state.world.sites || []).filter(function (s) {
+    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'rebel';
+  });
+  if (!sites.length) return null;
+  const counts = {};
+  (state.lords || []).forEach(function (l) {
+    if (!l || l === lord || !l.alive || l.dead || l.faction !== 'rebel') return;
+    if (l.patrolSiteId) counts[l.patrolSiteId] = (counts[l.patrolSiteId] || 0) + 1;
+  });
+  const home = siteById(state.world, lord.home);
+  if (home && home.ownerFaction === 'rebel' && (counts[home.id] || 0) < 5) {
+    lord.patrolSiteId = home.id;
+    return home;
+  }
+  const empty = sites.filter(function (s) { return !counts[s.id]; });
+  if (empty.length) {
+    empty.sort(function (a, b) { return (b.garrisonBase || 0) - (a.garrisonBase || 0); });
+    lord.patrolSiteId = empty[0].id;
+    return empty[0];
+  }
+  const least = sites.slice().sort(function (a, b) {
+    return (counts[a.id] || 0) - (counts[b.id] || 0) || (b.garrisonBase || 0) - (a.garrisonBase || 0);
+  })[0];
+  if (least && (counts[least.id] || 0) < 5) {
+    lord.patrolSiteId = least.id;
+    return least;
+  }
+  // 全国每座城都已满五名领主：进首都。
+  const capital = siteById(state.world, 'luoyang') || siteById(state.world, 'ye') || sites[0];
+  if (capital) lord.patrolSiteId = capital.id;
+  return capital;
+}
+
 /** 每名领主先选一处主城当巡逻锚点，再按 id 排独立的三城路线 */
 function patrolSiteFor(state, lord) {
   if (!lord) return null;
+  if (lord.faction === 'rebel' && state.arc && state.arc.phase === 'reconquest') {
+    return rebelPatrolSite(state, lord);
+  }
   const sites = state.world.sites || [];
   const fief = sites.filter(function (s) { return s.lordId === lord.id; })[0];
   if (fief) return fief;
@@ -14164,6 +14420,12 @@ function patrolRouteFor(state, lord) {
   if (!lord) return [];
   const anchor = patrolSiteFor(state, lord);
   if (!anchor) return [];
+  // 巡逻锚点换了城，旧的三城路线就作废，否则会一直绕回老城。
+  if (Array.isArray(lord.patrolRouteIds) && lord.patrolRouteIds.length &&
+      lord.patrolRouteIds[0] !== anchor.id) {
+    lord.patrolRouteIds = null;
+    lord.patrolIdx = null;
+  }
 
   const cities = (state.world.sites || []).filter(function (s) {
     if (s.type !== 'town' && s.type !== 'castle') return false;
@@ -14764,8 +15026,17 @@ function lordMayFlee(state, lord) {
 function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   const p = state.player;
   const sight = Math.max(3, lord.sight || 5);
-  // 敌军领主另算视野：同一条战线上的旗号，隔着十几格也该认得出。
-  const foeSight = Math.max(sight, LORD_FOE_SIGHT);
+  const arcReconquest = !!(state.arc && state.arc.phase === 'reconquest');
+  const arcEdge = state.world && state.world.edgeTown && state.world.edgeTown.id;
+  // 复国阶段：全国叛军都盯着主角，主角在边陲小镇十格内时才回去巡逻。
+  if (arcReconquest && lord.faction === 'rebel' && p.atSiteId !== arcEdge) {
+    return {
+      role: 'hunt',
+      target: { kind: 'player', unit: p, count: threatCount(p), d: gridDistance(lord, p), name: p.name || '你' },
+    };
+  }
+  // 敌军领主另算视野：复国阶段的叛军会跨州追着主角封的领主打。
+  const foeSight = arcReconquest && lord.faction === 'rebel' ? 9999 : Math.max(sight, LORD_FOE_SIGHT);
   const own = threatCount(lord);
   const candidates = [];
 
@@ -14780,7 +15051,8 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   (state.lords || []).forEach(function (other) {
     if (!other || other === lord || !other.alive || other.dead || other.retired) return;
     if (other.inCity || other.prisoner || other.engagedWith) return;
-    if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
+    if (!other.faction || other.faction === lord.faction) return;
+    if (other.faction === 'player' && !arcReconquest) return;
     if (!war.atWar(state, lord.faction, other.faction)) return;
     const d = gridDistance(lord, other);
     if (d > foeSight) return;
@@ -15108,6 +15380,20 @@ function moveLords(state, slot) {
     if (lord.fieldBattleId) return;
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
+    // 非玩家单位误入边陲小镇十格：不让他继续走，直接送回本城。
+    if (lord.faction !== 'player' && !lord.inCity && edgeTownBlocked(state.world, lord.x, lord.y)) {
+      const home = siteById(state.world, lord.home);
+      if (home && home.ownerFaction === lord.faction) {
+        lord.inCity = home.id;
+        lord.x = home.x;
+        lord.y = home.y;
+        lord.stepFrom = null;
+        lord.stepTo = null;
+        lord.routePath = null;
+        lord.order = null;
+      }
+      return;
+    }
 
     // 已经走到城中心、这一步也走完了：现在才收旗进城。
     if (lord.enteringSiteId && lord.cityEnterAtH && nowH >= lord.cityEnterAtH) {
@@ -15214,6 +15500,11 @@ function moveLords(state, slot) {
       if (lord.order && lord.order.siteId && !lord.order.hold &&
           (yiRush || now >= Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO)))) {
         leaveLordCity(state, lord, '军令到了');
+        return;
+      }
+      // 复国阶段：叛军不能一直缩在城里，要出城按“自己城/无人城/最少人/首都”巡。
+      if (lord.faction === 'rebel' && state.arc && state.arc.phase === 'reconquest') {
+        leaveLordCity(state, lord, '出城巡视');
         return;
       }
       return;
@@ -15729,6 +16020,8 @@ function greedyStep(state, unit, target, opts) {
     const nx = unit.x + dirs[i][0];
     const ny = unit.y + dirs[i][1];
     if (!isPassable(state.world, nx, ny)) continue;
+    // 边陲小镇十格内是禁区：NPC 不能进去，只有玩家与玩家兄弟可以。
+    if (unit.faction && unit.faction !== 'player' && edgeTownBlocked(state.world, nx, ny)) continue;
     const site = siteAt(state.world, nx, ny);
     if (site) {
       // 村庄不是保险箱：追兵可以踩进村里把玩家揪出来
@@ -18101,171 +18394,212 @@ function allMajorSitesOwned(state) {
 }
 
 /** 第一次统一：不结束游戏，先让人站在城头看三十天 */
+function edgeTownSite(state) {
+  return siteById(state.world, (state.world.edgeTown && state.world.edgeTown.id) || 'edge_town');
+}
+
+function setEdgeFog(state, open) {
+  const edge = edgeTownSite(state);
+  if (!edge) return null;
+  if (!state.world.edgeTown) {
+    state.world.edgeTown = { id: edge.id, x: edge.x, y: edge.y, radius: 10, fogOpen: !!open };
+  }
+  state.world.edgeTown.fogOpen = !!open;
+  edge.fogSealed = !open;
+  if (state.story) state.story.edgeTownOpen = !!open;
+  return edge;
+}
+
+function shavePlayerTroops(state, ratio) {
+  const p = state.player;
+  const total = army.troopCount(p.troops || {});
+  let lose = Math.max(0, Math.floor(total * ratio));
+  const keepRatio = Math.max(0, 1 - ratio);
+  Object.keys(p.troops || {}).forEach(function (id) {
+    const n = p.troops[id] || 0;
+    const keep = Math.floor(n * keepRatio);
+    lose -= n - keep;
+    p.troops[id] = keep;
+  });
+  // 四舍五入后仍多出来的零头，从数量最多的兵种里扣。
+  Object.keys(p.troops || {}).forEach(function (id) {
+    if (lose <= 0) return;
+    const cut = Math.min(lose, p.troops[id] || 0);
+    p.troops[id] = (p.troops[id] || 0) - cut;
+    lose -= cut;
+  });
+  return total - army.troopCount(p.troops || {});
+}
+
+function nearestRebelCity(state, from) {
+  let best = null;
+  let bestD = Infinity;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.type === 'camp' || s.id === 'edge_town') return;
+    const d = Math.max(Math.abs(s.x - from.x), Math.abs(s.y - from.y));
+    if (d < bestD) { bestD = d; best = s; }
+  });
+  return best;
+}
+
+/** 统一瞬间：全国背叛，兄弟断后，玩家带残部逃往边陲小镇 */
 function startUnification(state) {
   if (state.arc) return false;
   const p = state.player;
   const day = state.clock.day;
+  const formerFaction = p.faction;
+  const edge = setEdgeFog(state, true);
+  if (!edge) return false;
+  const ex = edge.x;
+  const ey = edge.y;
   state.arc = {
-    phase: 'celebration',
+    phase: 'retreat',
     startDay: day,
-    disasterDay: day + 30,
-    exileSiteId: null,
+    exileSiteId: edge.id,
+    disasterDay: day,
     finaleDay: 0,
     loyalLords: [],
+    lostBrothers: [],
+    lastGrantDay: day,
+    arrivalDay: 0,
   };
+  state.arc.rescueRoute = true;
   p.renown += 300;
   p.gold += 600;
-  pushLog(state, '【天下归一】你站在都城的城楼上，看见四面城门都挂着自己的旗。三十天后，一场大旱会从西边来。');
-  state.events.push({
-    type: 'arc', phase: 'celebration',
-    title: '天下归一',
-    lines: [
-      p.faction && p.faction !== 'player' && FACTIONS[p.faction]
-        ? '你随着' + FACTIONS[p.faction].full + '的旗，走到了最后一座城。'
-        : '你把自己的旗插上了最后一座城。',
-      '各地使者排队递上降表，你在城楼上站了很久。',
-      '从今天起，天下只有一个年号。只是西边的云，已经开始发黄。',
-    ],
-  });
-  return true;
-}
 
-/** 找一块地图边缘、能走的空地，放下那座“这时才出现”的边陲小城 */
-function makeExileSite(state) {
-  if (state.arc && state.arc.exileSiteId) {
-    return siteById(state.world, state.arc.exileSiteId);
-  }
-  const world = state.world;
-  const spots = [];
-  for (let y = 2; y < world.h - 2; y += 1) {
-    for (let x = 2; x < world.w - 2; x += 1) {
-      const edge = Math.min(x, y, world.w - 1 - x, world.h - 1 - y);
-      if (edge > 5) continue;
-      if (!isPassable(world, x, y)) continue;
-      if (siteAt(world, x, y)) continue;
-      const near = world.sites.some(function (s) {
-        return Math.abs(s.x - x) + Math.abs(s.y - y) < 4;
-      });
-      if (near) continue;
-      spots.push({ x: x, y: y, edge: edge });
-    }
-  }
-  const pick = spots.sort(function (a, b) { return a.edge - b.edge; })[0];
-  if (!pick) return null;
-  const site = {
-    id: 'exile_town',
-    name: '边陲小城',
-    type: 'town',
-    x: pick.x,
-    y: pick.y,
-    region: regionAt(world, pick.x, pick.y),
-    ownerFaction: 'player',
-    playerOwned: true,
-    lordId: null,
-    selfFief: true,
-    color: state.player.country && state.player.country.color ? state.player.country.color : '#d9a441',
-    banner: state.player.country && state.player.country.name ? state.player.country.name : '旗',
-    garrison: 24,
-    garrisonBase: 24,
-    recruitList: ['militia', 'spear'],
-    recruitCap: 8,
-    recruits: { militia: 6, spear: 3 },
-    priceIndex: 1.15,
-    blurb: '一座地图边缘的小城。城墙不高，却是你此刻唯一还能落脚的地方。',
-    population: 900,
-    foodStock: {},
-    lordRecruits: { militia: 4, spear: 2 },
-  };
-  world.sites.push(site);
-  world.factionGrid = null;
-  if (state.arc) state.arc.exileSiteId = site.id;
-  return site;
-}
-
-/** 第三十天：大旱、易子而食、天下皆反，玩家被赶出都城 */
-function triggerDisaster(state) {
-  if (!state.arc || state.arc.phase !== 'celebration') return;
-  const p = state.player;
-  const formerFaction = p.faction;
-  const exile = makeExileSite(state);
-  if (!exile) return;
-  const day = state.clock.day;
-  const oldSites = state.world.sites.filter(function (s) { return s.id !== exile.id; });
-
-  oldSites.forEach(function (s) {
-    if (s.playerOwned || s.ownerFaction === 'player' ||
-        (formerFaction && formerFaction !== 'player' && s.ownerFaction === formerFaction)) {
-      s.playerOwned = false;
+  // 全国城头一夜换旗：除了边陲小镇，全部归叛军。
+  (state.world.sites || []).forEach(function (s) {
+    if (s.id === edge.id) return;
+    if (s.type === 'camp') {
       s.ownerFaction = 'bandit';
-      s.lordId = null;
-      s.selfFief = false;
-      s.playerBlocked = true;
-      s.garrison = Math.max(8, Math.round((s.garrisonBase || 20) * 0.6));
+      return;
     }
-    if (s.type !== 'camp') s.burned = true;
+    s.ownerFaction = 'rebel';
+    s.playerOwned = false;
+    s.selfFief = false;
+    s.lordId = null;
+    s.playerBlocked = false;
+    s.burned = false;
+    s.garrison = Math.max(10, Math.round((s.garrisonBase || 30) * 0.6));
+    s.color = FACTIONS.rebel.color;
+    s.banner = FACTIONS.rebel.banner;
   });
+  edge.ownerFaction = 'player';
+  edge.playerOwned = true;
+  edge.selfFief = true;
+  edge.garrison = Math.max(24, edge.garrison || 24);
+  edge.banner = p.country && p.country.name ? p.country.name : '旗';
+  edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
+  state.world.factionGrid = null;
 
   Object.keys(FACTIONS).forEach(function (id) {
-    if (id === 'player') return;
+    if (id === 'rebel' || id === 'player') return;
     state.relations[id] = -100;
-    state.wars[id] = true;
-    if (id !== 'bandit') war.declare(state, 'player', id, true);
+    state.wars[id] = false;
+    war.makePeace(state, 'player', id, true);
   });
+  state.relations.rebel = -100;
+  state.wars.rebel = true;
+  war.declare(state, 'player', 'rebel', true, true);
 
   const loyal = [];
+  const rebels = [];
   state.lords.forEach(function (l) {
-    // 从玩家队伍里出去的人，哪怕原先挂的是旧主的旗，也认你这个人
-    const fromYourCamp = !!l.hero || l.faction === 'player' ||
-      !!(formerFaction && l.faction === formerFaction && l.hero);
-    if (fromYourCamp && l.alive) {
+    if (!l || !l.alive || l.dead || l.retired) return;
+    const fromYourCamp = !!l.hero || l.faction === 'player';
+    if (fromYourCamp) {
+      l.faction = 'player';
       l.arcEnemy = false;
       l.arcNoRecruit = false;
       l.arcNoCapture = false;
-      l.faction = 'player';
       l.inCity = null;
       l.order = null;
-      l.x = exile.x;
-      l.y = exile.y;
-      l.home = exile.id;
-      loyal.push(l.id);
+      l.defending = null;
+      l.chasing = false;
+      l.home = edge.id;
+      l.x = p.x;
+      l.y = p.y;
+      l.stepFrom = null;
+      l.stepTo = null;
+      l.routePath = null;
+      l.patrolPath = null;
+      loyal.push(l);
     } else {
+      l.faction = 'rebel';
       l.arcEnemy = true;
       l.arcNoRecruit = true;
       l.arcNoCapture = true;
+      l.order = null;
+      l.defending = null;
+      l.chasing = false;
+      const h = siteById(state.world, l.home);
+      const home = h && h.ownerFaction === 'rebel' ? h : nearestRebelCity(state, l);
+      l.home = home ? home.id : 'luoyang';
+      l.inCity = home ? home.id : null;
+      if (home) {
+        l.x = home.x;
+        l.y = home.y;
+      }
+      rebels.push(l);
     }
   });
 
-  if (!p.country) p.country = { name: '汉', color: '#d9a441' };
+  // 兄弟里每三个人留下一个断后。
+  const casualties = loyal.length >= 3 ? Math.floor(loyal.length / 3) : 0;
+  for (let i = 0; i < casualties; i += 1) {
+    const l = loyal[i];
+    l.alive = false;
+    l.dead = true;
+    l.arcEnemy = false;
+    state.arc.lostBrothers.push(l.name);
+  }
+  state.arc.loyalLords = loyal.filter(function (l) { return l.alive; }).map(function (l) { return l.id; });
+  const troopLoss = shavePlayerTroops(state, 1 / 3);
+
+  // 玩家从旧都城（或当前位置）出发，路线自动指向边陲小镇。
   p.faction = 'player';
-  p.gold = Math.max(0, Math.round(p.gold * 0.4));
-  p.food = Math.min(army.foodCap(p.troops), 24);
-  p.morale = Math.max(10, p.morale - 40);
-  p.renown = Math.max(0, p.renown - 100);
-  p.atSiteId = exile.id;
-  p.x = exile.x;
-  p.y = exile.y;
+  p.atSiteId = null;
   p.route = [];
   p.stepFrom = null;
   p.stepTo = null;
   p.stepProgress = 0;
-  if (state.playerSiege) state.playerSiege = null;
-  state.arc.phase = 'reconquest';
-  state.arc.disasterDay = day;
-  state.arc.loyalLords = loyal;
-  state.arc.famine = true;
-  state.world.factionGrid = null;
+  const route = findPath(state.world, { x: p.x, y: p.y }, { x: ex, y: ey });
+  if (route && route.length) p.route = route;
+  p.morale = Math.max(12, p.morale - 35);
+  p.renown = Math.max(0, p.renown - 80);
+  if (!p.country) p.country = { name: '汉', color: '#d9a441' };
+  p.flagName = p.country.name || '汉';
+  state.flags.edgeRetreat = true;
+
   state.events.push({
-    type: 'arc', phase: 'disaster',
-    title: '大旱 · 天下皆反',
+    type: 'arc', phase: 'betrayal',
+    title: '全国背叛',
     lines: [
-      '第三十天，西边的天一直黄着。井先干了，然后是河。',
-      '粮价一天三涨，路边开始有人交换孩子。各地豪强把你的旗从城头扯下来，换上了自己的。',
-      '你所在的城市被反贼围了。你带着还能走的旧部，从北门杀出去。',
-      '天亮时，你在一座地图边缘的小城停下。城很小，但没有挂别人的旗。',
-      '从今天起，全国都在捉拿你。只有从你队伍里出去的领主，还愿意站在你这边。',
+      '最后一座城归旗的当天，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
+      '除了从你帐下出去的兄弟，所有人都翻脸了；' +
+        (state.arc.lostBrothers.length ? ('断后的' + state.arc.lostBrothers.join('、') + '再也没跟上来。') : '你在乱军里丢了三分之一的弟兄。'),
+      '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往西走。',
+      '边陲小镇的雾已经散开一线；跟着地图上的线条走，不要回头。',
     ],
   });
-  pushLog(state, '【大旱 · 天下皆反】你失去所有城，退到边陲小城。天下皆敌，只有旧部还在。');
+  pushLog(state, '【全国背叛】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
+  state.arc.troopLoss = troopLoss;
+  state.arc.rebelCount = rebels.length;
+  if (state.story) state.story.unifiedFaction = formerFaction || 'player';
+  return true;
+}
+
+/** 兼容旧流程：灾变入口现在直接触发统一背叛。 */
+function triggerDisaster(state) {
+  if (state.arc) return false;
+  return startUnification(state);
+}
+
+/** 找一块地图边缘、能走的空地，放下那座“这时才出现”的边陲小城（旧档兜底） */
+function makeExileSite(state) {
+  const edge = edgeTownSite(state);
+  if (edge) return edge;
+  return null;
 }
 
 /** 再次统一：大赏四方，进入尾声选择 */
@@ -18295,14 +18629,96 @@ function checkVictory(state) {
   if (allMajorSitesOwned(state)) startUnification(state);
 }
 
-/** 每天检查三十天灾变与再统一 */
+/** 每天检查：撤退到边陲小镇、每月补给、复国后再统一 */
+/** 边陲小镇十格迷雾：玩家靠近时只给提示，不让他继续深入。 */
+function edgeFogTick(state) {
+  const edge = edgeTownSite(state);
+  if (!edge) return;
+  if (state.world.edgeTown && state.world.edgeTown.fogOpen) return;
+  if (state.flags.edgeFogPrompt) return;
+  const p = state.player;
+  const d = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
+  if (d > (state.world.edgeTown ? state.world.edgeTown.radius || 10 : 10) + 2) return;
+  state.flags.edgeFogPrompt = true;
+  pushLog(state, '【迷雾】迷雾迷人眼，无法深入探索，否则可能迷失其中，永远无法出来。');
+  state.events.push({
+    type: 'edge-fog',
+    title: '迷雾迷人眼',
+    lines: [
+      '雾从西边压过来，十步外的树影都看不清了。',
+      '迷雾迷人眼，无法深入探索；再往里走，可能会迷失其中，永远无法出来。',
+      '你退了两步，雾才慢慢散开。',
+    ],
+  });
+}
+
 function arcTick(state) {
   if (!state.arc) return;
-  if (state.arc.phase === 'celebration' && state.clock.day >= state.arc.disasterDay) {
-    triggerDisaster(state);
-  } else if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) {
-    triggerArcFinale(state);
+  const arc = state.arc;
+  const p = state.player;
+  const edge = edgeTownSite(state);
+  if (!edge) return;
+
+  if (arc.phase === 'retreat') {
+    // 路上遇到拦路 NPC：只能留下一部分兵力断后，自己继续走。
+    const nearFoe = (state.lords || []).filter(function (l) {
+      return l && l.alive && !l.dead && l.faction === 'rebel' && !l.inCity &&
+        Math.max(Math.abs(l.x - p.x), Math.abs(l.y - p.y)) <= 2;
+    })[0];
+    if (nearFoe && !arc.blockerDone) {
+      arc.blockerDone = true;
+      state.flags.edgeBlockers = (state.flags.edgeBlockers || 0) + 1;
+      pushLog(state, '【断后】' + nearFoe.name + '追上来了。你留下部分兵力断后，自己继续往边陲小镇走。');
+      state.events.push({
+        type: 'arc', phase: 'retreat-block',
+        title: '留兵断后',
+        lines: [
+          nearFoe.name + '的旗号从侧面压上来，队伍不能停。',
+          '你点出一部分弟兄留下断后，自己带着剩下的兄弟继续往西。',
+          '追兵不会等，边陲小镇也不会等。',
+        ],
+      });
+      // 断后损耗：每次损失两成兵力；不进入战斗，不拖时间。
+      shavePlayerTroops(state, 0.2);
+    }
+    const d = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
+    if (p.atSiteId === edge.id || d <= 1) {
+      p.atSiteId = edge.id;
+      p.x = edge.x;
+      p.y = edge.y;
+      p.route = [];
+      arc.phase = 'reconquest';
+      arc.arrivalDay = state.clock.day;
+      arc.lastGrantDay = state.clock.day;
+      state.flags.edgeRetreat = false;
+      state.flags.edgeArrived = true;
+      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、2000 粮草，从今天开始算。');
+      state.events.push({
+        type: 'arc', phase: 'edge',
+        title: '边陲小镇',
+        lines: [
+          '雾散开一线，小镇的灯火在雾里亮着。',
+          '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
+          '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
+        ],
+      });
+    }
+    return;
   }
+
+  if (arc.phase === 'reconquest') {
+    // 每月补给：固定 1000 金币、2000 粮草。
+    if (state.clock.day - (arc.lastGrantDay || arc.arrivalDay || state.clock.day) >= 30) {
+      arc.lastGrantDay = state.clock.day;
+      p.gold += 1000;
+      p.food += 2000;
+      pushLog(state, '【边陲小镇】本月补给 1000 金币、2000 粮草已到。');
+    }
+    if (allMajorSitesOwned(state)) triggerArcFinale(state);
+    return;
+  }
+
+  if (arc.phase === 'finale') return;
 }
 
 function decideEnding(state) {
@@ -18590,18 +19006,35 @@ function deserialize(json) {
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
 
-  // n19 老档：襄平转为无主城；官渡/白马换位；汉廷诸将收回长安—潼关一线。
-  const xiangpingSite = siteById(state.world, 'xiangping');
-  if (xiangpingSite && !xiangpingSite.playerOwned &&
-      (!xiangpingSite.ownerFaction || xiangpingSite.ownerFaction === 'han')) {
-    xiangpingSite.ownerFaction = null;
-    xiangpingSite.faction = null;
-    xiangpingSite.banner = '';
-    xiangpingSite.color = '#8f8f86';
-    xiangpingSite.lordId = null;
-    xiangpingSite.recruitList = (RECRUIT_SETS.none || []).slice();
-    xiangpingSite.lordRecruits = {};
-    (xiangpingSite.recruitList || []).forEach(function (id) { xiangpingSite.lordRecruits[id] = 1; });
+  // n43 老档：襄平归公孙瓒；官渡/白马换位；汉廷诸将收回长安—潼关一线。
+  const N43_OWNER_MOVES = [
+    { id: 'xiangping', from: ['han', null], to: 'gongsun' },
+    { id: 'hanzhong', from: ['zhang'], to: 'zhanglu' },
+    { id: 'wudu', from: [null, 'zhang'], to: 'zhanglu' },
+    { id: 'shangluo', from: [null, 'zhang'], to: 'zhanglu' },
+    { id: 'taishanguan', from: [null], to: 'lv' },
+  ];
+  N43_OWNER_MOVES.forEach(function (move) {
+    const site = siteById(state.world, move.id);
+    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
+    if (move.from.indexOf(site.ownerFaction) < 0) return;
+    const faction = FACTIONS[move.to];
+    if (!faction) return;
+    site.ownerFaction = move.to;
+    site.faction = move.to;
+    site.banner = faction.banner;
+    site.color = faction.color;
+    site.lordId = null;
+    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
+    site.lordRecruits = {};
+    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+  });
+  // 边陲小镇：老档没有这张图，补城并挂上雾圈元数据。
+  const edgeSite = siteById(state.world, 'edge_town');
+  if (edgeSite && !state.world.edgeTown) {
+    state.world.edgeTown = { id: edgeSite.id, x: edgeSite.x, y: edgeSite.y, radius: 10, fogOpen: false };
+    edgeSite.fogSealed = true;
+    edgeSite.specialEdge = true;
   }
 
   SITE_ROWS.forEach(function (row) {
@@ -20111,8 +20544,10 @@ const MapScene = {
     drawFactionTint(ctx, app, cam, box, w);
     drawSites(ctx, app, cam, box, w);
     drawUnits(ctx, app, cam, box, w);
+    drawEdgeFog(ctx, app, cam, box, w);
     drawQuestMarkers(ctx, app, cam, box, w);
     drawRoute(ctx, app, cam, box);
+    drawEdgeGuide(ctx, app, cam, box, w);
     drawPlayerOnMap(ctx, app, cam, box);
     drawRegionTag(ctx, app, box, w);
     drawQuestCard(ctx, app, box, w);
@@ -21378,6 +21813,61 @@ function drawSites(ctx, app, cam, box, w) {
   ctx.restore();
 }
 
+function drawEdgeFog(ctx, app, cam, box, w) {
+  const st = app.state;
+  const edge = st && st.world && st.world.edgeTown;
+  if (!edge) return;
+  if (edge.fogOpen) return;
+  if (st.story && st.story.edgeTownOpen) return;
+  if (st.arc && (st.arc.phase === 'disaster' || st.arc.phase === 'reconquest' || st.arc.phase === 'finale')) return;
+  const cx = edge.x * TS + TS / 2 - cam.x;
+  const cy = box.top + edge.y * TS + TS / 2 - cam.y;
+  const radius = (edge.radius || 10) * TS;
+  if (cx + radius < 0 || cx - radius > w || cy + radius < box.top || cy - radius > box.top + box.h) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, box.top, w, box.h);
+  ctx.clip();
+
+  // 十格浓雾：中心几乎看不见城，外缘逐渐化开。
+  const g = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
+  g.addColorStop(0, 'rgba(176,178,170,0.92)');
+  g.addColorStop(0.45, 'rgba(162,166,160,0.9)');
+  g.addColorStop(0.78, 'rgba(136,142,138,0.82)');
+  g.addColorStop(0.94, 'rgba(120,126,124,0.45)');
+  g.addColorStop(1, 'rgba(120,126,124,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 缓慢漂移的雾团，让边缘不是一刀切的圆。
+  for (let i = 0; i < 7; i += 1) {
+    const a = i * 2.1 + 0.7;
+    const rr = radius * (0.28 + (i % 3) * 0.19);
+    const ox = Math.cos(a) * radius * 0.35;
+    const oy = Math.sin(a) * radius * 0.28;
+    ctx.fillStyle = 'rgba(226,228,220,' + (0.08 + (i % 3) * 0.025) + ')';
+    ctx.beginPath();
+    ctx.arc(cx + ox, cy + oy, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const p = st.player;
+  const pd = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
+  if (pd <= (edge.radius || 10) + 2) {
+    const ty = cy - radius * 0.42;
+    ctx.fillStyle = 'rgba(20,18,14,0.78)';
+    ctx.fillRect(cx - 118, ty - 18, 236, 54);
+    text(ctx, '迷雾迷人眼', cx, ty, { size: 24, align: 'center', color: '#f0e6cf', shadow: true });
+    text(ctx, '无法深入探索，否则可能迷失其中，永远无法出来', cx, ty + 24, {
+      size: 12, align: 'center', color: '#c9c0aa',
+    });
+  }
+  ctx.restore();
+}
+
 function drawUnits(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
@@ -21682,6 +22172,35 @@ function playerPixel(app) {
     gy = p.stepFrom.y + (p.stepTo.y - p.stepFrom.y) * t;
   }
   return { gx, gy };
+}
+
+function drawEdgeGuide(ctx, app, cam, box, w) {
+  const st = app.state;
+  const arc = st && st.arc;
+  if (!arc || arc.phase !== 'retreat') return;
+  const edge = st.world && st.world.edgeTown;
+  if (!edge) return;
+  const p = st.player;
+  const px = (p.x + 0.5) * TS - cam.x;
+  const py = box.top + (p.y + 0.5) * TS - cam.y;
+  const ex = (edge.x + 0.5) * TS - cam.x;
+  const ey = box.top + (edge.y + 0.5) * TS - cam.y;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, box.top, w, box.h);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(240,198,96,0.9)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(30,24,14,0.8)';
+  ctx.fillRect(ex - 52, ey - 44, 104, 24);
+  text(ctx, '边陲小镇', ex, ey - 32, { size: 18, align: 'center', color: '#f0d090', shadow: true });
+  ctx.restore();
 }
 
 function drawPlayerOnMap(ctx, app, cam, box) {
@@ -28720,10 +29239,15 @@ module.exports = NewsScene;
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const { drawBackdrop } = __require(28);
+const { STORY } = __require(18);
 
 const ArcScene = {
   enter(app, params) {
-    this.phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
+    let phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
+    // 新叙事：背叛事件对应“退往边陲”，到达事件对应“边陲复国”。
+    if (phase === 'betrayal' || phase === 'retreat-block') phase = 'retreat';
+    if (phase === 'edge') phase = 'reconquest';
+    this.phase = phase;
     this.t = 0;
   },
   update(app, dt) { this.t += dt || 0; },
@@ -28774,16 +29298,19 @@ const ArcScene = {
             ],
             btn: null,
           }
-          : {
-            title: '边陲小城',
-            sub: '与天下为敌',
-            lines: [
-              '这座小城在地图上原本没有名字。你逃到这里的那天，它才出现。',
-              '城墙不高，粮也不多。但城门上还没有挂别人的旗。',
-              '旧部在城外点起几堆火。你们要从这里，再把天下走一遍。',
-            ],
-            btn: '重走统一路',
-          };
+          : phase === 'retreat'
+            ? {
+              title: STORY.unification.betrayTitle || '全国背叛',
+              sub: '退往边陲小镇 · 第 ' + (arc.disasterDay || st.clock.day) + ' 天',
+              lines: STORY.unification.betrayLines || [],
+              btn: '继续往边陲小镇',
+            }
+            : {
+              title: STORY.unification.edgeTitle || '边陲小镇',
+              sub: '每月 1000 金币 · 2000 粮草',
+              lines: STORY.unification.edgeLines || [],
+              btn: '从边陲小镇反攻',
+            };
 
     drawBackdrop(ctx, phase === 'finale' || phase === 'celebration' ? 'hall' : 'battle', w, h, 77);
     ctx.fillStyle = 'rgba(8,6,4,0.58)';
