@@ -19,11 +19,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Apply n42 patch
+      - name: Apply n42 state hotfix
         run: |
-          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n42.patch 'https://aka.doubaocdn.com/s/lsGCmIabKd'
-          git apply --check /tmp/juqing-n42.patch
-          git apply /tmp/juqing-n42.patch
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n42-state.patch 'https://aka.doubaocdn.com/s/GRULQ0tY5J'
+          git apply --check /tmp/juqing-n42-state.patch
+          git apply /tmp/juqing-n42-state.patch
       - name: Test
         run: |
           node tools/logic-test.js
@@ -33,15 +33,15 @@ jobs:
       - name: Build bundle
         run: node tools/bundle.js
       - name: Verify bundle
-        run: echo '373d5239312eba705f1fe138241a7322ff3b1d906f50bb3af87545de14178f55  web/game.bundle.js' | sha256sum -c -
-      - name: Commit n42
+        run: echo 'ee1bcbf6d5a4e6b5805bbd2e68082b9014ed2aaabc242f84b41f4b77b5a9858c  web/game.bundle.js' | sha256sum -c -
+      - name: Commit n42 hotfix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html js/core/state.js js/core/war.js js/data/china.js js/data/story.js js/data/lord-rank.js js/scenes/lord.js tools/logic-test.js tools/story-test.js web/game.bundle.js web/index.html
+          git add js/core/state.js web/game.bundle.js
           if git diff --cached --quiet; then
             echo 'No changes'
             exit 0
           fi
-          git commit -m 'release: 20261126n42 50人名将榜带兵上限/招兵倍率 [skip ci]'
+          git commit -m 'fix: n42 普通领主按自身编制判断满员 [skip ci]'
           git push origin HEAD:juqing
