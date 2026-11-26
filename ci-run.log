@@ -1,0 +1,10 @@
+start Thu Nov 26 23:38:51 UTC 2026
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100      2 100      2   0      0      2      0   00:01           00:01      0100      2 100      2   0      0      2      0   00:01           00:01      0
+  0      0   0      0   0      0      0      0                              0  3  1.46M   3  47436   0      0  23176      0   01:06   00:02   01:04  41248100  1.46M 100  1.46M   0      0 552.9k      0   00:02   00:02          41248100  1.46M 100  1.46M   0      0 552.9k      0   00:02   00:02          41248100  1.46M 100  1.46M   0      0 552.8k      0   00:02   00:02          41248
+curl=0
+/tmp/n50src.tgz: OK
+sha=0
+tar=0
+-rw-r--r-- 1 runner runner 362733 Nov 26 22:59 js/data/history_art.js
