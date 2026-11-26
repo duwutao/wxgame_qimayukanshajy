@@ -1,0 +1,28 @@
+name: juqing bootstrap
+
+on:
+  push:
+    branches: [juqing]
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: ${{ !contains(github.event.head_commit.message, 'chore: bootstrap juqing branch') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply juqing patch and rebuild bundle
+        run: |
+          if [ -f juqing.patch.gz.b64 ]; then
+            base64 -d juqing.patch.gz.b64 | gunzip > /tmp/juqing.patch
+            git apply --whitespace=nowarn /tmp/juqing.patch
+          fi
+          node tools/bundle.js
+          rm -f juqing.patch.gz.b64 .github/workflows/juqing-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: bootstrap juqing branch"
+          git push origin HEAD:juqing
