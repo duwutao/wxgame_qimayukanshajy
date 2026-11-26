@@ -431,6 +431,7 @@ function phasePeace(state, faction, cfg) {
   const done = [];
   partners.forEach(function (other) {
     if (!other || other === 'bandit') return;
+    if (factionDead(state, other)) return;
     const k = key(faction, other);
     if (st.noPeace[k]) return;
     if (st.emperor && st.emperor.coalitionTarget &&
@@ -456,7 +457,10 @@ function finishPhase(state, faction, ok) {
     p.timedOut = false;
     return;
   }
-  const peaceTo = phasePeace(state, faction, cfg);
+  // 第一阶段（completed===0）是开局灭国战：不递停战书，也不预告下一步；
+  // 否则“与刚被灭的吕布遣使议和”会暴露曹操接下来要往关中/荆州用兵。
+  const opening = (p.completed || 0) === 0;
+  const peaceTo = opening ? [] : phasePeace(state, faction, cfg);
   p.status = 'rest';
   p.success = true;
   p.timedOut = false;
@@ -467,12 +471,24 @@ function finishPhase(state, faction, ok) {
   delete st.priority[faction];
   war.abortCampaign(state, faction);
 
-  const lines = (cfg.successLines || []).slice();
+  let lines = (cfg.successLines || []).slice();
+  if (opening) {
+    // 开局阶段只留战果，不把“下一阶段：……”写进公告。
+    lines = lines.filter(function (line) {
+      return !/^(下一阶段|下一战略|下一步)/.test(String(line).trim());
+    });
+  }
   if (peaceTo.length) {
     lines.push('与' + peaceTo.map(factionName).join('、') + '遣使议和，两家收兵，边关鼓角暂歇。');
   }
   const markTitle = displayLabel(cfg) + ' · 达成';
-  if (peaceTo.length) {
+  if (opening) {
+    // 第一阶段只发战略结果，不弹“议和”页，也不展示下一阶段目标。
+    pushStoryEvent(state, markTitle, lines, {
+      tag: '战略',
+      auto: 8,
+    });
+  } else if (peaceTo.length) {
     // 真正递了停战书的阶段，走议和文书：大字是战略结果，小字写清为何收兵。
     pushPeaceEvent(state, markTitle, lines);
   } else {
