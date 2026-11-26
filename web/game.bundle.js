@@ -832,6 +832,7 @@ const SITE_ROWS = [
   ['luoyang', '洛阳', 'town', 'wei', 20, 22, 1.12, 130, 'cao', '董卓烧过一次，如今又有人回来重新点灯。'],
   ['hulao', '虎牢关', 'castle', 'wei', 21, 20, 1.15, 90, 'cao', '洛阳东面的关口。三英战吕布，就在这下面。'],
   // ---- 凉州 ----
+  ['anding', '安定', 'town', 'han', 11, 18, 1.08, 95, 'han', '汉家西面的门户，卡在武威通往长安的驿道上，城头还挂着汉廷赤旗。'],
   ['wuwei', '武威', 'town', 'ma', 6, 17, 1.04, 100, 'ma', '凉州治所，马市开在城外，一天能换三百匹。'],
   ['xiping', '西平', 'town', 'hansui', 3, 17, 1.06, 90, 'hansui', '湟水谷地的粮城。韩遂的旗插在城头，羌汉商队都在这里歇脚。'],
   ['fuhan', '枹罕', 'castle', 'hansui', 2, 20, 1.14, 85, 'hansui', '河州旧垒。城墙夯了又夯，挡住过无数次羌骑。'],
@@ -938,7 +939,8 @@ const ROADS = [
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
   ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
-  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['wuwei', 'xiping'], ['xiping', 'fuhan'], ['fuhan', 'jincheng'],
+  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['jincheng', 'tianshui'], ['wuwei', 'xiping'], ['fuhan', 'jincheng'],
+  ['wuwei', 'anding'], ['anding', 'changan'],
   ['wuwei', 'tianshui'], ['tianshui', 'wudu'], ['wudu', 'hanzhong'],
   ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
@@ -3365,6 +3367,27 @@ function layRoads(world, pairs) {
 }
 
 
+/** 拆除旧档里的旧连线：路面还原为原野，桥还原为河，山口还原为山。 */
+function clearRoads(world, pairs) {
+  world.bridges = world.bridges || [];
+  world.canyons = world.canyons || [];
+  (pairs || []).forEach(function (pair) {
+    const a = siteById(world, pair[0]);
+    const b = siteById(world, pair[1]);
+    if (!a || !b) return;
+    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
+      if (!inBounds(x, y)) return;
+      if (siteAt(world, x, y)) return;
+      const t = world.tiles[idx(x, y)];
+      if (t === 'road') world.tiles[idx(x, y)] = 'plain';
+      else if (t === 'bridge') world.tiles[idx(x, y)] = 'river';
+      else if (t === 'pass') world.tiles[idx(x, y)] = 'mountain';
+      world.bridges = world.bridges.filter(function (m) { return m.x !== x || m.y !== y; });
+      world.canyons = world.canyons.filter(function (m) { return m.x !== x || m.y !== y; });
+    });
+  });
+}
+
 function createWorld(seed) {
   const rng = new RNG(seed);
   const world = {
@@ -3717,6 +3740,7 @@ module.exports = {
   createWorld,
   siteFromRow,
   layRoads,
+  clearRoads,
   ensureWorldFeatures,
   bridgeHasWater,
   findPath,
@@ -10466,6 +10490,7 @@ const {
   createWorld,
   siteFromRow,
   layRoads,
+  clearRoads,
   ensureWorldFeatures,
   findPath,
   siteById,
@@ -17686,6 +17711,15 @@ function deserialize(json) {
     ['jianning', 'nanzhong'],
   ];
   layRoads(state.world, N21_ROADS);
+  // n32 西北路网：金城—天水接上，安定接武威与长安；旧档两端都是旧城时也要补。
+  const N32_ROADS = [
+    ['jincheng', 'tianshui'],
+    ['wuwei', 'anding'],
+    ['anding', 'changan'],
+  ];
+  layRoads(state.world, N32_ROADS);
+  // n33 断开枹罕—西平：新开局已不铺这条线，旧档也要把旧路面、旧桥和旧山口还原。
+  clearRoads(state.world, [['xiping', 'fuhan']]);
   // 牂牁从 (18,40) 下移到 (20,44)，贴着交趾；旧档同步搬城，不能让道路悬空。
   const zangkeRow = SITE_ROWS.filter(function (row) { return row[0] === 'zangke'; })[0];
   const zangkeSite = siteById(state.world, 'zangke');
