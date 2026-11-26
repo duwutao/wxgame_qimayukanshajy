@@ -7123,6 +7123,11 @@ function checkVictory(state) {
     if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
   }
+  // 荆州最终阶段拖满两年：共主已被强制推举，直接进入全国背叛。
+  if (state.story && state.story.endgame && state.story.endgame.forcedWinner) {
+    startUnification(state);
+    return;
+  }
   if (allMajorSitesOwned(state)) startUnification(state);
 }
 

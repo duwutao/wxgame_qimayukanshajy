@@ -1038,6 +1038,34 @@ function tickJingzhou(state) {
   if (state.clock.day >= (st.jingzhou.until || 0)) endJingzhouRound(state, null);
 }
 
+/** 最终阶段（第十轮后不死不休）也会被玩家拖住；满两年强制推举共主，进入统一背叛。 */
+function forceEndgameUnification(state) {
+  const eg = state.story.endgame;
+  if (!eg || eg.forced) return false;
+  const alive = STORY.kingdoms.filter(function (f) { return factionAlive(state, f); });
+  const winner = (eg.strongest && alive.indexOf(eg.strongest) >= 0 ? eg.strongest : null)
+    || strongestKingdom(state) || alive[0];
+  if (!winner) return false;
+  (state.world.sites || []).forEach(function (s) {
+    if (s.id === 'edge_town') return;
+    if (s.type !== 'town' && s.type !== 'castle') return;
+    s.ownerFaction = winner;
+    s.faction = winner;
+    s.playerOwned = false;
+  });
+  eg.forced = true;
+  eg.forcedWinner = winner;
+  eg.forcedDay = state.clock.day;
+  pushStoryEvent(state, STORY.unification ? STORY.unification.forceTitle || '天下易主' : '天下易主', [
+    '荆州十轮打了两年，最后一座城仍悬而未决。',
+    '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
+    '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。',
+  ], { tag: '终局', art: 'war', auto: 9 });
+  logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
+  refreshHeadline(state);
+  return true;
+}
+
 function tickEndgame(state) {
   const st = state.story;
   const eg = st.endgame;
@@ -1053,6 +1081,11 @@ function tickEndgame(state) {
     return;
   }
   if (eg.phase === 'final') {
+    // 第十轮后没有下一阶段，玩家若靠守城拖住，两年后强制推举共主。
+    if (!eg.forced && state.clock.day - (eg.since || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
+      forceEndgameUnification(state);
+      return;
+    }
     const alive = STORY.kingdoms.filter(function (f) { return factionAlive(state, f); });
     if (alive.length <= 1) return;
     const strong = eg.strongest && factionAlive(state, eg.strongest) ? eg.strongest : null;

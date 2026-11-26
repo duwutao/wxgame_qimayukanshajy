@@ -187,6 +187,26 @@ group('n43 荆州十轮：霸主、联盟与休整');
   ok('第十轮结算后不再停战', st.story.endgame.final === true && st.story.jingzhouDone === true);
 }
 
+group('n43 最终阶段两年未决强制统一');
+{
+  const st = game(20261126031);
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.endgame = {
+    active: true, phase: 'final', final: true, strongest: 'wei',
+    allies: ['shu', 'wu'], cycle: 10, since: 31,
+  };
+  st.story.jingzhouDone = true;
+  st.clock.day = 751;
+  story.tick(st);
+  const eg = st.story.endgame;
+  ok('第十轮两年未决会强制推举共主', eg.forced === true && eg.forcedWinner === 'wei');
+  ok('强制统一后全部大城归共主', st.world.sites.every(function (s) {
+    return s.id === 'edge_town' || s.type !== 'town' && s.type !== 'castle' || s.ownerFaction === 'wei';
+  }));
+  stateLib.checkVictory(st);
+  ok('强制统一后进入全国背叛', !!st.arc && st.arc.phase === 'retreat');
+}
+
 group('n43 统一背叛与边陲小镇');
 {
   const st = game(2026112604);
