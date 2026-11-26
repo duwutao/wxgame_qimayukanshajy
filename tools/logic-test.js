@@ -4175,15 +4175,19 @@ group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉
     const lb = g41.lords.filter(function (l) { return l.id === 'liubei'; })[0];
     return lb ? lb.home : 'gone';
   })());
-  ok('韩遂在五十天内灭掉马家', maDeadDay > 0 && maDeadDay <= 50 && g41.flags.maSurrenderDone === true,
-    '第 ' + maDeadDay + ' 天');
-  ok('武威、居延、陇西尽归韩遂', ['wuwei', 'juyan', 'longxi'].every(function (id) {
+  ok('韩遂没有灭掉马家，马家仍守一城', maDeadDay === 0 &&
+    (g41.factionState.ma || {}).dead !== true && g41.flags.maSurrenderDone === true,
+    'deadDay=' + maDeadDay + ' maDead=' + ((g41.factionState.ma || {}).dead === true));
+  ok('武威、陇西归韩遂，居延仍属马家', ['wuwei', 'longxi'].every(function (id) {
     return worldLib.siteById(g41.world, id).ownerFaction === 'hansui';
-  }), ['wuwei', 'juyan', 'longxi'].map(function (id) {
-    return id + ':' + (worldLib.siteById(g41.world, id).ownerFaction || 'none');
-  }).join(' '));
+  }) && worldLib.siteById(g41.world, 'juyan').ownerFaction === 'ma',
+    ['wuwei', 'juyan', 'longxi'].map(function (id) {
+      return id + ':' + (worldLib.siteById(g41.world, id).ownerFaction || 'none');
+    }).join(' '));
   const maLords = g41.lords.filter(function (l) { return l.faction === 'ma'; });
-  ok('马家没有残党留在原阵营', maLords.length === 0, String(maLords.length));
+  ok('马家残部仍留在居延', maLords.length > 0 && maLords.some(function (l) {
+    return l.home === 'juyan' || l.inCity === 'juyan';
+  }), String(maLords.length) + ' ' + maLords.map(function (l) { return l.id + '@' + (l.inCity || l.home); }).join(','));
 }
 
 /* ---------------------------------------------------------------- 名将榜 · 带兵上限 · 招兵倍率 */
@@ -4213,6 +4217,8 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
   ok('招兵倍率严格按名次分段', expectedMul.every(function (x) {
     return rankLib.recruitMulForRank(x[0]) === x[1];
   }), expectedMul.map(function (x) { return x[0] + ':' + rankLib.recruitMulForRank(x[0]); }).join(' '));
+  ok('君主募兵系数默认 1.5', rankLib.DEFAULT_MONARCH_RECRUIT_MUL === 1.5,
+    String(rankLib.DEFAULT_MONARCH_RECRUIT_MUL));
 
   const g = stateLib.createGame({ seed: 777001 });
   const roster = list.map(function (x) { return g.lords.filter(function (l) { return l.id === x.id; })[0]; });
@@ -4221,13 +4227,20 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
   const capBad = [];
   const defBad = [];
   const mulBad = [];
+  function effectiveRankMul(l, info) {
+    return stateLib.lordRank(l) === 'king'
+      ? Math.max(rankLib.DEFAULT_MONARCH_RECRUIT_MUL, info.recruitMul)
+      : info.recruitMul;
+  }
   roster.forEach(function (l) {
     if (!l) return;
     const info = rankLib.LORD_POWER_BY_ID[l.id];
     if (stateLib.lordTroopCap(l) !== info.cap) capBad.push(l.id + ':' + stateLib.lordTroopCap(l));
     const def = armyLib.troopCount(l.defTroops || {});
     if (def !== info.cap) defBad.push(l.id + ':' + def + '/' + info.cap);
-    if (stateLib.lordRecruitMul(l) !== info.recruitMul) mulBad.push(l.id + ':' + stateLib.lordRecruitMul(l));
+    if (stateLib.lordRecruitMul(l) !== effectiveRankMul(l, info)) {
+      mulBad.push(l.id + ':' + stateLib.lordRecruitMul(l));
+    }
   });
   ok('50 名将带兵上限按榜单生效', capBad.length === 0, capBad.slice(0, 5).join(','));
   ok('50 名将满编编制等于榜单单人上限', defBad.length === 0, defBad.slice(0, 5).join(','));
@@ -4237,15 +4250,30 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
   }), roster.filter(function (l) {
     return l && armyLib.troopCount(l.troops || {}) > armyLib.troopCount(l.defTroops || {});
   }).map(function (l) { return l.id; }).join(','));
-  const normal = g.lords.filter(function (l) { return !rankLib.LORD_POWER_BY_ID[l.id]; })[0];
-  ok('榜单外领主仍按普通 1.0 倍率', !!normal && stateLib.lordRecruitMul(normal) === 1.0,
-    normal ? stateLib.lordRecruitMul(normal) : 'none');
+  const normal = g.lords.filter(function (l) {
+    return !rankLib.LORD_POWER_BY_ID[l.id] && stateLib.lordRank(l) === 'general';
+  })[0];
+  ok('榜单外普通领主按 1.0 倍率', !!normal && stateLib.lordRecruitMul(normal) === 1.0,
+    normal ? normal.id + ':' + stateLib.lordRecruitMul(normal) : 'none');
+  const monarch = g.lords.filter(function (l) {
+    return !rankLib.LORD_POWER_BY_ID[l.id] && stateLib.lordRank(l) === 'king';
+  })[0];
+  ok('榜单外君主按默认 1.5 倍率', !!monarch && stateLib.lordRecruitMul(monarch) === 1.5,
+    monarch ? monarch.id + ':' + stateLib.lordRecruitMul(monarch) : 'none');
+  const rankedMonarch = g.lords.filter(function (l) { return l.id === 'lvbu'; })[0];
+  ok('君主榜单速率高于 1.5 时取榜单值', !!rankedMonarch &&
+    stateLib.lordRecruitMul(rankedMonarch) === 2.0,
+    rankedMonarch ? stateLib.lordRecruitMul(rankedMonarch) : 'none');
+  const rankedBelowDefault = g.lords.filter(function (l) { return l.id === 'zhangbao'; })[0];
+  ok('非君主榜单末位仍按榜单 1.1', !!rankedBelowDefault &&
+    stateLib.lordRecruitMul(rankedBelowDefault) === 1.1,
+    rankedBelowDefault ? stateLib.lordRecruitMul(rankedBelowDefault) : 'none');
 
   const saved = stateLib.deserialize(stateLib.serialize(g));
   ok('存档往返后榜单上限与倍率保留', !!saved && list.every(function (x) {
     const l = saved.lords.filter(function (y) { return y.id === x.id; })[0];
     return l && stateLib.lordTroopCap(l) === rankLib.LORD_POWER_BY_ID[x.id].cap &&
-      stateLib.lordRecruitMul(l) === rankLib.LORD_POWER_BY_ID[x.id].recruitMul;
+      stateLib.lordRecruitMul(l) === effectiveRankMul(l, rankLib.LORD_POWER_BY_ID[x.id]);
   }), saved ? 'ok' : 'null');
 
   const romance = stateLib.createGame({ background: 'romance', storyMode: true, seed: 777001 });

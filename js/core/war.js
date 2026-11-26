@@ -2472,10 +2472,15 @@ function abortCampaign(state, faction) {
 
 /** 三足鼎立后，AI 不能打下任何一家的最后一座城；玩家仍可亲手完成统一。 */
 function keepsMajorLastCity(state, site, attacker) {
-  if (!state || !state.story || !state.story.mode || !site) return false;
+  if (!state || !site) return false;
   if (attacker === 'player') return false;
   const owner = site.ownerFaction;
-  if (['wei', 'shu', 'wu'].indexOf(owner) < 0) return false;
+  // 马腾、韩遂之间只分高下，不互相灭国：最后一座城沿用既有的“保城”判定。
+  const maHanPair = (owner === 'ma' && attacker === 'hansui') ||
+    (owner === 'hansui' && attacker === 'ma');
+  const majorLast = !!(state.story && state.story.mode &&
+    ['wei', 'shu', 'wu'].indexOf(owner) >= 0);
+  if (!maHanPair && !majorLast) return false;
   const left = (state.world.sites || []).filter(function (s) {
     return s.type !== 'camp' && s.ownerFaction === owner;
   }).length;
@@ -2512,7 +2517,8 @@ function startSiege(state, cp, site, day) {
   cp.siegeStart = day;
   // 刘备入川第一仗：刘璋“开关迎客”，五路兵马按剧情一起压到剑阁城下，三日定城。
   // 之后的城仍按正常围城天数走，不能把整张图都变成速攻。
-  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+    (site.id === 'jiange' || site.id === 'baxi');
   // 成都打了七十多天，守军按都城恢复涨到两百多；入川主线到城下时按刘璋军心已散，
   // 把城内守备压到一百以内，让刘备的五路人马能真正打下这座大本营。
   const chengduRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'chengdu';
@@ -2709,7 +2715,7 @@ function beginSiegeAssault(state, cp, site, day) {
   // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
   // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
   const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-    (site.id === 'jiange' || site.id === 'chengdu');
+    (site.id === 'jiange' || site.id === 'baxi' || site.id === 'chengdu');
   const attackers = attackersOf(state, cp).filter(function (l) {
     return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
@@ -2886,8 +2892,10 @@ function captureSiegeSite(state, cp, site, day, battle) {
     site.siegeFaction = null;
     site.siegeSinceH = null;
     state.siegeCooldown[key(cp.faction, oldOwner)] = day + 45;
+    const maHanPair = (oldOwner === 'ma' && cp.faction === 'hansui') ||
+      (oldOwner === 'hansui' && cp.faction === 'ma');
     logFn(state, site.name + '城破在即，' + FACTIONS[cp.faction].full +
-      '却忽然收兵：三足未定，谁也不肯让一家就此灭国。', 'siege');
+      '却忽然收兵：' + (maHanPair ? '马腾韩遂只争城池，不灭其国。' : '三足未定，谁也不肯让一家就此灭国。'), 'siege');
     return false;
   }
   site.ownerFaction = cp.faction;

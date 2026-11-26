@@ -8583,10 +8583,15 @@ function abortCampaign(state, faction) {
 
 /** 三足鼎立后，AI 不能打下任何一家的最后一座城；玩家仍可亲手完成统一。 */
 function keepsMajorLastCity(state, site, attacker) {
-  if (!state || !state.story || !state.story.mode || !site) return false;
+  if (!state || !site) return false;
   if (attacker === 'player') return false;
   const owner = site.ownerFaction;
-  if (['wei', 'shu', 'wu'].indexOf(owner) < 0) return false;
+  // 马腾、韩遂之间只分高下，不互相灭国：最后一座城沿用既有的“保城”判定。
+  const maHanPair = (owner === 'ma' && attacker === 'hansui') ||
+    (owner === 'hansui' && attacker === 'ma');
+  const majorLast = !!(state.story && state.story.mode &&
+    ['wei', 'shu', 'wu'].indexOf(owner) >= 0);
+  if (!maHanPair && !majorLast) return false;
   const left = (state.world.sites || []).filter(function (s) {
     return s.type !== 'camp' && s.ownerFaction === owner;
   }).length;
@@ -8623,7 +8628,8 @@ function startSiege(state, cp, site, day) {
   cp.siegeStart = day;
   // 刘备入川第一仗：刘璋“开关迎客”，五路兵马按剧情一起压到剑阁城下，三日定城。
   // 之后的城仍按正常围城天数走，不能把整张图都变成速攻。
-  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+    (site.id === 'jiange' || site.id === 'baxi');
   // 成都打了七十多天，守军按都城恢复涨到两百多；入川主线到城下时按刘璋军心已散，
   // 把城内守备压到一百以内，让刘备的五路人马能真正打下这座大本营。
   const chengduRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'chengdu';
@@ -8820,7 +8826,7 @@ function beginSiegeAssault(state, cp, site, day) {
   // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
   // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
   const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-    (site.id === 'jiange' || site.id === 'chengdu');
+    (site.id === 'jiange' || site.id === 'baxi' || site.id === 'chengdu');
   const attackers = attackersOf(state, cp).filter(function (l) {
     return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
@@ -8997,8 +9003,10 @@ function captureSiegeSite(state, cp, site, day, battle) {
     site.siegeFaction = null;
     site.siegeSinceH = null;
     state.siegeCooldown[key(cp.faction, oldOwner)] = day + 45;
+    const maHanPair = (oldOwner === 'ma' && cp.faction === 'hansui') ||
+      (oldOwner === 'hansui' && cp.faction === 'ma');
     logFn(state, site.name + '城破在即，' + FACTIONS[cp.faction].full +
-      '却忽然收兵：三足未定，谁也不肯让一家就此灭国。', 'siege');
+      '却忽然收兵：' + (maHanPair ? '马腾韩遂只争城池，不灭其国。' : '三足未定，谁也不肯让一家就此灭国。'), 'siege');
     return false;
   }
   site.ownerFaction = cp.faction;
@@ -11183,7 +11191,7 @@ module.exports = { LORD_BIOS };
  *
  * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
  * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
- * 普通领主按 1.0 计算。
+ * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
  */
 
 const LORD_POWER_LIST = [
@@ -11244,6 +11252,8 @@ function capForRank(rank) {
   return 270 - Math.round((r - 1) * 2.2);
 }
 
+const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
+
 function recruitMulForRank(rank) {
   const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
   if (r <= 3) return 2.0;
@@ -11267,6 +11277,7 @@ const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
 }, {});
 
 module.exports = {
+  DEFAULT_MONARCH_RECRUIT_MUL,
   LORD_POWER_LIST,
   LORD_POWER_BY_ID,
   capForRank,
@@ -11316,7 +11327,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
 const { LORD_BIOS } = __require(19);
-const { LORD_POWER_BY_ID } = __require(20);
+const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = __require(20);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -12836,8 +12847,8 @@ function ensureMaChaoToShu(state) {
 }
 
 /**
- * 武威破后三天：居延、陇西守将献城，马家正式亡国。
- * 这一步接在韩遂的攻城钩子上，避免居延变成飞地后双方在城下磨一百天。
+ * 武威破后三天：只让陇西献城，居延仍留马家旗。
+ * 马腾韩遂不互相灭国：最后一座城沿用现有的保城判定，不额外加新机制。
  */
 function resolveMaSurrender(state) {
   if (!state || !state.flags || !state.flags.maSurrenderDay) return false;
@@ -12852,7 +12863,17 @@ function resolveMaSurrender(state) {
   const sites = (state.world.sites || []).filter(function (s) {
     return s.ownerFaction === 'ma' && !s.playerOwned;
   });
+  if (!sites.length) {
+    fallFaction(state, 'ma');
+    state.flags.maSurrenderDone = true;
+    state.flags.maSurrenderDay = 0;
+    return true;
+  }
+  // 优先留一座城（居延），村庄可以献；如果只剩村庄，就留最后一座。
+  let keep = sites.filter(function (s) { return s.type === 'town' || s.type === 'castle'; })[0] ||
+    sites[sites.length - 1];
   sites.forEach(function (s) {
+    if (s === keep) return;
     s.ownerFaction = 'hansui';
     s.faction = 'hansui';
     s.color = fac.color;
@@ -12860,13 +12881,12 @@ function resolveMaSurrender(state) {
     s.lordId = null;
     s.selfFief = false;
   });
-  if (!sites.length) {
-    // 城已经被别人拿光了，只补亡国流程
-  }
-  fallFaction(state, 'ma');
+  const yielded = sites.filter(function (s) { return s !== keep; })
+    .map(function (s) { return s.name; }).join('、');
   state.flags.maSurrenderDone = true;
   state.flags.maSurrenderDay = 0;
-  pushLog(state, '居延、陇西开城投降，韩遂把马家的旗从西凉撤下；马腾只余一身，往民间去了。', 'war');
+  pushLog(state, (yielded ? yielded + '开城，' : '') + keep.name +
+    '仍留马家旗；韩遂收兵，不灭马家。', 'war');
   return true;
 }
 
@@ -16905,7 +16925,9 @@ function lordTroopCap(lord) {
 
 function lordRecruitMul(lord) {
   const power = lordPowerInfo(lord);
-  return power ? power.recruitMul : 1;
+  // 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
+  const base = lordRank(lord) === 'king' ? DEFAULT_MONARCH_RECRUIT_MUL : 1;
+  return power ? Math.max(base, power.recruitMul) : base;
 }
 
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
@@ -16936,7 +16958,7 @@ function applyLordPowerRoster(state) {
     if (!power) return;
     lord.powerRank = power.rank;
     lord.powerScore = power.score;
-    lord.recruitMul = power.recruitMul;
+    lord.recruitMul = lordRecruitMul(lord);
     const defCount = army.troopCount(lord.defTroops || {});
     if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
   });

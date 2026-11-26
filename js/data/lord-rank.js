@@ -3,7 +3,7 @@
  *
  * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
  * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
- * 普通领主按 1.0 计算。
+ * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
  */
 
 const LORD_POWER_LIST = [
@@ -64,6 +64,8 @@ function capForRank(rank) {
   return 270 - Math.round((r - 1) * 2.2);
 }
 
+const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
+
 function recruitMulForRank(rank) {
   const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
   if (r <= 3) return 2.0;
@@ -87,6 +89,7 @@ const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
 }, {});
 
 module.exports = {
+  DEFAULT_MONARCH_RECRUIT_MUL,
   LORD_POWER_LIST,
   LORD_POWER_BY_ID,
   capForRank,

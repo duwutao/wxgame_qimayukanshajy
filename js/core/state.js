@@ -37,7 +37,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 const { LORD_BIOS } = require('../data/bios.js');
-const { LORD_POWER_BY_ID } = require('../data/lord-rank.js');
+const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = require('../data/lord-rank.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -1557,8 +1557,8 @@ function ensureMaChaoToShu(state) {
 }
 
 /**
- * 武威破后三天：居延、陇西守将献城，马家正式亡国。
- * 这一步接在韩遂的攻城钩子上，避免居延变成飞地后双方在城下磨一百天。
+ * 武威破后三天：只让陇西献城，居延仍留马家旗。
+ * 马腾韩遂不互相灭国：最后一座城沿用现有的保城判定，不额外加新机制。
  */
 function resolveMaSurrender(state) {
   if (!state || !state.flags || !state.flags.maSurrenderDay) return false;
@@ -1573,7 +1573,17 @@ function resolveMaSurrender(state) {
   const sites = (state.world.sites || []).filter(function (s) {
     return s.ownerFaction === 'ma' && !s.playerOwned;
   });
+  if (!sites.length) {
+    fallFaction(state, 'ma');
+    state.flags.maSurrenderDone = true;
+    state.flags.maSurrenderDay = 0;
+    return true;
+  }
+  // 优先留一座城（居延），村庄可以献；如果只剩村庄，就留最后一座。
+  let keep = sites.filter(function (s) { return s.type === 'town' || s.type === 'castle'; })[0] ||
+    sites[sites.length - 1];
   sites.forEach(function (s) {
+    if (s === keep) return;
     s.ownerFaction = 'hansui';
     s.faction = 'hansui';
     s.color = fac.color;
@@ -1581,13 +1591,12 @@ function resolveMaSurrender(state) {
     s.lordId = null;
     s.selfFief = false;
   });
-  if (!sites.length) {
-    // 城已经被别人拿光了，只补亡国流程
-  }
-  fallFaction(state, 'ma');
+  const yielded = sites.filter(function (s) { return s !== keep; })
+    .map(function (s) { return s.name; }).join('、');
   state.flags.maSurrenderDone = true;
   state.flags.maSurrenderDay = 0;
-  pushLog(state, '居延、陇西开城投降，韩遂把马家的旗从西凉撤下；马腾只余一身，往民间去了。', 'war');
+  pushLog(state, (yielded ? yielded + '开城，' : '') + keep.name +
+    '仍留马家旗；韩遂收兵，不灭马家。', 'war');
   return true;
 }
 
@@ -5626,7 +5635,9 @@ function lordTroopCap(lord) {
 
 function lordRecruitMul(lord) {
   const power = lordPowerInfo(lord);
-  return power ? power.recruitMul : 1;
+  // 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
+  const base = lordRank(lord) === 'king' ? DEFAULT_MONARCH_RECRUIT_MUL : 1;
+  return power ? Math.max(base, power.recruitMul) : base;
 }
 
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
@@ -5657,7 +5668,7 @@ function applyLordPowerRoster(state) {
     if (!power) return;
     lord.powerRank = power.rank;
     lord.powerScore = power.score;
-    lord.recruitMul = power.recruitMul;
+    lord.recruitMul = lordRecruitMul(lord);
     const defCount = army.troopCount(lord.defTroops || {});
     if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
   });
