@@ -16,15 +16,15 @@ jobs:
         with:
           ref: juqing
           fetch-depth: 0
-      - name: Apply n43 source patch and bundle
+      - name: Apply n43 final fix and bundle
         run: |
-          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n43-source.patch 'https://aka.doubaocdn.com/s/ZVoe6BMchD'
-          git apply --check /tmp/n43-source.patch
-          git apply /tmp/n43-source.patch
-          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/Xym9TBlV3D'
-          echo '730ca84df7841c16760827a3e7d46ab5b92b5fa09b1729a44a9198551ae68cb9  web/game.bundle.js' | sha256sum -c -
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n43-finalfix.patch 'https://aka.doubaocdn.com/s/9s4nIVLiBJ'
+          git apply --check /tmp/n43-finalfix.patch
+          git apply /tmp/n43-finalfix.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/nEwnx3wWmY'
+          echo '6ca9b6d454b72b4d421ae238dfccd59c6456f6c8435ea2e108c7918baabe18e6  web/game.bundle.js' | sha256sum -c -
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'release: 20261126n43 张鲁/三阶段/荆州十轮/统一背叛/两年防卡死 [skip ci]'
+          git commit -m 'release: n43 最终阶段也纳入两年防卡死 [skip ci]'
           git push origin HEAD:juqing
