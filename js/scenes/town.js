@@ -987,7 +987,7 @@ function renderHall(app, site) {
 
   // 情报：该势力的领主
   const resting = st.lords.filter(function (l) {
-    return l.alive && l.inCity === site.id;
+    return l.alive && l.inCity === site.id && !l.scatterHidden;
   });
   if (resting.length) {
     text(ctx, '府中歇脚 · ' + resting.length + ' 位领主', PAD, y + 6, { size: 20, color: '#d9a441' });
@@ -1009,7 +1009,7 @@ function renderHall(app, site) {
     }
   }
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.inCity;
+    return l.faction === f && l.alive && !l.inCity && !l.scatterHidden;
   });
   text(ctx, '麾下领主', PAD, y + 6, { size: 20, color: '#a2947a' });
   y += 40;
@@ -1056,7 +1056,7 @@ function renderLordList(app, site) {
   const st = app.state;
   const f = site.ownerFaction;
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.dead && !l.retired;
+    return l.faction === f && l.alive && !l.dead && !l.retired && !l.scatterHidden;
   });
   const rows = lords.slice().sort(function (a, b) {
     const ra = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(a)] || 3;

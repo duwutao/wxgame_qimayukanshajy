@@ -66,6 +66,9 @@ group('开局战略');
   ok('刘备开局尚未攻刘璋', !warLib.atWar(st, 'shu', 'zhang'));
   ok('没有旧的随机战事', wars.indexOf('ma|wei') < 0 && wars.indexOf('han|ma') < 0 &&
     wars.indexOf('lv|yuanshu') < 0 && wars.indexOf('wei|shu') < 0, wars.join(','));
+  const weiCp = st.warCampaigns && st.warCampaigns.wei;
+  ok('第一阶段战书落下即点兵', !!weiCp && weiCp.enemy === 'lv' && weiCp.attackerIds.length >= 6,
+    JSON.stringify(weiCp && { target: weiCp.targetId, attackers: weiCp.attackerIds.length }));
   ok('开局军情写明了四家战略', st.events.some(function (e) {
     return e.title === '天下棋局' && e.lines.join('').indexOf('收取西川') >= 0;
   }));

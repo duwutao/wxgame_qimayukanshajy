@@ -2,7 +2,7 @@
  * 标题：征战汉末
  */
 
-const { text, panel } = require('../render/ui.js');
+const { text, panel, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 
@@ -22,6 +22,8 @@ function hasSave(app) {
 
 const TitleScene = {
   enter(app) {
+    // 每次回到标题都先收掉剧本选择层，避免从存档/玩法页回来时卡在弹层。
+    this.choosing = false;
     app.saveMeta = hasSave(app);
     // 三国争霸主图：浏览器从 web/ 同目录取，小游戏从包内 assets/ 取。
     // 图没加载好时先保留原来的烈火背景兜底，不让首页空着。
@@ -60,20 +62,29 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 按钮：新的开始 / 最近存档 / 保存的存档 / 玩法 / 商店
-    const by = h * 0.50;
-    const bh = 70;
+    // 开启游戏后先走剧本选择：乱世三国是开放沙盘，三国演义是汉末战略剧情。
+    if (this.choosing) {
+      drawScenarioChooser(ctx, app, w, h);
+      return;
+    }
+
+    // 窄屏/矮屏时不能把主按钮顶到标题第三行，按标题底部留出安全间距。
+    const by = Math.max(h * 0.46, h * 0.285 + 210);
+    const bh = 76;
     const gapY = 78;
     const bw = w - 160;
-    app.ui.button(ctx, 80, by, bw, bh, '新的开始 · 汉末战略', {
-      id: 'new', size: 28, fill: '#3a2c1e', onTap: function () {
-        app.state = stateLib.createGame({ storyMode: true });
-        app.replace('map');
-      },
+    app.ui.button(ctx, 80, by, bw, bh, '开启游戏', {
+      id: 'new_game', size: 30, fill: '#3a2c1e', onTap: function () {
+        this.choosing = true;
+      }.bind(this),
+    });
+    text(ctx, '选择剧本 · 乱世三国 / 三国演义', w / 2, by + bh + 7, {
+      size: 14, align: 'center', color: '#9f8d70',
     });
 
+    const row2 = by + bh + 54;
     const meta = app.saveMeta;
-    app.ui.button(ctx, 80, by + gapY, bw, bh,
+    app.ui.button(ctx, 80, row2, bw, bh,
       meta ? '加载最近存档 · 第 ' + meta.clock.day + ' 天' : '加载最近存档（空）', {
         id: 'cont', size: 26, disabled: !meta, fill: '#241c14', onTap: function () {
           const raw = app.runtime.storage.get(SAVE_KEY);
@@ -87,13 +98,13 @@ const TitleScene = {
         },
       });
 
-    app.ui.button(ctx, 80, by + gapY * 2, bw, bh, '加载保存存档 · 九个槽', {
+    app.ui.button(ctx, 80, row2 + gapY, bw, bh, '加载保存存档 · 九个槽', {
       id: 'slots', size: 26, fill: '#241c14', onTap: function () {
         app.push('saves', { mode: 'load', from: 'title' });
       },
     });
 
-    app.ui.button(ctx, 80, by + gapY * 3, bw, bh - 4, '玩法 · 战役 · 兵种', {
+    app.ui.button(ctx, 80, row2 + gapY * 2, bw, bh - 4, '玩法 · 战役 · 兵种', {
       id: 'help', size: 24, fill: '#201a14', onTap: function () {
         app.push('help');
       },
@@ -108,6 +119,86 @@ const TitleScene = {
   onTouchMove() {},
   onTouchEnd() {},
 };
+
+/** 剧本选择层：先看两句介绍，再决定进哪一个天下。 */
+function drawScenarioChooser(ctx, app, w, h) {
+  ctx.fillStyle = 'rgba(0,0,0,0.82)';
+  ctx.fillRect(0, 0, w, h);
+
+  // 全屏挡板：选择层打开时，避免点穿到背后的标题按钮。
+  app.ui.rect(ctx, 0, 0, w, h, function () {});
+
+  const mw = Math.min(w - 48, 520);
+  const mh = Math.min(h - 80, 566);
+  const mx = (w - mw) / 2;
+  const my = (h - mh) / 2;
+  panel(ctx, mx, my, mw, mh, { fill: '#18130e' });
+
+  text(ctx, '选择剧本', mx + mw / 2, my + 24, {
+    size: 30, align: 'center', color: '#ffe0a0', shadow: true,
+  });
+  text(ctx, '先定一朝天下，再开一局', mx + mw / 2, my + 62, {
+    size: 14, align: 'center', color: '#bca88a',
+  });
+
+  const cardX = mx + 18;
+  const cardW = mw - 36;
+  const cardGap = 14;
+  const cardTop = my + 88;
+  const cardH = Math.min(188, Math.floor((mh - 88 - 62 - cardGap * 2) / 2));
+
+  drawScenarioCard(ctx, app, cardX, cardTop, cardW, cardH, {
+    title: '乱世三国',
+    tag: '旧版剧情',
+    desc: '沿用以前的洛阳溃兵开局与群雄自由混战；行军、攻城、募兵、内政都与三国演义共用同一套机制。',
+    action: '进入乱世三国',
+    id: 'new_chaos',
+    onTap: function () {
+      app.state = stateLib.createGame({ background: 'chaos' });
+      app.replace('map');
+    },
+  });
+
+  const card2Y = cardTop + cardH + cardGap;
+  drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
+    title: '三国演义',
+    tag: '汉末战略',
+    desc: '同一套行军、攻城、募兵、内政机制，换成汉末战略剧情：曹操灭吕布、刘备取西川、孙权报父仇，阶段达成后继续推进。',
+    action: '进入三国演义',
+    id: 'new_romance',
+    onTap: function () {
+      app.state = stateLib.createGame({ background: 'romance', storyMode: true });
+      app.replace('map');
+    },
+  });
+
+  app.ui.button(ctx, cardX, my + mh - 57, cardW, 42, '返回', {
+    id: 'scenario_back', size: 20, fill: '#241c14', onTap: function () {
+      app.top().scene.choosing = false;
+    },
+  });
+}
+
+function drawScenarioCard(ctx, app, x, y, w, h, opts) {
+  panel(ctx, x, y, w, h, { fill: '#241b13' });
+  text(ctx, opts.title, x + 18, y + 13, {
+    size: 26, color: '#f0c060',
+  });
+  text(ctx, opts.tag, x + w - 18, y + 20, {
+    size: 13, align: 'right', color: '#bca88a',
+  });
+
+  const lines = wrap(ctx, opts.desc, w - 36, 14, 'normal').slice(0, h < 170 ? 2 : 3);
+  lines.forEach(function (line, i) {
+    text(ctx, line, x + 18, y + 54 + i * 20, {
+      size: 14, weight: 'normal', color: '#c8b89e',
+    });
+  });
+
+  app.ui.button(ctx, x + 18, y + h - 47, w - 36, 34, opts.action, {
+    id: opts.id, size: 18, fill: '#3a2c1e', onTap: opts.onTap,
+  });
+}
 
 /** 主页背景：有三国争霸图就铺图，图没到就退回程序化烈火战场 */
 function drawTitleBackdrop(ctx, app, w, h, t) {

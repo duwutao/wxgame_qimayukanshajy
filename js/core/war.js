@@ -112,6 +112,12 @@ function canSiegeSiteFromFaction(state, faction, site) {
   if (targetFaction && targetFaction !== 'bandit' && !atWar(state, faction, targetFaction)) {
     return { ok: false, msg: '还没有和' + (FACTIONS[targetFaction] ? FACTIONS[targetFaction].full : targetFaction) + '开战' };
   }
+  // 敌方只剩村庄时不能再卡“道路必须接壤”：残部躲在边村，不打掉这最后一块
+  // 地盘，剧情阶段就永远判不了灭国。允许攻方摸到残村收尾。
+  if (targetFaction && targetFaction !== 'bandit' && site.type === 'village' &&
+      !ownedCities(state, targetFaction).length) {
+    return { ok: true, msg: '', linked: false, mopUp: true };
+  }
   const linked = own.some(function (o) { return roadAdjacent(o.id, site.id); });
   if (!linked) {
     return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
@@ -764,6 +770,9 @@ function freeLord(state, lord, why) {
   lord.scattered = false;
   lord.scatterUntilH = 0;
   lord.scatterHomeId = null;
+  lord.scatterCityId = null;
+  lord.scatterRecovering = false;
+  lord.scatterHidden = false;
   lord.order = null;
   lord.defending = null;
   lord.chasing = false;
@@ -794,8 +803,9 @@ function clearEngagement(a, b) {
 
 /**
  * 兵被打光的领主：不是俘虏，也不是“还剩残兵的逃窜”，而是队伍被打散。
- * 需要回城收拢旧部，三天（72 个游戏时辰）内不能招募；三天后进城就能重新集结。
- * 这里只写状态，不改坐标：moveLords 会因为兵少自动把他带回最近的友城。
+ * 打散后从大地图上立即消失，三天内不显示、不移动、不招募；
+ * 三天后由 scatteredLordTick 悄悄送到募兵最快的城，从零开始重新招兵。
+ * 这里只写状态，不改地图坐标。
  */
 function markLordScattered(state, lord, source) {
   if (!lord) return null;
@@ -804,10 +814,14 @@ function markLordScattered(state, lord, source) {
   lord.prisoner = null;
   lord.scattered = true;
   lord.scatterUntilH = Math.max(lord.scatterUntilH || 0, nowH + 72);
-  // 0 兵打散不回牢里：记下本土城，三天期满在这里重立旗号。
+  // 记下本土城只作档案/旧档兼容；真正的复活点由 scatteredLordTick 选募兵最快的城。
   lord.scatterHomeId = lord.scatterHomeId || lord.home;
   lord.respawnDay = Math.max(lord.respawnDay || 0, state.clock.day + 3);
   lord.scatterFrom = source || 'battle';
+  lord.scatterCityId = null;
+  lord.scatterRecovering = false;
+  // 全程不可见：地图模型、城池领主列表、战报都不再出现。
+  lord.scatterHidden = true;
   lord.inCity = null;
   lord.fleeing = false;
   lord.fleeTargetId = null;
@@ -828,8 +842,7 @@ function markLordScattered(state, lord, source) {
   lord.orderDetourTarget = null;
   lord.patrolPath = null;
   lord.stuckEscape = null;
-  // 不冻结移动：0 兵的领主会被 needRest 自动带回最近的友城，在路上等这三天。
-  lord.nextMoveH = Math.min(lord.nextMoveH || nowH, nowH);
+  lord.nextMoveH = nowH;
   lord.resting = true;
   return lord;
 }
@@ -907,7 +920,7 @@ function clash(state, a, b) {
   // 只有还剩 1 名以上士兵，才进入下面的“带残兵逃逸/被俘”判定。
   if (loserRemain <= 0) {
     markLordScattered(state, loser, winner ? winner.name : 'battle');
-    if (near) logFn(state, loser.name + '的部曲被打空，残旗四散，三天后回本土城重立。', 'war');
+    // 打散全程对玩家不可见：不写战报，也不在附近提示“三天后重立”。
     return { scattered: true };
   }
   const fleeRoll = rng.next() < 0.82;
@@ -1937,7 +1950,8 @@ function ownedSites(state, faction, townsOnly) {
 
 function factionLords(state, faction) {
   return state.lords.filter(function (l) {
-    return l.alive && !l.dead && !l.prisoner && !l.hidden && l.faction === faction;
+    return l.alive && !l.dead && !l.prisoner && !l.hidden && !l.scatterHidden &&
+      l.faction === faction;
   });
 }
 
@@ -2032,6 +2046,10 @@ function ensureLiuBeiYiWar(state, day) {
 function planCampaign(state, faction, day) {
   const story = state.story;
   const passive = !!(story && story.mode && story.passive && story.passive[faction]);
+  // 剧情阶段先赶战略：已进入交战阶段的国家多带一路、少在集结城磨蹭，
+  // 让魏蜀吴的第一阶段能尽快打出结果，方便观察天下演绎。
+  const phaseWar = !!(story && story.mode && story.phases && story.phases[faction] &&
+    story.phases[faction].status === 'war');
   let foes = warPartners(state, faction).filter(function (id) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
@@ -2080,11 +2098,11 @@ function planCampaign(state, faction, day) {
   }
   if (!target) foes.forEach(function (enemy) {
     if (pairBlocked(state, faction, enemy, day)) return;
-    // 敌国若只剩村庄，也要能把最后这点残土扫掉；否则 NPC 天下永远收不了尾。
-    const enemyTowns = ownedSites(state, enemy, true);
-    const enemyTargets = enemyTowns.length ? enemyTowns : ownedSites(state, enemy, false);
+    // 村庄也能被攻占：不再只列敌国的城/关，村口同样是可打的目标。
+    // 计分给村庄加一笔“优先打城”的惩罚，避免 AI 有城不打、专挑空地村庄。
+    const enemyTargets = ownedSites(state, enemy, false);
     enemyTargets.forEach(function (s) {
-      // 任何有主的城都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
+      // 任何有主目标都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
       if (!s.ownerFaction) return;
       // 只打与本势力城网道路直接相连的敌城；第一座城由 canSiegeSiteFromFaction 放行。
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
@@ -2103,7 +2121,8 @@ function planCampaign(state, faction, day) {
       if (story && story.targetRegion && story.targetRegion[faction] &&
           s.region !== story.targetRegion[faction]) return;
       const near = nearestSiteOf(state, own, s);
-      const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
+      const villagePenalty = s.type === 'village' ? 45 : 0;
+      const score = near.distance * 0.6 + s.garrison * 0.35 + villagePenalty + state.rng.int(0, 18);
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
@@ -2120,7 +2139,22 @@ function planCampaign(state, faction, day) {
 
   let chosen = lords.slice().sort(function (a, b) {
     return siteDistance(a, rally) - siteDistance(b, rally);
-  }).slice(0, Math.min(5, lords.length));
+  });
+  // 第一阶段要尽快打出结果：优先挑满编/接近满编的领主人马，别让 5 个
+  // 刚补完一半的残兵去撞敌方都城；有余力时最多压上八路。
+  if (phaseWar) {
+    const ready = lords.filter(function (l) {
+      const full = army.troopCount(l.defTroops || {});
+      const now = army.troopCount(l.troops || {});
+      return full <= 0 || now >= Math.max(6, Math.ceil(full * 2 / 3));
+    });
+    if (ready.length) {
+      chosen = ready.slice().sort(function (a, b) {
+        return siteDistance(a, rally) - siteDistance(b, rally);
+      });
+    }
+  }
+  chosen = chosen.slice(0, Math.min(phaseWar ? 8 : 5, chosen.length));
   // 刘备入川：主公必须亲自走这一趟，带的是本势力最硬的四路人马，不是按离城最近的凑数。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
     const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
@@ -2135,7 +2169,7 @@ function planCampaign(state, faction, day) {
   const avgDist = chosen.reduce(function (sum, l) {
     return sum + siteDistance(l, rally);
   }, 0) / chosen.length;
-  const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(RALLY_DAYS_MAX,
+  const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(phaseWar ? 4 : RALLY_DAYS_MAX,
     RALLY_DAYS_MIN + state.rng.int(0, 2) + Math.round(avgDist / 12)));
 
   const cp = {
@@ -2727,6 +2761,15 @@ function strategyTick(state) {
     }
 
     if (cp.stage === 'march') {
+      // 低兵领主会在 moveLords 里先回城补兵，军令被清掉；这里每天重新
+      // 把开拔令发回去，补到 2/3 就继续走，避免整路大军在集结城站到
+      // 26 天 march 超时。
+      attackers.forEach(function (l) {
+        if (!l.order || l.order.type !== 'march' || l.order.siteId !== cp.targetId) {
+          giveOrder(l, 'march', cp.targetId, false);
+          l.order.campaign = faction;
+        }
+      });
       if (day - cp.marchStart > 26) {
         cp.done = true;
         logFn(state, '【' + FACTIONS[faction].name + '】去' + target.name + '的路太长，粮尽退兵。', 'siege');
@@ -2842,6 +2885,7 @@ module.exports = {
   strategicDefenseAt, strategicDefenseForSite,
   nearestFoe,
   strategyTick, siegeTick, abortCampaign, bindCaptureHook, notifyCapture,
+  planCampaign,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
   bindFleeGuard, bindPartyDestroyer, bindMovement,
   ESCAPE_BASE, ESCAPE_STEP,

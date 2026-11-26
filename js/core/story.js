@@ -323,6 +323,12 @@ function startPhase(state, faction, opts) {
   } else if (opening && declared.length) {
     logFn(state, '【' + factionName(faction) + '】' + cfg.label + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
   }
+  // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
+  if (declared.length && faction !== 'player' && faction !== 'bandit') {
+    if (!state.warCampaigns || typeof state.warCampaigns !== 'object') state.warCampaigns = {};
+    if (!state.siegeCooldown || typeof state.siegeCooldown !== 'object') state.siegeCooldown = {};
+    if (!state.warCampaigns[faction]) war.planCampaign(state, faction, state.clock.day);
+  }
   refreshHeadline(state);
   return true;
 }

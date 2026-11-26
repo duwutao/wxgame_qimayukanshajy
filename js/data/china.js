@@ -250,7 +250,7 @@ const SITE_ROWS = [
   ['jiangzhou', '江州', 'town', 'zhang', 14, 38, 1.05, 90, 'zhang', '巴郡的水码头，盐船从这里下行。'],
   ['zhuti', '朱提', 'castle', 'nanman', 12, 39, 1.12, 75, 'nanman', '南中的银矿与粮道。孟获的哨骑常在山口上点烟。'],
   ['jianning', '建宁', 'town', 'nanman', 14, 41, 1.08, 105, 'nanman', '南蛮王城。铜鼓一响，各部洞主就带着藤甲兵下山。'],
-  ['zangke', '牂牁', 'castle', 'nanman', 18, 40, 1.14, 80, 'nanman', '牂牁江边的山城。顺流而下可到交州，逆流而上就是巴郡。'],
+  ['zangke', '牂牁', 'castle', 'nanman', 20, 44, 1.14, 80, 'nanman', '牂牁江边的山城。顺流而下可到交州，逆流而上就是巴郡。'],
   ['yunnan', '云南', 'town', 'nanman', 10, 43, 1.06, 95, 'nanman', '彩云之南的坝子。稻田、盐井与象队都从这里出。'],
   ['yongchang', '永昌', 'castle', 'nanman', 8, 45, 1.16, 70, 'nanman', '西南极边的郡城。再往西就是身毒，商队带着琉璃与象牙回来。'],
   ['baxi', '巴西村', 'village', 'zhang', 13, 34, 0.73, 13, 'village', '山坳里的村子，出产賨人和好弓。'],
@@ -316,11 +316,15 @@ const ROADS = [
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['jiangzhou', 'zhuti'], ['zhuti', 'jianning'], ['jianning', 'yunnan'], ['yunnan', 'yongchang'],
   ['jianning', 'zangke'], ['zangke', 'jiaozhi'],
+  // 建宁—南中夷寨：南中部落与建宁互通，不再只靠南中—交趾一条远路。
+  ['jianning', 'nanzhong'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
   // 陈留—小沛驿道：曹吕前线不能只隔着一片农田对望，有路才走得过去、攻得起来。
   ['chenliu', 'xiaopei'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xinye', 'shangyong'], ['shangyong', 'xiangyang'], ['shangyong', 'jiange'], ['shangyong', 'jiangzhou'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
+  // 荆襄—赤壁—夏口：襄阳南下赤壁，再沿江到夏口，荆州水陆连成一条。
+  ['xiangyang', 'chibi'], ['chibi', 'xiakou'],
   ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
   ['shouchun', 'lujiang'], ['lujiang', 'liyang2'], ['lujiang', 'wan'], ['lujiang', 'xiakou'], ['liyang2', 'ruxu'], ['ruxu', 'jianye'],
   ['hefei', 'ruxu'], ['ruxu', 'danyang'],

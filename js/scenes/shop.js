@@ -50,7 +50,7 @@ const ShopScene = {
       ? stateLib.adRewardInfo(st)
       : {
         max: 10, used: { gold: 0, food: 0, shi: 0 },
-        left: { gold: 0, food: 0, shi: 0 }, gold: 1000, food: 200, shi: 2,
+        left: { gold: 0, food: 0, shi: 0 }, gold: 1000, food: 2000, shi: 2,
       };
 
     text(ctx, p ? '军帐：金钱 ' + p.gold + ' · 粮草 ' + p.food + ' · 天机简 ' + p.shi : '还没有军帐：先开一局再来。',
@@ -112,7 +112,7 @@ const ShopScene = {
       });
 
     app.ui.button(ctx, PAD, 508, w - PAD * 2, 70,
-      this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 200 粮草', {
+      this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 2000 粮草', {
         id: 'shop_ad_food', size: 24, fill: '#3a2c1e',
         disabled: !can || info.left.food <= 0, onTap: function () {
           watch('food');

@@ -16,7 +16,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
+const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -1787,8 +1787,8 @@ ok('金钱广告能领 1000 金钱', goldClaim.ok && goldClaim.amount === 1000 &
 const adFood0 = stAd.player.food;
 const foodClaim = stateLib.claimAdReward(stAd, 'food', adDayA);
 const adAfterFood = stateLib.adRewardInfo(stAd, adDayA);
-ok('粮草广告能领 200 粮草', foodClaim.ok && foodClaim.amount === 200 &&
-  stAd.player.food === adFood0 + 200 && adAfterFood.used.gold === 1 &&
+ok('粮草广告能领 2000 粮草', foodClaim.ok && foodClaim.amount === 2000 &&
+  stAd.player.food === adFood0 + 2000 && adAfterFood.used.gold === 1 &&
   adAfterFood.used.food === 1 && adAfterFood.used.shi === 0,
   foodClaim.msg);
 const adShi0 = stAd.player.shi;
@@ -3870,20 +3870,107 @@ group('n20 版：官渡断线 · 青徐连城 · 泰山关 · 零兵打散');
   lord.y = bandit.y;
   warLib.clash(g, lord, bandit);
   const scatterDay = g.clock.day;
+  const fastestCity = stateLib.fastestRecoveryCity(g, lord).site.id;
   ok('0 兵守城也按打散处理，不当俘虏',
     lord.alive && lord.scattered === true && !lord.prisoner && armyLib.troopCount(lord.troops) === 0,
     'scattered=' + lord.scattered + ' prisoner=' + !!lord.prisoner);
   ok('打散后记下本土城与三天期限',
     lord.scatterHomeId === home.id && lord.respawnDay === scatterDay + 3,
     'home=' + lord.scatterHomeId + ' respawn=' + lord.respawnDay);
+  ok('打散后地图上立即消失', lord.scatterHidden === true,
+    'hidden=' + lord.scatterHidden);
   stateLib.advanceTime(g, 48);
   ok('不到三天仍是打散状态', lord.scattered === true && armyLib.troopCount(lord.troops) === 0,
     'day=' + g.clock.day + ' scattered=' + lord.scattered);
   stateLib.advanceTime(g, 25);
-  ok('三天期满在本土城满编复活',
-    lord.scattered === false && lord.inCity === home.id &&
-    armyLib.troopCount(lord.troops) === 100,
-    'scattered=' + lord.scattered + ' inCity=' + lord.inCity + ' troops=' + armyLib.troopCount(lord.troops));
+  ok('三天期满到募兵最快城、从零开始招募',
+    lord.scattered === false && lord.inCity === fastestCity &&
+    lord.scatterCityId === fastestCity && lord.scatterRecovering === true &&
+    lord.scatterHidden === true && armyLib.troopCount(lord.troops) < 100,
+    'scattered=' + lord.scattered + ' inCity=' + lord.inCity + ' fastest=' + fastestCity +
+    ' troops=' + armyLib.troopCount(lord.troops));
+}
+
+/* ---------------------------------------------------------------- n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景 */
+
+group('n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景');
+{
+  const g = stateLib.createGame({ seed: 2026112621 });
+  function hasRoad(a, b) {
+    return ROADS.some(function (p) {
+      return (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a);
+    });
+  }
+  ok('襄阳—赤壁—夏口连通', hasRoad('xiangyang', 'chibi') && hasRoad('chibi', 'xiakou'));
+  ok('建宁—南中夷寨连通', hasRoad('jianning', 'nanzhong'));
+  const zangkeRow = SITE_ROWS.filter(function (row) { return row[0] === 'zangke'; })[0];
+  ok('牂牁下移到交趾一侧', !!zangkeRow && zangkeRow[4] === 20 && zangkeRow[5] === 44,
+    zangkeRow ? zangkeRow[4] + ',' + zangkeRow[5] : 'missing');
+
+  const luoyang = worldLib.siteById(g.world, 'luoyang');
+  const xiangyang = worldLib.siteById(g.world, 'xiangyang');
+  const pass = worldLib.siteById(g.world, 'taishanguan');
+  const town = worldLib.siteById(g.world, 'chenliu');
+  const village = g.world.sites.filter(function (s) { return s.type === 'village'; })[0];
+  ok('募兵倍率：都城 2 / 要地 1.5 / 中城 1 / 村 0.5',
+    stateLib.siteRecoveryMultiplier(luoyang) === 2 &&
+    stateLib.siteRecoveryMultiplier(xiangyang) === 2 &&
+    stateLib.siteRecoveryMultiplier(pass) === 1.5 &&
+    stateLib.siteRecoveryMultiplier(town) === 1 &&
+    stateLib.siteRecoveryMultiplier(village) === 0.5,
+    [luoyang, xiangyang, pass, town, village].map(function (s) {
+      return s && s.id + ':' + stateLib.siteRecoveryMultiplier(s);
+    }).join(' '));
+  const capitalRate = stateLib.lordRecoveryRate(g, { faction: 'wei' }, luoyang, true);
+  const townRate = stateLib.lordRecoveryRate(g, { faction: 'wei' }, town, true);
+  const patrolRate = stateLib.lordRecoveryRate(g, { faction: 'wei' }, luoyang, false);
+  ok('都城恢复是大城的两倍', Math.abs(capitalRate - townRate * 2) < 1e-9,
+    capitalRate + '/' + townRate);
+  ok('巡逻途中只按两成补兵', Math.abs(patrolRate - capitalRate * 0.2) < 1e-9,
+    patrolRate + '/' + capitalRate);
+
+  const lord = g.lords.filter(function (l) { return l.faction === 'wei' && l.alive; })[0];
+  lord.x = xiangyang.x + 2;
+  lord.y = xiangyang.y + 2;
+  const best = stateLib.bestRecoveryCity(g, lord, 15);
+  ok('十五格内优先选恢复最快的都城', !!best && best.site.id === 'xiangyang' && best.mult === 2,
+    best ? best.site.id + '/' + best.mult + '/d' + best.d : 'none');
+
+  // 村庄不再被排除在攻占目标之外：有路的敌村可以被玩家/AI 拿下。
+  const pair = ROADS.filter(function (p) {
+    const a = worldLib.siteById(g.world, p[0]);
+    const b = worldLib.siteById(g.world, p[1]);
+    return (a.type === 'village' && (b.type === 'town' || b.type === 'castle')) ||
+      (b.type === 'village' && (a.type === 'town' || a.type === 'castle'));
+  })[0];
+  const va = worldLib.siteById(g.world, pair[0]);
+  const vb = worldLib.siteById(g.world, pair[1]);
+  const targetVillage = va.type === 'village' ? va : vb;
+  const ownCity = va.type === 'village' ? vb : va;
+  g.player.faction = 'player';
+  g.player.country = { name: '测', color: '#d9a441', foundedDay: 1 };
+  g.player.banner = true;
+  ownCity.playerOwned = true;
+  ownCity.ownerFaction = 'player';
+  ownCity.faction = 'player';
+  targetVillage.playerOwned = false;
+  targetVillage.ownerFaction = 'wei';
+  targetVillage.faction = 'wei';
+  g.factionWars = g.factionWars || {};
+  g.factionWars['player|wei'] = { since: g.clock.day, score: 0 };
+  ok('道路相连的敌村可以被攻打', stateLib.canPlayerAttackSite(g, targetVillage).ok,
+    targetVillage.id + ':' + JSON.stringify(stateLib.canPlayerAttackSite(g, targetVillage)));
+  stateLib.takeSite(g, targetVillage);
+  ok('村庄攻占后归玩家所有', targetVillage.playerOwned === true &&
+    targetVillage.ownerFaction === 'player', targetVillage.playerOwned + '/' + targetVillage.ownerFaction);
+
+  const chaos = stateLib.createGame({ background: 'chaos' });
+  const romance = stateLib.createGame({ background: 'romance', storyMode: true });
+  ok('乱世三国是沙盘背景', chaos.background === 'chaos' && chaos.storyMode === false);
+  ok('三国演义是剧情背景', romance.background === 'romance' && romance.storyMode === true);
+  const saved = stateLib.deserialize(stateLib.serialize(romance));
+  ok('存档保留游戏背景', !!saved && saved.background === 'romance',
+    saved ? saved.background : 'null');
 }
 
 /* ---------------------------------------------------------------- 收尾 */
