@@ -1,0 +1,30 @@
+name: n45 juqing index
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n45-juqing-index.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  index:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Bump juqing entry version
+        run: |
+          sed -i 's/20261126n44/20261126n45/g' index.html web/index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n45 juqing入口版本 [skip ci]'
+          git push origin HEAD:juqing
