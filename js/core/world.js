@@ -54,6 +54,19 @@ function terrainAt(world, x, y) {
   return TERRAIN[world.tiles[idx(x, y)]] || TERRAIN.plain;
 }
 
+function edgeTownDistance(world, x, y) {
+  const e = world && world.edgeTown;
+  if (!e) return Infinity;
+  return Math.max(Math.abs(x - e.x), Math.abs(y - e.y));
+}
+
+function edgeTownBlocked(world, x, y, opts) {
+  const e = world && world.edgeTown;
+  if (!e) return false;
+  if (opts && opts.allowEdge) return false;
+  return edgeTownDistance(world, x, y) <= (e.radius || 10);
+}
+
 function isPassable(world, x, y) {
   const t = terrainAt(world, x, y);
   return !!(t && t.passable);
@@ -536,6 +549,13 @@ function createWorld(seed) {
   SITE_ROWS.forEach(function (row) {
     world.sites.push(siteFromRow(world, row));
   });
+  // 边陲小镇从开局就存在，但被十格浓雾封着；复国阶段才开雾。
+  const edgeTown = siteById(world, 'edge_town');
+  if (edgeTown) {
+    edgeTown.fogSealed = true;
+    edgeTown.specialEdge = true;
+    world.edgeTown = { id: edgeTown.id, x: edgeTown.x, y: edgeTown.y, radius: 10, fogOpen: false };
+  }
 
   // 7. 道路
   layRoads(world, ROADS);
@@ -729,7 +749,7 @@ module.exports = {
   idx,
   inBounds,
   terrainAt,
-  isPassable,
+  isPassable, edgeTownDistance, edgeTownBlocked,
   regionAt,
   inBanditExclusion,
   regionDef,

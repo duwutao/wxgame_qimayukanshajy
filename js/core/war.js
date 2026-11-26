@@ -2270,9 +2270,14 @@ function planCampaign(state, faction, day) {
     // 村庄也能被攻占：不再只列敌国的城/关，村口同样是可打的目标。
     // 计分给村庄加一笔“优先打城”的惩罚，避免 AI 有城不打、专挑空地村庄。
     const enemyTargets = ownedSites(state, enemy, false);
+    const edgeTown = state.world && state.world.edgeTown;
     enemyTargets.forEach(function (s) {
       // 任何有主目标都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
       if (!s.ownerFaction) return;
+      // NPC 不能进入边陲小镇十格，更不能把它当围城目标。
+      if (edgeTown && Math.max(Math.abs(s.x - edgeTown.x), Math.abs(s.y - edgeTown.y)) <= (edgeTown.radius || 10)) return;
+      // 复国阶段：叛军只追人，不主动攻主角已经打下的城。
+      if (faction === 'rebel' && state.arc && state.arc.phase === 'reconquest' && s.playerOwned) return;
       // 南越只取长沙以南，不碰襄阳、江陵、夏口；其他敌人仍按正常规则。
       if (proxy && proxy.target === enemy && proxy.siegeSites &&
           proxy.siegeSites.indexOf(s.id) < 0) return;
@@ -2474,6 +2479,8 @@ function abortCampaign(state, faction) {
 function keepsMajorLastCity(state, site, attacker) {
   if (!state || !site) return false;
   if (attacker === 'player') return false;
+  // 第 10 轮荆州争霸进入 final：不再给三国套“最后一座城不灭”的罩子。
+  if (state.story && state.story.endgame && state.story.endgame.final) return false;
   const owner = site.ownerFaction;
   // 马腾、韩遂之间只分高下，不互相灭国：最后一座城沿用既有的“保城”判定。
   const maHanPair = (owner === 'ma' && attacker === 'hansui') ||

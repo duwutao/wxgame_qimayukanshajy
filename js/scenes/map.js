@@ -324,8 +324,10 @@ const MapScene = {
     drawFactionTint(ctx, app, cam, box, w);
     drawSites(ctx, app, cam, box, w);
     drawUnits(ctx, app, cam, box, w);
+    drawEdgeFog(ctx, app, cam, box, w);
     drawQuestMarkers(ctx, app, cam, box, w);
     drawRoute(ctx, app, cam, box);
+    drawEdgeGuide(ctx, app, cam, box, w);
     drawPlayerOnMap(ctx, app, cam, box);
     drawRegionTag(ctx, app, box, w);
     drawQuestCard(ctx, app, box, w);
@@ -1591,6 +1593,61 @@ function drawSites(ctx, app, cam, box, w) {
   ctx.restore();
 }
 
+function drawEdgeFog(ctx, app, cam, box, w) {
+  const st = app.state;
+  const edge = st && st.world && st.world.edgeTown;
+  if (!edge) return;
+  if (edge.fogOpen) return;
+  if (st.story && st.story.edgeTownOpen) return;
+  if (st.arc && (st.arc.phase === 'disaster' || st.arc.phase === 'reconquest' || st.arc.phase === 'finale')) return;
+  const cx = edge.x * TS + TS / 2 - cam.x;
+  const cy = box.top + edge.y * TS + TS / 2 - cam.y;
+  const radius = (edge.radius || 10) * TS;
+  if (cx + radius < 0 || cx - radius > w || cy + radius < box.top || cy - radius > box.top + box.h) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, box.top, w, box.h);
+  ctx.clip();
+
+  // 十格浓雾：中心几乎看不见城，外缘逐渐化开。
+  const g = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
+  g.addColorStop(0, 'rgba(176,178,170,0.92)');
+  g.addColorStop(0.45, 'rgba(162,166,160,0.9)');
+  g.addColorStop(0.78, 'rgba(136,142,138,0.82)');
+  g.addColorStop(0.94, 'rgba(120,126,124,0.45)');
+  g.addColorStop(1, 'rgba(120,126,124,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 缓慢漂移的雾团，让边缘不是一刀切的圆。
+  for (let i = 0; i < 7; i += 1) {
+    const a = i * 2.1 + 0.7;
+    const rr = radius * (0.28 + (i % 3) * 0.19);
+    const ox = Math.cos(a) * radius * 0.35;
+    const oy = Math.sin(a) * radius * 0.28;
+    ctx.fillStyle = 'rgba(226,228,220,' + (0.08 + (i % 3) * 0.025) + ')';
+    ctx.beginPath();
+    ctx.arc(cx + ox, cy + oy, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const p = st.player;
+  const pd = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
+  if (pd <= (edge.radius || 10) + 2) {
+    const ty = cy - radius * 0.42;
+    ctx.fillStyle = 'rgba(20,18,14,0.78)';
+    ctx.fillRect(cx - 118, ty - 18, 236, 54);
+    text(ctx, '迷雾迷人眼', cx, ty, { size: 24, align: 'center', color: '#f0e6cf', shadow: true });
+    text(ctx, '无法深入探索，否则可能迷失其中，永远无法出来', cx, ty + 24, {
+      size: 12, align: 'center', color: '#c9c0aa',
+    });
+  }
+  ctx.restore();
+}
+
 function drawUnits(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
@@ -1895,6 +1952,35 @@ function playerPixel(app) {
     gy = p.stepFrom.y + (p.stepTo.y - p.stepFrom.y) * t;
   }
   return { gx, gy };
+}
+
+function drawEdgeGuide(ctx, app, cam, box, w) {
+  const st = app.state;
+  const arc = st && st.arc;
+  if (!arc || arc.phase !== 'retreat') return;
+  const edge = st.world && st.world.edgeTown;
+  if (!edge) return;
+  const p = st.player;
+  const px = (p.x + 0.5) * TS - cam.x;
+  const py = box.top + (p.y + 0.5) * TS - cam.y;
+  const ex = (edge.x + 0.5) * TS - cam.x;
+  const ey = box.top + (edge.y + 0.5) * TS - cam.y;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, box.top, w, box.h);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(240,198,96,0.9)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(30,24,14,0.8)';
+  ctx.fillRect(ex - 52, ey - 44, 104, 24);
+  text(ctx, '边陲小镇', ex, ey - 32, { size: 18, align: 'center', color: '#f0d090', shadow: true });
+  ctx.restore();
 }
 
 function drawPlayerOnMap(ctx, app, cam, box) {

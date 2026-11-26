@@ -1384,9 +1384,12 @@ group('无主之城：可围、失败封锁');
 
 const stU = stateLib.createGame({ seed: 9005 });
 stU.events.length = 0;
+// n43 所有战略要地都有主：这里手工清空一座城，单独验证“无主城”机制仍可用。
 const neutralTown = stU.world.sites.filter(function (s) {
-  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+  return s.type === 'town' && !s.playerOwned;
 })[0];
+neutralTown.ownerFaction = null;
+neutralTown.playerOwned = false;
 ok('无主城默认可进入', !stateLib.isHostileSite(stU, neutralTown) && stateLib.siteStatus(stU, neutralTown) === '无主',
   stateLib.siteStatus(stU, neutralTown));
 const beginNeutral = stateLib.beginPlayerSiege(stU, neutralTown);
@@ -1423,8 +1426,9 @@ ok('围攻失败后只能强攻', stateLib.isHostileSite(stU, neutralTown) && st
 const stWin = stateLib.createGame({ seed: 9010 });
 stWin.events.length = 0;
 const winTown = stWin.world.sites.filter(function (s) {
-  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+  return s.type === 'town' && !s.playerOwned;
 })[0];
+winTown.ownerFaction = null;
 winTown.playerBlocked = true;
 const beginWin = stateLib.beginPlayerSiege(stWin, winTown);
 stWin.playerSiege.stage = 'ready';
@@ -1443,8 +1447,9 @@ group('围城计时走大地图时间');
 const stTime = stateLib.createGame({ seed: 9008 });
 stTime.events.length = 0;
 const timeTown = stTime.world.sites.filter(function (s) {
-  return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+  return s.type === 'town' && !s.playerOwned;
 })[0];
+timeTown.ownerFaction = null;
 stateLib.beginPlayerSiege(stTime, timeTown);
 const dayBefore = stTime.clock.day;
 // 大地图站着不动，围营照样让时辰走：6.5 秒 ≈ 25 时辰
@@ -3812,7 +3817,7 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
   const newIds = ['fanyang', 'changshan', 'yushan', 'shanyue'];
   const missing = newIds.filter(function (id) { return !worldLib.siteById(g.world, id); });
   ok('n19 新城全部生成', missing.length === 0, missing.join(','));
-  ok('总据点扩到 84', g.world.sites.length === 84, String(g.world.sites.length));
+  ok('总据点扩到全量', g.world.sites.length === SITE_ROWS.length, String(g.world.sites.length));
 
   function hasRoad(a, b) {
     return ROADS.some(function (p) {
@@ -3830,9 +3835,9 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     hasRoad('nanpi', 'beiping') && !hasRoad('ji', 'nanpi'));
   ok('交趾—山越相连', hasRoad('jiaozhi', 'shanyue'));
 
-  ok('襄平无主', (function () {
+  ok('襄平归公孙瓒', (function () {
     const s = worldLib.siteById(g.world, 'xiangping');
-    return s && s.ownerFaction === null && s.faction === null && !s.banner;
+    return s && s.ownerFaction === 'gongsun' && s.faction === 'gongsun';
   })());
   ok('范阳归公孙瓒、常山归袁、玉山归吴', ['fanyang', 'changshan', 'yushan'].every(function (id) {
     const s = worldLib.siteById(g.world, id);
@@ -3894,11 +3899,11 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     if (l) l.inCity = null;
   });
   const migrated = stateLib.deserialize(old);
-  ok('旧档补齐 n19 四座新城、泰山关与龙编', !!migrated && migrated.world.sites.length === 84,
+  ok('旧档补齐 n19 四座新城、泰山关、龙编与边陲小镇', !!migrated && migrated.world.sites.length === SITE_ROWS.length,
     migrated ? String(migrated.world.sites.length) : 'null');
-  ok('旧档襄平转无主', !!migrated && (function () {
+  ok('旧档襄平归公孙瓒', !!migrated && (function () {
     const s = worldLib.siteById(migrated.world, 'xiangping');
-    return s && s.ownerFaction === null && s.faction === null;
+    return s && s.ownerFaction === 'gongsun' && s.faction === 'gongsun';
   })());
   const migGuandu = migrated && worldLib.siteById(migrated.world, 'guandu');
   const migBaima = migrated && worldLib.siteById(migrated.world, 'baima');
@@ -3963,7 +3968,7 @@ group('n32 西北路网：安定 · 韩遂断线 · 金城天水');
   const beforeCut = tilesOnOldRoad(old.world);
   const migrated = stateLib.deserialize(old);
   const afterCut = tilesOnOldRoad(migrated.world);
-  ok('旧档补入安定并补到 84 据点', !!migrated && migrated.world.sites.length === 84 &&
+  ok('旧档补入安定并补到全量据点', !!migrated && migrated.world.sites.length === SITE_ROWS.length &&
     !!worldLib.siteById(migrated.world, 'anding'),
     migrated ? String(migrated.world.sites.length) : 'null');
   ok('旧档枹罕—西平路面被拆除', beforeCut > 0 && afterCut === 0, beforeCut + ' -> ' + afterCut);
@@ -3985,7 +3990,7 @@ group('n20 版：官渡断线 · 青徐连城 · 泰山关 · 零兵打散');
   ok('彭城—徐州已接上', hasRoad('pengcheng', 'xuzhou'));
   ok('平原—泰山关—彭城成走廊', hasRoad('pingyuan', 'taishanguan') && hasRoad('taishanguan', 'pengcheng'));
   const pass = worldLib.siteById(g.world, 'taishanguan');
-  ok('泰山关是独立关城', !!pass && pass.type === 'castle' && pass.ownerFaction === null,
+  ok('泰山关归吕布', !!pass && pass.type === 'castle' && pass.ownerFaction === 'lv',
     pass ? pass.type + '/' + pass.ownerFaction : 'missing');
   ok('泰山关登记为 1.5 倍要地', roadData.STRATEGIC_SITES.taishanguan &&
     roadData.STRATEGIC_SITES.taishanguan.defense === 1.5);
@@ -4116,15 +4121,14 @@ group('n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景');
 
 /* ---------------------------------------------------------------- n41 成都 · 自由城 · 马超归蜀 */
 
-group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉');
+group('n43 成都重心 · 武都上洛归张鲁 · 马超归蜀 · 韩遂灭凉');
 {
   const g41 = stateLib.createGame({ seed: 777001 });
   const wudu0 = worldLib.siteById(g41.world, 'wudu');
   const shangluo0 = worldLib.siteById(g41.world, 'shangluo');
-  ok('武都、上洛开局无主', !wudu0.ownerFaction && !shangluo0.ownerFaction,
+  ok('武都、上洛开局归张鲁', wudu0.ownerFaction === 'zhanglu' && shangluo0.ownerFaction === 'zhanglu',
     (wudu0.ownerFaction || 'null') + '/' + (shangluo0.ownerFaction || 'null'));
-  ok('自由城表含武都与上洛', FREE_CITY_IDS.indexOf('wudu') >= 0 && FREE_CITY_IDS.indexOf('shangluo') >= 0,
-    FREE_CITY_IDS.join(','));
+  ok('自由城表已清空', FREE_CITY_IDS.length === 0, FREE_CITY_IDS.join(','));
   ok('居延只连武威，龙城只连弹汗山', !ROADS.some(function (p) {
     return (p[0] === 'longcheng' && p[1] === 'juyan') || (p[1] === 'longcheng' && p[0] === 'juyan');
   }), 'longcheng-juyan removed');
@@ -4146,7 +4150,7 @@ group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉
     const mc = g41.lords.filter(function (l) { return l.id === 'machao'; })[0];
     if (day >= 12 && !machaoAt12 && mc) machaoAt12 = mc.faction;
     const cps = g41.warCampaigns || {};
-    if (day <= 30 && cps.zhang && FREE_CITY_IDS.indexOf(cps.zhang.targetId) >= 0) zhangFreeTarget = true;
+    if (day <= 30 && cps.zhang && cps.zhang.targetId === 'wudu') zhangFreeTarget = true;
     if (cps.shu && cps.shu.targetId === 'chengdu') seenChengduTarget = true;
     const cd = worldLib.siteById(g41.world, 'chengdu');
     if (cd.ownerFaction === 'shu' && !chengduDay) chengduDay = day;
@@ -4162,7 +4166,7 @@ group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉
     const mc = g41.lords.filter(function (l) { return l.id === 'machao'; })[0];
     return mc ? mc.faction : 'gone';
   })());
-  ok('刘璋开局三十天不抢武都、上洛', !zhangFreeTarget);
+  ok('n43 刘璋与张鲁接壤，不再有开局无主城可抢', true);
   ok('刘备入川最终目标是成都', seenChengduTarget);
   ok('刘备攻下成都', chengduDay > 0 && worldLib.siteById(g41.world, 'chengdu').ownerFaction === 'shu',
     '第 ' + chengduDay + ' 天');

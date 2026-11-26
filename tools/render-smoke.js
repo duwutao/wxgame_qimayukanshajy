@@ -945,9 +945,14 @@ smoke('扎营：国号与旗色入口', function () {
 smoke('无主之城：菜单围攻 → 回大地图扎营', function () {
   const st = app.state = stateLib.createGame({ seed: 9201 });
   st.events.length = 0;
+  // n43 没有天然无主城：手工清一座城，单独验证无主城菜单。
   const site = st.world.sites.filter(function (s) {
-    return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+    return s.type === 'town' && !s.playerOwned;
   })[0];
+  site.ownerFaction = null;
+  site.faction = null;
+  site.lordId = null;
+  site.banner = '';
   app.replace('map');
   st.player.atSiteId = site.id;
   app.push('town', { siteId: site.id });
@@ -966,8 +971,12 @@ smoke('围城去留：点别处 → 继续围城 / 拔营离开', function () {
   const st = app.state = stateLib.createGame({ seed: 9202 });
   st.events.length = 0;
   const site = st.world.sites.filter(function (s) {
-    return s.type === 'town' && !s.ownerFaction && !s.playerOwned;
+    return s.type === 'town' && !s.playerOwned;
   })[0];
+  site.ownerFaction = null;
+  site.faction = null;
+  site.lordId = null;
+  site.banner = '';
   st.playerSiege = null;
   stateLib.beginPlayerSiege(st, site);
   app.replace('map');
@@ -1023,8 +1032,12 @@ smoke('围城时辰到点：自动弹出进攻选择并暂停时间', function (
   stSiege.events.length = 0;
   // 第一座城随意打：用无主城验证“还没开战也能在城下扎营”，不引入外交前提。
   const site = stSiege.world.sites.filter(function (x) {
-    return (x.type === 'town' || x.type === 'castle') && !x.playerOwned && !x.ownerFaction;
+    return x.type === 'town' && !x.playerOwned;
   })[0];
+  site.ownerFaction = null;
+  site.faction = null;
+  site.lordId = null;
+  site.banner = '';
   stSiege.player.x = site.x;
   stSiege.player.y = site.y;
   const r = stateLib.beginPlayerSiege(stSiege, site);

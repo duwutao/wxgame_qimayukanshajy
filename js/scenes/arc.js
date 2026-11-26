@@ -6,10 +6,15 @@
 const { text, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const { drawBackdrop } = require('../render/scenery.js');
+const { STORY } = require('../data/story.js');
 
 const ArcScene = {
   enter(app, params) {
-    this.phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
+    let phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
+    // 新叙事：背叛事件对应“退往边陲”，到达事件对应“边陲复国”。
+    if (phase === 'betrayal' || phase === 'retreat-block') phase = 'retreat';
+    if (phase === 'edge') phase = 'reconquest';
+    this.phase = phase;
     this.t = 0;
   },
   update(app, dt) { this.t += dt || 0; },
@@ -60,16 +65,19 @@ const ArcScene = {
             ],
             btn: null,
           }
-          : {
-            title: '边陲小城',
-            sub: '与天下为敌',
-            lines: [
-              '这座小城在地图上原本没有名字。你逃到这里的那天，它才出现。',
-              '城墙不高，粮也不多。但城门上还没有挂别人的旗。',
-              '旧部在城外点起几堆火。你们要从这里，再把天下走一遍。',
-            ],
-            btn: '重走统一路',
-          };
+          : phase === 'retreat'
+            ? {
+              title: STORY.unification.betrayTitle || '全国背叛',
+              sub: '退往边陲小镇 · 第 ' + (arc.disasterDay || st.clock.day) + ' 天',
+              lines: STORY.unification.betrayLines || [],
+              btn: '继续往边陲小镇',
+            }
+            : {
+              title: STORY.unification.edgeTitle || '边陲小镇',
+              sub: '每月 1000 金币 · 2000 粮草',
+              lines: STORY.unification.edgeLines || [],
+              btn: '从边陲小镇反攻',
+            };
 
     drawBackdrop(ctx, phase === 'finale' || phase === 'celebration' ? 'hall' : 'battle', w, h, 77);
     ctx.fillStyle = 'rgba(8,6,4,0.58)';
