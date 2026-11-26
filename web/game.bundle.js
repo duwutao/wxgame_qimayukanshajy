@@ -1111,7 +1111,7 @@ const FACTIONS = {
  * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
  */
 const FACTION_COMBAT = {
-  yuan: { power: 1, note: '袁绍军：官渡昏君状态下会被压到 0.33，一兵不如曹操三兵' },
+  yuan: { power: 1, note: '袁绍军：官渡按正常士气与战力参战，不再受昏君惩罚' },
   wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
   shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
@@ -5662,6 +5662,7 @@ function makeSide(unit) {
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
+    killMul: typeof unit.killMul === 'number' && unit.killMul > 0 ? unit.killMul : 1,
     gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
@@ -5950,6 +5951,9 @@ class Battle {
     let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
     let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    // 杀敌增益：只放大对敌军的每轮杀伤；自己的伤亡仍由对方系数决定。
+    lossA = Math.max(1, Math.round(lossA * this.b.killMul));
+    lossB = Math.max(1, Math.round(lossB * this.a.killMul));
     // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
     if (nightFree && playerKey === 'a') lossA = 0;
     if (nightFree && playerKey === 'b') lossB = 0;
@@ -6778,6 +6782,13 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
+/** 荆州第十轮霸主的额外杀敌系数；只放大对敌杀伤，不改变自身防御。 */
+function factionKillMul(faction) {
+  const cfg = faction && FACTION_COMBAT[faction];
+  const value = cfg && Number(cfg.killMul);
+  return isFinite(value) && value > 0 ? value : 1;
+}
+
 function combatTroops(unit, foeFaction) {
   return weight(unit && unit.troops) * factionEdge(unit && unit.faction, foeFaction);
 }
@@ -7057,8 +7068,11 @@ function clash(state, a, b) {
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
   // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
-  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
-  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
+  // 荆州第十轮霸主的 +50% 杀敌只加在“给敌军造成的损失”上。
+  const baseLossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+  const baseLossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
+  const lossA = Math.max(1, Math.round(baseLossA * factionKillMul(b.faction)));
+  const lossB = Math.max(1, Math.round(baseLossB * factionKillMul(a.faction)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
 
@@ -7277,6 +7291,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let defWeight = 0;
   let forceTotal = 0;
   let edgeWeight = 0;
+  let killWeight = 0;
   let gateWeight = 0;
   const primary = infos[0];
   infos.forEach(function (info) {
@@ -7294,6 +7309,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     const gate = strategicEdgeForInfo(state, info);
     forceTotal += force;
     edgeWeight += force * factionEdge(info.faction, foeFaction);
+    killWeight += force * factionKillMul(info.faction);
     gateWeight += force * gate;
     contingents.push({
       key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
@@ -7320,6 +7336,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     defPct: countTotal ? defWeight / countTotal : 0,
     isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
     edge: forceTotal ? edgeWeight / forceTotal : 1,
+    killMul: forceTotal ? killWeight / forceTotal : 1,
     gateEdge: forceTotal ? gateWeight / forceTotal : 1,
     coalitionNames: names,
     contingents: contingents,
@@ -7459,14 +7476,17 @@ function syncFieldBattle(state, battlefield, options) {
     const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
     let force = 0;
     let edge = 0;
+    let kill = 0;
     let gate = 0;
     side.contingents.forEach(function (c) {
       const f = tierForce(c.snapshot);
       force += f;
       edge += f * factionEdge(c.faction, foeFaction);
+      kill += f * factionKillMul(c.faction);
       gate += f * strategicDefenseAt(state, c.gateFaction || c.faction, c.x, c.y);
     });
     side.edge = force > 0 ? edge / force : 1;
+    side.killMul = force > 0 ? kill / force : 1;
     side.gateEdge = force > 0 ? gate / force : 1;
     side.force = force;
     const currentCount = army.troopCount(side.troops);
@@ -8176,15 +8196,15 @@ function pairBlocked(state, a, b, day) {
 }
 
 /**
- * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都。
- * 成都是“重心城市”，不先绕去汉中、江州；巴西只是成都城下的踏板。
- * 只有当前一站还挂在刘璋旗下、且道路能接上时才返回它，否则交回普通选城。
+ * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都 → 江州。
+ * 成都是“重心城市”，先取成都；成都一下，兵锋立刻转江州，
+ * 不再绕去汉中，也不把江州留成最后一块飞地。
  */
 function liubeiYiFocusSite(state, own) {
   if (!state || !state.flags || !state.flags.liubeiYiWar) return null;
   if (!state.factionState || (state.factionState.shu || {}).dead) return null;
   if (!atWar(state, 'shu', 'zhang')) return null;
-  const chain = ['jiange', 'baxi', 'chengdu'];
+  const chain = ['jiange', 'baxi', 'chengdu', 'jiangzhou'];
   for (let i = 0; i < chain.length; i += 1) {
     const site = siteById(state, chain[i]);
     if (!site || site.playerOwned || site.ownerFaction !== 'zhang') continue;
@@ -8751,6 +8771,7 @@ function resolveSiege(state, cp, day) {
   const gateEdge = strategicDefenseForSite(state, site);
   let attackPower = 0;
   attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
+  attackPower *= factionKillMul(cp.faction);
   let defendPower = site.garrison * 6.2 * defendEdge * gateEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
@@ -9037,6 +9058,7 @@ function markShuChengduBase(state, site, byFaction) {
   fs.baseCity = 'chengdu';
   state.flags = state.flags || {};
   state.flags.shuChengduBase = true;
+  state.flags.shuJiangzhouPush = true;
   const lords = state.lords || [];
   const ruler = (fs.rulerId && lords.filter(function (l) { return l.id === fs.rulerId; })[0])
     || lords.filter(function (l) { return l.id === 'liubei'; })[0];
@@ -9044,6 +9066,37 @@ function markShuChengduBase(state, site, byFaction) {
   if (first) {
     logFn(state, '成都既下，刘备把治所迁到成都，以成都为蜀军大本营。', 'story');
   }
+
+  // 成都一下，大部分原本在新野巡逻的蜀军改以成都为锚点：
+  // 先撤掉旧的三城路线，下一拍就会从成都出发，不再继续绕新野。
+  const fiefs = {};
+  (state.world.sites || []).forEach(function (s) {
+    if (s && s.lordId) fiefs[s.lordId] = true;
+  });
+  const eligible = lords.filter(function (l) {
+    return l && l.faction === 'shu' && l.alive && !l.dead && !l.prisoner && !fiefs[l.id];
+  });
+  const xinyeLords = eligible.filter(function (l) {
+    return l.patrolSiteId === 'xinye' || !l.patrolSiteId;
+  });
+  const need = Math.max(1, Math.ceil(eligible.length * 0.7));
+  const chosen = (xinyeLords.length >= need ? xinyeLords : eligible).slice(0, need);
+  chosen.forEach(function (l) {
+    l.patrolSiteId = 'chengdu';
+    l.patrolRouteIds = null;
+    l.patrolIdx = 0;
+    l.patrolVisitSeq = 0;
+    l.patrolLoop = null;
+    l.patrolLoopSite = null;
+    l.patrolLoopIdx = 0;
+    l.wander = null;
+    l.patrolPath = null;
+    l.home = 'chengdu';
+    l.resting = false;
+    l.defending = null;
+    // 该参战的参战：撤掉旧的闲逛/守城军令，让战略层重新把兵锋指向江州。
+    if (l.order && !l.order.hold) l.order = null;
+  });
   return true;
 }
 
@@ -9351,7 +9404,7 @@ module.exports = {
   markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
-  factionEdge, combatTroops,
+  factionEdge, factionKillMul, combatTroops,
   ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
   canPlayerDeclareFaction, canPlayerDeclareSite,
   strategicDefenseAt, strategicDefenseForSite,
@@ -9395,6 +9448,8 @@ const STORY = {
   majors: ['wei', 'shu', 'wu'],
   kingdoms: ['wei', 'shu', 'wu'],
   duelFactions: ['yuan', 'gongsun'],
+  // 这五家一旦战略目标被第三国占城或堵住城道，就自动向卡位者宣战。
+  blockerMajors: ['wei', 'shu', 'wu', 'yuan', 'gongsun'],
   passiveFactions: [
     'lv', 'yuanshu', 'biao', 'zhang', 'zhanglu',
     'xianbei', 'ma', 'hansui', 'nanman', 'shanyue', 'han',
@@ -9433,12 +9488,14 @@ const STORY = {
   jingzhouMaxCycles: 10,
   // 占领荆州三镇的国家，全国募兵效率 +20%。
   jingzhouStrongRecruitMul: 1.2,
+  // 第十轮荆州霸主（曹操不算）在基础募兵 +20% 之外，再获得 +50% 杀敌。
+  jingzhouKillMul: 1.5,
   // 袁术称帝：曹、孙两国完成第一阶段后三天触发。
   emperorDelayDays: 3,
   emperorAttackers: ['wei', 'wu'],
   emperorTargets: ['yuanshu'],
-  // 官渡昏君状态下的袁军对拼系数；一个袁绍兵抵不上三个曹兵。
-  yuanWeakPower: 0.33,
+  // 官渡袁绍不再背负“昏君”惩罚：战力与士气均按正常值参战。
+  yuanWeakPower: 1,
 
   // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴袁各补新人。
   // 乱世三国不读取这些配置，仍用完整 LORDS 名单。
@@ -9618,24 +9675,24 @@ const STORY = {
       },
       {
         id: 'wei_han',
-        label: '挟天子',
-        short: '挟天子',
+        label: '灭汉廷',
+        short: '灭汉廷',
         stage: 2,
         targets: ['han'],
-        objective: { type: 'capture', sites: ['changan'] },
+        objective: { type: 'destroy', factions: ['han'] },
         noTimeout: true,
         restDays: 3,
         next: 'wei_xiliang',
-        title: '挟天子以令诸侯',
-        casusBelli: '曹操要入关中攻取长安，把汉廷奉到自己帐下，挟天子以令诸侯。',
+        title: '汉廷覆灭',
+        casusBelli: '曹操要入关中彻底灭亡汉廷；安定若为汉军所占，便从安定杀入武威，不留汉室残旗。',
         warLines: [
-          '曹操以“护驾”为名西进，兵锋直指长安、潼关。',
-          '汉廷诸将据关而守，关中百姓却已分不清谁是官军、谁是诸侯。',
-          '长安一破，汉室诏书便出自曹操营中，天下诸侯再难违抗。',
+          '曹操以“汉室失道”为名西进，兵锋直指长安、潼关、安定。',
+          '汉廷诸将据关而守；若安定、武威仍悬汉旗，曹军便一路向西，先把汉室残部连根拔起。',
+          '汉廷一灭，曹操收关中、凉州入口，下一刀便转向马腾、韩遂。',
         ],
         successLines: [
-          '长安城头竖起曹字旗，汉廷百官被迁入许都，天子诏书从此出自曹操帐下。',
-          '曹操以天子名义下诏，西凉马腾、韩遂割据不服，正好一并扫平。',
+          '长安、潼关、安定相继易手；汉廷最后一座城头也降下汉旗，汉室覆灭。',
+          '曹操收汉廷百官与关中户籍，天子诏书从此再无人可奉。',
           '下一阶段：扫平马腾、韩遂，把关中与凉州连成一线。',
         ],
       },
@@ -9678,8 +9735,8 @@ const STORY = {
         casusBelli: '西凉已平，曹操等了一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
         warLines: [
           '一个月后，曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
-          '袁绍自恃兵多，临阵改令，军心已散；曹操兵精粮足，以逸待劳。',
-          '官渡一战，袁绍一个兵已抵不上曹操三个兵；曹操一路推平河北，顺手灭公孙瓒、逐鲜卑。',
+          '袁绍兵多粮足，颜良、文丑诸将皆在军中；曹操兵精，却要以少击众。',
+          '官渡一战不再有昏君削弱，袁军按正常士气死战；曹操只能靠烧乌巢、断粮道来换胜机。',
         ],
         successLines: [
           '官渡火起，袁绍大军溃散，曹操一路追到邺城，袁氏覆灭。',
@@ -9978,6 +10035,43 @@ const STORY = {
     ],
   },
 
+  chibi: {
+    title: '赤壁之战',
+    caoRestDays: 30,
+    battleDays: 3,
+    aftermathRestDays: 60,
+    fireLossPct: 0.8,
+    caoRemainPct: 0.1,
+    minCaoLordsDead: 4,
+    southTitle: '曹操南下',
+    southLines: [
+      '魏、蜀、吴三家都走完第三阶段，曹操不再等荆州自己生变，亲率中原大军沿荆州南下。',
+      '襄阳、新野、江陵三镇望风换旗；曹军水陆并进，兵锋直抵长江北岸。',
+      '孙权遣鲁肃过江，刘备也从成都、江陵一线收拢兵马；孙刘两家在赤壁结成联军。',
+      '曹操下令休战一个月，等北军水土稍服、船工练熟，再渡江一击定荆州。',
+    ],
+    battleTitle: '赤壁火起',
+    battleLines: [
+      '一个月后，曹军自乌林、赤壁一线排开战船，欲一举渡江。',
+      '孙刘联军以黄盖诈降、火船突入，东南风骤起，曹军连环船队被一把火烧成火墙。',
+      '火攻与溃散合计折去曹军八成士兵；江面上尽是烧沉的楼船与落水的北军。',
+      '孙刘联军按剩余兵力合算，与曹操残军正面决战；曹军再折大半。',
+      '曹操知道大势已去，烧掉剩余战船，带着残部沿华容道北逃。',
+    ],
+    aftermathTitle: '曹操败走',
+    aftermathLines: [
+      '赤壁一役，曹军战船尽毁，伤亡与溃散者不计其数。',
+      '一批没有上名将榜的低阶曹将战死江岸；曹操身边只剩诸夏侯、曹氏与少数名将。',
+      '孙权、刘备分兵抢占荆州三镇：襄阳、新野归刘备，江陵归孙权。',
+      '孙刘两家约定休战两个月，分赃完毕后，再为荆州三镇重新开战。',
+    ],
+    finalTitle: '赤壁余烬',
+    finalLines: [
+      '赤壁火灭，曹操北归，孙刘分荆州。',
+      '两个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有十轮血战。',
+    ],
+  },
+
   jingzhou: {
     title: '荆州会战',
     lines: [
@@ -9994,6 +10088,7 @@ const STORY = {
     finalTitle: '第十轮·不死不休',
     finalLines: [
       '荆州已经易主十次，这一次不再休战。',
+      '第十轮占尽三镇的霸主，除全国募兵 +20% 外，再得 +50% 杀敌；曹操若夺荆州，不享这项额外杀敌。',
       '霸主与两家联盟不死不休：要么霸主灭掉两家，要么两家合力灭掉霸主。',
       '霸主灭国的一瞬间，盟友因利益分配不均立刻反目，天下只剩最后一个国家。',
     ],
@@ -10038,6 +10133,108 @@ module.exports = { STORY };
 
   };
 
+  /* js/data/lord-rank.js */
+  __defs[19] = function (module, exports, __require) {
+/**
+ * 名将榜：决定历史领主的带兵上限与招兵速度。
+ *
+ * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
+ * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
+ * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
+ */
+
+const LORD_POWER_LIST = [
+  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
+  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
+  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
+  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
+  { rank: 5, id: 'machao', name: '马超', score: 96 },
+  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
+  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
+  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
+  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
+  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
+  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
+  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
+  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
+  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
+  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
+  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
+  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
+  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
+  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
+  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
+  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
+  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
+  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
+  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
+  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
+  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
+  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
+  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
+  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
+  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
+  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
+  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
+  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
+  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
+  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
+  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
+  { rank: 37, id: 'madai', name: '马岱', score: 76 },
+  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
+  { rank: 39, id: 'handang', name: '韩当', score: 75 },
+  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
+  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
+  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
+  { rank: 43, id: 'liyan', name: '李严', score: 81 },
+  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
+  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
+  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
+  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
+  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
+  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
+  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
+];
+
+function capForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  return 270 - Math.round((r - 1) * 2.2);
+}
+
+const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
+
+function recruitMulForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  if (r <= 3) return 2.0;
+  if (r <= 9) return 1.8;
+  if (r <= 19) return 1.6;
+  if (r <= 29) return 1.4;
+  if (r <= 39) return 1.2;
+  return 1.1;
+}
+
+const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
+  out[item.id] = {
+    rank: item.rank,
+    id: item.id,
+    name: item.name,
+    score: item.score,
+    cap: capForRank(item.rank),
+    recruitMul: recruitMulForRank(item.rank),
+  };
+  return out;
+}, {});
+
+module.exports = {
+  DEFAULT_MONARCH_RECRUIT_MUL,
+  LORD_POWER_LIST,
+  LORD_POWER_BY_ID,
+  capForRank,
+  recruitMulForRank,
+};
+
+  };
+
   /* js/core/story.js */
   __defs[17] = function (module, exports, __require) {
 /**
@@ -10052,7 +10249,9 @@ module.exports = { STORY };
 
 const { STORY } = __require(18);
 const { FACTIONS, ROADS, FACTION_COMBAT } = __require(5);
+const { LORD_POWER_BY_ID } = __require(19);
 const { siteById } = __require(8);
+const army = __require(9);
 const war = __require(15);
 
 let logFn = function () {};
@@ -10071,16 +10270,33 @@ function displayLabel(cfg) {
   return String(cfg.label || cfg.short || cfg.title || '').replace(/^第[一二三四五六七八九十百]+战略\s*·\s*/, '');
 }
 
-/** 袁绍官渡昏君状态：全局对拼系数压到 0.33，直到袁氏灭亡才恢复。 */
+/** 袁绍官渡状态：只有在配置明确压低战力时才启用；n46 起恢复为正常值。 */
 function applyYuanCombat(state, weak) {
   if (!state || !state.story) return;
   if (!FACTION_COMBAT.yuan) FACTION_COMBAT.yuan = { power: 1 };
+  const penaltyPower = Number(STORY.yuanWeakPower);
+  const penaltyEnabled = isFinite(penaltyPower) && penaltyPower < 0.999;
+  if (!penaltyEnabled) {
+    FACTION_COMBAT.yuan.power = 1;
+    state.story.yuanWeak = false;
+    (state.lords || []).forEach(function (l) {
+      if (l.faction !== 'yuan' || !l.alive || l.dead) return;
+      if (l.storyMoraleCap) {
+        l.morale = Math.max(typeof l.morale === 'number' ? l.morale : 0, l.preStoryMorale || 70);
+        l.storyMoraleCap = null;
+      }
+    });
+    return;
+  }
   const on = !!weak && factionAlive(state, 'yuan');
-  FACTION_COMBAT.yuan.power = on ? (STORY.yuanWeakPower || 0.33) : 1;
+  FACTION_COMBAT.yuan.power = on ? penaltyPower : 1;
   state.story.yuanWeak = on;
   if (on) {
     state.lords.forEach(function (l) {
       if (l.faction === 'yuan' && l.alive && !l.dead) {
+        if (l.storyMoraleCap === undefined || l.storyMoraleCap === null) {
+          l.preStoryMorale = typeof l.morale === 'number' ? l.morale : 60;
+        }
         l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
         l.storyMoraleCap = 35;
       }
@@ -10091,16 +10307,21 @@ function applyYuanCombat(state, weak) {
 function yuanMoraleTick(state) {
   const st = state.story;
   if (!st || !st.yuanWeak || !factionAlive(state, 'yuan')) return;
+  const penaltyPower = Number(STORY.yuanWeakPower);
+  if (!isFinite(penaltyPower) || penaltyPower >= 0.999) return;
   state.lords.forEach(function (l) {
     if (l.faction !== 'yuan' || !l.alive || l.dead) return;
     l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
   });
 }
 
-function resetYuanCombat() {
+function resetCombat() {
   if (FACTION_COMBAT.yuan) FACTION_COMBAT.yuan.power = 1;
+  Object.keys(FACTION_COMBAT).forEach(function (f) {
+    if (FACTION_COMBAT[f]) FACTION_COMBAT[f].killMul = 1;
+  });
 }
-const resetCombat = resetYuanCombat;
+const resetYuanCombat = resetCombat;
 
 /* ------------------------------------------------------------ 基础查询 */
 
@@ -10290,6 +10511,7 @@ function init(state, logger) {
   if (!state || !state.storyMode) return null;
   if (state.story && state.story.mode) return state.story;
 
+  resetCombat();
   const st = {
     mode: true,
     startedDay: state.clock.day,
@@ -10303,8 +10525,11 @@ function init(state, logger) {
     noPeace: {},
     emperor: { declared: false, day: 0, coalition: [] },
     duel: { startDay: state.clock.day, ended: false, winner: null },
+    chibi: null,
+    chibiDone: false,
     jingzhou: null,
     jingzhouDone: false,
+    jingzhouKillBonus: null,
     endgame: null,
     headline: '',
     openingDeclared: false,
@@ -10313,6 +10538,8 @@ function init(state, logger) {
     yuanWeak: false,
     yuanBattleLost: false,
     edgeWarsDeclared: false,
+    blockerTargets: {},
+    blockerWars: {},
     waitEvents: {},
     proxyWars: STORY.proxyWars || {},
     proxyWarsDeclared: false,
@@ -10378,6 +10605,11 @@ function resume(state, logger) {
   if (!state.story.emperor) state.story.emperor = { declared: false, day: 0, coalition: [] };
   if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
   if (!state.story.waitEvents) state.story.waitEvents = {};
+  if (state.story.chibi === undefined) state.story.chibi = null;
+  if (state.story.chibiDone === undefined) state.story.chibiDone = false;
+  if (state.story.jingzhouKillBonus === undefined) state.story.jingzhouKillBonus = null;
+  if (!state.story.blockerTargets) state.story.blockerTargets = {};
+  if (!state.story.blockerWars) state.story.blockerWars = {};
   if (state.story.yuanWeak === undefined) state.story.yuanWeak = false;
   if (state.story.edgeWarsDeclared === undefined) state.story.edgeWarsDeclared = false;
   if (state.story.proxyWarsDeclared === undefined) {
@@ -10396,6 +10628,10 @@ function resume(state, logger) {
   if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
   if (!state.story.targetRegion) state.story.targetRegion = {};
   applyYuanCombat(state, !!state.story.yuanWeak);
+  if (state.story.jingzhouKillBonus && state.story.jingzhouKillBonus !== 'wei') {
+    if (!FACTION_COMBAT[state.story.jingzhouKillBonus]) FACTION_COMBAT[state.story.jingzhouKillBonus] = { power: 1 };
+    FACTION_COMBAT[state.story.jingzhouKillBonus].killMul = STORY.jingzhouKillMul || 1.5;
+  }
   refreshHeadline(state);
   return state.story;
 }
@@ -10422,6 +10658,186 @@ function phaseTargets(state, faction, cfg) {
   }
   return list.filter(function (id) {
     return id && !factionDead(state, id);
+  });
+}
+
+/* ------------------------------------------------------------ 反卡位宣战 */
+
+let ROAD_EDGE_CACHE = null;
+function roadEdgeMap() {
+  if (ROAD_EDGE_CACHE) return ROAD_EDGE_CACHE;
+  const edges = {};
+  (ROADS || []).forEach(function (pair) {
+    if (!pair || !pair[0] || !pair[1]) return;
+    (edges[pair[0]] = edges[pair[0]] || []).push(pair[1]);
+    (edges[pair[1]] = edges[pair[1]] || []).push(pair[0]);
+  });
+  ROAD_EDGE_CACHE = edges;
+  return edges;
+}
+
+function siteOwnerKey(site) {
+  if (!site) return null;
+  if (site.playerOwned) return 'player';
+  return site.ownerFaction || null;
+}
+
+function isCitySite(site) {
+  return !!site && (site.type === 'town' || site.type === 'castle');
+}
+
+/** 当前阶段真正要拿下的城：capture 直接取目标城，destroy 取目标势力现存城。 */
+function phaseGoalSites(state, faction, cfg) {
+  const out = [];
+  const seen = {};
+  function add(id) {
+    if (!id || seen[id]) return;
+    const site = siteById(state.world, id);
+    if (!isCitySite(site)) return;
+    seen[id] = true;
+    out.push(site);
+  }
+  const obj = cfg && cfg.objective;
+  if (obj && (obj.type === 'capture' || obj.type === 'captureOrDestroy')) {
+    (obj.sites || []).forEach(add);
+  }
+  const goalFactions = [];
+  if (obj && obj.type === 'destroy') {
+    (obj.factions || []).forEach(function (f) { goalFactions.push(f); });
+  } else {
+    (cfg && cfg.targets || []).forEach(function (f) { goalFactions.push(f); });
+  }
+  goalFactions.forEach(function (f) {
+    if (f === faction || factionDead(state, f)) return;
+    citiesOf(state, f).forEach(function (s) { if (isCitySite(s)) add(s.id); });
+  });
+  return out;
+}
+
+function shortestRoadPath(state, fromIds, targetId, allowSite) {
+  const edges = roadEdgeMap();
+  const queue = [];
+  const parent = {};
+  const visited = {};
+  fromIds.forEach(function (id) {
+    if (!id || visited[id]) return;
+    visited[id] = true;
+    parent[id] = null;
+    queue.push(id);
+  });
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === targetId) {
+      const path = [];
+      let step = cur;
+      while (step) {
+        path.unshift(step);
+        step = parent[step];
+      }
+      return path;
+    }
+    (edges[cur] || []).forEach(function (next) {
+      if (visited[next]) return;
+      const site = siteById(state.world, next);
+      if (!site) return;
+      if (allowSite && !allowSite(site)) return;
+      visited[next] = true;
+      parent[next] = cur;
+      queue.push(next);
+    });
+  }
+  return null;
+}
+
+function blockerFromPath(state, faction, path, allowedOwner) {
+  if (!path || path.length < 2) return null;
+  for (let i = 1; i < path.length; i++) {
+    const site = siteById(state.world, path[i]);
+    const owner = siteOwnerKey(site);
+    if (!owner || allowedOwner(owner)) continue;
+    if (owner === 'player' || owner === 'bandit' || owner === 'rebel') return null;
+    if (factionDead(state, owner)) return null;
+    return owner;
+  }
+  return null;
+}
+
+/**
+ * 目标城被第三国占着，或者唯一可走的城道必须穿过第三国城池：
+ * 这国就是“卡位者”，向它宣战，避免它靠中立身份堵住战略目标。
+ */
+function findBlockingFactions(state, faction, cfg) {
+  const targets = phaseGoalSites(state, faction, cfg);
+  if (!targets.length) return [];
+  const targetFactions = [];
+  ((cfg && cfg.objective && cfg.objective.factions) || (cfg && cfg.targets) || []).forEach(function (f) {
+    if (targetFactions.indexOf(f) < 0) targetFactions.push(f);
+  });
+  const own = citiesOf(state, faction).filter(isCitySite).map(function (s) { return s.id; });
+  if (!own.length) return [];
+  const allowedOwner = function (owner) {
+    return !owner || owner === faction || targetFactions.indexOf(owner) >= 0;
+  };
+  const blockers = [];
+  targets.forEach(function (goal) {
+    const owner = siteOwnerKey(goal);
+    if (owner && owner !== faction && !allowedOwner(owner)) {
+      if (owner !== 'player' && owner !== 'bandit' && owner !== 'rebel' && !factionDead(state, owner) &&
+          blockers.indexOf(owner) < 0) blockers.push(owner);
+      return;
+    }
+    if (owner === faction) return;
+    // 有一条完全不碰第三国城池的路线，就不算被卡位。
+    if (shortestRoadPath(state, own, goal.id, function (site) {
+      return allowedOwner(siteOwnerKey(site));
+    })) return;
+    // 没有安全路线：按最短城道找第一个挡路的第三国。
+    const shortest = shortestRoadPath(state, own, goal.id, null);
+    const blocker = blockerFromPath(state, faction, shortest, allowedOwner);
+    if (blocker && blockers.indexOf(blocker) < 0) blockers.push(blocker);
+  });
+  return blockers;
+}
+
+function syncPhaseBlockers(state, faction) {
+  const st = state.story;
+  const p = st && st.phases && st.phases[faction];
+  if (!p || p.status !== 'war') return;
+  const cfg = currentCfg(state, faction);
+  if (!cfg) return;
+  const base = phaseTargets(state, faction, cfg);
+  const blockers = findBlockingFactions(state, faction, cfg);
+  const prev = st.blockerWars[faction] || [];
+  const oldBlockers = st.blockerTargets[faction] || [];
+  const fresh = blockers.filter(function (b) { return prev.indexOf(b) < 0; });
+  const current = (st.targets[faction] || []).filter(function (f) { return oldBlockers.indexOf(f) < 0; });
+  const preserved = current.length ? current : base;
+  st.blockerTargets[faction] = blockers.slice();
+  st.targets[faction] = preserved.filter(function (f, i, arr) { return arr.indexOf(f) === i; })
+    .concat(blockers.filter(function (f) { return preserved.indexOf(f) < 0; }));
+  blockers.forEach(function (b) {
+    if (b === faction || factionDead(state, b)) return;
+    if (!war.atWar(state, faction, b)) war.declare(state, faction, b, true, true);
+  });
+  st.blockerWars[faction] = blockers.slice();
+  if (fresh.length && p.status === 'war') {
+    pushStoryEvent(state, '战略卡位', [
+      factionName(faction) + '的战略目标被' + fresh.map(factionName).join('、') + '挡在城道上。',
+      '对方既不归顺，也不让路；' + factionName(faction) + '不再忍让，直接递出战书。',
+      '挡路的城池必须先拔掉，否则灭国、取城的目标永远差最后一程。',
+    ], { tag: '大势', art: 'war', auto: 8 });
+    logFn(state, '【' + factionName(faction) + '】战略目标被' + fresh.map(factionName).join('、') +
+      '卡住，自动宣战打通城道。', 'war');
+    refreshHeadline(state);
+  }
+}
+
+function enforceStrategicBlockers(state) {
+  const st = state.story;
+  if (!st || st.endgame || (st.chibi && !st.chibi.done)) return;
+  (STORY.blockerMajors || []).forEach(function (f) {
+    if (!factionAlive(state, f)) return;
+    syncPhaseBlockers(state, f);
   });
 }
 
@@ -10829,13 +11245,314 @@ function maybeEmperor(state) {
 
 /* ------------------------------------------------------------ 荆州解封 */
 
-function maybeJingzhou(state) {
+/* ------------------------------------------------------------ 赤壁史诗 */
+
+function storySite(state, id) {
+  return siteById(state.world, id);
+}
+
+/** 剧情直接换旗：保留城池建筑与基础守军，不经过围城结算。 */
+function setStorySiteOwner(state, site, faction) {
+  if (!site || !faction) return null;
+  const old = site.ownerFaction || (site.playerOwned ? 'player' : null);
+  if (old === faction && !site.playerOwned) return old;
+  site.ownerFaction = faction;
+  site.faction = faction;
+  site.playerOwned = false;
+  site.lordId = null;
+  if (FACTIONS[faction]) {
+    site.color = FACTIONS[faction].color;
+    site.banner = FACTIONS[faction].banner;
+  }
+  const base = Number(site.garrisonBase) || Number(site.garrison) || 40;
+  site.garrison = Math.max(28, Math.round(base * 0.45));
+  site.garrisonBase = site.garrison;
+  recordCapture(state, site, old, faction);
+  return old;
+}
+
+function assignStorySites(state, faction, ids) {
+  const taken = [];
+  (ids || []).forEach(function (id) {
+    const site = storySite(state, id);
+    if (!site) return;
+    const old = setStorySiteOwner(state, site, faction);
+    taken.push({ id: id, name: site.name, old: old });
+  });
+  return taken;
+}
+
+function chibiPlayerParticipated(state, site) {
+  const p = state && state.player;
+  if (!p || !site || p.faction !== 'wei') return false;
+  const x = Number(p.x);
+  const y = Number(p.y);
+  if (!isFinite(x) || !isFinite(y)) return false;
+  return Math.max(Math.abs(x - site.x), Math.abs(y - site.y)) <= 16;
+}
+
+/** 曹操南取荆州：三镇直接换曹旗，进入一个月休战。 */
+function startChibiPrelude(state) {
   const st = state.story;
-  if (!st || st.endgame || st.jingzhouDone) return false;
-  if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
-  if (!STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
+  if (!st || st.chibi || st.jingzhou || st.endgame) return false;
+  if (!stage3Done(state)) return false;
+  const day = state.clock.day;
+  const cf = STORY.chibi || {};
+  stopMajorWars(state);
+  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
+  const taken = assignStorySites(state, 'wei', STORY.jingzhouSites);
+  const site = storySite(state, 'chibi');
+  const c = {
+    active: true,
+    phase: 'rest',
+    since: day,
+    until: day + (cf.caoRestDays || 30),
+    site: 'chibi',
+    taken: taken,
+    caoBefore: countTroops(state, 'wei'),
+    caoAfterFire: 0,
+    caoAfterBattle: 0,
+    deadLords: [],
+    split: null,
+    playerParticipated: false,
+  };
+  st.chibi = c;
+  st.chibiDone = false;
+  st.targets.wei = [];
+  const lines = (STORY.chibi && STORY.chibi.southLines || []).slice();
+  lines.push('襄阳、新野、江陵三镇已归曹操；孙刘两家退保长江以南，暂避曹军锋芒。');
+  pushStoryEvent(state, (STORY.chibi && STORY.chibi.southTitle) || '曹操南下', lines, {
+    tag: '史诗', art: 'war', auto: 10,
+  });
+  logFn(state, '曹操沿荆州南下，取襄阳、新野、江陵；三国休战一个月，准备赤壁决战。', 'war');
+  refreshHeadline(state);
+  return true;
+}
+
+/** 赤壁火攻：先烧掉曹军八成，再留三天让孙刘联军与残军对决。 */
+function beginChibiBattle(state) {
+  const st = state.story;
+  const c = st && st.chibi;
+  if (!c || c.phase !== 'rest') return false;
+  const cf = STORY.chibi || {};
+  const day = state.clock.day;
+  stopMajorWars(state);
+  war.makePeace(state, 'shu', 'wu', true);
+  war.declare(state, 'wei', 'shu', true, true);
+  war.declare(state, 'wei', 'wu', true, true);
+  st.targets.wei = ['shu', 'wu'];
+  st.targets.shu = ['wei'];
+  st.targets.wu = ['wei'];
+  c.phase = 'battle';
+  c.since = day;
+  c.until = day + (cf.battleDays || 3);
+  c.caoBefore = countTroops(state, 'wei');
+  const site = storySite(state, 'chibi');
+  c.playerParticipated = chibiPlayerParticipated(state, site);
+  let lost = 0;
+  (state.lords || []).forEach(function (l) {
+    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return;
+    const n = army.troopCount(l.troops);
+    if (n <= 0) return;
+    const cut = Math.max(0, Math.round(n * (cf.fireLossPct || 0.8)));
+    army.distributeLosses(l.troops, cut);
+    lost += cut;
+  });
+  c.fireLoss = lost;
+  c.caoAfterFire = countTroops(state, 'wei');
+  const lines = (STORY.chibi && STORY.chibi.battleLines || []).slice();
+  lines.push('火攻前曹军约 ' + c.caoBefore + ' 人，火后只剩约 ' + c.caoAfterFire + ' 人。');
+  lines.push('孙刘联军合计约 ' + (countTroops(state, 'shu') + countTroops(state, 'wu')) +
+    ' 人，沿江列阵，准备与曹军残部决战。');
+  pushStoryEvent(state, (STORY.chibi && STORY.chibi.battleTitle) || '赤壁火起', lines, {
+    tag: '史诗', art: 'war', auto: 10,
+  });
+  logFn(state, '赤壁火攻：曹军由 ' + c.caoBefore + ' 人折到 ' + c.caoAfterFire + ' 人；孙刘联军列阵决战。', 'war');
+  refreshHeadline(state);
+  return true;
+}
+
+function aliveLordCount(state, faction) {
+  return (state.lords || []).filter(function (l) {
+    return l && l.faction === faction && l.alive && !l.dead && !l.prisoner;
+  }).length;
+}
+
+function caoDeathCandidates(state, protectedIds) {
+  const rankLevel = { king: 9, lord: 7, general: 5 };
+  return (state.lords || []).filter(function (l) {
+    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return false;
+    if (l.isPlayer || protectedIds[l.id]) return false;
+    if (LORD_POWER_BY_ID[l.id]) return false; // 名将榜前 50 不上死亡名单
+    const level = Number(l.level) || rankLevel[l.rank] || 5;
+    return level <= 5;
+  }).sort(function (a, b) {
+    return (Number(a.level) || 5) - (Number(b.level) || 5) ||
+      String(a.id).localeCompare(String(b.id));
+  });
+}
+
+function killCaoLordsAtChibi(state) {
+  const c = state.story.chibi;
+  const target = Math.round((aliveLordCount(state, 'shu') + aliveLordCount(state, 'wu')) / 2);
+  const caoNow = aliveLordCount(state, 'wei');
+  const minDead = (STORY.chibi && STORY.chibi.minCaoLordsDead) || 4;
+  const candidates = caoDeathCandidates(state, {});
+  const want = Math.min(candidates.length, Math.max(0, caoNow - target, minDead));
+  const killed = [];
+  for (let i = 0; i < want && i < candidates.length; i++) {
+    const l = candidates[i];
+    l.dead = true;
+    l.alive = false;
+    l.troops = {};
+    l.prisoner = false;
+    l.inCity = null;
+    l.order = null;
+    l.defending = null;
+    l.chasing = false;
+    l.patrolPath = null;
+    l.killedAt = 'chibi';
+    l.deathDay = state.clock.day;
+    (state.world.sites || []).forEach(function (s) {
+      if (s.lordId === l.id) s.lordId = null;
+    });
+    killed.push(l.name || l.id);
+  }
+  c.deadLords = killed;
+  return killed;
+}
+
+function retreatCaoLords(state) {
+  const fallback = storySite(state, 'xuchang') || storySite(state, 'luoyang');
+  (state.lords || []).forEach(function (l) {
+    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner || l.isPlayer) return;
+    l.order = null;
+    l.defending = null;
+    l.chasing = false;
+    l.hunting = false;
+    l.fleeing = false;
+    l.wander = null;
+    l.patrolPath = null;
+    l.patrolLoop = null;
+    const home = storySite(state, l.home);
+    const safe = home && (home.ownerFaction === 'wei' || (home.playerOwned && state.player.faction === 'wei'))
+      ? home : fallback;
+    if (safe) {
+      l.inCity = safe.id;
+      l.x = safe.x;
+      l.y = safe.y;
+    }
+  });
+}
+
+/** 曹军退到一成，低阶曹将战死；孙刘分荆州，进入两个月休战。 */
+function resolveChibiBattle(state) {
+  const st = state.story;
+  const c = st && st.chibi;
+  if (!c || c.phase !== 'battle') return false;
+  const cf = STORY.chibi || {};
+  const day = state.clock.day;
+  const remainTarget = Math.max(0, Math.round((c.caoBefore || 0) * (cf.caoRemainPct || 0.1)));
+  const current = countTroops(state, 'wei');
+  if (current > remainTarget) {
+    let left = current - remainTarget;
+    const total = current;
+    (state.lords || []).forEach(function (l) {
+      if (left <= 0) return;
+      if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return;
+      const n = army.troopCount(l.troops);
+      if (n <= 0) return;
+      const cut = Math.min(left, n, Math.max(0, Math.round((current - remainTarget) * n / total)));
+      army.distributeLosses(l.troops, cut);
+      left -= cut;
+    });
+  }
+  c.caoAfterBattle = countTroops(state, 'wei');
+  const killed = killCaoLordsAtChibi(state);
+  retreatCaoLords(state);
+  const shuAlive = factionAlive(state, 'shu');
+  const wuAlive = factionAlive(state, 'wu');
+  let split = { shu: [], wu: [] };
+  if (shuAlive && wuAlive) {
+    split.shu = ['xiangyang', 'xinye'];
+    split.wu = ['jiangling'];
+  } else if (shuAlive) {
+    split.shu = STORY.jingzhouSites.slice();
+  } else if (wuAlive) {
+    split.wu = STORY.jingzhouSites.slice();
+  }
+  if (split.shu.length) assignStorySites(state, 'shu', split.shu);
+  if (split.wu.length) assignStorySites(state, 'wu', split.wu);
+  c.split = split;
+  stopMajorWars(state);
+  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
+  c.phase = 'aftermath';
+  c.since = day;
+  c.until = day + (cf.aftermathRestDays || 60);
+  const lines = (STORY.chibi && STORY.chibi.aftermathLines || []).slice();
+  if (killed.length) lines.push('战死曹将：' + killed.join('、') + '。');
+  else lines.push('这一战没有低阶曹将战死，曹军残部退回北方。');
+  if (c.playerParticipated) lines.push('你随曹军参加赤壁，乱军中杀出重围，没有被写死。');
+  lines.push('曹操残部北撤，孙刘分荆州；两个月内不再开战。');
+  pushStoryEvent(state, (STORY.chibi && STORY.chibi.aftermathTitle) || '曹操败走', lines, {
+    tag: '史诗', art: 'war', auto: 10,
+  });
+  logFn(state, '赤壁决战：曹军余 ' + c.caoAfterBattle + ' 人，曹操北逃；低阶曹将战死 ' +
+    killed.length + ' 人；孙刘分荆州，休战两个月。', 'war');
+  refreshHeadline(state);
+  return true;
+}
+
+function maybeChibi(state) {
+  const st = state.story;
+  if (!st || st.chibiDone || st.jingzhou || st.endgame) return false;
+  if (st.chibi) {
+    tickChibi(state);
+    return true;
+  }
+  if (!stage3Done(state)) return false;
+  if (!STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
   const last = Math.max.apply(null, STORY.kingdoms.map(function (f) { return st.stage3Done[f] || 0; }));
   if (state.clock.day < last + (STORY.jingzhouUnlockRestDays || 30)) return false;
+  return startChibiPrelude(state);
+}
+
+function tickChibi(state) {
+  const st = state.story;
+  const c = st && st.chibi;
+  if (!c || c.done) return false;
+  if (c.phase === 'rest' && state.clock.day >= (c.until || 0)) {
+    beginChibiBattle(state);
+    return true;
+  }
+  if (c.phase === 'battle' && state.clock.day >= (c.until || 0)) {
+    resolveChibiBattle(state);
+    return true;
+  }
+  if (c.phase === 'aftermath' && state.clock.day >= (c.until || 0)) {
+    c.phase = 'done';
+    c.done = true;
+    c.active = false;
+    st.chibiDone = true;
+    pushStoryEvent(state, (STORY.chibi && STORY.chibi.finalTitle) || '赤壁余烬',
+      (STORY.chibi && STORY.chibi.finalLines) || [
+        '赤壁火灭，曹操北归，孙刘分荆州。',
+        '两个月后，荆州三镇再次成为三家必争之地。',
+      ], { tag: '史诗', art: 'peace', auto: 9 });
+    logFn(state, '赤壁余烬：孙刘分荆州，休战两个月后开启荆州十轮争霸。', 'war');
+    refreshHeadline(state);
+    return true;
+  }
+  return false;
+}
+
+function maybeJingzhou(state) {
+  const st = state.story;
+  if (!st || st.endgame || st.jingzhouDone || st.jingzhou) return false;
+  // 赤壁史诗必须先走完；旧档已经进入荆州循环的，不会被新层覆盖。
+  if (!st.chibi || !st.chibi.done) return false;
+  if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
+  if (!STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
   return startJingzhou(state);
 }
 
@@ -11014,6 +11731,15 @@ function beginFinalJingzhou(state) {
   stopMajorWars(state);
   const strong = eg.strongest;
   const allies = eg.allies || [];
+  // 第十轮霸主：基础 +20% 募兵已在 endgame.strongest 上生效；
+  // 额外 +50% 杀敌只给蜀、吴，曹操夺冠不享受这项红利。
+  if (strong && strong !== 'wei') {
+    if (!FACTION_COMBAT[strong]) FACTION_COMBAT[strong] = { power: 1 };
+    FACTION_COMBAT[strong].killMul = STORY.jingzhouKillMul || 1.5;
+    st.jingzhouKillBonus = strong;
+  } else {
+    st.jingzhouKillBonus = null;
+  }
   // 第 10 轮不再停战：霸主与联盟不死不休。
   if (strong) {
     [strong].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
@@ -11031,8 +11757,15 @@ function beginFinalJingzhou(state) {
       });
     });
   }
-  pushStoryEvent(state, STORY.jingzhou.finalTitle, STORY.jingzhou.finalLines, { tag: '会战', art: 'war', auto: 9 });
+  const finalLines = (STORY.jingzhou && STORY.jingzhou.finalLines || []).slice();
+  if (strong && strong !== 'wei') {
+    finalLines.push(factionName(strong) + '夺得第十轮荆州，杀敌效率额外 +50%。');
+  } else if (strong) {
+    finalLines.push(factionName(strong) + '夺得第十轮荆州；曹操不享受额外 +50% 杀敌。');
+  }
+  pushStoryEvent(state, STORY.jingzhou.finalTitle, finalLines, { tag: '会战', art: 'war', auto: 9 });
   logFn(state, '第十轮荆州争霸：不再停战，霸主与联盟不死不休。', 'war');
+  if (strong && strong !== 'wei') logFn(state, factionName(strong) + '获得第十轮荆州额外杀敌 +50%。', 'war');
   refreshHeadline(state);
 }
 
@@ -11181,8 +11914,10 @@ function recordCapture(state, site, oldFaction, byFaction) {
   const fsBy = state.factionState && state.factionState[byFaction];
   if (fsBy && citiesOf(state, byFaction).length > 0) fsBy.lastConqueror = null;
 
-  // 官渡之后：袁绍丢城即触发“大军溃散”的士气文书，0.33 倍率一直保留到袁氏灭亡。
-  if (st.yuanWeak && factionAlive(state, 'yuan') && oldFaction === 'yuan' &&
+  // 官渡之后：只有配置仍压低袁军时，才触发“大军溃散”的士气文书。
+  const yuanPenaltyPower = Number(STORY.yuanWeakPower);
+  if (st.yuanWeak && isFinite(yuanPenaltyPower) && yuanPenaltyPower < 0.999 &&
+      factionAlive(state, 'yuan') && oldFaction === 'yuan' &&
       byFaction === 'wei' && !st.yuanBattleLost) {
     st.yuanBattleLost = true;
     state.lords.forEach(function (l) {
@@ -11224,6 +11959,9 @@ function refreshHeadline(state) {
   const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
   if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·三成战力');
+  if (st.chibi && !st.chibi.done) {
+    parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
+  }
   if (st.jingzhou && st.jingzhou.active) parts.push('荆州：三家会战');
   if (st.endgame && st.endgame.active) parts.push('乱国：三国循环');
   st.headline = parts.join(' · ');
@@ -11245,6 +11983,8 @@ function tick(state) {
     refreshHeadline(state);
     return;
   }
+  maybeChibi(state);
+  enforceStrategicBlockers(state);
   maybeJingzhou(state);
   if (st.endgame && st.endgame.active) {
     tickEndgame(state);
@@ -11261,14 +12001,18 @@ module.exports = {
   init, resume, tick, refreshHeadline, recordCapture, bindLogger, resetCombat,
   isPassive, hasStory, siteAdjacent, factionAlive, factionDead, recruitRate,
   startEndgame, startPhase, beginGang, beginTwoStrong, beginTripleRest,
-  maybeEmperor, maybeJingzhou, endJingzhou,
-  _private: { phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, eventLines, displayLabel },
+  maybeEmperor, maybeChibi, maybeJingzhou, endJingzhou,
+  _private: {
+    phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, eventLines, displayLabel,
+    findBlockingFactions, startChibiPrelude, beginChibiBattle, resolveChibiBattle,
+    startJingzhou, beginFinalJingzhou,
+  },
 };
 
   };
 
   /* js/data/bios.js */
-  __defs[19] = function (module, exports, __require) {
+  __defs[20] = function (module, exports, __require) {
 /**
  * 领主生平：按史实写，一人三四句，讲清来处、功业、下场。
  * 史书只留一行的人（吕旷、吕翔之类），就照实写"记载极少"，不硬编。
@@ -11430,108 +12174,6 @@ module.exports = { LORD_BIOS };
 
   };
 
-  /* js/data/lord-rank.js */
-  __defs[20] = function (module, exports, __require) {
-/**
- * 名将榜：决定历史领主的带兵上限与招兵速度。
- *
- * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
- * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
- * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
- */
-
-const LORD_POWER_LIST = [
-  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
-  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
-  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
-  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
-  { rank: 5, id: 'machao', name: '马超', score: 96 },
-  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
-  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
-  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
-  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
-  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
-  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
-  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
-  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
-  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
-  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
-  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
-  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
-  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
-  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
-  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
-  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
-  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
-  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
-  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
-  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
-  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
-  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
-  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
-  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
-  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
-  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
-  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
-  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
-  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
-  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
-  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
-  { rank: 37, id: 'madai', name: '马岱', score: 76 },
-  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
-  { rank: 39, id: 'handang', name: '韩当', score: 75 },
-  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
-  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
-  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
-  { rank: 43, id: 'liyan', name: '李严', score: 81 },
-  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
-  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
-  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
-  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
-  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
-  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
-  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
-];
-
-function capForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  return 270 - Math.round((r - 1) * 2.2);
-}
-
-const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
-
-function recruitMulForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  if (r <= 3) return 2.0;
-  if (r <= 9) return 1.8;
-  if (r <= 19) return 1.6;
-  if (r <= 29) return 1.4;
-  if (r <= 39) return 1.2;
-  return 1.1;
-}
-
-const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
-  out[item.id] = {
-    rank: item.rank,
-    id: item.id,
-    name: item.name,
-    score: item.score,
-    cap: capForRank(item.rank),
-    recruitMul: recruitMulForRank(item.rank),
-  };
-  return out;
-}, {});
-
-module.exports = {
-  DEFAULT_MONARCH_RECRUIT_MUL,
-  LORD_POWER_LIST,
-  LORD_POWER_BY_ID,
-  capForRank,
-  recruitMulForRank,
-};
-
-  };
-
   /* js/core/state.js */
   __defs[7] = function (module, exports, __require) {
 /**
@@ -11574,8 +12216,8 @@ const { TROOPS } = __require(10);
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
-const { LORD_BIOS } = __require(19);
-const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = __require(20);
+const { LORD_BIOS } = __require(20);
+const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = __require(19);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -12187,6 +12829,7 @@ function lordFromDef(state, def) {
     y: spot.y,
     troops: deepCopy(def.soldiers),
     morale: def.morale,
+    baseMorale: def.morale,
     sight: def.sight,
     chasing: false,
     alive: true,
@@ -12218,7 +12861,10 @@ function stageGuandu(state) {
     });
     lords.forEach(function (lord, i) {
       lord.troops = deepCopy(lord.defTroops || lord.troops || {});
-      lord.morale = faction === 'yuan' ? 35 : 92;
+      // 官渡不再削袁绍士气：袁军按初始正常士气列阵，曹军仍以逸待劳。
+      lord.morale = faction === 'yuan'
+        ? (Number(lord.baseMorale) || Number(lord.defMorale) || 78)
+        : 92;
       lord.inCity = null;
       lord.resting = false;
       lord.defending = null;

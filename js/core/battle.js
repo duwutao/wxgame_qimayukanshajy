@@ -83,6 +83,7 @@ function makeSide(unit) {
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
+    killMul: typeof unit.killMul === 'number' && unit.killMul > 0 ? unit.killMul : 1,
     gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
@@ -371,6 +372,9 @@ class Battle {
     let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
     let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    // 杀敌增益：只放大对敌军的每轮杀伤；自己的伤亡仍由对方系数决定。
+    lossA = Math.max(1, Math.round(lossA * this.b.killMul));
+    lossB = Math.max(1, Math.round(lossB * this.a.killMul));
     // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
     if (nightFree && playerKey === 'a') lossA = 0;
     if (nightFree && playerKey === 'b') lossB = 0;

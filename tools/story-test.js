@@ -110,7 +110,56 @@ group('n43 阶段表与两年防卡死');
   })());
   ok('荆州三镇配置完整', STORY.jingzhouSites.join(',') === 'xiangyang,xinye,jiangling');
   ok('强势方募兵 +20%', STORY.jingzhouStrongRecruitMul === 1.2);
+  ok('第十轮霸主额外杀敌 +50%', STORY.jingzhouKillMul === 1.5);
+  ok('赤壁火攻折损八成', STORY.chibi.fireLossPct === 0.8);
+  ok('赤壁后曹操只剩一成', STORY.chibi.caoRemainPct === 0.1);
 }
+
+group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
+{
+  const st = game(20261126031);
+  ['yuan', 'gongsun'].forEach(function (f) {
+    st.story.phases[f].status = 'rest';
+    st.story.phases[f].restUntil = 99999;
+  });
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.endgame = null;
+  st.story.jingzhou = null;
+  st.story.chibi = null;
+  st.story.chibiDone = false;
+  st.clock.day = 31;
+  story.tick(st);
+  const c = st.story.chibi;
+  ok('三国第三阶段后先入赤壁前置', !!c && c.phase === 'rest' && !st.story.jingzhou);
+  ok('曹操先占荆州三镇', STORY.jingzhouSites.every(function (id) {
+    return site(st, id).ownerFaction === 'wei';
+  }));
+  ok('赤壁前置休战一个月', c.until === 31 + STORY.chibi.caoRestDays);
+
+  tickDay(st, c.until);
+  ok('休战结束进入赤壁决战', c.phase === 'battle');
+  ok('火攻烧掉曹军八成', c.caoAfterFire < c.caoBefore * 0.25 &&
+    c.caoAfterFire > c.caoBefore * 0.15, c.caoBefore + '→' + c.caoAfterFire);
+  ok('孙刘联军对曹宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu'));
+
+  tickDay(st, c.until + STORY.chibi.battleDays);
+  ok('赤壁决战进入败逃结算', c.phase === 'aftermath');
+  ok('曹军只余约一成', c.caoAfterBattle <= c.caoBefore * 0.11,
+    c.caoBefore + '→' + c.caoAfterBattle);
+  ok('低阶曹将战死', c.deadLords.length > 0, c.deadLords.join('、'));
+  ok('名将榜前 50 不写死', c.deadLords.every(function (name) {
+    const lord = st.lords.filter(function (l) { return l.name === name; })[0];
+    return !lord || !require(R + '/data/lord-rank.js').LORD_POWER_BY_ID[lord.id];
+  }));
+  ok('曹操仍在', !!(st.lords.filter(function (l) { return l.id === 'caocao' && l.alive; })[0]));
+  ok('孙刘分荆州', site(st, 'xiangyang').ownerFaction === 'shu' &&
+    site(st, 'xinye').ownerFaction === 'shu' &&
+    site(st, 'jiangling').ownerFaction === 'wu');
+
+  tickDay(st, c.until + STORY.chibi.battleDays + STORY.chibi.aftermathRestDays);
+  ok('赤壁结束后开启荆州十轮', st.story.chibiDone && !!st.story.jingzhou);
+}
+
 
 group('n43 两年未完成自动进入下一阶段');
 {
@@ -168,6 +217,8 @@ group('n43 荆州十轮：霸主、联盟与休整');
   st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
   st.story.endgame = null;
   st.story.jingzhou = null;
+  st.story.chibi = { done: true };
+  st.story.chibiDone = true;
   st.clock.day = 31;
   story.tick(st);
   ok('三國第三阶段完成后一个月聚战荆州', !!(st.story.endgame && st.story.endgame.active) &&

@@ -619,6 +619,13 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
+/** 荆州第十轮霸主的额外杀敌系数；只放大对敌杀伤，不改变自身防御。 */
+function factionKillMul(faction) {
+  const cfg = faction && FACTION_COMBAT[faction];
+  const value = cfg && Number(cfg.killMul);
+  return isFinite(value) && value > 0 ? value : 1;
+}
+
 function combatTroops(unit, foeFaction) {
   return weight(unit && unit.troops) * factionEdge(unit && unit.faction, foeFaction);
 }
@@ -898,8 +905,11 @@ function clash(state, a, b) {
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
   // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
-  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
-  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
+  // 荆州第十轮霸主的 +50% 杀敌只加在“给敌军造成的损失”上。
+  const baseLossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+  const baseLossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
+  const lossA = Math.max(1, Math.round(baseLossA * factionKillMul(b.faction)));
+  const lossB = Math.max(1, Math.round(baseLossB * factionKillMul(a.faction)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
 
@@ -1118,6 +1128,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let defWeight = 0;
   let forceTotal = 0;
   let edgeWeight = 0;
+  let killWeight = 0;
   let gateWeight = 0;
   const primary = infos[0];
   infos.forEach(function (info) {
@@ -1135,6 +1146,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     const gate = strategicEdgeForInfo(state, info);
     forceTotal += force;
     edgeWeight += force * factionEdge(info.faction, foeFaction);
+    killWeight += force * factionKillMul(info.faction);
     gateWeight += force * gate;
     contingents.push({
       key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
@@ -1161,6 +1173,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     defPct: countTotal ? defWeight / countTotal : 0,
     isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
     edge: forceTotal ? edgeWeight / forceTotal : 1,
+    killMul: forceTotal ? killWeight / forceTotal : 1,
     gateEdge: forceTotal ? gateWeight / forceTotal : 1,
     coalitionNames: names,
     contingents: contingents,
@@ -1300,14 +1313,17 @@ function syncFieldBattle(state, battlefield, options) {
     const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
     let force = 0;
     let edge = 0;
+    let kill = 0;
     let gate = 0;
     side.contingents.forEach(function (c) {
       const f = tierForce(c.snapshot);
       force += f;
       edge += f * factionEdge(c.faction, foeFaction);
+      kill += f * factionKillMul(c.faction);
       gate += f * strategicDefenseAt(state, c.gateFaction || c.faction, c.x, c.y);
     });
     side.edge = force > 0 ? edge / force : 1;
+    side.killMul = force > 0 ? kill / force : 1;
     side.gateEdge = force > 0 ? gate / force : 1;
     side.force = force;
     const currentCount = army.troopCount(side.troops);
@@ -2017,15 +2033,15 @@ function pairBlocked(state, a, b, day) {
 }
 
 /**
- * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都。
- * 成都是“重心城市”，不先绕去汉中、江州；巴西只是成都城下的踏板。
- * 只有当前一站还挂在刘璋旗下、且道路能接上时才返回它，否则交回普通选城。
+ * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都 → 江州。
+ * 成都是“重心城市”，先取成都；成都一下，兵锋立刻转江州，
+ * 不再绕去汉中，也不把江州留成最后一块飞地。
  */
 function liubeiYiFocusSite(state, own) {
   if (!state || !state.flags || !state.flags.liubeiYiWar) return null;
   if (!state.factionState || (state.factionState.shu || {}).dead) return null;
   if (!atWar(state, 'shu', 'zhang')) return null;
-  const chain = ['jiange', 'baxi', 'chengdu'];
+  const chain = ['jiange', 'baxi', 'chengdu', 'jiangzhou'];
   for (let i = 0; i < chain.length; i += 1) {
     const site = siteById(state, chain[i]);
     if (!site || site.playerOwned || site.ownerFaction !== 'zhang') continue;
@@ -2592,6 +2608,7 @@ function resolveSiege(state, cp, day) {
   const gateEdge = strategicDefenseForSite(state, site);
   let attackPower = 0;
   attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
+  attackPower *= factionKillMul(cp.faction);
   let defendPower = site.garrison * 6.2 * defendEdge * gateEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
@@ -2878,6 +2895,7 @@ function markShuChengduBase(state, site, byFaction) {
   fs.baseCity = 'chengdu';
   state.flags = state.flags || {};
   state.flags.shuChengduBase = true;
+  state.flags.shuJiangzhouPush = true;
   const lords = state.lords || [];
   const ruler = (fs.rulerId && lords.filter(function (l) { return l.id === fs.rulerId; })[0])
     || lords.filter(function (l) { return l.id === 'liubei'; })[0];
@@ -2885,6 +2903,37 @@ function markShuChengduBase(state, site, byFaction) {
   if (first) {
     logFn(state, '成都既下，刘备把治所迁到成都，以成都为蜀军大本营。', 'story');
   }
+
+  // 成都一下，大部分原本在新野巡逻的蜀军改以成都为锚点：
+  // 先撤掉旧的三城路线，下一拍就会从成都出发，不再继续绕新野。
+  const fiefs = {};
+  (state.world.sites || []).forEach(function (s) {
+    if (s && s.lordId) fiefs[s.lordId] = true;
+  });
+  const eligible = lords.filter(function (l) {
+    return l && l.faction === 'shu' && l.alive && !l.dead && !l.prisoner && !fiefs[l.id];
+  });
+  const xinyeLords = eligible.filter(function (l) {
+    return l.patrolSiteId === 'xinye' || !l.patrolSiteId;
+  });
+  const need = Math.max(1, Math.ceil(eligible.length * 0.7));
+  const chosen = (xinyeLords.length >= need ? xinyeLords : eligible).slice(0, need);
+  chosen.forEach(function (l) {
+    l.patrolSiteId = 'chengdu';
+    l.patrolRouteIds = null;
+    l.patrolIdx = 0;
+    l.patrolVisitSeq = 0;
+    l.patrolLoop = null;
+    l.patrolLoopSite = null;
+    l.patrolLoopIdx = 0;
+    l.wander = null;
+    l.patrolPath = null;
+    l.home = 'chengdu';
+    l.resting = false;
+    l.defending = null;
+    // 该参战的参战：撤掉旧的闲逛/守城军令，让战略层重新把兵锋指向江州。
+    if (l.order && !l.order.hold) l.order = null;
+  });
   return true;
 }
 
@@ -3192,7 +3241,7 @@ module.exports = {
   markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
-  factionEdge, combatTroops,
+  factionEdge, factionKillMul, combatTroops,
   ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
   canPlayerDeclareFaction, canPlayerDeclareSite,
   strategicDefenseAt, strategicDefenseForSite,

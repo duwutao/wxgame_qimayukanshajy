@@ -651,6 +651,7 @@ function lordFromDef(state, def) {
     y: spot.y,
     troops: deepCopy(def.soldiers),
     morale: def.morale,
+    baseMorale: def.morale,
     sight: def.sight,
     chasing: false,
     alive: true,
@@ -682,7 +683,10 @@ function stageGuandu(state) {
     });
     lords.forEach(function (lord, i) {
       lord.troops = deepCopy(lord.defTroops || lord.troops || {});
-      lord.morale = faction === 'yuan' ? 35 : 92;
+      // 官渡不再削袁绍士气：袁军按初始正常士气列阵，曹军仍以逸待劳。
+      lord.morale = faction === 'yuan'
+        ? (Number(lord.baseMorale) || Number(lord.defMorale) || 78)
+        : 92;
       lord.inCity = null;
       lord.resting = false;
       lord.defending = null;
