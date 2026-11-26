@@ -1,0 +1,27 @@
+name: n43 sync main bundle
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n43-main-bundle.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Download final n43 bundle
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/nEwnx3wWmY'
+          echo '6ca9b6d454b72b4d421ae238dfccd59c6456f6c8435ea2e108c7918baabe18e6  web/game.bundle.js' | sha256sum -c -
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/game.bundle.js
+          git commit -m 'release: n43 最终阶段防卡死 bundle [skip ci]'
+          git push origin HEAD:main
