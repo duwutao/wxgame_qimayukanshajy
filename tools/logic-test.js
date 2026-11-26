@@ -392,11 +392,13 @@ if (lordSite) {
   ok('进城后地图坐标收在城里', entered && lordForRecruit.x === lordSite.x && lordForRecruit.y === lordSite.y,
     lordForRecruit.x + ',' + lordForRecruit.y);
 
-  // 补到足够兵力后应能自己出城；给足天数并让它反复掷骰
-  lordForRecruit.troops = { militia: 10 };
+  // 补到足够兵力后应能自己出城；榜单领主的上限可能高于 10，必须补到 cap 才算出城。
+  const recruitCap = stateLib.lordTroopCap(lordForRecruit);
+  lordForRecruit.defTroops = { militia: recruitCap };
+  lordForRecruit.troops = { militia: recruitCap };
   for (let i = 0; i < 30 && lordForRecruit.inCity; i++) stateLib.lordRestTick(ruleState);
   ok('补足兵力后会自己出城', !lordForRecruit.inCity,
-    'inCity=' + lordForRecruit.inCity);
+    'cap=' + recruitCap + ' inCity=' + lordForRecruit.inCity);
 }
 
 ok('大国投靠声望门槛 200', stateLib.joinRenownReq('wei') === 200);
@@ -2604,12 +2606,16 @@ group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
   if (!city || !lord) {
     ok('领主会绕开他国城池', false, 'setup missing');
   } else {
-    lord.x = city.x - 6;
+    // 起点/终点放在城池两侧四格，避免路程超过领主的寻路视距而卡在西侧；
+    // 同时清空巡逻缓存，确保这次只验证“绕城”本身的路径。
+    lord.x = city.x - 4;
     lord.y = city.y;
     lord.inCity = null;
     lord.order = null;
-    lord.wander = { x: city.x + 6, y: city.y };
+    lord.wander = { x: city.x + 4, y: city.y };
     lord.patrolPath = null;
+    lord.patrolRouteIds = [];
+    lord.patrolSiteId = null;
     lord.routePath = null;
     lord.moveTick = 0;
     g.player.x = city.x + 35;
@@ -2618,11 +2624,11 @@ group('n3b 版：匪团州内活动 · 三格追匪 · 六小时交战');
     g.parties = [];
     let touchedSite = false;
     let crossed = false;
-    for (let h = 0; h < 30; h++) {
+    for (let h = 0; h < 12; h++) {
       stateLib.advanceTime(g, 6);
       stateLib.moveLords(g);
       if (worldLib.siteAt(g.world, lord.x, lord.y)) touchedSite = true;
-      if (lord.x > city.x) crossed = true;
+      if (lord.x > city.x) { crossed = true; break; }
     }
     ok('领主会绕开他国城池', !touchedSite && crossed && lord.y !== city.y,
       'x=' + lord.x + ' y=' + lord.y + ' city=' + city.x + ',' + city.y + ' crossed=' + crossed + ' touched=' + touchedSite);
@@ -4178,6 +4184,75 @@ group('n41 成都重心 · 武都上洛自由城 · 马超归蜀 · 韩遂灭凉
   }).join(' '));
   const maLords = g41.lords.filter(function (l) { return l.faction === 'ma'; });
   ok('马家没有残党留在原阵营', maLords.length === 0, String(maLords.length));
+}
+
+/* ---------------------------------------------------------------- 名将榜 · 带兵上限 · 招兵倍率 */
+
+group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
+{
+  const rankLib = require(R + '/data/lord-rank.js');
+  const list = rankLib.LORD_POWER_LIST;
+  const ids = list.map(function (x) { return x.id; });
+  const ranks = list.map(function (x) { return x.rank; });
+  ok('名将榜正好 50 人', list.length === 50, String(list.length));
+  ok('名将榜名次 1-50 无重复', ranks.every(function (r) { return r >= 1 && r <= 50; }) &&
+    new Set(ranks).size === 50, ranks.join(','));
+  ok('名将榜 id 唯一', new Set(ids).size === 50, String(new Set(ids).size));
+  ok('名将榜 id 都能在 LORDS 中找到', ids.every(function (id) {
+    return LORDS.some(function (l) { return l.id === id; });
+  }), ids.filter(function (id) { return !LORDS.some(function (l) { return l.id === id; }); }).join(','));
+  ok('带兵上限按名次递减且首尾为 270/162',
+    list.every(function (x, i) {
+      return i === 0 || rankLib.capForRank(x.rank) < rankLib.capForRank(list[i - 1].rank);
+    }) && rankLib.capForRank(1) === 270 && rankLib.capForRank(50) === 162,
+    rankLib.capForRank(1) + '/' + rankLib.capForRank(50));
+  const expectedMul = [
+    [1, 2.0], [3, 2.0], [4, 1.8], [9, 1.8], [10, 1.6], [19, 1.6],
+    [20, 1.4], [29, 1.4], [30, 1.2], [39, 1.2], [40, 1.1], [50, 1.1],
+  ];
+  ok('招兵倍率严格按名次分段', expectedMul.every(function (x) {
+    return rankLib.recruitMulForRank(x[0]) === x[1];
+  }), expectedMul.map(function (x) { return x[0] + ':' + rankLib.recruitMulForRank(x[0]); }).join(' '));
+
+  const g = stateLib.createGame({ seed: 777001 });
+  const roster = list.map(function (x) { return g.lords.filter(function (l) { return l.id === x.id; })[0]; });
+  const missing = list.filter(function (x, i) { return !roster[i]; }).map(function (x) { return x.id; });
+  ok('50 名将全部生成', missing.length === 0, missing.join(','));
+  const capBad = [];
+  const defBad = [];
+  const mulBad = [];
+  roster.forEach(function (l) {
+    if (!l) return;
+    const info = rankLib.LORD_POWER_BY_ID[l.id];
+    if (stateLib.lordTroopCap(l) !== info.cap) capBad.push(l.id + ':' + stateLib.lordTroopCap(l));
+    const def = armyLib.troopCount(l.defTroops || {});
+    if (def !== info.cap) defBad.push(l.id + ':' + def + '/' + info.cap);
+    if (stateLib.lordRecruitMul(l) !== info.recruitMul) mulBad.push(l.id + ':' + stateLib.lordRecruitMul(l));
+  });
+  ok('50 名将带兵上限按榜单生效', capBad.length === 0, capBad.slice(0, 5).join(','));
+  ok('50 名将满编编制等于榜单单人上限', defBad.length === 0, defBad.slice(0, 5).join(','));
+  ok('50 名将招兵倍率按榜单生效', mulBad.length === 0, mulBad.slice(0, 5).join(','));
+  ok('初始兵力不超过满编', roster.every(function (l) {
+    return l && armyLib.troopCount(l.troops || {}) <= armyLib.troopCount(l.defTroops || {});
+  }), roster.filter(function (l) {
+    return l && armyLib.troopCount(l.troops || {}) > armyLib.troopCount(l.defTroops || {});
+  }).map(function (l) { return l.id; }).join(','));
+  const normal = g.lords.filter(function (l) { return !rankLib.LORD_POWER_BY_ID[l.id]; })[0];
+  ok('榜单外领主仍按普通 1.0 倍率', !!normal && stateLib.lordRecruitMul(normal) === 1.0,
+    normal ? stateLib.lordRecruitMul(normal) : 'none');
+
+  const saved = stateLib.deserialize(stateLib.serialize(g));
+  ok('存档往返后榜单上限与倍率保留', !!saved && list.every(function (x) {
+    const l = saved.lords.filter(function (y) { return y.id === x.id; })[0];
+    return l && stateLib.lordTroopCap(l) === rankLib.LORD_POWER_BY_ID[x.id].cap &&
+      stateLib.lordRecruitMul(l) === rankLib.LORD_POWER_BY_ID[x.id].recruitMul;
+  }), saved ? 'ok' : 'null');
+
+  const romance = stateLib.createGame({ background: 'romance', storyMode: true, seed: 777001 });
+  const romanceMissing = ids.filter(function (id) {
+    return !romance.lords.some(function (l) { return l.id === id; });
+  });
+  ok('三国演义模式 50 名将也全部在场', romanceMissing.length === 0, romanceMissing.join(','));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

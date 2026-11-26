@@ -769,6 +769,23 @@ const LORDS = [
   { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
   { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
   { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
+
+  // ---- 名将榜补录：原先名单里没有、按榜单补进来的领主 ----
+  { id: 'sunce', name: '孙策', faction: 'wu', home: 'wujun', soldiers: { cav: 35, spear: 30, danyang: 22, boat: 15 }, morale: 95, sight: 8, title: '讨逆将军' },
+  { id: 'zhangxiu', name: '张绣', faction: 'biao', home: 'wan', soldiers: { cav: 35, spear: 30, crossbow: 12, militia: 18 }, morale: 86, sight: 7, title: '建忠将军' },
+  { id: 'wenyang', name: '文鸯', faction: 'wei', home: 'qiao', soldiers: { cav: 40, spear: 28, militia: 15 }, morale: 92, sight: 8, title: '牙门将' },
+  { id: 'dengai', name: '邓艾', faction: 'wei', home: 'runan', soldiers: { spear: 35, crossbow: 28, cav: 22, militia: 15 }, morale: 88, sight: 9, title: '征西将军' },
+  { id: 'jiangwei', name: '姜维', faction: 'shu', home: 'hanzhong', soldiers: { spear: 35, crossbow: 22, cav: 22, militia: 15 }, morale: 90, sight: 8, title: '奉义将军' },
+  { id: 'wangshuang', name: '王双', faction: 'wei', home: 'chenliu', soldiers: { cav: 35, spear: 30, militia: 18 }, morale: 84, sight: 7, title: '虎威将军' },
+  { id: 'caozhang', name: '曹彰', faction: 'wei', home: 'puyang', soldiers: { cav: 40, spear: 25, militia: 20 }, morale: 90, sight: 8, title: '任城王' },
+  { id: 'huaxiong', name: '华雄', faction: 'han', home: 'tongguan', soldiers: { cav: 35, spear: 38, militia: 20 }, morale: 86, sight: 7, title: '都督' },
+  { id: 'guanhai', name: '管亥', faction: 'yuan', home: 'beihai', soldiers: { militia: 40, spear: 30, huangjin: 10 }, morale: 82, sight: 6, title: '黄巾渠帅' },
+  { id: 'ehuang', name: '鄂焕', faction: 'nanman', home: 'jianning', soldiers: { spear: 35, militia: 25, wudang: 10 }, morale: 82, sight: 7, title: '越嶲夷帅' },
+  { id: 'liyan', name: '李严', faction: 'zhang', home: 'jiangzhou', soldiers: { spear: 35, crossbow: 25, militia: 20 }, morale: 84, sight: 7, title: '兴业将军' },
+  { id: 'wulan', name: '吴兰', faction: 'zhang', home: 'baxi', soldiers: { militia: 35, spear: 22, cav: 12 }, morale: 78, sight: 6, title: '裨将' },
+  { id: 'wuangou', name: '武安国', faction: 'yuan', home: 'beihai', soldiers: { spear: 35, militia: 25, guard: 8 }, morale: 80, sight: 6, title: '校尉' },
+  { id: 'xingdaorong', name: '邢道荣', faction: 'biao', home: 'wuling', soldiers: { spear: 30, militia: 28, cav: 10 }, morale: 76, sight: 6, title: '零陵上将' },
+  { id: 'zhangbao', name: '张苞', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 20, cav: 15 }, morale: 86, sight: 7, title: '牙门将' },
 ];
 
 /** 声望等级 */

@@ -184,8 +184,11 @@ function act(app, id) {
   }
   if (id === 'troops') {
     const rows = stateLib.lordTroopLine(lord);
-    d.line = '“我的家底？”\n' + (rows.length ? rows.join(' · ') : '人已经打光了') +
-      '\n合计 ' + army.troopCount(lord.troops) + ' 人，士气 ' + Math.round(lord.morale) +
+    const power = stateLib.lordPowerInfo(lord);
+    d.line = '“我的家底？”\n' + (power ? '名将榜第 ' + power.rank + ' 位 · ' : '') +
+      (rows.length ? rows.join(' · ') : '人已经打光了') +
+      '\n合计 ' + army.troopCount(lord.troops) + ' / 上限 ' + stateLib.lordTroopCap(lord) +
+      ' 人，士气 ' + Math.round(lord.morale) +
       (stateLib.isHostileFaction(st, lord.faction) ? '。他手按着刀柄。' : '。');
     d.page = 'troops';
     return;

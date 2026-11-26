@@ -55,7 +55,7 @@ const STORY = {
   lordCuts: {
     lv: ['chengong', 'houcheng', 'weixu'],
     biao: ['zhangyun', 'wangwei', 'liupan', 'huangshe'],
-    zhang: ['lengbao', 'liugui', 'gaopei'],
+    zhang: ['liugui', 'gaopei'],
   },
   lordAdds: [
     { id: 'caozhen', name: '曹真', faction: 'wei', home: 'chenliu', title: '镇西将军', soldiers: { militia: 35, spear: 30, cav: 20, guard: 8 }, morale: 84, sight: 7 },

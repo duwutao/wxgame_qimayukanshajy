@@ -37,6 +37,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 const { LORD_BIOS } = require('../data/bios.js');
+const { LORD_POWER_BY_ID } = require('../data/lord-rank.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -744,6 +745,7 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordPowerRoster(state);
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -2540,7 +2542,7 @@ function lordRecoveryRate(state, lord, site, stationary) {
   const mult = siteRecoveryMultiplier(site);
   if (!mult) return 0;
   const base = story.recruitRate(state, lord && lord.faction);
-  return base * mult * (stationary ? 1 : LORD_PATROL_RECRUIT_RATIO);
+  return base * mult * lordRecruitMul(lord) * (stationary ? 1 : LORD_PATROL_RECRUIT_RATIO);
 }
 
 /**
@@ -2800,7 +2802,7 @@ function lordRecruitTick(state) {
     if (!site) return;
     if (lord.inCity && (site.type !== 'town' && site.type !== 'castle')) return;
     if (!siteFriendlyToLord(state, lord, site)) return;
-    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = lordTroopCap(lord);
     const now = army.troopCount(lord.troops || {});
     if (full <= 0 || now >= full) return;
     // 驻城/驻在村口按据点倍率补兵；行军巡逻路过只按两成。
@@ -3141,7 +3143,7 @@ function lordRestTick(state) {
       return;
     }
     // 有军令（集结 / 围城 / 守城）就出城；但兵太少时先留在城里招兵，不跟着去送。
-    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = lordTroopCap(lord);
     const now = army.troopCount(lord.troops || {});
     const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
     if (lord.order && lord.order.siteId) {
@@ -5572,6 +5574,8 @@ const LORD_RANK = {
   liubiao: 'king', liuzhang: 'king', kebineng: 'king', mateng: 'king', huangfusong: 'king',
   xiahou: 'lord', zhangliao: 'lord', guanyu: 'lord', zhangfei: 'lord', zhouyu: 'lord',
   taishici: 'lord', yanliang: 'lord', gaoshun: 'lord', caimao: 'lord', zhangren: 'lord', machao: 'lord',
+  sunce: 'lord', zhangxiu: 'lord', wenyang: 'lord', dengai: 'lord', jiangwei: 'lord',
+  caozhang: 'lord', huaxiong: 'lord', liyan: 'lord',
 };
 const RANK_NAME = { king: '君主', lord: '领兵者', general: '将领' };
 const RANK_RATE = { king: 5, lord: 3, general: 2 };
@@ -5601,10 +5605,55 @@ function lordCapForLevel(level) {
   return 50 + lv * 20;
 }
 
+function lordPowerInfo(lord) {
+  return LORD_POWER_BY_ID[lord && lord.id] || null;
+}
+
 function lordTroopCap(lord) {
   if (!lord) return 30;
+  const power = lordPowerInfo(lord);
+  if (power) return power.cap;
   const defCount = army.troopCount(lord.defTroops || lord.troops || {});
   return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
+}
+
+function lordRecruitMul(lord) {
+  const power = lordPowerInfo(lord);
+  return power ? power.recruitMul : 1;
+}
+
+/** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
+function lordRosterToCap(base, cap) {
+  const src = base && Object.keys(base).length ? base : { militia: 1 };
+  const total = army.troopCount(src);
+  const target = Math.max(1, Math.round(Number(cap) || 0));
+  if (target <= total) return deepCopy(src);
+  const ids = Object.keys(src);
+  const out = {};
+  let assigned = 0;
+  ids.forEach(function (id, i) {
+    if (i === ids.length - 1) {
+      out[id] = Math.max(1, target - assigned);
+    } else {
+      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
+    }
+    assigned += out[id];
+  });
+  return out;
+}
+
+/** 新开局与旧档迁移共用：给榜单领主补足满编编制，并写入名次/倍率。 */
+function applyLordPowerRoster(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    const power = lordPowerInfo(lord);
+    if (!power) return;
+    lord.powerRank = power.rank;
+    lord.powerScore = power.score;
+    lord.recruitMul = power.recruitMul;
+    const defCount = army.troopCount(lord.defTroops || {});
+    if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
+  });
 }
 
 function lordLines(lord) {
@@ -6035,6 +6084,8 @@ const DEFECT_TO = {
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
   pangde: 'wei', maxiu: 'shu', matie: 'shu', chengyin: 'wei',
+  zhangxiu: 'wei', liyan: 'shu', wulan: 'shu', xingdaorong: 'shu', ehuang: 'shu',
+  guanhai: 'wei', wuangou: 'wei', huaxiong: 'wei',
   // 马超无论凉州最后由谁打下来，都固定归蜀，不留在西凉当降将。
   machao: 'shu',
   // 公孙瓒灭亡后，赵云固定流向刘备；无论河北最后由谁拿下都适用。
@@ -7419,6 +7470,10 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  if (!state.flags.lordPowerV1) {
+    applyLordPowerRoster(state);
+    state.flags.lordPowerV1 = true;
+  }
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
@@ -7582,6 +7637,9 @@ module.exports = {
   lordLevel,
   lordCapForLevel,
   lordTroopCap,
+  lordRecruitMul,
+  lordPowerInfo,
+  applyLordPowerRoster,
   useHistory,
   adShiInfo,
   claimAdShi,

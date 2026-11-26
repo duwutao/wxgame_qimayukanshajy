@@ -78,9 +78,11 @@ group('开局战略');
     warLib.atWar(st, 'ma', 'han') && warLib.atWar(st, 'hansui', 'han'));
   ok('三方都不接议和书', warLib.makePeace(st, 'ma', 'hansui', true) === false &&
     warLib.makePeace(st, 'hansui', 'han', true) === false);
+  // 名将榜补入孙策、张绣、邢道荣、李严、吴兰等后，剧情模式仍按 lordCuts 裁掉
+  // 非核心旧部；保留的数量比沙盘少，且 50 名将不会被裁掉（另有榜单用例覆盖）。
   ok('吕布刘表刘璋领主已削减', st.lords.filter(function (l) { return l.faction === 'lv'; }).length === 4 &&
-    st.lords.filter(function (l) { return l.faction === 'biao'; }).length === 6 &&
-    st.lords.filter(function (l) { return l.faction === 'zhang'; }).length === 5);
+    st.lords.filter(function (l) { return l.faction === 'biao'; }).length === 8 &&
+    st.lords.filter(function (l) { return l.faction === 'zhang'; }).length === 8);
   ok('魏蜀吴各补三名新领主', ['caozhen', 'caoxiu', 'xunyou'].every(function (id) {
     return st.lords.some(function (l) { return l.id === id && l.faction === 'wei'; });
   }) && ['wuban', 'huojun', 'masu'].every(function (id) {

@@ -2313,7 +2313,10 @@ function planCampaign(state, faction, day) {
   if (!target && faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) return null;
   if (!target && FREE_CITY_IDS.length) {
     FREE_CITY_IDS.forEach(function (id) {
-      if (faction === 'zhang' && day <= 30) return;
+      // 刘备入川期间刘璋只守剑阁，不去捡汉中北面的空城；否则一旦剑阁换旗，
+      // 刘璋主力会被自由城吸走，刘备反而卡在巴西城下。
+      if (faction === 'zhang' &&
+          (day <= 30 || (state.flags && state.flags.liubeiYiWar))) return;
       const s = siteById(state, id);
       if (!s || s.playerOwned || s.ownerFaction) return;
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
@@ -2407,8 +2410,12 @@ function planCampaign(state, faction, day) {
   };
   // 只有主帅先去集结城会合；其余人马留在各自封地继续巡逻，
   // 等开拔令下来再一起向目标城走，避免整国军队在城边杵成一片。
+  // 入川五路先在剑阁（或当前集结城）会合，再一起开拔。新增的姜维、马超
+  // 等领主封地可能在上庸、汉中方向，若只让主帅先走，他们会从山道另一侧
+  // 直接找巴西而卡在断开的路上。
+  const yiGather = !!(faction === 'shu' && state.flags && state.flags.liubeiYiWar);
   chosen.forEach(function (l, i) {
-    if (i === 0) {
+    if (i === 0 || yiGather) {
       giveOrder(l, 'rally', rally.id, true);
       l.order.since = day;
       l.order.campaign = faction;
