@@ -62,15 +62,17 @@ function drawArt(app, ctx, w, h, id, t) {
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
+    // 三国演义是史实剧本：历史文书不读秒自动跳过，必须玩家自己看完确认。
+    const storyMode = !!(app.state && app.state.storyMode);
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: ev.auto || 0,
+      auto: storyMode ? 0 : (ev.auto || 0),
       art: ev.art || null,
-      skipAny: !!ev.skipAny,
+      skipAny: storyMode ? false : !!ev.skipAny,
       t: 0,
     };
     // 进入场景就预载，图片从内置 data URL 解码。

@@ -62,7 +62,7 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 开启游戏后先走剧本选择：乱世三国是开放沙盘，三国演义是汉末战略剧情。
+    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是按史实推进的剧情。
     if (this.choosing) {
       drawScenarioChooser(ctx, app, w, h);
       return;
@@ -162,8 +162,8 @@ function drawScenarioChooser(ctx, app, w, h) {
   const card2Y = cardTop + cardH + cardGap;
   drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
     title: '三国演义',
-    tag: '汉末战略',
-    desc: '同一套行军、攻城、募兵、内政机制，换成汉末战略剧情：曹操灭吕布、刘备取西川、孙权报父仇，阶段达成后继续推进。',
+    tag: '史实推进',
+    desc: '同一套行军、攻城、募兵、内政机制，按史实推进天下大势。',
     action: '进入三国演义',
     id: 'new_romance',
     onTap: function () {

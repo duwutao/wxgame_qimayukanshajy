@@ -440,6 +440,35 @@ smoke('天下通报页（国亡弹窗）', function () {
   app.pop();
 });
 
+smoke('三国演义：史实文书不自动跳过', function () {
+  app.state = stateLib.createGame({ seed: 4244, background: 'romance', storyMode: true });
+  app.replace('map');
+  app.push('news', {
+    title: '史实文书',
+    lines: ['这一页要玩家自己看完。'],
+    auto: 8,
+  });
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('剧情文书 auto 归零', !!app.newsView && app.newsView.auto === 0);
+  ok('剧情文书不吃点屏跳过', !!app.newsView && app.newsView.skipAny === false);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('保留知道了按钮', ids.indexOf('news_ok') >= 0, ids.join(','));
+  app.pop();
+});
+
+smoke('乱世三国：普通军情仍可按原节奏自散', function () {
+  app.state = stateLib.createGame({ seed: 4245, background: 'chaos' });
+  app.replace('map');
+  app.push('news', {
+    title: '普通军情',
+    lines: ['这一页可以按原节奏自散。'],
+    auto: 8,
+  });
+  ok('非剧情模式保留 auto', !!app.newsView && app.newsView.auto === 8);
+  app.pop();
+});
+
 smoke('议和使者：接受 / 拒绝双按钮', function () {
   app.state = stateLib.createGame({ seed: 4243 });
   app.state.wars.wei = true;

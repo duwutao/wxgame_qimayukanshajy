@@ -10283,7 +10283,7 @@ function createGame(opts) {
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
   const world = createWorld(seed);
-  // 两个游戏背景：乱世三国是群雄混战沙盘，三国演义是汉末战略剧情。
+  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义是按史实推进的剧情。
   // 先落成独立字段，后续与 main 合并时由选局页直接读取，不再靠布尔值猜。
   const background = (opts && opts.background) ||
     ((opts && opts.storyMode) ? 'romance' : 'chaos');
@@ -17685,7 +17685,7 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 开启游戏后先走剧本选择：乱世三国是开放沙盘，三国演义是汉末战略剧情。
+    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是按史实推进的剧情。
     if (this.choosing) {
       drawScenarioChooser(ctx, app, w, h);
       return;
@@ -17785,8 +17785,8 @@ function drawScenarioChooser(ctx, app, w, h) {
   const card2Y = cardTop + cardH + cardGap;
   drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
     title: '三国演义',
-    tag: '汉末战略',
-    desc: '同一套行军、攻城、募兵、内政机制，换成汉末战略剧情：曹操灭吕布、刘备取西川、孙权报父仇，阶段达成后继续推进。',
+    tag: '史实推进',
+    desc: '同一套行军、攻城、募兵、内政机制，按史实推进天下大势。',
     action: '进入三国演义',
     id: 'new_romance',
     onTap: function () {
@@ -26925,15 +26925,17 @@ function drawArt(app, ctx, w, h, id, t) {
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
+    // 三国演义是史实剧本：历史文书不读秒自动跳过，必须玩家自己看完确认。
+    const storyMode = !!(app.state && app.state.storyMode);
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: ev.auto || 0,
+      auto: storyMode ? 0 : (ev.auto || 0),
       art: ev.art || null,
-      skipAny: !!ev.skipAny,
+      skipAny: storyMode ? false : !!ev.skipAny,
       t: 0,
     };
     // 进入场景就预载，图片从内置 data URL 解码。

@@ -254,7 +254,7 @@ function createGame(opts) {
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
   const world = createWorld(seed);
-  // 两个游戏背景：乱世三国是群雄混战沙盘，三国演义是汉末战略剧情。
+  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义是按史实推进的剧情。
   // 先落成独立字段，后续与 main 合并时由选局页直接读取，不再靠布尔值猜。
   const background = (opts && opts.background) ||
     ((opts && opts.storyMode) ? 'romance' : 'chaos');
