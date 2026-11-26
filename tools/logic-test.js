@@ -7,6 +7,7 @@ const path = require('path');
 const R = path.join(__dirname, '..', 'js');
 
 const worldLib = require(R + '/core/world.js');
+const storyLib = require(R + '/core/story.js');
 const warLib = require(R + '/core/war.js');
 const stateLib = require(R + '/core/state.js');
 const armyLib = require(R + '/core/army.js');
@@ -943,10 +944,32 @@ st10.events.length = 0;
 st10.player.gold = 500;
 ok('报名费固定 40', tourney.fee() === 40, String(tourney.fee()));
 ok('胜者赏格 200', tourney.prize() === 200, String(tourney.prize()));
-ok('棋盘共有五局', tourney.modeList().length === 5, String(tourney.modeList().length));
-ok('五种军情齐全', ['duel', 'supply', 'sentry', 'fire', 'relay'].every(function (id) {
+ok('棋盘共有六局', tourney.modeList().length === 6, String(tourney.modeList().length));
+ok('六种军情齐全', ['duel', 'arena', 'supply', 'sentry', 'fire', 'relay'].every(function (id) {
   return !!tourney.modeById(id);
 }));
+ok('校场夺魁沿用旧比武大会名目', tourney.modeById('arena').name === '校场夺魁');
+
+// 校场：左挡/右挡/左攻/右攻，各三滴血
+ok('校场共四手', tourney.ARENA_MOVES.length === 4 && tourney.ARENA_HP === 3);
+ok('同一方向挡住抢攻，进攻方掉血',
+  tourney.resolveArena('attackL', 'blockL').dmgPlayer === 1 &&
+  tourney.resolveArena('attackL', 'blockL').dmgFoe === 0);
+ok('挡反了，防守方掉血',
+  tourney.resolveArena('attackL', 'blockR').dmgPlayer === 0 &&
+  tourney.resolveArena('attackL', 'blockR').dmgFoe === 1);
+ok('两边都抢攻各掉一血',
+  tourney.resolveArena('attackR', 'attackL').dmgPlayer === 1 &&
+  tourney.resolveArena('attackR', 'attackL').dmgFoe === 1);
+ok('两边都挡白打一合',
+  tourney.resolveArena('blockR', 'blockL').dmgPlayer === 0 &&
+  tourney.resolveArena('blockR', 'blockL').dmgFoe === 0);
+ok('挡住他的抢攻可以反手一刀',
+  tourney.resolveArena('blockL', 'attackL').dmgPlayer === 0 &&
+  tourney.resolveArena('blockL', 'attackL').dmgFoe === 1);
+ok('挡错方向自己挨刀',
+  tourney.resolveArena('blockL', 'attackR').dmgPlayer === 1 &&
+  tourney.resolveArena('blockL', 'attackR').dmgFoe === 0);
 const reg = tourney.enter(st10, st10.world.sites[0], 'supply');
 ok('交钱能开局', reg.ok && st10.tourney.mode === 'supply', reg.msg);
 ok('报名扣 40 金', st10.player.gold === 460, String(st10.player.gold));
@@ -4141,22 +4164,36 @@ group('n21 版：荆襄南中 · 村庄 · 募兵倍率 · 双背景');
   ok('三国演义是剧情背景', romance.background === 'romance' && romance.storyMode === true);
   ok('三国演义可切换为无主线史实沙盘', romanceSandbox.background === 'romance' &&
     romanceSandbox.storyMode === false && romanceSandbox.historicalRoster === true &&
-    romanceSandbox.campaignDisabled === true && romanceSandbox.story === null);
+    romanceSandbox.campaignDisabled === true && romanceSandbox.historicalSandbox === true);
   ok('史实沙盘不排开局主线章', !(romanceSandbox.events || []).some(function (ev) {
     return ev && ev.type === 'chapter';
   }), JSON.stringify(romanceSandbox.events.slice(0, 3)));
   ok('史实沙盘没有主线任务与战役目标', stateLib.campaignInfo(romanceSandbox) === null &&
     stateLib.campaignObjective(romanceSandbox, romanceSandbox.world.sites[0]) === null);
-  const sandboxWarStarted = warLib.startDiplomacy(romanceSandbox);
-  ok('史实沙盘不靠剧情阶段也能自行开战', sandboxWarStarted >= 2,
-    '开局战事 ' + sandboxWarStarted + ' 对');
+  ok('史实沙盘开局没有追兵', !(romanceSandbox.parties || []).some(function (pt) {
+    return pt && (pt.id === 'p_xiliang' || pt.scripted);
+  }), (romanceSandbox.parties || []).length + ' 支队伍');
+  // 第三天：各国按史实阶段递战书（此前各按兵不动）
+  const sandboxPairsBefore = Object.keys(romanceSandbox.factionWars || {}).length;
+  ok('史实沙盘前两天不递开局战书',
+    !warLib.atWar(romanceSandbox, 'wei', 'lv') && !warLib.atWar(romanceSandbox, 'wu', 'biao'),
+    '战事 ' + sandboxPairsBefore + ' 对');
+  romanceSandbox.clock.day = 3;
+  storyLib.tick(romanceSandbox);
+  const sandboxPairsAfter = Object.keys(romanceSandbox.factionWars || {}).length;
+  ok('史实沙盘第三天按史实开战', sandboxPairsAfter >= sandboxPairsBefore + 3,
+    '战事 ' + sandboxPairsBefore + ' → ' + sandboxPairsAfter + ' 对');
+  ok('史实沙盘开局战事含曹操讨吕布', warLib.atWar(romanceSandbox, 'wei', 'lv'));
+  ok('史实沙盘开局战事含孙权攻刘表', warLib.atWar(romanceSandbox, 'wu', 'biao'));
+  ok('史实沙盘第三天不再重复递战书', (storyLib.tick(romanceSandbox),
+    Object.keys(romanceSandbox.factionWars || {}).length === sandboxPairsAfter));
   ok('三国演义剧情仍保留主线', romance.campaignDisabled === false &&
     !!stateLib.campaignInfo(romance));
   const romanceSaved = stateLib.deserialize(stateLib.serialize(romanceSandbox));
   ok('三国演义沙盘存档保留史实人事与无主线开关', !!romanceSaved &&
     romanceSaved.background === 'romance' && romanceSaved.storyMode === false &&
     romanceSaved.historicalRoster === true && romanceSaved.campaignDisabled === true &&
-    romanceSaved.story === null);
+    romanceSaved.historicalSandbox === true);
   const saved = stateLib.deserialize(stateLib.serialize(romance));
   ok('存档保留游戏背景', !!saved && saved.background === 'romance',
     saved ? saved.background : 'null');

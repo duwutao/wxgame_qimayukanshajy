@@ -70,6 +70,17 @@ function drawIcon(ctx, type, x, y, size, color) {
     ctx.bezierCurveTo(x + size * 0.58, y + size * 0.50, x + size * 0.58, y + size * 0.62, cx, y + size * 0.70);
     ctx.bezierCurveTo(x + size * 0.42, y + size * 0.62, x + size * 0.42, y + size * 0.50, cx, y + size * 0.34);
     ctx.fill();
+  } else if (type === 'arena') {
+    // 校场：一圈围栏，两口木刀交叉
+    ctx.beginPath();
+    ctx.ellipse(cx, y + size * 0.76, size * 0.36, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.28, y + size * 0.22);
+    ctx.lineTo(x + size * 0.70, y + size * 0.62);
+    ctx.moveTo(x + size * 0.70, y + size * 0.22);
+    ctx.lineTo(x + size * 0.28, y + size * 0.62);
+    ctx.stroke();
   } else if (type === 'relay') {
     ctx.strokeRect(x + size * 0.34, y + size * 0.38, size * 0.32, size * 0.42);
     ctx.beginPath();
@@ -100,12 +111,12 @@ function drawModeSelect(app, site, w, h) {
   text(ctx, siteName + ' · 军机棋盘', 20, 24, {
     size: 34, color: '#f0c060',
   });
-  text(ctx, '五局军情，各押一注；胜负只在落子之间', 20, 70, {
+  text(ctx, '六局军情，各押一注；胜负只在落子之间', 20, 70, {
     size: 16, color: '#a2947a',
   });
 
   panel(ctx, 20, 104, w - 40, 94, { fill: '#1d1711' });
-  text(ctx, '五局军机 · 各押一注', 40, 120, { size: 24, color: '#f0c060' });
+  text(ctx, '六局军机 · 各押一注', 40, 120, { size: 24, color: '#f0c060' });
   text(ctx, '每局报名 ' + board.FEE + ' 金钱，胜者得 ' + board.PRIZE + ' 金钱。棋局只论军情，不损兵。', 40, 154, {
     size: 15, color: '#c9bda2',
   });
@@ -113,14 +124,14 @@ function drawModeSelect(app, site, w, h) {
     size: 15, align: 'right', color: '#a2947a',
   });
 
-  const top = 220;
+  const top = modes.length > 5 ? 206 : 220;
   const gap = CARD_GAP;
-  const cardH = 142;
+  const cardH = modes.length > 5 ? 126 : 142;
   const cardW = (w - 40 - gap) / 2;
   modes.forEach(function (mode, i) {
     const row = Math.floor(i / 2);
     const col = i % 2;
-    const wide = i === modes.length - 1;
+    const wide = modes.length % 2 === 1 && i === modes.length - 1;
     const x = wide ? 20 : 20 + col * (cardW + gap);
     const y = top + row * (cardH + 16);
     const cw = wide ? w - 40 : cardW;
@@ -129,13 +140,14 @@ function drawModeSelect(app, site, w, h) {
     ctx.fillStyle = mode.color;
     ctx.fillRect(x, y, 5, cardH);
     drawIcon(ctx, mode.icon, x + 18, y + 16, 58, '#f0c060');
-    text(ctx, mode.name, x + 92, y + 18, { size: 26, color: '#f2e3c4' });
-    text(ctx, mode.short, x + 92, y + 54, { size: 14, color: '#b9a688' });
-    text(ctx, '报名 ' + board.FEE + ' · 胜 ' + board.PRIZE, x + 92, y + 82, {
+    const tight = cardH < 140;
+    text(ctx, mode.name, x + 92, y + (tight ? 14 : 18), { size: 26, color: '#f2e3c4' });
+    text(ctx, mode.short, x + 92, y + (tight ? 48 : 54), { size: 14, color: '#b9a688' });
+    text(ctx, '报名 ' + board.FEE + ' · 胜 ' + board.PRIZE, x + 92, y + (tight ? 74 : 82), {
       size: 14, color: '#9c8d74',
     });
     if (wide) {
-      text(ctx, mode.rule, x + 92, y + 108, { size: 14, color: '#c9bda2' });
+      text(ctx, mode.rule, x + 92, y + (tight ? 98 : 108), { size: 14, color: '#c9bda2' });
       text(ctx, '→', x + cw - 30, y + 48, { size: 30, align: 'right', color: '#f0c060' });
     } else {
       text(ctx, '→', x + cw - 24, y + 58, { size: 28, align: 'right', color: '#f0c060' });
@@ -169,7 +181,7 @@ function drawModeSelect(app, site, w, h) {
     text(ctx, '军机不可泄 · 落子无悔', w / 2, footTop + footH / 2 - 14, {
       size: 26, align: 'center', color: '#d9b978',
     });
-    text(ctx, '单挑 · 断粮 · 狙哨 · 火攻 · 传令', w / 2, footTop + footH / 2 + 22, {
+    text(ctx, '单挑 · 校场 · 断粮 · 狙哨 · 火攻 · 传令', w / 2, footTop + footH / 2 + 22, {
       size: 14, align: 'center', color: '#8f806a',
     });
   }
@@ -246,12 +258,17 @@ function drawChoiceButtons(app, st, t, mode, x, y, w) {
   const list = board.choiceList(t.mode, t.relay);
   const n = list.length;
   const gap = 12;
-  const bw = (w - 40 - gap * (n - 1)) / n;
+  const cols = n > 3 ? 2 : n;
+  const bw = (w - 40 - gap * (cols - 1)) / cols;
+  const bh = n > 3 ? 66 : 82;
   list.forEach(function (item, i) {
-    const bx = 20 + i * (bw + gap);
-    app.ui.button(ctx, bx, y, bw, 82, item.name, {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const bx = 20 + col * (bw + gap);
+    const by = y + row * (bh + 30);
+    app.ui.button(ctx, bx, by, bw, bh, item.name, {
       id: 'wb_choice_' + item.id,
-      size: n === 3 ? 26 : 29,
+      size: n > 3 ? 24 : (n === 3 ? 26 : 29),
       fill: mode.color,
       onTap: function () {
         const r = board.choose(st, item.id);
@@ -259,10 +276,14 @@ function drawChoiceButtons(app, st, t, mode, x, y, w) {
         if (r.result === 'win') app.showToast('胜 · 赏钱 ' + board.PRIZE + ' 金钱', 2.4);
         else if (r.result === 'lose') app.showToast('负 · 报名费不退', 2.2);
         else if (r.result === 'tie') app.showToast('同招相抵 · 可再出一手，不再收费', 2.2);
-        else if (r.result === 'continue') app.showToast('第一关已过 · 进入第二关', 2.2);
+        else if (r.result === 'draw') app.showToast('两败俱伤 · 报名费退回', 2.4);
+        else if (r.result === 'continue') {
+          app.showToast(t.mode === 'relay' ? '第一关已过 · 进入第二关'
+            : '你 ' + r.hp + ' 血 · ' + (t.arena ? t.arena.foe.name : '对手') + ' ' + r.foeHp + ' 血', 2.2);
+        }
       },
     });
-    text(ctx, item.desc, bx + bw / 2, y + 91, {
+    text(ctx, item.desc, bx + bw / 2, by + bh + 9, {
       size: 13, align: 'center', color: '#8f806a',
     });
   });
@@ -297,6 +318,9 @@ function drawGame(app, site, w, h) {
       prompt = t.relay && t.relay.stage === 2
         ? '第二关 · 剩下两条驿道，选一条冲出去'
         : '第一关 · 三条驿道，选一条送信';
+    } else if (t.mode === 'arena' && t.arena) {
+      prompt = '第 ' + (t.round + 1) + ' 合 · 你 ' + t.arena.hp + ' 血 / '
+        + t.arena.foe.name + ' ' + t.arena.foeHp + ' 血';
     }
     text(ctx, prompt, 20, 356, {
       size: 16, color: '#e0c98d',
@@ -314,15 +338,16 @@ function drawGame(app, site, w, h) {
     drawChoiceButtons(app, st, t, mode, 20, t.draw ? 424 : 390, w);
   } else {
     panel(ctx, 20, 376, w - 40, 178, { fill: t.win ? '#1e2a1c' : '#2a1b16' });
-    text(ctx, t.win ? '胜' : '负', 44, 394, {
-      size: 44, color: t.win ? '#8fbf7a' : '#d46a50',
+    text(ctx, t.result === 'draw' ? '平' : (t.win ? '胜' : '负'), 44, 394, {
+      size: 44, color: t.result === 'draw' ? '#c9bda2' : (t.win ? '#8fbf7a' : '#d46a50'),
     });
-    text(ctx, t.win ? '军机得手 · 赏钱 ' + board.PRIZE + ' 金钱' : '这一局失手 · 报名费不退',
+    text(ctx, t.win ? '军机得手 · 赏钱 ' + board.PRIZE + ' 金钱'
+      : (t.result === 'draw' ? '两败俱伤 · 报名费已退回' : '这一局失手 · 报名费不退'),
       44, 452, { size: 24, color: t.win ? '#f0c060' : '#c9bda2' });
     text(ctx, t.win ? '声望 +12 · 士气 +4' : '声望 +2 · 士气 -2', 44, 492, {
       size: 15, color: '#a2947a',
     });
-    text(ctx, t.win ? '棋盘上还有四局，随时可以再押。' : '换一局军情，或者回城整军再来。', w - 44, 492, {
+    text(ctx, t.win ? '棋盘上还有五局，随时可以再押。' : '换一局军情，或者回城整军再来。', w - 44, 492, {
       size: 14, align: 'right', color: '#8f806a',
     });
   }

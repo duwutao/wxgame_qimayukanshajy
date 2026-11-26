@@ -437,7 +437,7 @@ smoke('牢房页（俘虏能收赎金/放人）', function () {
   app.pop();
 });
 
-smoke('军机棋盘页（五局入口 / 对局 / 结算）', function () {
+smoke('军机棋盘页（六局入口 / 对局 / 结算）', function () {
   const st = app.state;
   const oldRng = st.rng;
   st.player.gold = 2000;
@@ -447,7 +447,7 @@ smoke('军机棋盘页（五局入口 / 对局 / 结算）', function () {
   app.top().scene.render(app);
   const sc = app.top().scene;
   const board = require(R + '/core/tourney.js');
-  ok('军机棋盘有五局', board.modeList().length === 5);
+  ok('军机棋盘有六局', board.modeList().length === 6);
 
   board.modeList().forEach(function (mode) {
     st.tourney = null;

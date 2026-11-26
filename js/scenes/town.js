@@ -234,7 +234,7 @@ function menuItems(app, site) {
       onTap: function () { app.townView.view = 'hall'; },
     });
     list.push({
-      id: 'm_tourney', label: '军机棋盘', sub: '单挑 · 断粮 · 狙哨 · 火攻 · 传令，一局定胜负', fill: '#3a2c1e',
+      id: 'm_tourney', label: '军机棋盘', sub: '单挑 · 校场 · 断粮 · 狙哨 · 火攻 · 传令，一局定胜负', fill: '#3a2c1e',
       right: (app.state.tourney && !app.state.tourney.done) ? '推演中' : '报名 ' + tourney.fee() + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
@@ -768,6 +768,7 @@ function renderTavern(app, site) {
         app.showToast(q ? '接下来的事：' + q.title : '今天没人找你办事。', 2.4);
       },
     });
+    y += 160;
   } else {
     mine.forEach(function (q) {
       panel(ctx, PAD, y, w - PAD * 2, 126, { fill: '#241c14' });

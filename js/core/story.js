@@ -269,7 +269,9 @@ function declareProxyWars(state) {
 
 function init(state, logger) {
   if (logger) bindLogger(logger);
-  if (!state || !state.storyMode) return null;
+  // 史实沙盘没有玩家主线，但天下仍要按史实阶段走：照样起状态机，只是不推章节。
+  const sandbox = !!(state && !state.storyMode && state.historicalSandbox);
+  if (!state || (!state.storyMode && !sandbox)) return null;
   if (state.story && state.story.mode) return state.story;
 
   resetCombat();
@@ -305,6 +307,8 @@ function init(state, logger) {
     proxyWars: STORY.proxyWars || {},
     proxyWarsDeclared: false,
     stage3Done: {},
+    sandbox,
+    openingPending: !!sandbox,
     guanduStarted: false,
     kingdomsAllAtWar: false,
     unifiedFaction: null,
@@ -344,19 +348,41 @@ function init(state, logger) {
   });
 
   // 开局四场：曹操讨吕布、孙权报父仇、刘备取西川、袁绍与公孙瓒不死不休。
+  // 史实沙盘里玩家没有章节可依，这四场战书改在第三天统一递出（见 tick）。
+  if (sandbox) {
+    // 阶段已经建好，但都按兵不动：等第三天统一递战书，别让 tickPhase 提前动手。
+    Object.keys(st.phases).forEach(function (f) {
+      const p = st.phases[f];
+      if (!p) return;
+      p.waitingForWar = true;
+      p.waitUntil = st.openingEventDay || STORY.openingEventDay || 3;
+    });
+    st.openingPending = true;
+  } else {
+    beginOpeningWars(state);
+  }
+  refreshHeadline(state);
+  return st;
+}
+
+/** 开局四场战书：主线和史实沙盘共用，沙盘等到第三天再叫一次。 */
+function beginOpeningWars(state) {
+  const st = state.story;
+  if (!st) return;
   ['wei', 'wu', 'shu', 'yuan', 'gongsun'].forEach(function (f) {
     if (st.phases[f]) startPhase(state, f, { silent: true, opening: true });
   });
   st.openingDeclared = true;
-  if (state) state.openingWarsDeclared = true;
+  st.openingPending = false;
+  state.openingWarsDeclared = true;
   refreshHeadline(state);
-  return st;
 }
 
 /** 读档后恢复：状态都在存档里，只需要把上次的局面接上 */
 function resume(state, logger) {
   if (logger) bindLogger(logger);
-  if (!state || !state.storyMode || !state.story || !state.story.mode) return null;
+  if (!state || (!state.storyMode && !state.historicalSandbox)) return null;
+  if (!state.story || !state.story.mode) return null;
   state.story.day = state.clock.day;
   if (!state.story.targets) state.story.targets = {};
   if (!state.story.priority) state.story.priority = {};
@@ -1735,6 +1761,10 @@ function tick(state) {
   applyYuanCombat(state, !!st.yuanWeak);
   yuanMoraleTick(state);
   if (state.gameOver) return;
+  if (st.sandbox && st.openingPending) {
+    const due = st.openingEventDay || STORY.openingEventDay || 3;
+    if (state.clock.day >= due) beginOpeningWars(state);
+  }
   maybeOpeningEvent(state);
 
   maybeEmperor(state);

@@ -271,6 +271,8 @@ function createGame(opts) {
   const historicalRoster = background === 'romance';
   // 三国演义改成史实沙盘后不再跑十二章主线；乱世三国仍保留旧战役链。
   const campaignDisabled = historicalRoster && !storyMode;
+  // 史实沙盘：玩家没有主线章节，但天下仍按史实阶段递战书。
+  const historicalSandbox = historicalRoster && !storyMode;
 
   world.sites.forEach(function (site) {
     let h = 0;
@@ -353,6 +355,7 @@ function createGame(opts) {
     background,
     historicalRoster,
     campaignDisabled,
+    historicalSandbox,
     storyMode,
     story: null,
     clock: { day: 1, hour: 5 },
@@ -407,7 +410,8 @@ function createGame(opts) {
   autoAssignFiefs(state);
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, BANDIT_START_COUNT);
-  spawnChaseParty(state, spawn);
+  // 史实沙盘没有主线章节，追兵也就不该跟来：开局直接往东走。
+  if (!historicalSandbox) spawnChaseParty(state, spawn);
   state.parties.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
   state.lords.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
   war.init(state);
@@ -419,11 +423,16 @@ function createGame(opts) {
   war.bindMovement(stepUnitTo, unitOccupies, siteAt);
   warmPatrolFields(state);
 
-  pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
-  if (state.campaignDisabled) {
-    pushLog(state, '这一局没有写好的下一章；到陈留落脚，天下会自己往前演。');
+  if (historicalSandbox) {
+    pushLog(state, '洛阳城破了。你只带出九个人，往东走。');
+    pushLog(state, '这一局没有写好的下一章；到陈留落脚，第三天起天下自己往前演。');
   } else {
-    pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
+    pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
+    if (state.campaignDisabled) {
+      pushLog(state, '这一局没有写好的下一章；到陈留落脚，天下会自己往前演。');
+    } else {
+      pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
+    }
   }
   if (!state.campaignDisabled) {
     state.events.push({ type: 'chapter', chapterId: require('../data/china.js').CAMPAIGN[0].id });
@@ -7295,6 +7304,7 @@ function serialize(state) {
     background: state.background || (state.storyMode ? 'romance' : 'chaos'),
     historicalRoster: !!(state.historicalRoster || state.background === 'romance'),
     campaignDisabled: !!state.campaignDisabled,
+    historicalSandbox: !!state.historicalSandbox,
     storyMode: !!state.storyMode,
     story: state.story || null,
     clock: state.clock,
@@ -7383,6 +7393,9 @@ function deserialize(json) {
     campaignDisabled: data.campaignDisabled != null
       ? !!data.campaignDisabled
       : ((data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance' && !data.storyMode),
+    historicalSandbox: data.historicalSandbox != null
+      ? !!data.historicalSandbox
+      : (!!data.historicalRoster && !data.storyMode),
     storyMode: !!data.storyMode,
     story: data.story || null,
     clock: data.clock,

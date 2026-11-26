@@ -11,6 +11,7 @@
  */
 
 const heroes = require('./heroes.js');
+const { LORDS, FACTIONS } = require('../data/china.js');
 
 const FEE = 40;
 const PRIZE = 200;
@@ -22,6 +23,17 @@ const DUEL_MOVES = [
 ];
 const DUEL_BY_ID = {};
 DUEL_MOVES.forEach(function (m) { DUEL_BY_ID[m.id] = m; });
+
+// 校场夺魁：老比武大会那套“猜手”，左挡 / 右挡 / 左攻 / 右攻，各三滴血。
+const ARENA_MOVES = [
+  { id: 'blockL', name: '左挡', dir: 'L', kind: 'block', desc: '护住左肩' },
+  { id: 'blockR', name: '右挡', dir: 'R', kind: 'block', desc: '护住右肩' },
+  { id: 'attackL', name: '左攻', dir: 'L', kind: 'attack', desc: '从左边切进去' },
+  { id: 'attackR', name: '右攻', dir: 'R', kind: 'attack', desc: '从右边切进去' },
+];
+const ARENA_BY_ID = {};
+ARENA_MOVES.forEach(function (m) { ARENA_BY_ID[m.id] = m; });
+const ARENA_HP = 3;
 
 const SUPPLY_NODES = [
   { id: 'east', name: '东粮道', short: '东', desc: '靠河，车辙最深。' },
@@ -64,6 +76,16 @@ const MODES = [
     choiceTitle: '你出哪一招？',
     choices: DUEL_MOVES.map(function (m) {
       return { id: m.id, name: m.name, desc: '克 ' + DUEL_BY_ID[m.beats].name };
+    }),
+  },
+  {
+    id: 'arena', name: '校场夺魁', icon: 'arena', color: '#3a2c1e',
+    short: '左挡 · 右挡 · 左攻 · 右攻',
+    intro: '校场画了个圈，你与好手各持木刀，护住左右两肩。每合一招：要么护住一边，要么从那一边切进去。',
+    rule: '各三滴血，先见底者输。同招相抵白打一合；两败俱伤退报名费。',
+    choiceTitle: '这一合怎么走？',
+    choices: ARENA_MOVES.map(function (m) {
+      return { id: m.id, name: m.name, desc: m.desc };
     }),
   },
   {
@@ -143,6 +165,9 @@ function labelFor(modeId, choiceId) {
   if (modeId === 'relay') {
     return (RELAY_BY_ID[choiceId] && RELAY_BY_ID[choiceId].name) || choiceId;
   }
+  if (modeId === 'arena') {
+    return (ARENA_BY_ID[choiceId] && ARENA_BY_ID[choiceId].name) || choiceId;
+  }
   const list = mode.choices || [];
   for (let i = 0; i < list.length; i++) {
     if (list[i].id === choiceId) return list[i].name;
@@ -160,6 +185,7 @@ function aiLabelFor(modeId, aiId) {
   }
   if (modeId === 'relay') return (RELAY_BY_ID[aiId] && RELAY_BY_ID[aiId].name) || aiId;
   if (modeId === 'duel') return (DUEL_BY_ID[aiId] && DUEL_BY_ID[aiId].name) || aiId;
+  if (modeId === 'arena') return (ARENA_BY_ID[aiId] && ARENA_BY_ID[aiId].name) || aiId;
   return aiId;
 }
 
@@ -195,6 +221,69 @@ function resolveFire(move, aiMove) {
 function resolveRelayStage(playerLane, blockLane) {
   if (!RELAY_BY_ID[playerLane] || !RELAY_BY_ID[blockLane]) return null;
   return playerLane !== blockLane ? 'win' : 'lose';
+}
+
+/** 校场夺魁：一合的结算，只看双方各自出的手。 */
+function resolveArena(pMoveId, fMoveId) {
+  const pm = ARENA_BY_ID[pMoveId];
+  const fm = ARENA_BY_ID[fMoveId];
+  if (!pm || !fm) return null;
+  let dmgPlayer = 0;
+  let dmgFoe = 0;
+  let line = '';
+  const pDir = pm.dir === 'L' ? '左' : '右';
+  const fDir = fm.dir === 'L' ? '左' : '右';
+
+  if (pm.kind === 'attack' && fm.kind === 'attack') {
+    dmgPlayer = 1;
+    dmgFoe = 1;
+    line = '两边同时抢攻，木刀都落了实，各挨一下。';
+  } else if (pm.kind === 'block' && fm.kind === 'block') {
+    line = '两人都在收着，绕着圈子走了半圈，这一合谁也没碰上谁。';
+  } else if (pm.kind === 'attack' && fm.kind === 'block') {
+    if (pm.dir === fm.dir) {
+      dmgPlayer = 1;
+      line = '你从' + pDir + '边抢攻，对手正好在' + fDir + '边架上木刀，你虎口被震得发麻。';
+    } else {
+      dmgFoe = 1;
+      line = '你从' + pDir + '边虚晃一招，人却从另一边切进去，一刀拍在他护肩上。';
+    }
+  } else if (pm.dir === fm.dir) {
+    dmgFoe = 1;
+    line = '他攻你' + fDir + '边，你' + pDir + '手木刀迎上去，磕开刀锋还推了他一把。';
+  } else {
+    dmgPlayer = 1;
+    line = '他攻你' + fDir + '边，你挡在' + pDir + '边——护不住，肋下吃了一记。';
+  }
+  return { dmgPlayer: dmgPlayer, dmgFoe: dmgFoe, line: line };
+}
+
+/** 校场上的对手：从天下名将里抽一位，声望越高，读招越准。 */
+function pickArenaFoe(state) {
+  const list = (LORDS || []).filter(function (l) { return l && l.id && l.name; });
+  if (!list.length) return { name: '外乡好手', tag: '校场常客', skill: 0.16 };
+  const def = list[state.rng.int(0, list.length - 1)];
+  const rep = Math.min(20, Math.floor((state.player.renown || 0) / 60));
+  return {
+    name: def.name,
+    faction: def.faction,
+    lordId: def.id,
+    skill: Math.max(0.12, Math.min(0.5, 0.16 + rep * 0.02)),
+    tag: (FACTIONS[def.faction] || {}).full || '外地来的好手',
+  };
+}
+
+/** 对手出招：多数时候乱来，偶尔读你上一手的习惯。 */
+function pickArenaAI(state, arena) {
+  const last = arena && arena.moves && arena.moves.length
+    ? arena.moves[arena.moves.length - 1] : null;
+  if (last && state.rng.next() < (arena.foe.skill || 0.2)) {
+    if (last.pMove === 'attackL') return 'blockL';
+    if (last.pMove === 'attackR') return 'blockR';
+    if (last.pMove === 'blockL') return 'attackR';
+    if (last.pMove === 'blockR') return 'attackL';
+  }
+  return ARENA_MOVES[state.rng.int(0, ARENA_MOVES.length - 1)].id;
 }
 
 function safeFlags(state) {
@@ -261,6 +350,15 @@ function enter(state, site, modeId) {
     log: [],
     choiceTitle: mode.choiceTitle,
   };
+  if (mode.id === 'arena') {
+    t.arena = {
+      hp: ARENA_HP,
+      foeHp: ARENA_HP,
+      foe: pickArenaFoe(state),
+      moves: [],
+    };
+    t.choiceTitle = '这一合怎么走？';
+  }
   if (mode.id === 'relay') {
     t.relay = {
       stage: 1,
@@ -337,6 +435,50 @@ function choose(state, choice) {
     const win = result === 'win';
     addLog(t, ['你出「' + labelFor('duel', choice) + '」，敌将出「' + labelFor('duel', ai) + '」。', win ? '刀锋先到，敌将落马。' : '敌将先变招，你的刀势落空。']);
     finish(state, t, win, [win ? '阵前斩将，夺旗而还。' : '你被亲兵抢回阵中，这局输了。']);
+  } else if (t.mode === 'arena') {
+    const a = t.arena;
+    if (!a) return { ok: false, msg: '这一场已经散了。' };
+    const pm = ARENA_BY_ID[choice];
+    if (!pm) return { ok: false, msg: '校场上只有左挡、右挡、左攻、右攻。' };
+    const ai = pickArenaAI(state, a);
+    const settled = resolveArena(choice, ai);
+    a.hp -= settled.dmgPlayer;
+    a.foeHp -= settled.dmgFoe;
+    a.moves.push({ pMove: choice, fMove: ai, dmgPlayer: settled.dmgPlayer, dmgFoe: settled.dmgFoe });
+    const lines = ['第 ' + t.round + ' 合：' + settled.line,
+      '（你 ' + Math.max(0, a.hp) + ' 血 · ' + a.foe.name + ' ' + Math.max(0, a.foeHp) + ' 血）'];
+    addLog(t, lines);
+    if (a.hp <= 0 && a.foeHp <= 0) {
+      // 两败俱伤：报名费退回，赏格作废
+      t.done = true;
+      t.draw = true;
+      t.win = false;
+      t.champion = false;
+      t.result = 'draw';
+      state.player.gold = Number(state.player.gold || 0) + FEE;
+      state.player.renown = Number(state.player.renown || 0) + 2;
+      addLog(t, ['两个人一起倒下去，砸翻了校场的灯。主事的人把 ' + FEE + ' 金钱报名费退了你。']);
+      return {
+        ok: true, mode: t.mode, result: 'draw', done: true,
+        playerChoice: choice, aiChoice: ai,
+        playerLabel: labelFor('arena', choice), aiLabel: labelFor('arena', ai),
+        hp: 0, foeHp: 0, lines: lines,
+      };
+    }
+    if (a.foeHp <= 0) {
+      addLog(t, ['他撑着木刀跪在地上，认了。', '校场四周把铜钱往场里洒。']);
+      finish(state, t, true, ['校场夺魁，赏钱 ' + PRIZE + ' 金钱。']);
+    } else if (a.hp <= 0) {
+      addLog(t, ['你膝盖一软，坐在了土里。' + a.foe.name + '收了手，抱拳说：再练两年。']);
+      finish(state, t, false, ['报名费没了，台下还是有人叫好。']);
+    } else {
+      return {
+        ok: true, mode: t.mode, result: 'continue', done: false,
+        playerChoice: choice, aiChoice: ai,
+        playerLabel: labelFor('arena', choice), aiLabel: labelFor('arena', ai),
+        hp: a.hp, foeHp: a.foeHp, lines: lines,
+      };
+    }
   } else if (t.mode === 'supply') {
     if (!SUPPLY_BY_ID[choice]) return { ok: false, msg: '没有这处粮道。' };
     const last = safeFlags(state).warboardSupplyLastAmbush || null;
@@ -423,9 +565,9 @@ function close(state) {
 
 module.exports = {
   FEE, PRIZE, MODES, DUEL_MOVES, SUPPLY_NODES, SENTRY_TARGETS,
-  SENTRY_AIS, FIRE_MOVES, FIRE_AIS, RELAY_LANES,
+  SENTRY_AIS, FIRE_MOVES, FIRE_AIS, RELAY_LANES, ARENA_MOVES, ARENA_HP,
   fee, prize, modeById, modeList, choiceList, labelFor, aiLabelFor,
-  resolveDuel, resolveSupply, resolveSentry, resolveFire, resolveRelayStage,
-  pickDuelAI, pickSupplyAmbush, pickSentryAI, pickFireAI,
+  resolveDuel, resolveSupply, resolveSentry, resolveFire, resolveRelayStage, resolveArena,
+  pickDuelAI, pickSupplyAmbush, pickSentryAI, pickFireAI, pickArenaAI, pickArenaFoe,
   enter, choose, close,
 };
