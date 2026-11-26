@@ -1,0 +1,46 @@
+name: n40 build juqing
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n40-build.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n40 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n40.patch 'https://aka.doubaocdn.com/s/lTrHXzd73W'
+          git apply --check /tmp/juqing-n40.patch
+          git apply /tmp/juqing-n40.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Verify bundle
+        run: echo 'eedb956eed24c3b9fd55783fba34bd6944bd10138699ed0ee231c5de642c6740  web/game.bundle.js' | sha256sum -c -
+      - name: Commit n40
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add js/render/pixel.js js/scenes/map.js tools/render-smoke.js index.html web/index.html web/game.bundle.js
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261126n40 各国君主 Q 版模型 juqing [skip ci]'
+          git push origin HEAD:juqing
