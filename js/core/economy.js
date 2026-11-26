@@ -156,6 +156,10 @@ function growGarrison(site) {
   return inc;
 }
 
+/** 领主招兵池：城镇/关隘容量与每日回填；比旧版更快，避免大战后全图停摆。 */
+const LORD_RECRUIT_CAP = { town: 12, castle: 12, village: 6 };
+const LORD_RECRUIT_REFILL = 3;
+
 /** 每日：价格波动 + 招募池刷新 + 守军恢复 */
 function dailyMarket(state, rng) {
   state.world.sites.forEach(function (site) {
@@ -192,13 +196,12 @@ function dailyMarket(state, rng) {
     // 领主招兵池：按城/村错开日子补一点，跟玩家招募池分开，也不额外消耗事件随机数
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
       site.lordRecruits = site.lordRecruits || {};
-      const lcap = site.type === 'village' ? 4 : 8;
-      if (state.clock.day % 3 === (site.x + site.y) % 3) {
-        (site.recruitList || []).forEach(function (id) {
-          const have = site.lordRecruits[id] || 0;
-          if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + 2);
-        });
-      }
+      const lcap = LORD_RECRUIT_CAP[site.type] || 0;
+      // 领主兵源每日回填；比旧版三日一回、一次一人快得多。
+      (site.recruitList || []).forEach(function (id) {
+        const have = site.lordRecruits[id] || 0;
+        if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + LORD_RECRUIT_REFILL);
+      });
     }
 
     // 城池守军按当前人数自然增长：越多越慢，战损后从低处重新长。
@@ -242,4 +245,6 @@ module.exports = {
   growGarrison,
   dailyMarket,
   dailyIncome,
+  LORD_RECRUIT_CAP,
+  LORD_RECRUIT_REFILL,
 };

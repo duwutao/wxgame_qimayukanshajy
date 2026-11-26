@@ -280,7 +280,7 @@ function createGame(opts) {
     // 领主招兵走另一口锅：和玩家的招募池分开，互不抢人
     site.lordRecruits = {};
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
-      const lcap = site.type === 'village' ? 2 : 4;
+      const lcap = economy.LORD_RECRUIT_CAP[site.type] || 0;
       (site.recruitList || []).forEach(function (id, i) {
         site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
       });
