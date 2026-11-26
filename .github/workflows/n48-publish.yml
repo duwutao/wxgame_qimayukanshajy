@@ -1,0 +1,60 @@
+name: n48 publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n48-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update main entry and bundle
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/1CLF2EiUKG'
+          echo '8ddb439013fb1e88d336c0f8553d48c3d312c2c1a04b11b5f86403bccf9f60ea  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261126n45/20261126n48/g; s/20261126n47/20261126n48/g' index.html web/index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html web/game.bundle.js
+          git commit -m 'release: 20261127n48 蜀国南征八路领主 [skip ci]'
+          git push origin HEAD:main
+  juqing:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n48 source and bundle to juqing
+        run: |
+          curl -L --fail --retry 3 --retry-delay 2 -o /tmp/n48-src.patch 'https://aka.doubaocdn.com/s/OtE5VFoWB9'
+          git apply --check /tmp/n48-src.patch
+          git apply /tmp/n48-src.patch
+          curl -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/1CLF2EiUKG'
+          echo '8ddb439013fb1e88d336c0f8553d48c3d312c2c1a04b11b5f86403bccf9f60ea  web/game.bundle.js' | sha256sum -c -
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Commit n48
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n48 蜀国南征八路领主 [skip ci]'
+          git push origin HEAD:juqing
