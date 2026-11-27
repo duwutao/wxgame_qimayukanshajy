@@ -683,6 +683,7 @@ function lordFromDef(state, def) {
     alive: true,
     respawnDay: 0,
     defTroops: deepCopy(def.soldiers),
+    strategistOnly: !!def.strategistOnly,
     wander: null,
     dead: false,
     retired: false,
@@ -5973,6 +5974,8 @@ function applyLordPowerRoster(state) {
     }
     lord.recruitMul = lordRecruitMul(lord);
     if (lord.commandValue === null || lord.commandValue === undefined) return;
+    // 随军谋士只保留少量亲兵，不按将帅值补成满编军团，避免凭空多出大军。
+    if (lord.strategistOnly) return;
     const cap = lordTroopCap(lord);
     const defCount = army.troopCount(lord.defTroops || {});
     if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);

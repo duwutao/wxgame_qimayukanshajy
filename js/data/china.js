@@ -823,6 +823,14 @@ const LORDS = [
   { id: 'wuangou', name: '武安国', faction: 'yuan', home: 'beihai', soldiers: { spear: 35, militia: 25, guard: 8 }, morale: 80, sight: 6, title: '校尉' },
   { id: 'xingdaorong', name: '邢道荣', faction: 'biao', home: 'wuling', soldiers: { spear: 30, militia: 28, cav: 10 }, morale: 76, sight: 6, title: '零陵上将' },
   { id: 'zhangbao', name: '张苞', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 20, cav: 15 }, morale: 86, sight: 7, title: '牙门将' },
+
+  // ---- 历史军师名录补全：作为随军谋士存在，不按将帅满编扩军 ----
+  { id: 'xushu', name: '徐庶', faction: 'shu', home: 'xinye', soldiers: { militia: 18, spear: 14, crossbow: 10, guard: 3 }, morale: 82, sight: 7, title: '军师', strategistOnly: true },
+  { id: 'zhonghui', name: '钟会', faction: 'wei', home: 'luoyang', soldiers: { militia: 20, spear: 16, crossbow: 12, cav: 6 }, morale: 80, sight: 7, title: '镇西将军', strategistOnly: true },
+  { id: 'chengyu', name: '程昱', faction: 'wei', home: 'puyang', soldiers: { militia: 22, spear: 18, crossbow: 14 }, morale: 82, sight: 7, title: '东中郎将', strategistOnly: true },
+  { id: 'liru', name: '李儒', faction: 'lv', home: 'xiapi', soldiers: { militia: 16, spear: 12, crossbow: 10 }, morale: 74, sight: 7, title: '军师', strategistOnly: true },
+  { id: 'zhangzhao', name: '张昭', faction: 'wu', home: 'jianye', soldiers: { militia: 20, spear: 14, archer: 10 }, morale: 78, sight: 6, title: '长史', strategistOnly: true },
+  { id: 'zhanghong', name: '张纮', faction: 'wu', home: 'jianye', soldiers: { militia: 18, spear: 12, archer: 10 }, morale: 76, sight: 6, title: '长史', strategistOnly: true },
 ];
 
 /** 声望等级 */

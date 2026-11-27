@@ -4638,7 +4638,24 @@ group('n53 将帅值 / 武力值 / 军师与场景音乐');
   ok('曹操魏国带兵上限 179', rankLib.commandCapFor(1.70, 0.7) === 179,
     String(rankLib.commandCapFor(1.70, 0.7)));
 
+  const strategistIds = Object.keys(rankLib.STRATEGIST_NAMES);
+  const storyDefs = require(R + '/data/story.js').STORY.lordAdds || [];
+  const allLordDefs = LORDS.concat(storyDefs);
+  const missingStrategists = strategistIds.filter(function (id) {
+    return !allLordDefs.some(function (l) { return l.id === id; });
+  });
+  ok('历史军师 20 人都有领主体', strategistIds.length === 20 && missingStrategists.length === 0,
+    strategistIds.length + ' / 缺 ' + missingStrategists.join(','));
+
   const g53 = stateLib.createGame({ background: 'romance', storyMode: true, seed: 2026112753 });
+  const onlyStrategists = g53.lords.filter(function (l) { return l.strategistOnly; });
+  ok('随军谋士保留少量亲兵、不按将帅满编',
+    onlyStrategists.length === 6 && onlyStrategists.every(function (l) {
+      return armyLib.troopCount(l.defTroops) <= 60;
+    }),
+    onlyStrategists.map(function (l) {
+      return l.id + ':' + armyLib.troopCount(l.defTroops);
+    }).join('/'));
   const cc53 = g53.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   const lb53 = g53.lords.filter(function (l) { return l.id === 'lvbu'; })[0];
   const ccDef = cc53 ? armyLib.troopCount(cc53.defTroops) : 0;
