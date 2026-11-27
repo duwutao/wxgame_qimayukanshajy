@@ -110,6 +110,9 @@ function buildOps(app, tab) {
     ops.push({ t: 'h1', s: '存档：最近一份 + 九个槽' });
     ops.push({ t: 'p', s: '标题页四项：新的开始 / 加载最近存档 / 加载保存存档（九个槽）/ 玩法。' });
     ops.push({ t: 'p', s: '游戏里每 45 秒自动存一份"最近"，另留一份上一份可回退；营帐菜单能手动存到九个槽里，也能删、能覆盖。' });
+    ops.push({ t: 'h1', s: '场景音乐' });
+    ops.push({ t: 'p', s: '标题、大地图、城镇、战斗、对峙、败亡、凯旋七个场景各有一首 CC0 公共领域录音，可商用、无需署名。' });
+    ops.push({ t: 'p', s: '录音加载失败或宿主不支持时，自动回落到 WebAudio 现场合成的五声音阶片段。来源与授权见 assets/audio/CREDITS.md。' });
     return ops;
   }
 
@@ -209,7 +212,7 @@ function buildOps(app, tab) {
     audio.listMusic().forEach(function (m) {
       ops.push({ t: 'p', s: '· ' + (MODE_LABEL[m.mode] || m.mode) + '：' + m.tracks.join('、') });
     });
-    ops.push({ t: 'p', s: '全部为 WebAudio 现场合成的原创五声音阶片段，不采样、不引用现存歌曲，无版权争议。' });
+    ops.push({ t: 'p', s: '优先播放 assets/audio 下的 CC0 公共领域录音；加载失败或宿主不支持 InnerAudioContext 时，回落到 WebAudio 现场合成的原创五声音阶片段。录音可商用、无需署名，来源见 assets/audio/CREDITS.md。' });
     return ops;
   }
 

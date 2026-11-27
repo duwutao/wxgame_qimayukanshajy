@@ -4668,8 +4668,9 @@ group('n53 将帅值 / 武力值 / 军师与场景音乐');
   const modes = audioLib.listMusic();
   const totalTracks = modes.reduce(function (a, m) { return a + m.tracks.length; }, 0);
   ok('场景音乐 7 类', modes.length === 7, String(modes.length));
-  ok('场景音乐共 17 首', totalTracks === 17 && audioLib.TRACKS.length === 17, String(totalTracks));
-  ok('每类场景至少 2 首', modes.every(function (m) { return m.tracks.length >= 2; }),
+  ok('场景音乐共 24 首（7 首 CC0 录音 + 17 首程序化）',
+    totalTracks === 24 && audioLib.TRACKS.length === 17, String(totalTracks));
+  ok('每类场景至少 3 首（1 录音 + 2 程序化）', modes.every(function (m) { return m.tracks.length >= 3; }),
     modes.map(function (m) { return m.mode + ':' + m.tracks.length; }).join('/'));
   ok('曲名不重复',
     new Set(audioLib.TRACKS.map(function (t) { return t.name; })).size === audioLib.TRACKS.length);
@@ -4712,6 +4713,47 @@ group('n53 军师开局天雷');
 
   const other = nukeBattle('test:other');
   ok('换一个战场可再次触发', other.remainB() === 800, String(other.remainB()));
+}
+
+
+group('n54 旧档主线字段兼容');
+{
+  const st = stateLib.createGame({});
+  st.campaign.stage = 1;
+  st.player.troops = { militia: 40 };
+  const raw = JSON.parse(stateLib.serialize(st));
+  delete raw.campaign.done;
+  delete raw.flags.campaignDone;
+  const loaded = stateLib.deserialize(raw);
+  ok('缺 campaign.done 也能读档', !!loaded && Array.isArray(loaded.campaign.done));
+  ok('缺 flags.campaignDone 也能读档',
+    !!loaded && Array.isArray(loaded.flags.campaignDone));
+  let threw = null;
+  try { stateLib.advanceCampaign(loaded); } catch (e) { threw = e; }
+  ok('章节完成不再抛异常卡死', !threw, threw ? threw.message : 'ok');
+}
+
+group('n55 国战存档循环引用');
+{
+  const st = stateLib.createGame({});
+  const fakeBattle = { state: st, context: { kind: 'siege', siteId: 'xuchang' } };
+  st.warCampaigns = {
+    wei: {
+      faction: 'wei', enemy: 'shu', stage: 'assault', targetId: 'xuchang',
+      attackerIds: [], defenderIds: [], siegeBattle: fakeBattle,
+    },
+  };
+  let raw = null;
+  let threw = null;
+  try { raw = stateLib.serialize(st); } catch (e) { threw = e; }
+  ok('攻城战在场时也能存档', !threw, threw ? threw.message : 'ok');
+  const data = raw ? JSON.parse(raw) : null;
+  ok('存档不写入运行时 Battle',
+    !!data && data.warCampaigns && data.warCampaigns.wei &&
+    data.warCampaigns.wei.siegeBattle === undefined);
+  ok('战役壳字段保留',
+    !!data && data.warCampaigns.wei.stage === 'assault' &&
+    data.warCampaigns.wei.targetId === 'xuchang');
 }
 
 /* ---------------------------------------------------------------- 收尾 */

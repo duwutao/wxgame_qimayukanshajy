@@ -235,6 +235,78 @@ class App {
   }
 
   tick() {
+    // 主循环绝不能因为某一帧的场景/音频异常而停掉：requestAnimationFrame
+    // 的下一帧由外层 loop 负责，这里只要把异常吞掉并画出可恢复提示。
+    try {
+      this._tick();
+    } catch (e) {
+      this.onTickError(e);
+    }
+  }
+
+  onTickError(e) {
+    this.lastError = {
+      message: (e && e.message) ? String(e.message) : '未知错误',
+      time: Date.now(),
+    };
+    this.errorCount = (this.errorCount || 0) + 1;
+    try {
+      this.runtime.storage.set('bw_last_error', JSON.stringify({
+        message: this.lastError.message,
+        scene: this.top() ? this.top().name : '',
+        day: this.state && this.state.clock ? this.state.clock.day : 0,
+        hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+        time: this.lastError.time,
+      }));
+    } catch (_) { /* ignore */ }
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('[征战汉末] 帧循环异常：', e);
+    }
+    // 连续在非地图页面报错时，退一层，避免永远卡在坏页面上。
+    if (this.errorCount >= 4 && this.stack.length > 1) {
+      const top = this.top();
+      if (top && top.name !== 'map' && top.name !== 'title') {
+        this.errorCount = 0;
+        this.pop();
+      }
+    }
+    // 地图/标题也连续报错：最后兜底回标题，自动存档不会被覆盖。
+    if (this.errorCount >= 8) {
+      this.errorCount = 0;
+      this.lastError = null;
+      try {
+        this.replace('title');
+        this.showToast('画面连续出错，已返回标题；自动存档还在。', 4);
+      } catch (_) { /* ignore */ }
+      return;
+    }
+    this.drawErrorFrame();
+  }
+
+  drawErrorFrame() {
+    try {
+      const r = this.runtime;
+      const ctx = r.ctx;
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#0f0c09';
+      ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+      ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f0c060';
+      ctx.font = 'bold 28px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText('这一帧出了点问题', r.width / 2, r.height * 0.42);
+      ctx.fillStyle = '#c9bda2';
+      ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText((this.lastError && this.lastError.message || '未知错误').slice(0, 80),
+        r.width / 2, r.height * 0.42 + 38);
+      ctx.fillStyle = '#8a8070';
+      ctx.fillText('正在尝试恢复；连续出错会自动回到标题', r.width / 2, r.height * 0.42 + 74);
+      ctx.textAlign = 'left';
+    } catch (_) { /* 连错误提示都画不出来时，至少保住主循环 */ }
+  }
+
+  _tick() {
     const now = this.runtime.now();
     let dt = (now - this.last) / 1000;
     this.last = now;
@@ -270,7 +342,12 @@ class App {
     ctx.fillStyle = '#0f0c09';
     ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
     ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
-    audio.update(dt);
+    // 音乐是锦上添花：音频实现出问题不能把整帧拖垮。
+    try {
+      audio.update(dt);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.error) console.error('[征战汉末] 音频异常：', e);
+    }
 
     const top = this.top();
     if (top && top.scene.update) top.scene.update(this, dt);
@@ -288,17 +365,35 @@ class App {
       else this.drawToast();
     }
 
-    // 自动存档：别在战斗里存，也别在结局后存
+    // 自动存档：别在战斗里存，也别在结局后存。
+    // 存档失败只记日志，绝不能让一局好游戏因为 JSON 序列化异常停掉；
+    // 上一个自动存档槽保持原样，玩家最多损失最近 45 秒。
     if (this.state && !this.state.gameOver && !this.state.battle) {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
         this.saveTimer = 45;
-        const store = this.runtime.storage;
-        const prev1 = store.get(AUTO_1);
-        if (prev1) store.set(AUTO_2, prev1);
-        const prev0 = store.get(AUTO_KEY);
-        if (prev0) store.set(AUTO_1, prev0);
-        store.set(AUTO_KEY, stateLib.serialize(this.state));
+        try {
+          const store = this.runtime.storage;
+          const prev1 = store.get(AUTO_1);
+          if (prev1) store.set(AUTO_2, prev1);
+          const prev0 = store.get(AUTO_KEY);
+          if (prev0) store.set(AUTO_1, prev0);
+          store.set(AUTO_KEY, stateLib.serialize(this.state));
+          this.saveError = null;
+        } catch (e) {
+          this.saveError = (e && e.message) ? String(e.message) : '自动存档失败';
+          try {
+            this.runtime.storage.set('bw_save_error', JSON.stringify({
+              message: this.saveError,
+              day: this.state && this.state.clock ? this.state.clock.day : 0,
+              hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+              time: Date.now(),
+            }));
+          } catch (_) { /* ignore */ }
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('[征战汉末] 自动存档失败：', e);
+          }
+        }
       }
     }
 

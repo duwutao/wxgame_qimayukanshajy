@@ -18727,7 +18727,8 @@ function lordTroopLine(lord) {
 /* ---------------------------------------------------------------- 战役 */
 
 function campaignState(state) {
-  if (state && state.campaignDisabled) return null;
+  if (!state || !state.campaign) return null;
+  if (state.campaignDisabled) return null;
   const stage = state.campaign.stage;
   return CAMPAIGN[Math.min(stage, CAMPAIGN.length - 1)];
 }
@@ -18782,9 +18783,19 @@ function campaignInfo(state) {
   };
 }
 
-function advanceCampaign(state) {
+function advanceCampaign(state, depth) {
   if (state && state.campaignDisabled) return;
+  if (!state || !state.campaign) return;
+  const d = depth || 0;
+  // 一章完成会立刻检查下一章；正常最多十几层。这里留一个硬上限，
+  // 防止旧档字段异常时递归打穿调用栈，表现成整局卡死。
+  if (d > 24) return;
   const c = state.campaign;
+  if (!c || typeof c !== 'object') return;
+  if (!Array.isArray(c.done)) c.done = [];
+  if (!state.flags) state.flags = {};
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
+  if (typeof c.stage !== 'number' || !isFinite(c.stage)) c.stage = 0;
   if (c.stage >= CAMPAIGN.length) return;
   const ch = CAMPAIGN[c.stage];
   if (!ch) return;
@@ -18809,7 +18820,7 @@ function advanceCampaign(state) {
     const next = CAMPAIGN[c.stage];
     state.events.push({ type: 'chapter', chapterId: next ? next.id : ch.id });
     pushLog(state, '【' + ch.title + '】' + (ch.after || ''));
-    advanceCampaign(state);
+    advanceCampaign(state, d + 1);
   }
 }
 
@@ -18842,7 +18853,7 @@ function checkCampaign(state, key) {
 
 /** 当前这一章，在哪个据点能打出关键一仗 */
 function campaignObjective(state, site) {
-  if (!site || !state || state.campaignDisabled) return null;
+  if (!site || !state || !state.campaign || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   const id = ch && ch.id;
   if (id === 'act1b' && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
@@ -20222,7 +20233,21 @@ function serialize(state) {
     noPeace: state.noPeace || {},
     noPeaceForever: state.noPeaceForever || {},
     heroSites: state.heroSites || null,
-    warCampaigns: state.warCampaigns || {},
+    // 国战战役里的 siegeBattle 是运行时 Battle 对象，Battle.state 指回整局
+    // state，直接 JSON.stringify 会抛 “Converting circular structure”。
+    // 存档只保留战役的外壳字段；读档后 tickSiegeAssault 会按当前兵力重建攻城战。
+    warCampaigns: (function () {
+      const out = {};
+      Object.keys(state.warCampaigns || {}).forEach(function (fid) {
+        const cp = state.warCampaigns[fid];
+        if (!cp || typeof cp !== 'object') return;
+        const copy = Object.assign({}, cp);
+        delete copy.siegeBattle;
+        delete copy.battle;
+        out[fid] = copy;
+      });
+      return out;
+    })(),
     siegeCooldown: state.siegeCooldown || {},
     playerSiege: state.playerSiege || null,
     foodWarning: state.foodWarning || null,
@@ -20356,6 +20381,18 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 旧档兼容：主线字段是后加的，早期同版本存档可能只有 stage，没有
+  // campaign.done / flags.campaignDone。缺数组会在章节完成那一帧抛异常，
+  // 主循环没有兜底时就会永久停在当前画面。
+  if (!state.campaign || typeof state.campaign !== 'object') {
+    state.campaign = { stage: 0, done: [] };
+  }
+  if (!Array.isArray(state.campaign.done)) state.campaign.done = [];
+  if (typeof state.campaign.stage !== 'number' || !isFinite(state.campaign.stage)) {
+    state.campaign.stage = 0;
+  }
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
 
   // 同版本老档补上后来新增的城与势力：
   // 新开局由 createWorld 全量生成；读旧档时只补缺失据点，不重算玩家已经打下的城。
@@ -20955,6 +20992,32 @@ const BASS = [73.42, 87.31, 98.0, 110.0, 130.81, 146.83];
 const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'victory'];
 
 /**
+ * 真实录音：全部来自 OpenGameArt 的 CC0（公共领域）曲目，
+ * 可商用、无需署名。文件放在 assets/audio/，加载失败时自动回落到
+ * 下面的程序化音乐，不会因为音频缺失卡住游戏。
+ */
+const AUDIO_FILES = {
+  title: 'assets/audio/title_hanmo.mp3',
+  field: 'assets/audio/field_xingjun.mp3',
+  town: 'assets/audio/town_shijing.mp3',
+  battle: 'assets/audio/battle_zhangu.mp3',
+  tense: 'assets/audio/tense_duizhi.mp3',
+  sorrow: 'assets/audio/sorrow_guoshang.mp3',
+  victory: 'assets/audio/victory_kaixuan.mp3',
+};
+const AUDIO_FILE_NAMES = {
+  title: '汉末风起（实录）',
+  field: '千里行军（实录）',
+  town: '市井烟火（实录）',
+  battle: '战鼓催阵（实录）',
+  tense: '两军对峙（实录）',
+  sorrow: '国殇（实录）',
+  victory: '凯旋（实录）',
+};
+const FILE_VOLUME = 0.32;
+const FILE_FADE = 0.9;
+
+/**
  * 曲目表：melody 里的数字是 SCALE 下标，-1 表示休止；
  * bass 是 BASS 下标；perc 是每步的打击乐记号（k 大鼓 / s 小鼓 / g 锣 / t 木鱼 / . 休止）。
  */
@@ -21114,6 +21177,18 @@ const S = {
   enabled: true,
   master: null,
   cursor: {},
+  // 真实录音播放器：HTMLAudio 或小游戏 InnerAudioContext
+  player: null,
+  playerKind: null,
+  playerTried: false,
+  userReady: false,
+  lastMode: null,
+  fileMode: null,
+  filePlaying: false,
+  fileVolume: 0,
+  fileFailed: false,
+  fileFailedMode: null,
+  filePending: false,
 };
 
 function storageGet(key) {
@@ -21159,8 +21234,117 @@ function createCtx() {
   return S.ctx;
 }
 
+/** 录音加载/播放失败：自动播放限制只算“还没准备好”，换场景时再试。 */
+function onFileError(err, mode) {
+  const text = String((err && (err.errMsg || err.message || err.name)) || '');
+  if (/NotAllowed|not allowed|autoplay|user gesture|interrupted/i.test(text)) {
+    S.filePending = true;
+    S.filePlaying = false;
+    return;
+  }
+  S.fileFailed = true;
+  S.fileFailedMode = mode || S.fileMode;
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+function createPlayer() {
+  if (S.playerTried) return S.player;
+  S.playerTried = true;
+  try {
+    if (typeof tt !== 'undefined' && tt.createInnerAudioContext) {
+      const p = tt.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'tt';
+    } else if (typeof wx !== 'undefined' && wx.createInnerAudioContext) {
+      const p = wx.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'wx';
+    } else if (typeof Audio !== 'undefined') {
+      const p = new Audio();
+      p.loop = true;
+      p.preload = 'auto';
+      p.volume = 0;
+      p.onerror = function () { onFileError(null, S.fileMode); };
+      p.onended = function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.currentTime = 0; p.play(); } catch (e) { /* ignore */ }
+        }
+      };
+      S.player = p;
+      S.playerKind = 'html';
+    }
+  } catch (e) {
+    S.player = null;
+  }
+  return S.player;
+}
+
+function stopFile() {
+  if (S.player) {
+    try {
+      if (S.player.stop) S.player.stop();
+      else if (S.player.pause) S.player.pause();
+    } catch (e) { /* ignore */ }
+    try { S.player.volume = 0; } catch (e) { /* ignore */ }
+  }
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+/** 开始播放某场景的录音；返回 false 表示该场景没有可用录音，交给程序化音乐。 */
+function startFile(mode) {
+  if (!S.enabled || !AUDIO_FILES[mode]) return false;
+  if (S.fileFailedMode === mode) return false;
+  if (S.fileMode === mode && S.filePlaying) return true;
+  const p = createPlayer();
+  if (!p) return false;
+  stopFile();
+  try {
+    p.src = AUDIO_FILES[mode];
+    p.loop = true;
+    p.volume = 0;
+    S.fileMode = mode;
+    S.filePlaying = true;
+    S.fileVolume = 0;
+    S.fileFailed = false;
+    S.filePending = false;
+    const ret = p.play ? p.play() : null;
+    if (ret && ret.catch) ret.catch(function (err) { onFileError(err, mode); });
+    return true;
+  } catch (e) {
+    onFileError(e, mode);
+    // 自动播放被拦截时保留 pending，等下一次触摸由 resume() 重试。
+    if (S.filePending) return true;
+    return false;
+  }
+}
+
 function resume() {
+  S.userReady = true;
   if (!S.enabled) return;
+  // 真实录音优先；浏览器/小游戏都要求第一次触摸后才能出声。
+  if (S.mode && !S.filePlaying && S.fileFailedMode !== S.mode) {
+    startFile(S.mode);
+  }
   const ctx = createCtx();
   if (!ctx) return;
   try {
@@ -21169,14 +21353,22 @@ function resume() {
 }
 
 function setEnabled(on) {
+  const keepMode = S.mode || S.lastMode;
   S.enabled = !!on;
   storageSet('bw_audio', S.enabled ? 'on' : 'off');
   if (!S.enabled) {
+    S.lastMode = keepMode;
     stop();
     if (S.master) S.master.gain.value = 0;
   } else {
     if (S.master) S.master.gain.value = 0.26;
+    S.mode = keepMode;
+    // 用户手动重新打开声音时，允许之前失败过的曲目再试一次。
+    S.fileFailed = false;
+    S.fileFailedMode = null;
+    S.filePending = false;
     resume();
+    if (S.mode && !S.filePlaying) startFile(S.mode);
   }
 }
 
@@ -21208,6 +21400,13 @@ function tone(freq, dur, type, gain, delay, opts) {
     osc.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    // 长局必做：音符播完后断开音频图。旧实现只 stop 不断开，gain 节点
+    // 一直挂在 master 上，几十万个节点会把浏览器音频线程拖死，表现成
+    // 玩到某个时辰整局卡住。这里断开后让 GC 正常回收。
+    osc.onended = function () {
+      try { osc.disconnect(); } catch (err) { /* ignore */ }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     osc.start(now);
     osc.stop(now + dur + 0.02);
   } catch (e) { /* ignore */ }
@@ -21227,8 +21426,9 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     const g = ctx.createGain();
     g.gain.value = gain;
     let node = src;
+    let filter = null;
     if (filterFreq && ctx.createBiquadFilter) {
-      const filter = ctx.createBiquadFilter();
+      filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = filterFreq;
       filter.Q.value = 0.8;
@@ -21238,6 +21438,11 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     node.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    src.onended = function () {
+      try { src.disconnect(); } catch (err) { /* ignore */ }
+      if (filter) { try { filter.disconnect(); } catch (err) { /* ignore */ } }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     src.start(ctx.currentTime + (delay || 0));
   } catch (e) { /* ignore */ }
 }
@@ -21300,16 +21505,20 @@ function nextTrack() {
 
 function play(mode) {
   if (!MODES[mode]) return;
-  if (S.mode === mode && S.track) return;
+  if (S.mode === mode && (S.track || S.filePlaying || S.fileMode === mode)) return;
   const changed = S.mode !== mode;
   S.mode = mode;
+  S.lastMode = mode;
   if (changed) {
     S.track = null;
     S.trackTime = 0;
     S.t = 0;
     S.step = 0;
+    stopFile();
   }
-  // 第一次播放要等用户点屏幕：createCtx 在 resume() 里调用，避免自动播放被浏览器拦截。
+  if (!S.enabled) return;
+  // 第一次触摸前不要创建 WebAudio 音符，也不要在移动端偷偷起播。
+  if (S.userReady && startFile(mode)) return;
   if (!S.ctx) return;
   if (S.ctx.state === 'suspended' && S.ctx.resume) {
     try { S.ctx.resume(); } catch (e) { /* ignore */ }
@@ -21322,10 +21531,23 @@ function stop() {
   S.track = null;
   S.trackTime = 0;
   S.t = 0;
+  stopFile();
 }
 
 function update(dt) {
-  if (!S.ctx || !S.enabled || !S.mode) return;
+  if (!S.enabled || !S.mode) return;
+
+  // 真实录音：单曲循环，进入场景时从 0 淡入，避免切歌“啪”一声。
+  if (S.filePlaying && S.player) {
+    S.fileVolume = Math.min(FILE_VOLUME, S.fileVolume + dt * (FILE_VOLUME / FILE_FADE));
+    try { S.player.volume = S.fileVolume; } catch (e) { /* ignore */ }
+    return;
+  }
+  // 录音还在等第一次触摸，或已经加载但尚未起播：不要同时叠程序化音乐。
+  if (S.fileMode && !S.fileFailed) return;
+  if (S.filePending) return;
+
+  if (!S.ctx) return;
   // 浏览器/微信在用户第一次触摸前会把 AudioContext 挂在 suspended；
   // 这时不排音符，否则恢复瞬间会把几十秒的音符一起挤到 0 秒播放。
   if (S.ctx.state && S.ctx.state !== 'running') return;
@@ -21379,15 +21601,18 @@ function isEnabled() {
 }
 
 function currentTrack() {
+  if (S.filePlaying && S.fileMode) {
+    return { id: 'file_' + S.fileMode, name: AUDIO_FILE_NAMES[S.fileMode] || S.fileMode, mode: S.fileMode };
+  }
   return S.track ? { id: S.track.id, name: S.track.name, mode: S.track.mode } : null;
 }
 
 function listMusic() {
   return MODE_ORDER.map(function (mode) {
-    return {
-      mode: mode,
-      tracks: (MODES[mode] || []).map(function (t) { return t.name; }),
-    };
+    const names = [];
+    if (AUDIO_FILE_NAMES[mode]) names.push(AUDIO_FILE_NAMES[mode]);
+    (MODES[mode] || []).forEach(function (t) { names.push(t.name); });
+    return { mode: mode, tracks: names };
   });
 }
 
@@ -21402,6 +21627,8 @@ module.exports = {
   listMusic,
   MODE_ORDER,
   TRACKS,
+  AUDIO_FILES,
+  AUDIO_FILE_NAMES,
 };
 
   };
@@ -31739,6 +31966,9 @@ function buildOps(app, tab) {
     ops.push({ t: 'h1', s: '存档：最近一份 + 九个槽' });
     ops.push({ t: 'p', s: '标题页四项：新的开始 / 加载最近存档 / 加载保存存档（九个槽）/ 玩法。' });
     ops.push({ t: 'p', s: '游戏里每 45 秒自动存一份"最近"，另留一份上一份可回退；营帐菜单能手动存到九个槽里，也能删、能覆盖。' });
+    ops.push({ t: 'h1', s: '场景音乐' });
+    ops.push({ t: 'p', s: '标题、大地图、城镇、战斗、对峙、败亡、凯旋七个场景各有一首 CC0 公共领域录音，可商用、无需署名。' });
+    ops.push({ t: 'p', s: '录音加载失败或宿主不支持时，自动回落到 WebAudio 现场合成的五声音阶片段。来源与授权见 assets/audio/CREDITS.md。' });
     return ops;
   }
 
@@ -31838,7 +32068,7 @@ function buildOps(app, tab) {
     audio.listMusic().forEach(function (m) {
       ops.push({ t: 'p', s: '· ' + (MODE_LABEL[m.mode] || m.mode) + '：' + m.tracks.join('、') });
     });
-    ops.push({ t: 'p', s: '全部为 WebAudio 现场合成的原创五声音阶片段，不采样、不引用现存歌曲，无版权争议。' });
+    ops.push({ t: 'p', s: '优先播放 assets/audio 下的 CC0 公共领域录音；加载失败或宿主不支持 InnerAudioContext 时，回落到 WebAudio 现场合成的原创五声音阶片段。录音可商用、无需署名，来源见 assets/audio/CREDITS.md。' });
     return ops;
   }
 
@@ -33857,6 +34087,78 @@ class App {
   }
 
   tick() {
+    // 主循环绝不能因为某一帧的场景/音频异常而停掉：requestAnimationFrame
+    // 的下一帧由外层 loop 负责，这里只要把异常吞掉并画出可恢复提示。
+    try {
+      this._tick();
+    } catch (e) {
+      this.onTickError(e);
+    }
+  }
+
+  onTickError(e) {
+    this.lastError = {
+      message: (e && e.message) ? String(e.message) : '未知错误',
+      time: Date.now(),
+    };
+    this.errorCount = (this.errorCount || 0) + 1;
+    try {
+      this.runtime.storage.set('bw_last_error', JSON.stringify({
+        message: this.lastError.message,
+        scene: this.top() ? this.top().name : '',
+        day: this.state && this.state.clock ? this.state.clock.day : 0,
+        hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+        time: this.lastError.time,
+      }));
+    } catch (_) { /* ignore */ }
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('[征战汉末] 帧循环异常：', e);
+    }
+    // 连续在非地图页面报错时，退一层，避免永远卡在坏页面上。
+    if (this.errorCount >= 4 && this.stack.length > 1) {
+      const top = this.top();
+      if (top && top.name !== 'map' && top.name !== 'title') {
+        this.errorCount = 0;
+        this.pop();
+      }
+    }
+    // 地图/标题也连续报错：最后兜底回标题，自动存档不会被覆盖。
+    if (this.errorCount >= 8) {
+      this.errorCount = 0;
+      this.lastError = null;
+      try {
+        this.replace('title');
+        this.showToast('画面连续出错，已返回标题；自动存档还在。', 4);
+      } catch (_) { /* ignore */ }
+      return;
+    }
+    this.drawErrorFrame();
+  }
+
+  drawErrorFrame() {
+    try {
+      const r = this.runtime;
+      const ctx = r.ctx;
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#0f0c09';
+      ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+      ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f0c060';
+      ctx.font = 'bold 28px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText('这一帧出了点问题', r.width / 2, r.height * 0.42);
+      ctx.fillStyle = '#c9bda2';
+      ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText((this.lastError && this.lastError.message || '未知错误').slice(0, 80),
+        r.width / 2, r.height * 0.42 + 38);
+      ctx.fillStyle = '#8a8070';
+      ctx.fillText('正在尝试恢复；连续出错会自动回到标题', r.width / 2, r.height * 0.42 + 74);
+      ctx.textAlign = 'left';
+    } catch (_) { /* 连错误提示都画不出来时，至少保住主循环 */ }
+  }
+
+  _tick() {
     const now = this.runtime.now();
     let dt = (now - this.last) / 1000;
     this.last = now;
@@ -33892,7 +34194,12 @@ class App {
     ctx.fillStyle = '#0f0c09';
     ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
     ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
-    audio.update(dt);
+    // 音乐是锦上添花：音频实现出问题不能把整帧拖垮。
+    try {
+      audio.update(dt);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.error) console.error('[征战汉末] 音频异常：', e);
+    }
 
     const top = this.top();
     if (top && top.scene.update) top.scene.update(this, dt);
@@ -33910,17 +34217,35 @@ class App {
       else this.drawToast();
     }
 
-    // 自动存档：别在战斗里存，也别在结局后存
+    // 自动存档：别在战斗里存，也别在结局后存。
+    // 存档失败只记日志，绝不能让一局好游戏因为 JSON 序列化异常停掉；
+    // 上一个自动存档槽保持原样，玩家最多损失最近 45 秒。
     if (this.state && !this.state.gameOver && !this.state.battle) {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
         this.saveTimer = 45;
-        const store = this.runtime.storage;
-        const prev1 = store.get(AUTO_1);
-        if (prev1) store.set(AUTO_2, prev1);
-        const prev0 = store.get(AUTO_KEY);
-        if (prev0) store.set(AUTO_1, prev0);
-        store.set(AUTO_KEY, stateLib.serialize(this.state));
+        try {
+          const store = this.runtime.storage;
+          const prev1 = store.get(AUTO_1);
+          if (prev1) store.set(AUTO_2, prev1);
+          const prev0 = store.get(AUTO_KEY);
+          if (prev0) store.set(AUTO_1, prev0);
+          store.set(AUTO_KEY, stateLib.serialize(this.state));
+          this.saveError = null;
+        } catch (e) {
+          this.saveError = (e && e.message) ? String(e.message) : '自动存档失败';
+          try {
+            this.runtime.storage.set('bw_save_error', JSON.stringify({
+              message: this.saveError,
+              day: this.state && this.state.clock ? this.state.clock.day : 0,
+              hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+              time: Date.now(),
+            }));
+          } catch (_) { /* ignore */ }
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('[征战汉末] 自动存档失败：', e);
+          }
+        }
       }
     }
 

@@ -6082,7 +6082,8 @@ function lordTroopLine(lord) {
 /* ---------------------------------------------------------------- 战役 */
 
 function campaignState(state) {
-  if (state && state.campaignDisabled) return null;
+  if (!state || !state.campaign) return null;
+  if (state.campaignDisabled) return null;
   const stage = state.campaign.stage;
   return CAMPAIGN[Math.min(stage, CAMPAIGN.length - 1)];
 }
@@ -6137,9 +6138,19 @@ function campaignInfo(state) {
   };
 }
 
-function advanceCampaign(state) {
+function advanceCampaign(state, depth) {
   if (state && state.campaignDisabled) return;
+  if (!state || !state.campaign) return;
+  const d = depth || 0;
+  // 一章完成会立刻检查下一章；正常最多十几层。这里留一个硬上限，
+  // 防止旧档字段异常时递归打穿调用栈，表现成整局卡死。
+  if (d > 24) return;
   const c = state.campaign;
+  if (!c || typeof c !== 'object') return;
+  if (!Array.isArray(c.done)) c.done = [];
+  if (!state.flags) state.flags = {};
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
+  if (typeof c.stage !== 'number' || !isFinite(c.stage)) c.stage = 0;
   if (c.stage >= CAMPAIGN.length) return;
   const ch = CAMPAIGN[c.stage];
   if (!ch) return;
@@ -6164,7 +6175,7 @@ function advanceCampaign(state) {
     const next = CAMPAIGN[c.stage];
     state.events.push({ type: 'chapter', chapterId: next ? next.id : ch.id });
     pushLog(state, '【' + ch.title + '】' + (ch.after || ''));
-    advanceCampaign(state);
+    advanceCampaign(state, d + 1);
   }
 }
 
@@ -6197,7 +6208,7 @@ function checkCampaign(state, key) {
 
 /** 当前这一章，在哪个据点能打出关键一仗 */
 function campaignObjective(state, site) {
-  if (!site || !state || state.campaignDisabled) return null;
+  if (!site || !state || !state.campaign || state.campaignDisabled) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   const id = ch && ch.id;
   if (id === 'act1b' && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
@@ -7577,7 +7588,21 @@ function serialize(state) {
     noPeace: state.noPeace || {},
     noPeaceForever: state.noPeaceForever || {},
     heroSites: state.heroSites || null,
-    warCampaigns: state.warCampaigns || {},
+    // 国战战役里的 siegeBattle 是运行时 Battle 对象，Battle.state 指回整局
+    // state，直接 JSON.stringify 会抛 “Converting circular structure”。
+    // 存档只保留战役的外壳字段；读档后 tickSiegeAssault 会按当前兵力重建攻城战。
+    warCampaigns: (function () {
+      const out = {};
+      Object.keys(state.warCampaigns || {}).forEach(function (fid) {
+        const cp = state.warCampaigns[fid];
+        if (!cp || typeof cp !== 'object') return;
+        const copy = Object.assign({}, cp);
+        delete copy.siegeBattle;
+        delete copy.battle;
+        out[fid] = copy;
+      });
+      return out;
+    })(),
     siegeCooldown: state.siegeCooldown || {},
     playerSiege: state.playerSiege || null,
     foodWarning: state.foodWarning || null,
@@ -7711,6 +7736,18 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 旧档兼容：主线字段是后加的，早期同版本存档可能只有 stage，没有
+  // campaign.done / flags.campaignDone。缺数组会在章节完成那一帧抛异常，
+  // 主循环没有兜底时就会永久停在当前画面。
+  if (!state.campaign || typeof state.campaign !== 'object') {
+    state.campaign = { stage: 0, done: [] };
+  }
+  if (!Array.isArray(state.campaign.done)) state.campaign.done = [];
+  if (typeof state.campaign.stage !== 'number' || !isFinite(state.campaign.stage)) {
+    state.campaign.stage = 0;
+  }
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
 
   // 同版本老档补上后来新增的城与势力：
   // 新开局由 createWorld 全量生成；读旧档时只补缺失据点，不重算玩家已经打下的城。

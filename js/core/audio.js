@@ -25,6 +25,32 @@ const BASS = [73.42, 87.31, 98.0, 110.0, 130.81, 146.83];
 const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'victory'];
 
 /**
+ * 真实录音：全部来自 OpenGameArt 的 CC0（公共领域）曲目，
+ * 可商用、无需署名。文件放在 assets/audio/，加载失败时自动回落到
+ * 下面的程序化音乐，不会因为音频缺失卡住游戏。
+ */
+const AUDIO_FILES = {
+  title: 'assets/audio/title_hanmo.mp3',
+  field: 'assets/audio/field_xingjun.mp3',
+  town: 'assets/audio/town_shijing.mp3',
+  battle: 'assets/audio/battle_zhangu.mp3',
+  tense: 'assets/audio/tense_duizhi.mp3',
+  sorrow: 'assets/audio/sorrow_guoshang.mp3',
+  victory: 'assets/audio/victory_kaixuan.mp3',
+};
+const AUDIO_FILE_NAMES = {
+  title: '汉末风起（实录）',
+  field: '千里行军（实录）',
+  town: '市井烟火（实录）',
+  battle: '战鼓催阵（实录）',
+  tense: '两军对峙（实录）',
+  sorrow: '国殇（实录）',
+  victory: '凯旋（实录）',
+};
+const FILE_VOLUME = 0.32;
+const FILE_FADE = 0.9;
+
+/**
  * 曲目表：melody 里的数字是 SCALE 下标，-1 表示休止；
  * bass 是 BASS 下标；perc 是每步的打击乐记号（k 大鼓 / s 小鼓 / g 锣 / t 木鱼 / . 休止）。
  */
@@ -184,6 +210,18 @@ const S = {
   enabled: true,
   master: null,
   cursor: {},
+  // 真实录音播放器：HTMLAudio 或小游戏 InnerAudioContext
+  player: null,
+  playerKind: null,
+  playerTried: false,
+  userReady: false,
+  lastMode: null,
+  fileMode: null,
+  filePlaying: false,
+  fileVolume: 0,
+  fileFailed: false,
+  fileFailedMode: null,
+  filePending: false,
 };
 
 function storageGet(key) {
@@ -229,8 +267,117 @@ function createCtx() {
   return S.ctx;
 }
 
+/** 录音加载/播放失败：自动播放限制只算“还没准备好”，换场景时再试。 */
+function onFileError(err, mode) {
+  const text = String((err && (err.errMsg || err.message || err.name)) || '');
+  if (/NotAllowed|not allowed|autoplay|user gesture|interrupted/i.test(text)) {
+    S.filePending = true;
+    S.filePlaying = false;
+    return;
+  }
+  S.fileFailed = true;
+  S.fileFailedMode = mode || S.fileMode;
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+function createPlayer() {
+  if (S.playerTried) return S.player;
+  S.playerTried = true;
+  try {
+    if (typeof tt !== 'undefined' && tt.createInnerAudioContext) {
+      const p = tt.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'tt';
+    } else if (typeof wx !== 'undefined' && wx.createInnerAudioContext) {
+      const p = wx.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'wx';
+    } else if (typeof Audio !== 'undefined') {
+      const p = new Audio();
+      p.loop = true;
+      p.preload = 'auto';
+      p.volume = 0;
+      p.onerror = function () { onFileError(null, S.fileMode); };
+      p.onended = function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.currentTime = 0; p.play(); } catch (e) { /* ignore */ }
+        }
+      };
+      S.player = p;
+      S.playerKind = 'html';
+    }
+  } catch (e) {
+    S.player = null;
+  }
+  return S.player;
+}
+
+function stopFile() {
+  if (S.player) {
+    try {
+      if (S.player.stop) S.player.stop();
+      else if (S.player.pause) S.player.pause();
+    } catch (e) { /* ignore */ }
+    try { S.player.volume = 0; } catch (e) { /* ignore */ }
+  }
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+/** 开始播放某场景的录音；返回 false 表示该场景没有可用录音，交给程序化音乐。 */
+function startFile(mode) {
+  if (!S.enabled || !AUDIO_FILES[mode]) return false;
+  if (S.fileFailedMode === mode) return false;
+  if (S.fileMode === mode && S.filePlaying) return true;
+  const p = createPlayer();
+  if (!p) return false;
+  stopFile();
+  try {
+    p.src = AUDIO_FILES[mode];
+    p.loop = true;
+    p.volume = 0;
+    S.fileMode = mode;
+    S.filePlaying = true;
+    S.fileVolume = 0;
+    S.fileFailed = false;
+    S.filePending = false;
+    const ret = p.play ? p.play() : null;
+    if (ret && ret.catch) ret.catch(function (err) { onFileError(err, mode); });
+    return true;
+  } catch (e) {
+    onFileError(e, mode);
+    // 自动播放被拦截时保留 pending，等下一次触摸由 resume() 重试。
+    if (S.filePending) return true;
+    return false;
+  }
+}
+
 function resume() {
+  S.userReady = true;
   if (!S.enabled) return;
+  // 真实录音优先；浏览器/小游戏都要求第一次触摸后才能出声。
+  if (S.mode && !S.filePlaying && S.fileFailedMode !== S.mode) {
+    startFile(S.mode);
+  }
   const ctx = createCtx();
   if (!ctx) return;
   try {
@@ -239,14 +386,22 @@ function resume() {
 }
 
 function setEnabled(on) {
+  const keepMode = S.mode || S.lastMode;
   S.enabled = !!on;
   storageSet('bw_audio', S.enabled ? 'on' : 'off');
   if (!S.enabled) {
+    S.lastMode = keepMode;
     stop();
     if (S.master) S.master.gain.value = 0;
   } else {
     if (S.master) S.master.gain.value = 0.26;
+    S.mode = keepMode;
+    // 用户手动重新打开声音时，允许之前失败过的曲目再试一次。
+    S.fileFailed = false;
+    S.fileFailedMode = null;
+    S.filePending = false;
     resume();
+    if (S.mode && !S.filePlaying) startFile(S.mode);
   }
 }
 
@@ -278,6 +433,13 @@ function tone(freq, dur, type, gain, delay, opts) {
     osc.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    // 长局必做：音符播完后断开音频图。旧实现只 stop 不断开，gain 节点
+    // 一直挂在 master 上，几十万个节点会把浏览器音频线程拖死，表现成
+    // 玩到某个时辰整局卡住。这里断开后让 GC 正常回收。
+    osc.onended = function () {
+      try { osc.disconnect(); } catch (err) { /* ignore */ }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     osc.start(now);
     osc.stop(now + dur + 0.02);
   } catch (e) { /* ignore */ }
@@ -297,8 +459,9 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     const g = ctx.createGain();
     g.gain.value = gain;
     let node = src;
+    let filter = null;
     if (filterFreq && ctx.createBiquadFilter) {
-      const filter = ctx.createBiquadFilter();
+      filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = filterFreq;
       filter.Q.value = 0.8;
@@ -308,6 +471,11 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     node.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    src.onended = function () {
+      try { src.disconnect(); } catch (err) { /* ignore */ }
+      if (filter) { try { filter.disconnect(); } catch (err) { /* ignore */ } }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     src.start(ctx.currentTime + (delay || 0));
   } catch (e) { /* ignore */ }
 }
@@ -370,16 +538,20 @@ function nextTrack() {
 
 function play(mode) {
   if (!MODES[mode]) return;
-  if (S.mode === mode && S.track) return;
+  if (S.mode === mode && (S.track || S.filePlaying || S.fileMode === mode)) return;
   const changed = S.mode !== mode;
   S.mode = mode;
+  S.lastMode = mode;
   if (changed) {
     S.track = null;
     S.trackTime = 0;
     S.t = 0;
     S.step = 0;
+    stopFile();
   }
-  // 第一次播放要等用户点屏幕：createCtx 在 resume() 里调用，避免自动播放被浏览器拦截。
+  if (!S.enabled) return;
+  // 第一次触摸前不要创建 WebAudio 音符，也不要在移动端偷偷起播。
+  if (S.userReady && startFile(mode)) return;
   if (!S.ctx) return;
   if (S.ctx.state === 'suspended' && S.ctx.resume) {
     try { S.ctx.resume(); } catch (e) { /* ignore */ }
@@ -392,10 +564,23 @@ function stop() {
   S.track = null;
   S.trackTime = 0;
   S.t = 0;
+  stopFile();
 }
 
 function update(dt) {
-  if (!S.ctx || !S.enabled || !S.mode) return;
+  if (!S.enabled || !S.mode) return;
+
+  // 真实录音：单曲循环，进入场景时从 0 淡入，避免切歌“啪”一声。
+  if (S.filePlaying && S.player) {
+    S.fileVolume = Math.min(FILE_VOLUME, S.fileVolume + dt * (FILE_VOLUME / FILE_FADE));
+    try { S.player.volume = S.fileVolume; } catch (e) { /* ignore */ }
+    return;
+  }
+  // 录音还在等第一次触摸，或已经加载但尚未起播：不要同时叠程序化音乐。
+  if (S.fileMode && !S.fileFailed) return;
+  if (S.filePending) return;
+
+  if (!S.ctx) return;
   // 浏览器/微信在用户第一次触摸前会把 AudioContext 挂在 suspended；
   // 这时不排音符，否则恢复瞬间会把几十秒的音符一起挤到 0 秒播放。
   if (S.ctx.state && S.ctx.state !== 'running') return;
@@ -449,15 +634,18 @@ function isEnabled() {
 }
 
 function currentTrack() {
+  if (S.filePlaying && S.fileMode) {
+    return { id: 'file_' + S.fileMode, name: AUDIO_FILE_NAMES[S.fileMode] || S.fileMode, mode: S.fileMode };
+  }
   return S.track ? { id: S.track.id, name: S.track.name, mode: S.track.mode } : null;
 }
 
 function listMusic() {
   return MODE_ORDER.map(function (mode) {
-    return {
-      mode: mode,
-      tracks: (MODES[mode] || []).map(function (t) { return t.name; }),
-    };
+    const names = [];
+    if (AUDIO_FILE_NAMES[mode]) names.push(AUDIO_FILE_NAMES[mode]);
+    (MODES[mode] || []).forEach(function (t) { names.push(t.name); });
+    return { mode: mode, tracks: names };
   });
 }
 
@@ -472,4 +660,6 @@ module.exports = {
   listMusic,
   MODE_ORDER,
   TRACKS,
+  AUDIO_FILES,
+  AUDIO_FILE_NAMES,
 };
