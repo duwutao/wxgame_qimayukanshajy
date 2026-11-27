@@ -1,0 +1,77 @@
+name: n54-bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n54-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download and apply n54 patch
+        run: |
+          set -euo pipefail
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 \
+            -o /tmp/n54.patch https://dpaste.org/kFaxa/raw/
+          echo '04cd6f0552c2f201ce2ceb0f7b5fba9284838e8a1c10303d9d3bc71829308845  /tmp/n54.patch' | sha256sum -c -
+          head -1 /tmp/n54.patch | grep -q '^diff --git'
+          git apply --check /tmp/n54.patch
+          git apply /tmp/n54.patch
+
+      - name: Fetch and convert CC0 audio
+        run: |
+          set -euo pipefail
+          mkdir -p assets/audio /tmp/bw-audio-src
+          cd /tmp/bw-audio-src
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o asianoriental2.ogg https://opengameart.org/sites/default/files/asianoriental2.ogg
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o exploration.mp3 https://opengameart.org/sites/default/files/Exploration.mp3
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o market.mp3 https://opengameart.org/sites/default/files/Loop_Market_Day.mp3
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o battle.mp3 https://opengameart.org/sites/default/files/battle_7.mp3
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o standoff.wav https://opengameart.org/sites/default/files/medieval_standoff.wav
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o defeat.mp3 https://opengameart.org/sites/default/files/defeat.mp3
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o victory.mp3 https://opengameart.org/sites/default/files/victory.mp3
+          cd "$GITHUB_WORKSPACE"
+          convert() {
+            local src="$1" out="$2" start="$3" dur="$4" fade
+            fade=$(awk "BEGIN { printf \"%.1f\", $dur - 0.8 }")
+            ffmpeg -hide_banner -loglevel error -y -ss "$start" -t "$dur" -i "/tmp/bw-audio-src/$src" \
+              -ac 1 -ar 44100 -b:a 40k \
+              -af "afade=t=in:st=0:d=0.8,afade=t=out:st=$fade:d=0.8" \
+              "assets/audio/$out"
+          }
+          convert asianoriental2.ogg title_hanmo.mp3 6 30
+          convert exploration.mp3 field_xingjun.mp3 4 30
+          convert market.mp3 town_shijing.mp3 4 30
+          convert battle.mp3 battle_zhangu.mp3 6 28
+          convert standoff.wav tense_duizhi.mp3 8 24
+          convert defeat.mp3 sorrow_guoshang.mp3 4 30
+          convert victory.mp3 victory_kaixuan.mp3 4 28
+          ls -lh assets/audio/*.mp3
+
+      - name: Build and test
+        run: |
+          set -euo pipefail
+          node tools/bundle.js
+          node tools/logic-test.js
+          node tools/render-smoke.js
+
+      - name: Commit release
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git rm .github/workflows/n54-bootstrap.yml
+          git commit -m 'release: 20261127n54 修复国战攻城战自动存档卡死并接入七首 CC0 场景音乐 [skip ci]'
+          git push origin HEAD:main
