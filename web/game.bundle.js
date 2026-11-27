@@ -15257,6 +15257,54 @@ function lordFromDef(state, def) {
 }
 
 
+/** 官渡补兵：先把活着的领主补到个人满编；若此前折了领主，再按该国全部领主的满编总和补足差额。 */
+function fillGuanduFaction(state, faction) {
+  const all = (state.lords || []).filter(function (l) { return l && l.faction === faction; });
+  const active = all.filter(function (l) {
+    return l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
+  });
+  if (!active.length) return 0;
+  // 先把每个活着的领主补到自己的 defTroops 满编。
+  active.forEach(function (lord) {
+    lord.troops = deepCopy(lord.defTroops || lord.troops || {});
+  });
+  // 官渡是国运决战：此前战死的领主留下的编制，折成援军补进活着的队伍。
+  // 目标取全势力领主的满编总和；援军按原兵种比例补入，避免只剩一名袁将时
+  // 把两千里全变成 T1 纸兵，看起来补满了、打起来还是一触即溃。
+  const target = all.reduce(function (sum, lord) {
+    return sum + army.troopCount(lord.defTroops || lord.troops || {});
+  }, 0);
+  const current = active.reduce(function (sum, lord) {
+    return sum + army.troopCount(lord.troops || {});
+  }, 0);
+  const missing = target - current;
+  if (missing > 0) {
+    const missingRoster = {};
+    all.forEach(function (lord) {
+      if (active.indexOf(lord) >= 0) return;
+      const roster = lord.defTroops || lord.troops || {};
+      Object.keys(roster).forEach(function (id) {
+        if (roster[id] > 0) missingRoster[id] = (missingRoster[id] || 0) + roster[id];
+      });
+    });
+    const weights = active.map(function (lord) {
+      return Math.max(1, army.troopCount(lord.defTroops || lord.troops || {}));
+    });
+    const weightSum = weights.reduce(function (a, b) { return a + b; }, 0);
+    let left = missing;
+    active.forEach(function (lord, i) {
+      const add = i === active.length - 1 ? left : Math.floor(missing * weights[i] / weightSum);
+      left -= add;
+      if (add <= 0) return;
+      const addRoster = war.scaleTroopsTo(missingRoster, add);
+      Object.keys(addRoster).forEach(function (id) {
+        lord.troops[id] = (lord.troops[id] || 0) + addRoster[id];
+      });
+    });
+  }
+  return target;
+}
+
 /** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
 function stageGuandu(state) {
   // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
@@ -15267,8 +15315,9 @@ function stageGuandu(state) {
     const lords = state.lords.filter(function (l) {
       return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
     });
+    // 先把整个势力的兵力补到满编总和，再逐个布阵。
+    fillGuanduFaction(state, faction);
     lords.forEach(function (lord, i) {
-      lord.troops = deepCopy(lord.defTroops || lord.troops || {});
       // 官渡不再削袁绍士气：袁军按初始正常士气列阵，曹军仍以逸待劳。
       lord.morale = faction === 'yuan'
         ? (Number(lord.baseMorale) || Number(lord.defMorale) || 78)

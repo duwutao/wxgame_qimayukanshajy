@@ -178,6 +178,43 @@ group('n55 官渡只报一次，曹袁不死不休');
     story._private.phaseCfg('yuan', 'yuan_guandu').noTimeout === true);
 }
 
+group('n63 官渡残部按全国满编补兵');
+{
+  const st = game(2026112763);
+  const yuanLords = st.lords.filter(function (l) { return l.faction === 'yuan'; });
+  const yuanFull = yuanLords.reduce(function (n, l) {
+    return n + Object.keys(l.defTroops || {}).reduce(function (m, k) { return m + (l.defTroops[k] || 0); }, 0);
+  }, 0);
+  // 模拟袁绍在前期被打残：只剩袁绍本人，手里只有一百人。
+  yuanLords.forEach(function (l, i) {
+    if (i === 0) return;
+    l.alive = false;
+    l.dead = true;
+    l.troops = {};
+  });
+  if (yuanLords[0]) yuanLords[0].troops = { yuan_t1: 100 };
+  st.story.phases.wei = { id: 'wei_north', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'wei_sworn', completed: 2, success: false, timedOut: false };
+  st.story.phases.yuan = { id: 'yuan_guandu', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'end', completed: 3, success: false, timedOut: false };
+  story.startPhase(st, 'wei', { skipWait: true });
+  story.startPhase(st, 'yuan', { skipWait: true });
+  const total = function (f) {
+    return st.lords.filter(function (l) { return l.faction === f && l.alive && !l.dead; })
+      .reduce(function (n, l) {
+        return n + Object.keys(l.troops || {}).reduce(function (m, k) { return m + (l.troops[k] || 0); }, 0);
+      }, 0);
+  };
+  const cao = total('wei');
+  const yuan = total('yuan');
+  ok('官渡袁绍残部补到河北满编，而不是百人', yuan === yuanFull, yuan + '/' + yuanFull);
+  ok('官渡不再是两千打一百', cao > 0 && yuan >= Math.round(cao * 0.5), cao + ' vs ' + yuan);
+  const yuanShao = st.lords.filter(function (l) { return l.id === 'yuanshao'; })[0];
+  ok('援军保留河北兵种，不是全 T1 纸兵', !!yuanShao &&
+    Object.keys(yuanShao.troops || {}).some(function (id) { return id !== 'yuan_t1'; }),
+    yuanShao ? Object.keys(yuanShao.troops).join(',') : '无袁绍');
+}
+
 group('n61 停战期不能宣战');
 {
   const st = game(2026112709);
