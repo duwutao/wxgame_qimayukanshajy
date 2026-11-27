@@ -1,0 +1,58 @@
+name: n51 publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n51-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update main entry and bundle
+        run: |
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/hhZWWuU2H7'
+          echo 'c42b4a12b14dba083ba548cd7dbde3e967451416271ea7c2fd86c70328abaece  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261127n50/20261127n51/g' index.html web/index.html web/version.txt
+          echo '20261127n51' > web/version.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html web/game.bundle.js web/version.txt
+          if git diff --cached --quiet; then
+            echo 'main already n51'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n51 魏国四阶精锐与官渡节奏'
+          git push origin HEAD:main
+  juqing:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n51 source
+        run: |
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o /tmp/n51src.tgz 'https://aka.doubaocdn.com/s/vlVJDs7yvU'
+          echo 'da5f649e2c24bdebe03912861f03ce8839d06e23dc1225677e258c3742d74ca9  /tmp/n51src.tgz' | sha256sum -c -
+          tar xzf /tmp/n51src.tgz
+          ls -l js/core/state.js js/core/story.js web/game.bundle.js
+      - name: Commit n51
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'juqing already n51'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n51 魏国四阶精锐与官渡节奏 [skip ci]'
+          git push origin HEAD:juqing
