@@ -21,7 +21,9 @@ jobs:
           node-version: '20'
       - name: Apply n64 patch
         run: |
-          curl --http1.1 --tlsv1.2 --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -L --fail -o /tmp/juqing-n64.patch 'https://aka.doubaocdn.com/s/3HMVeafP45'
+          base64 -d .github/n64.patch.gz.b64 | gzip -dc > /tmp/juqing-n64.patch
+          sha256sum /tmp/juqing-n64.patch
+          test "$(sha256sum /tmp/juqing-n64.patch | cut -d' ' -f1)" = '166c1306d6de0912a3f23d30e736b43879601ce90cdcee970166ece9a1a48388'
           git apply --check /tmp/juqing-n64.patch
           git apply /tmp/juqing-n64.patch
       - name: Test
