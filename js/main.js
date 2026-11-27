@@ -123,8 +123,35 @@ class App {
   }
 
   applyMusic(name) {
-    if (name === 'battle') audio.play('battle');
-    else if (name === 'map' || name === 'title') audio.play('field');
+    const mode = {
+      title: 'title',
+      menu: 'title',
+      saves: 'title',
+      map: 'field',
+      camp: 'field',
+      journal: 'field',
+      help: 'field',
+      atlas: 'field',
+      town: 'town',
+      fief: 'town',
+      govern: 'town',
+      shop: 'town',
+      army: 'town',
+      hero: 'town',
+      battle: 'battle',
+      chase: 'battle',
+      chapter: 'tense',
+      news: 'tense',
+      arc: 'tense',
+      founding: 'tense',
+      tourney: 'tense',
+      contact: 'tense',
+      lord: 'tense',
+      prison: 'sorrow',
+      revive: 'sorrow',
+      ending: 'sorrow',
+    }[name];
+    if (mode) audio.play(mode);
   }
 
   pop() {

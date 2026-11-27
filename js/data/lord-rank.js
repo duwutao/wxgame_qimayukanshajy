@@ -88,10 +88,208 @@ const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
   return out;
 }, {});
 
+/* ------------------------------------------------------- 将帅 / 武力 / 军师 */
+
+/**
+ * 带兵指数的标幺值。150 人作为 1.0 基准：
+ *  - 基准取 150，是为了让君主 1.5 在魏国 0.7 系数下仍落在 n52 的 158 人左右；
+ *  - 武将 1.4 = 210 人，军师 / 君主 1.5 = 225 人，帅才按档位 225～255 人。
+ */
+const COMMAND_BASE = 150;
+
+/** 帅才 20 人：第 1 名一档，2-5、6-10、11-15、16-20 各一档。 */
+const MARSHAL_TOP20 = [
+  { rank: 1, id: 'caocao', name: '曹操' },
+  { rank: 2, id: 'simayi', name: '司马懿' },
+  { rank: 3, id: 'zhouyu', name: '周瑜' },
+  { rank: 4, id: 'luxun', name: '陆逊' },
+  { rank: 5, id: 'dengai', name: '邓艾' },
+  { rank: 6, id: 'guanyu', name: '关羽' },
+  { rank: 7, id: 'zhangliao', name: '张辽' },
+  { rank: 8, id: 'lvmeng', name: '吕蒙' },
+  { rank: 9, id: 'zhugeliang', name: '诸葛亮' },
+  { rank: 10, id: 'zhangfei', name: '张飞' },
+  { rank: 11, id: 'zhanghe', name: '张郃' },
+  { rank: 12, id: 'xuhuang', name: '徐晃' },
+  { rank: 13, id: 'caoren', name: '曹仁' },
+  { rank: 14, id: 'ganning', name: '甘宁' },
+  { rank: 15, id: 'weiyan', name: '魏延' },
+  { rank: 16, id: 'huangzhong', name: '黄忠' },
+  { rank: 17, id: 'machao', name: '马超' },
+  { rank: 18, id: 'jiangwei', name: '姜维' },
+  { rank: 19, id: 'lvbu', name: '吕布' },
+  { rank: 20, id: 'taishici', name: '太史慈' },
+];
+
+/** 帅才档位：档数沿用旧榜的五档结构，但每档人数按 1 / 4 / 5 / 5 / 5 重排。 */
+const MARSHAL_COMMAND_TIERS = [
+  { tier: 1, from: 1, to: 1, command: 1.70 },
+  { tier: 2, from: 2, to: 5, command: 1.65 },
+  { tier: 3, from: 6, to: 10, command: 1.60 },
+  { tier: 4, from: 11, to: 15, command: 1.55 },
+  { tier: 5, from: 16, to: 20, command: 1.50 },
+];
+
+/** 武力榜前 50 的新战力值：按旧名次分七档，不再沿用旧的线性 cap。 */
+const GENERAL_FORCE_TIERS = [
+  { tier: 1, from: 1, to: 1, force: 4.0 },
+  { tier: 2, from: 2, to: 3, force: 3.5 },
+  { tier: 3, from: 4, to: 9, force: 3.0 },
+  { tier: 4, from: 10, to: 19, force: 2.6 },
+  { tier: 5, from: 20, to: 29, force: 2.5 },
+  { tier: 6, from: 30, to: 39, force: 1.8 },
+  { tier: 7, from: 40, to: 50, force: 1.5 },
+];
+
+/** 历史军师名录：S+ / S / A / B。开局天雷按档位杀敌，单次封顶 100。 */
+const STRATEGIST_GRADES = [
+  { grade: 'S+', pct: 0.50, cap: 100, ids: ['zhugeliang'] },
+  { grade: 'S', pct: 0.40, cap: 100, ids: ['simayi', 'guojia', 'zhouyu'] },
+  { grade: 'A', pct: 0.30, cap: 100, ids: ['jiaxu', 'pangtong', 'luxun', 'xunyu', 'xushu', 'dengai', 'zhonghui'] },
+  { grade: 'B', pct: 0.20, cap: 100, ids: ['chengyu', 'xunyou', 'fazheng', 'tianfeng', 'jushou', 'chengong', 'liru', 'zhangzhao', 'zhanghong'] },
+];
+
+/** 名录展示用；不在当前名册的军师也要能在帮助页看到。 */
+const STRATEGIST_NAMES = {
+  zhugeliang: '诸葛亮',
+  simayi: '司马懿',
+  guojia: '郭嘉',
+  zhouyu: '周瑜',
+  jiaxu: '贾诩',
+  pangtong: '庞统',
+  luxun: '陆逊',
+  xunyu: '荀彧',
+  xushu: '徐庶',
+  dengai: '邓艾',
+  zhonghui: '钟会',
+  chengyu: '程昱',
+  xunyou: '荀攸',
+  fazheng: '法正',
+  tianfeng: '田丰',
+  jushou: '沮授',
+  chengong: '陈宫',
+  liru: '李儒',
+  zhangzhao: '张昭',
+  zhanghong: '张纮',
+};
+
+const MARSHAL_BY_ID = MARSHAL_TOP20.reduce(function (out, item) {
+  const tier = MARSHAL_COMMAND_TIERS.filter(function (t) {
+    return item.rank >= t.from && item.rank <= t.to;
+  })[0] || MARSHAL_COMMAND_TIERS[MARSHAL_COMMAND_TIERS.length - 1];
+  out[item.id] = {
+    rank: item.rank,
+    id: item.id,
+    name: item.name,
+    tier: tier.tier,
+    command: tier.command,
+    force: 1.4,
+  };
+  return out;
+}, {});
+
+const STRATEGIST_BY_ID = STRATEGIST_GRADES.reduce(function (out, group) {
+  group.ids.forEach(function (id) {
+    out[id] = {
+      grade: group.grade,
+      pct: group.pct,
+      cap: group.cap,
+    };
+  });
+  return out;
+}, {});
+
+function generalForceForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  const tier = GENERAL_FORCE_TIERS.filter(function (t) {
+    return r >= t.from && r <= t.to;
+  })[0];
+  return tier ? tier.force : 1.5;
+}
+
+function marshalFor(id) {
+  return MARSHAL_BY_ID[id] || null;
+}
+
+function strategistFor(id) {
+  return STRATEGIST_BY_ID[id] || null;
+}
+
+/**
+ * 单个领主的三种身份可以同时存在，但每一类只取最高值：
+ *  - command：带兵指数（君主 1.5、军师 1.5、武将 1.4、帅才按档位 1.5～1.7）
+ *  - force：杀敌指数（军师 0.9、帅才 1.4、武将按七档 1.5～4.0）
+ *  - strategist：开局雷击档位，独立叠加，不参与 command/force 取最大。
+ */
+function roleInfoFor(lord, opts) {
+  const id = lord && lord.id;
+  if (!id) return { command: null, force: null, strategist: null };
+  const isRuler = !!(opts && opts.isRuler);
+  const commands = [];
+  const forces = [];
+  if (isRuler) {
+    commands.push(1.5);
+    forces.push(1.5);
+  }
+  const general = LORD_POWER_BY_ID[id];
+  if (general) {
+    commands.push(1.4);
+    forces.push(generalForceForRank(general.rank));
+  }
+  const marshal = MARSHAL_BY_ID[id];
+  if (marshal) {
+    commands.push(marshal.command);
+    forces.push(marshal.force);
+  }
+  const strategist = STRATEGIST_BY_ID[id];
+  if (strategist) {
+    commands.push(1.5);
+    forces.push(0.9);
+  }
+  return {
+    command: commands.length ? Math.max.apply(null, commands) : null,
+    force: forces.length ? Math.max.apply(null, forces) : null,
+    strategist: strategist || null,
+    general: general || null,
+    marshal: marshal || null,
+    isRuler: isRuler,
+  };
+}
+
+function commandCapFor(command, factionMul) {
+  if (command === null || command === undefined) return null;
+  const mul = Number(factionMul) > 0 ? Number(factionMul) : 1;
+  return Math.max(40, Math.round(COMMAND_BASE * command * mul));
+}
+
+/**
+ * 武力值上战场不是直接乘 4 倍，而是压成 (force / 1.5)^0.6：
+ * 吕布 4.0 约 1.78 倍杀敌，榜尾 1.5 正好 1.0；避免单将无双把团战打穿。
+ */
+function forceCombatMul(force) {
+  const n = Number(force);
+  if (!isFinite(n) || n <= 0) return 1;
+  return Math.pow(n / 1.5, 0.6);
+}
+
 module.exports = {
   DEFAULT_MONARCH_RECRUIT_MUL,
   LORD_POWER_LIST,
   LORD_POWER_BY_ID,
   capForRank,
   recruitMulForRank,
+  COMMAND_BASE,
+  MARSHAL_TOP20,
+  MARSHAL_COMMAND_TIERS,
+  MARSHAL_BY_ID,
+  GENERAL_FORCE_TIERS,
+  STRATEGIST_GRADES,
+  STRATEGIST_NAMES,
+  STRATEGIST_BY_ID,
+  generalForceForRank,
+  marshalFor,
+  strategistFor,
+  roleInfoFor,
+  commandCapFor,
+  forceCombatMul,
 };

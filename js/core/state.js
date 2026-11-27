@@ -39,7 +39,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 const { LORD_BIOS } = require('../data/bios.js');
-const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = require('../data/lord-rank.js');
+const { LORD_POWER_BY_ID, MARSHAL_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL, roleInfoFor, commandCapFor } = require('../data/lord-rank.js');
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -139,6 +139,7 @@ function reconcileFactionRulers(state) {
       FACTIONS[id].banner = fs.rulerName.charAt(0);
     }
   });
+  if (Array.isArray(state.lords)) applyLordRoles(state);
 }
 
 /** 玩家那面旗在数据里的默认样子：没立国时仍是“你的旗” */
@@ -382,11 +383,13 @@ function createGame(opts) {
     rng,
     questSeq: 1,
     partySeq: 1,
+    fieldBattleSeq: 1,
     battle: null,
     playerSiege: null,
     foodWarning: null,
     postBattleLord: null,
     killRecords: {},
+    strategistUsed: {},
     noPeaceForever: {},
     peaceOfferCooldown: {},
     peaceOfferPending: null,
@@ -775,12 +778,14 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordRoles(state);
   applyLordTier4Rule(state);
   applyLordPowerRoster(state);
   applyFactionRosterCap(state);
   if (state.flags) {
     state.flags.lordTier4V1 = true;
     state.flags.lordWeiCapV1 = true;
+    state.flags.lordRolesV1 = true;
   }
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
@@ -4659,6 +4664,9 @@ function startLordBattle(state, lord) {
   player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    // 同一场遭遇战反复进出不重复触发；隔一个时辰再撞上才算新战场。
+    battleKey: 'lord:' + lord.id + ':' + state.clock.day + ':' + Math.floor(state.clock.hour),
     attacker: player,
     defender: {
       name: lord.name + '军',
@@ -4668,6 +4676,12 @@ function startLordBattle(state, lord) {
       atkPct: 0.05,
       defPct: 0.05,
       edge: war.factionEdge(lord.faction, player.faction),
+      forceValue: lord.forceValue,
+      commandValue: lord.commandValue,
+      strategists: lord.strategistGrade ? [{
+        id: lord.id, name: lord.name, grade: lord.strategistGrade,
+        pct: lord.strategistPct || 0, cap: lord.strategistCap || 100,
+      }] : [],
     },
     context: { kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction },
   });
@@ -5742,13 +5756,19 @@ function lordPowerInfo(lord) {
 /** 名将榜上限 × 国别系数；魏国名将多，单体上限下调，避免堆出双倍兵力。 */
 function lordBaseCap(lord) {
   if (!lord) return 30;
+  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
+  // 将帅值：带兵指数的标幺值，1.0 = 150 人；三类身份在 applyLordRoles 里取最高。
+  if (lord.commandValue !== null && lord.commandValue !== undefined) {
+    return commandCapFor(lord.commandValue, mul);
+  }
   const power = lordPowerInfo(lord);
   const base = power ? power.cap : lordCapForLevel(lordLevel(lord));
-  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
   return Math.max(40, Math.round(base * mul));
 }
 
 function lordPowerCap(lord) {
+  if (!lord) return 0;
+  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
   const power = lordPowerInfo(lord);
   if (!power) return 0;
   return lordBaseCap(lord);
@@ -5756,6 +5776,7 @@ function lordPowerCap(lord) {
 
 function lordTroopCap(lord) {
   if (!lord) return 30;
+  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
   if (lordPowerInfo(lord)) return lordPowerCap(lord);
   // 有国别系数的势力（目前是魏）连国君与榜外领主也按系数收口；其余势力仍保底原编制。
   if (FACTION_ROSTER_MUL[lord.faction]) return lordBaseCap(lord);
@@ -5794,10 +5815,11 @@ function rosterHasTier4(roster) {
   });
 }
 
-/** 名将榜前 50 或国君：只有这批人配带四阶精锐。 */
+/** 名将榜前 50、帅才 Top20 或国君：只有这批人配带四阶精锐。 */
 function lordKeepsTier4(lord) {
   if (!lord) return false;
   if (LORD_POWER_BY_ID[lord.id]) return true;
+  if (MARSHAL_BY_ID[lord.id]) return true;
   if (lord.rank === 'king') return true;
   const f = FACTIONS[lord.faction];
   return !!(f && f.lord && f.lord === lord.name);
@@ -5912,18 +5934,52 @@ function lordRosterScale(base, cap) {
   return out;
 }
 
-/** 新开局与旧档迁移共用：给榜单领主补足满编编制，并写入名次/倍率。 */
+/** 判断君主：优先看势力状态里的 rulerId，旧档再看 FACTIONS.lord 名字。 */
+function lordIsRuler(state, lord) {
+  if (!state || !lord || !lord.faction) return false;
+  const fs = state.factionState && state.factionState[lord.faction];
+  if (fs && fs.rulerId) return fs.rulerId === lord.id;
+  const f = FACTIONS[lord.faction];
+  return !!(f && f.lord && f.lord === lord.name);
+}
+
+/**
+ * 三类身份落到领主身上：将帅值、武力值、军师档位。
+ * 同一类只取最高值；三类之间互不覆盖，可以同时存在。
+ */
+function applyLordRoles(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord) return;
+    const info = roleInfoFor(lord, { isRuler: lordIsRuler(state, lord) });
+    lord.commandValue = info.command;
+    lord.forceValue = info.force;
+    lord.strategistGrade = info.strategist ? info.strategist.grade : null;
+    lord.strategistPct = info.strategist ? info.strategist.pct : 0;
+    lord.strategistCap = info.strategist ? info.strategist.cap : 0;
+    lord.marshalRank = info.marshal ? info.marshal.rank : null;
+    lord.generalRank = info.general ? info.general.rank : null;
+  });
+}
+
+/** 新开局与旧档迁移共用：给有将帅值的领主补足满编编制，并写入名次/倍率。 */
 function applyLordPowerRoster(state) {
   if (!state || !Array.isArray(state.lords)) return;
   state.lords.forEach(function (lord) {
     const power = lordPowerInfo(lord);
-    if (!power) return;
-    lord.powerRank = power.rank;
-    lord.powerScore = power.score;
+    if (power) {
+      lord.powerRank = power.rank;
+      lord.powerScore = power.score;
+    }
     lord.recruitMul = lordRecruitMul(lord);
-    const cap = lordPowerCap(lord);
+    if (lord.commandValue === null || lord.commandValue === undefined) return;
+    const cap = lordTroopCap(lord);
     const defCount = army.troopCount(lord.defTroops || {});
     if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);
+    else if (defCount > cap) lord.defTroops = lordRosterScale(lord.defTroops, cap);
+    // 现兵也夹到新上限：改档后不能留着超过新上限的部队。
+    const nowCount = army.troopCount(lord.troops || {});
+    if (nowCount > cap) lord.troops = lordRosterScale(lord.troops, cap);
   });
 }
 
@@ -7511,6 +7567,7 @@ function serialize(state) {
     timeScale: state.timeScale,
     questSeq: state.questSeq,
     partySeq: state.partySeq,
+    fieldBattleSeq: state.fieldBattleSeq || 1,
     flee: state.flee || {},
     factionState: state.factionState || {},
     knownHidden: state.knownHidden || {},
@@ -7523,6 +7580,7 @@ function serialize(state) {
     foodWarning: state.foodWarning || null,
     postBattleLord: state.postBattleLord || null,
     killRecords: state.killRecords || {},
+    strategistUsed: state.strategistUsed || {},
     peaceOfferCooldown: state.peaceOfferCooldown || {},
     peaceOfferPending: state.peaceOfferPending || null,
     playerWarSince: state.playerWarSince || {},
@@ -7608,6 +7666,7 @@ function deserialize(json) {
     rng: new RNG((data.seed || 1) + (data.clock ? data.clock.day : 1) * 7919),
     questSeq: data.questSeq || 1,
     partySeq: data.partySeq || 1,
+    fieldBattleSeq: data.fieldBattleSeq || 1,
     flee: data.flee || {},
     factionState: data.factionState || {},
     knownHidden: data.knownHidden || {},
@@ -7620,6 +7679,7 @@ function deserialize(json) {
     foodWarning: data.foodWarning || null,
     postBattleLord: data.postBattleLord || null,
     killRecords: data.killRecords || {},
+    strategistUsed: data.strategistUsed || {},
     peaceOfferCooldown: data.peaceOfferCooldown || {},
     peaceOfferPending: null,
     playerWarSince: data.playerWarSince || {},
@@ -7972,10 +8032,9 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
-  if (!state.flags.lordPowerV1) {
-    applyLordPowerRoster(state);
-    state.flags.lordPowerV1 = true;
-  }
+  // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
+  applyLordRoles(state);
+  state.flags.lordRolesV1 = true;
   // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
   if (!state.flags.lordTier4V1) {
     applyLordTier4Rule(state);
@@ -7994,6 +8053,10 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
+  // 国君可能已经换代：按最终 rulerId 再算一次三类身份，并把新帅才的满编编制补到上限。
+  applyLordRoles(state);
+  applyLordPowerRoster(state);
+  applyFactionRosterCap(state);
   state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
@@ -8153,6 +8216,8 @@ module.exports = {
   lordRecruitMul,
   lordPowerInfo,
   lordKeepsTier4,
+  lordIsRuler,
+  applyLordRoles,
   applyLordTier4Rule,
   applyLordPowerRoster,
   useHistory,

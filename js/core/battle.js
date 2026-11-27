@@ -6,6 +6,7 @@
 
 const { TROOPS } = require('../data/troops.js');
 const { HISTORY_MARKS } = require('../data/china.js');
+const { forceCombatMul } = require('../data/lord-rank.js');
 const { troopCount, strength, distributeLosses } = require('./army.js');
 
 const TACTICS = {
@@ -84,6 +85,11 @@ function makeSide(unit) {
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
     killMul: typeof unit.killMul === 'number' && unit.killMul > 0 ? unit.killMul : 1,
+    // 武力值：杀敌指数的标幺值；战场曲线压平，避免单将 4 倍杀敌直接打穿团战。
+    forceValue: typeof unit.forceValue === 'number' ? unit.forceValue : null,
+    forceMul: forceCombatMul(unit.forceValue),
+    commandValue: typeof unit.commandValue === 'number' ? unit.commandValue : null,
+    strategists: Array.isArray(unit.strategists) ? unit.strategists.slice() : [],
     gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
@@ -141,6 +147,8 @@ class Battle {
     this.aTactic = opts.aTactic && TACTICS[opts.aTactic] ? opts.aTactic : 'assault';
     this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
     this.context = opts.context || {};
+    this.state = opts.state || null;
+    this.battleKey = opts.battleKey || this.context.battleKey || null;
     this.round = 0;
     this.roundsInBatch = 0;
     this.batch = 1;
@@ -159,6 +167,53 @@ class Battle {
     this.shiEffect = null;
     this.galeEscape = false;
     this.galePinHours = 0;
+    this.strategistReports = [];
+    this.openingLog = '';
+    this.applyStrategistOpening();
+  }
+
+  /**
+   * 历史军师开局天雷：按 S+ 50% / S 40% / A 30% / B 20% 杀敌，单人封顶 100。
+   * 同一场战斗不同军师可叠加；同一军师只触发一次；同一战场反复进出不再触发。
+   */
+  applyStrategistOpening() {
+    const state = this.state;
+    const key = this.battleKey || '';
+    const used = state ? (state.strategistUsed = state.strategistUsed || {}) : {};
+    const seen = {};
+    const lines = [];
+    const self = this;
+    ['a', 'b'].forEach(function (sideKey) {
+      const side = self[sideKey];
+      const foeKey = sideKey === 'a' ? 'b' : 'a';
+      const foe = self[foeKey];
+      (side.strategists || []).forEach(function (s) {
+        if (!s || !s.id || seen[s.id]) return;
+        seen[s.id] = true;
+        const mark = key + ':' + s.id;
+        if (key && used[mark]) {
+          self.strategistReports.push({
+            side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
+            pct: s.pct || 0, cap: s.cap || 100, killed: 0, skipped: true,
+          });
+          return;
+        }
+        const base = foe.initialCount || troopCount(foe.troops);
+        const want = Math.max(0, Math.min(s.cap || 100, Math.round(base * (s.pct || 0))));
+        const real = self.directLosses(foeKey, Math.min(want, troopCount(foe.troops)));
+        const killed = lossSum(real);
+        if (killed > 0 && key) used[mark] = true;
+        const report = {
+          side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
+          pct: s.pct || 0, cap: s.cap || 100, killed: killed, skipped: false,
+        };
+        self.strategistReports.push(report);
+        if (killed > 0) {
+          lines.push((s.name || s.id) + '·' + (s.grade || 'B') + ' 天雷杀 ' + killed);
+        }
+      });
+    });
+    this.openingLog = lines.join('　');
   }
 
   tacticOf(side) {
@@ -326,6 +381,9 @@ class Battle {
     defA *= this.a.defenseEdge || this.a.combatEdge || 1;
     atkB *= this.b.combatEdge || 1;
     defB *= this.b.defenseEdge || this.b.combatEdge || 1;
+    // 武力值：只放大本方每轮杀敌，不改变自身防御；无武力值的旧测试双方都按 1.0。
+    atkA *= this.a.forceMul || 1;
+    atkB *= this.b.forceMul || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;
@@ -548,6 +606,8 @@ class Battle {
       shiTiming: this.shiTiming,
       shiEffect: this.shiEffect,
       shiNote: this.shiNoteText(),
+      strategistReports: this.strategistReports || [],
+      openingLog: this.openingLog || '',
       galeEscape: !!this.galeEscape,
       galePinHours: this.galePinHours,
       contingentsA: this.a.contingents || [],
@@ -571,6 +631,8 @@ class Battle {
       lossesA: this.lossesA,
       lossesB: this.lossesB,
       loot: 0,
+      strategistReports: this.strategistReports || [],
+      openingLog: this.openingLog || '',
     };
   }
 }

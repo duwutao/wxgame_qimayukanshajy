@@ -4466,8 +4466,9 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
       : info.recruitMul;
   }
   function rosterCap(l, info) {
+    void info;
     const mul = Number(FACTION_ROSTER_MUL[l.faction]) || 1;
-    return Math.max(40, Math.round(info.cap * mul));
+    return rankLib.commandCapFor(l.commandValue, mul);
   }
   roster.forEach(function (l) {
     if (!l) return;
@@ -4480,8 +4481,8 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
       mulBad.push(l.id + ':' + stateLib.lordRecruitMul(l));
     }
   });
-  ok('50 名将带兵上限按榜单生效', capBad.length === 0, capBad.slice(0, 5).join(','));
-  ok('50 名将满编编制等于榜单单人上限', defBad.length === 0, defBad.slice(0, 5).join(','));
+  ok('50 名将带兵上限按将帅值生效', capBad.length === 0, capBad.slice(0, 5).join(','));
+  ok('50 名将满编编制等于新上限', defBad.length === 0, defBad.slice(0, 5).join(','));
   ok('50 名将招兵倍率按榜单生效', mulBad.length === 0, mulBad.slice(0, 5).join(','));
   ok('初始兵力不超过满编', roster.every(function (l) {
     return l && armyLib.troopCount(l.troops || {}) <= armyLib.troopCount(l.defTroops || {});
@@ -4585,11 +4586,12 @@ group('n51 四阶精锐只跟名将与国君');
       return TROOPS[id] && Number(TROOPS[id].tier) === 4;
     });
     const king = l.rank === 'king' || (FACTIONS[l.faction] || {}).lord === l.name;
-    if ((rankLib.LORD_POWER_BY_ID[l.id] || king) && !t4.length) bad.push(l.name);
-    if (!rankLib.LORD_POWER_BY_ID[l.id] && !king && t4.length) illegal.push(l.name);
+    const eligible = !!(rankLib.LORD_POWER_BY_ID[l.id] || rankLib.MARSHAL_BY_ID[l.id] || king);
+    if (eligible && !t4.length) bad.push(l.name);
+    if (!eligible && t4.length) illegal.push(l.name);
   });
-  ok('榜上与国君人人有 T4', bad.length === 0, bad.join(','));
-  ok('榜外非国君没有 T4', illegal.length === 0, illegal.join(','));
+  ok('名将、帅才与国君人人有 T4', bad.length === 0, bad.join(','));
+  ok('榜外且非帅才非国君没有 T4', illegal.length === 0, illegal.join(','));
   const cc = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   ok('曹操带兵上限按魏国系数收口', !!cc && stateLib.lordTroopCap(cc) < 212,
     cc ? stateLib.lordTroopCap(cc) : 'none');
@@ -4600,6 +4602,99 @@ group('n51 四阶精锐只跟名将与国君');
     !!zl && zl.faction === 'wei' && (zl.troops.guard || 0) > 0 &&
     Object.values(zl.troops).reduce(function (a, b) { return a + b; }, 0) === total,
     zl ? JSON.stringify(zl.troops) : 'none');
+}
+
+/* ---------------------------------------------------------------- n53 三值与场景音乐 */
+group('n53 将帅值 / 武力值 / 军师与场景音乐');
+{
+  const rankLib = require(R + '/data/lord-rank.js');
+  const audioLib = require(R + '/core/audio.js');
+  const newsLib = require(R + '/scenes/news.js');
+
+  ok('将帅基准 1.0 = 150 兵', rankLib.COMMAND_BASE === 150, String(rankLib.COMMAND_BASE));
+  ok('帅才一档第 1 名带兵 1.70', rankLib.MARSHAL_BY_ID.caocao.command === 1.70,
+    String(rankLib.MARSHAL_BY_ID.caocao.command));
+  ok('帅才五档第 16-20 名带兵 1.50', rankLib.MARSHAL_BY_ID.taishici.command === 1.50,
+    String(rankLib.MARSHAL_BY_ID.taishici.command));
+  ok('武将一档吕布武力 4.0', rankLib.LORD_POWER_BY_ID.lvbu && rankLib.generalForceForRank(1) === 4.0,
+    String(rankLib.generalForceForRank(1)));
+  ok('武将七档榜尾武力 1.5', rankLib.generalForceForRank(50) === 1.5,
+    String(rankLib.generalForceForRank(50)));
+
+  const ccRole = rankLib.roleInfoFor({ id: 'caocao' }, { isRuler: true });
+  ok('曹操将帅取帅才 1.70、武力取君主 1.5',
+    ccRole.command === 1.70 && ccRole.force === 1.5, JSON.stringify(ccRole));
+  const zlRole = rankLib.roleInfoFor({ id: 'zhugeliang' }, {});
+  ok('诸葛亮军师 S+ 且将帅取帅才 1.60、武力取帅才 1.4',
+    zlRole.strategist && zlRole.strategist.grade === 'S+' &&
+    zlRole.command === 1.60 && zlRole.force === 1.4, JSON.stringify(zlRole));
+  const lbRole = rankLib.roleInfoFor({ id: 'lvbu' }, {});
+  ok('吕布武力 4.0 与帅才 1.50 可叠加', lbRole.force === 4.0 && lbRole.command === 1.50,
+    JSON.stringify(lbRole));
+  const gjRole = rankLib.roleInfoFor({ id: 'guojia' }, {});
+  ok('郭嘉军师 S：将帅 1.5、武力 0.9、雷击 40%',
+    gjRole.command === 1.5 && gjRole.force === 0.9 &&
+    gjRole.strategist.grade === 'S' && gjRole.strategist.pct === 0.4, JSON.stringify(gjRole));
+  ok('曹操魏国带兵上限 179', rankLib.commandCapFor(1.70, 0.7) === 179,
+    String(rankLib.commandCapFor(1.70, 0.7)));
+
+  const g53 = stateLib.createGame({ background: 'romance', storyMode: true, seed: 2026112753 });
+  const cc53 = g53.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  const lb53 = g53.lords.filter(function (l) { return l.id === 'lvbu'; })[0];
+  const ccDef = cc53 ? armyLib.troopCount(cc53.defTroops) : 0;
+  const lbDef = lb53 ? armyLib.troopCount(lb53.defTroops) : 0;
+  ok('曹操实际 179 兵满编', !!cc53 && stateLib.lordTroopCap(cc53) === 179 && ccDef === 179,
+    cc53 ? stateLib.lordTroopCap(cc53) + '/' + ccDef : 'none');
+  ok('吕布实际 225 兵满编', !!lb53 && stateLib.lordTroopCap(lb53) === 225 && lbDef === 225,
+    lb53 ? stateLib.lordTroopCap(lb53) + '/' + lbDef : 'none');
+
+  const modes = audioLib.listMusic();
+  const totalTracks = modes.reduce(function (a, m) { return a + m.tracks.length; }, 0);
+  ok('场景音乐 7 类', modes.length === 7, String(modes.length));
+  ok('场景音乐共 17 首', totalTracks === 17 && audioLib.TRACKS.length === 17, String(totalTracks));
+  ok('每类场景至少 2 首', modes.every(function (m) { return m.tracks.length >= 2; }),
+    modes.map(function (m) { return m.mode + ':' + m.tracks.length; }).join('/'));
+  ok('曲名不重复',
+    new Set(audioLib.TRACKS.map(function (t) { return t.name; })).size === audioLib.TRACKS.length);
+
+  ok('三国演义榜文 30 秒自退', newsLib.autoSecondsFor({ storyMode: true }, {}) === 30);
+  ok('乱世三国榜文 15 秒自退', newsLib.autoSecondsFor({ storyMode: false }, {}) === 15);
+  ok('事件显式 auto=0 保持手动', newsLib.autoSecondsFor({ storyMode: true }, { auto: 0 }) === 0);
+}
+
+group('n53 军师开局天雷');
+{
+  const state = { strategistUsed: {} };
+  function nukeBattle(key) {
+    return new Battle({
+      rng: new RNG(5353),
+      state: state,
+      battleKey: key,
+      attacker: {
+        name: '蜀军', troops: { militia: 1000 }, morale: 80, isPlayer: true,
+        strategists: [
+          { id: 'zhugeliang', name: '诸葛亮', grade: 'S+', pct: 0.5, cap: 100 },
+          { id: 'simayi', name: '司马懿', grade: 'S', pct: 0.4, cap: 100 },
+        ],
+      },
+      defender: { name: '魏军', troops: { militia: 1000 }, morale: 80 },
+    });
+  }
+  const nb = nukeBattle('test:nuke');
+  ok('两名军师各杀 100，封顶生效', nb.remainB() === 800, String(nb.remainB()));
+  ok('军师战报两条且不跳过',
+    nb.strategistReports.filter(function (r) { return !r.skipped; }).length === 2,
+    JSON.stringify(nb.strategistReports));
+  ok('开场文案含诸葛亮 S+', /诸葛亮·S\+ 天雷杀 100/.test(nb.openingLog), nb.openingLog);
+
+  const again = nukeBattle('test:nuke');
+  ok('同一战场反复进入不再触发', again.remainB() === 1000, String(again.remainB()));
+  ok('重复进入写跳过战报',
+    again.strategistReports.every(function (r) { return r.skipped; }),
+    JSON.stringify(again.strategistReports));
+
+  const other = nukeBattle('test:other');
+  ok('换一个战场可再次触发', other.remainB() === 800, String(other.remainB()));
 }
 
 /* ---------------------------------------------------------------- 收尾 */

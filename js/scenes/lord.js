@@ -8,6 +8,7 @@ const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
 const { FACTIONS } = require('../data/china.js');
+const rank = require('../data/lord-rank.js');
 const { lookFor } = require('../data/extra.js');
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
@@ -185,7 +186,15 @@ function act(app, id) {
   if (id === 'troops') {
     const rows = stateLib.lordTroopLine(lord);
     const power = stateLib.lordPowerInfo(lord);
+    const marshal = rank.MARSHAL_BY_ID[lord.id];
+    const cmd = typeof lord.commandValue === 'number' ? lord.commandValue.toFixed(2) : '—';
+    const force = typeof lord.forceValue === 'number' ? lord.forceValue.toFixed(2) : '—';
+    const strategist = lord.strategistGrade
+      ? ' · 军师 ' + lord.strategistGrade + '（开局雷击 ' + Math.round((lord.strategistPct || 0) * 100) + '%）'
+      : '';
     d.line = '“我的家底？”\n' + (power ? '名将榜第 ' + power.rank + ' 位 · ' : '') +
+      (marshal ? '帅才第 ' + marshal.rank + ' 位 · ' : '') +
+      '将帅值 ' + cmd + ' · 武力值 ' + force + strategist + '\n' +
       (rows.length ? rows.join(' · ') : '人已经打光了') +
       '\n合计 ' + army.troopCount(lord.troops) + ' / 上限 ' + stateLib.lordTroopCap(lord) +
       ' 人，士气 ' + Math.round(lord.morale) +

@@ -7,6 +7,8 @@ const { text, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
+const audio = require('../core/audio.js');
+const rank = require('../data/lord-rank.js');
 const { FACTIONS, CAMPAIGN, ENDINGS } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 
@@ -19,6 +21,22 @@ const TABS = [
 ];
 
 const TAB_H = 116;
+
+const MODE_LABEL = {
+  title: '标题 / 开局',
+  field: '大地图',
+  town: '城镇',
+  battle: '战斗',
+  tense: '史实 / 宣战',
+  sorrow: '败亡 / 国殇',
+  victory: '凯旋',
+};
+
+function chunk(list, n) {
+  const out = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
 const CONTENT_TOP = TAB_H + 10;
 
 /** 每章的"该做什么"——只指路，不剧透后面发生什么 */
@@ -162,6 +180,36 @@ function buildOps(app, tab) {
     ops.push({ t: 'gap' });
     ops.push({ t: 'h1', s: '黄巾与山贼' });
     ops.push({ t: 'p', s: '六处贼巢，全部敌对。攻破一处声望 +45、金钱 +120，且不再刷匪团。' });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'h1', s: '将帅值 / 武力值 / 军师' });
+    ops.push({ t: 'p', s: '将帅值 = 带兵指数的标幺值，1.0 = 150 人。君主 / 军师 1.5、武将 1.4；帅才 1.50～1.70，第 1 名最高。' });
+    ops.push({ t: 'p', s: '武力值 = 杀敌指数的标幺值。军师默认 0.9、帅才默认 1.4、武将按旧榜七档 1.50～4.00；战场按 (武力/1.5)^0.6 压平，避免单将无双。' });
+    ops.push({ t: 'p', s: '帅才五档带兵：' });
+    [
+      '第 1 名：1.70',
+      '第 2-5 名：1.65',
+      '第 6-10 名：1.60',
+      '第 11-15 名：1.55',
+      '第 16-20 名：1.50',
+    ].forEach(function (s) { ops.push({ t: 'p', s: '· ' + s }); });
+    ops.push({ t: 'p', s: '帅才名录：' });
+    chunk(rank.MARSHAL_TOP20, 5).forEach(function (group) {
+      const names = group.map(function (m) { return m.rank + '.' + m.name; }).join('、');
+      ops.push({ t: 'p', s: '· ' + names });
+    });
+    ops.push({ t: 'p', s: '同一领主可以同时有将帅、武力、军师三种身份；同类只取最高值，三类之间可叠加。例如君主 1.5 与武将 1.4 重合时，带兵取 1.5。' });
+    ops.push({ t: 'p', s: '历史军师开局天降神雷：S+ 杀 50%、S 杀 40%、A 杀 30%、B 杀 20%，单人封顶 100 人。不同军师可叠加；同一场战斗每个军师只触发一次，反复进出同一战场不再触发。' });
+    ops.push({ t: 'p', s: '历史军师名录：' });
+    rank.STRATEGIST_GRADES.forEach(function (g) {
+      const names = g.ids.map(function (id) { return rank.STRATEGIST_NAMES[id] || id; });
+      ops.push({ t: 'p', s: '· ' + g.grade + '（雷击 ' + Math.round(g.pct * 100) + '%）：' + names.join('、') });
+    });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'h1', s: '场景音乐' });
+    audio.listMusic().forEach(function (m) {
+      ops.push({ t: 'p', s: '· ' + (MODE_LABEL[m.mode] || m.mode) + '：' + m.tracks.join('、') });
+    });
+    ops.push({ t: 'p', s: '全部为 WebAudio 现场合成的原创五声音阶片段，不采样、不引用现存歌曲，无版权争议。' });
     return ops;
   }
 

@@ -81,18 +81,32 @@ function drawArt(app, ctx, w, h, id, t) {
   ctx.fillRect(0, 0, w, h);
 }
 
+function isStoryMode(state) {
+  const st = state || {};
+  return !!(st.storyMode || st.historicalSandbox || st.background === 'romance');
+}
+
+/** 榜文停留秒数：三国演义 30 秒，乱世三国 15 秒；事件显式传 0 表示手动关闭。 */
+function autoSecondsFor(state, ev) {
+  const e = ev || {};
+  if (e.auto === 0) return 0;
+  return isStoryMode(state) ? 30 : 15;
+}
+
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
-    // 乱世三国：榜文停十息再自己散；三国演义的史实文书已在 flows 里直接跳过，不走这里。
-    const storyMode = !!(app.state && app.state.storyMode);
+    // 三国演义：史实文书停 30 秒，让玩家看清天下大势；乱世三国宣战频繁，15 秒即散。
+    const st = app.state || {};
+    const storyMode = isStoryMode(st);
+    const auto = autoSecondsFor(st, ev);
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: storyMode ? 10 : (ev.auto || 10),
+      auto: auto,
       art: pickArt(ev),
       skipAny: storyMode ? false : !!ev.skipAny,
       t: 0,
@@ -188,7 +202,7 @@ const NewsScene = {
     } else {
       text(ctx, v.skipAny
         ? '点屏幕任意处跳过 · ' + Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散'
-        : (v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。'),
+        : (v.auto > 0 ? Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散' : '榜文贴在各城门口，来往的人都在看。'),
         cx + cw / 2, cy + chHeight - 78, {
           size: 14, align: 'center', color: '#b7a58a',
         });
@@ -221,5 +235,8 @@ const NewsScene = {
     }
   },
 };
+
+NewsScene.autoSecondsFor = autoSecondsFor;
+NewsScene.isStoryMode = isStoryMode;
 
 module.exports = NewsScene;

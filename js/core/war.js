@@ -1026,6 +1026,15 @@ function fieldUnitInfo(state, ref, override) {
       troops: copyTroops(unit.troops), morale: unit.morale,
       atkPct: 0.05, defPct: 0.05, isPlayer: false, pos: unit,
       count: army.troopCount(unit.troops),
+      forceValue: unit.forceValue,
+      commandValue: unit.commandValue,
+      strategists: unit.strategistGrade ? [{
+        id: unit.id,
+        name: unit.name,
+        grade: unit.strategistGrade,
+        pct: unit.strategistPct || 0,
+        cap: unit.strategistCap || 100,
+      }] : [],
     };
   }
   return {
@@ -1133,11 +1142,26 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let edgeWeight = 0;
   let killWeight = 0;
   let gateWeight = 0;
+  let forceValue = null;
+  let commandValue = null;
+  const strategists = [];
+  const strategistIds = {};
   const primary = infos[0];
   infos.forEach(function (info) {
     const group = copyTroops(info.troops);
     const n = army.troopCount(group);
     if (n <= 0) return;
+    if (typeof info.forceValue === 'number' && (forceValue === null || info.forceValue > forceValue)) {
+      forceValue = info.forceValue;
+    }
+    if (typeof info.commandValue === 'number' && (commandValue === null || info.commandValue > commandValue)) {
+      commandValue = info.commandValue;
+    }
+    (info.strategists || []).forEach(function (s) {
+      if (!s || !s.id || strategistIds[s.id]) return;
+      strategistIds[s.id] = true;
+      strategists.push(s);
+    });
     Object.keys(group).forEach(function (id) {
       sideTroops[id] = (sideTroops[id] || 0) + group[id];
     });
@@ -1181,6 +1205,9 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     coalitionNames: names,
     contingents: contingents,
     force: forceTotal,
+    forceValue: forceValue,
+    commandValue: commandValue,
+    strategists: strategists,
   };
 }
 
@@ -1248,8 +1275,11 @@ function createFieldBattle(state, aRef, bRef, opts) {
   });
   const context = Object.assign({ kind: 'field' }, options.context || {});
   context.fieldBattleId = id;
+  context.battleKey = context.battleKey || ('field:' + id);
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    battleKey: context.battleKey,
     attacker: aSide,
     defender: bSide,
     context: context,
@@ -2791,6 +2821,9 @@ function beginSiegeAssault(state, cp, site, day) {
   });
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    // 同一场围城反复进出不重复触发军师雷击；下一次围城按新的 siegeStart 重新计。
+    battleKey: 'siege:' + site.id + ':' + (cp.siegeStart || day),
     attacker: aSide,
     defender: bSide,
     context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },

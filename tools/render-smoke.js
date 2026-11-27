@@ -524,17 +524,17 @@ smoke('天下通报页（国亡弹窗）', function () {
   app.pop();
 });
 
-smoke('乱世三国：榜文停十息再走', function () {
+smoke('三国演义：榜文停三十息再走', function () {
   app.state = stateLib.createGame({ seed: 4244, background: 'romance', storyMode: true });
   app.replace('map');
   app.push('news', {
     title: '史实文书',
-    lines: ['这一页停十息。'],
+    lines: ['这一页停三十息。'],
     auto: 8,
   });
   app.ui.begin();
   app.top().scene.render(app);
-  ok('榜文 auto 拉长到十息', !!app.newsView && app.newsView.auto === 10, app.newsView && app.newsView.auto);
+  ok('榜文 auto 拉长到三十息', !!app.newsView && app.newsView.auto === 30, app.newsView && app.newsView.auto);
   ok('榜文不吃点屏跳过', !!app.newsView && app.newsView.skipAny === false);
   const ids = app.ui.items.map(function (b) { return b.id; });
   ok('保留知道了按钮', ids.indexOf('news_ok') >= 0, ids.join(','));
@@ -572,15 +572,16 @@ smoke('三国演义：史实文书只进史册不弹窗', function () {
   ok('沙盘不推史实弹窗', app.top().name !== 'news', app.top().name);
 });
 
-smoke('乱世三国：普通军情仍可按原节奏自散', function () {
+smoke('乱世三国：普通军情十五息自散', function () {
   app.state = stateLib.createGame({ seed: 4245, background: 'chaos' });
   app.replace('map');
   app.push('news', {
     title: '普通军情',
-    lines: ['这一页可以按原节奏自散。'],
+    lines: ['这一页十五息自散。'],
     auto: 8,
   });
-  ok('非剧情模式保留 auto', !!app.newsView && app.newsView.auto === 8);
+  ok('乱世模式 auto 收为十五息', !!app.newsView && app.newsView.auto === 15,
+    app.newsView && app.newsView.auto);
   app.pop();
 });
 

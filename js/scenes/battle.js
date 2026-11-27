@@ -7,6 +7,7 @@ const { text, panel, bar, wrap } = require('../render/ui.js');
 const { UI_COLORS } = require('../render/pixel.js');
 const stateLib = require('../core/state.js');
 const army = require('../core/army.js');
+const audio = require('../core/audio.js');
 const { TROOPS } = require('../data/troops.js');
 const { TACTICS, TACTIC_LIST } = require('../core/battle.js');
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = require('../data/china.js');
@@ -94,6 +95,8 @@ const BattleScene = {
       if (b.finished) {
         bv.summary = stateLib.resolveBattle(app.state, b);
         bv.phase = 'result';
+        audio.play(bv.summary && bv.summary.result === 'win' ? 'victory'
+          : bv.summary && bv.summary.result === 'lose' ? 'sorrow' : 'field');
       } else if (b.batchDone) {
         bv.summary = b.interimSummary();
         bv.phase = 'interim';
@@ -145,6 +148,11 @@ const BattleScene = {
     if (sub) text(ctx, sub, w / 2, compact ? 56 : 92, {
       size: compact ? 15 : 18, align: 'center', color: '#a2947a',
     });
+    if (bv.phase === 'prep' && b.openingLog) {
+      text(ctx, '军师技 · ' + b.openingLog, w / 2, compact ? 78 : 122, {
+        size: compact ? 12 : 15, align: 'center', color: '#c9a0e0',
+      });
+    }
     if (fire) text(ctx, '火攻', w - 20, 10, { size: 16, align: 'right', color: '#ff8f4a' });
     if (b.shiName) text(ctx, '天机简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
 
@@ -410,15 +418,23 @@ function renderResult(app, sum, w, h, y0Top) {
   text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA, 16, y0 + 58, { size: 20, color: '#9fb8d8' });
   text(ctx, '敌方 ' + sum.remainB + ' / ' + sum.initialB, 16, y0 + 88, { size: 20, color: '#d8a09f' });
   if (win) text(ctx, '缴获 ' + sum.loot + ' 金钱', 16, y0 + 122, { size: 22, color: '#f0c060' });
-  if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
-    size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
-  });
+  let extraY = y0 + (win ? 150 : 122);
+  if (sum.duelNote) {
+    text(ctx, sum.duelNote, 16, extraY, {
+      size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
+    });
+    extraY += 28;
+  }
+  if (sum.openingLog) {
+    text(ctx, '军师技 · ' + sum.openingLog, 16, extraY, { size: 15, color: '#c9a0e0' });
+    extraY += 24;
+  }
   if (sum.shiMark) {
-    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, extraY, { size: 17, color: '#c9a0e0' });
     if (sum.shiNote) {
       const lines = wrap(ctx, sum.shiNote, w - 32, 15).slice(0, 2);
       lines.forEach(function (line, i) {
-        text(ctx, line, 16, y0 + 202 + i * 18, { size: 15, color: '#a2947a' });
+        text(ctx, line, 16, extraY + 24 + i * 18, { size: 15, color: '#a2947a' });
       });
     }
   }

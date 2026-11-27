@@ -5585,6 +5585,306 @@ module.exports = {
 
   };
 
+  /* js/data/lord-rank.js */
+  __defs[17] = function (module, exports, __require) {
+/**
+ * 名将榜：决定历史领主的带兵上限与招兵速度。
+ *
+ * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
+ * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
+ * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
+ */
+
+const LORD_POWER_LIST = [
+  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
+  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
+  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
+  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
+  { rank: 5, id: 'machao', name: '马超', score: 96 },
+  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
+  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
+  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
+  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
+  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
+  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
+  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
+  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
+  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
+  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
+  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
+  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
+  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
+  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
+  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
+  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
+  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
+  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
+  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
+  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
+  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
+  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
+  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
+  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
+  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
+  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
+  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
+  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
+  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
+  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
+  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
+  { rank: 37, id: 'madai', name: '马岱', score: 76 },
+  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
+  { rank: 39, id: 'handang', name: '韩当', score: 75 },
+  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
+  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
+  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
+  { rank: 43, id: 'liyan', name: '李严', score: 81 },
+  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
+  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
+  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
+  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
+  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
+  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
+  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
+];
+
+function capForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  return 270 - Math.round((r - 1) * 2.2);
+}
+
+const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
+
+function recruitMulForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  if (r <= 3) return 2.0;
+  if (r <= 9) return 1.8;
+  if (r <= 19) return 1.6;
+  if (r <= 29) return 1.4;
+  if (r <= 39) return 1.2;
+  return 1.1;
+}
+
+const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
+  out[item.id] = {
+    rank: item.rank,
+    id: item.id,
+    name: item.name,
+    score: item.score,
+    cap: capForRank(item.rank),
+    recruitMul: recruitMulForRank(item.rank),
+  };
+  return out;
+}, {});
+
+/* ------------------------------------------------------- 将帅 / 武力 / 军师 */
+
+/**
+ * 带兵指数的标幺值。150 人作为 1.0 基准：
+ *  - 基准取 150，是为了让君主 1.5 在魏国 0.7 系数下仍落在 n52 的 158 人左右；
+ *  - 武将 1.4 = 210 人，军师 / 君主 1.5 = 225 人，帅才按档位 225～255 人。
+ */
+const COMMAND_BASE = 150;
+
+/** 帅才 20 人：第 1 名一档，2-5、6-10、11-15、16-20 各一档。 */
+const MARSHAL_TOP20 = [
+  { rank: 1, id: 'caocao', name: '曹操' },
+  { rank: 2, id: 'simayi', name: '司马懿' },
+  { rank: 3, id: 'zhouyu', name: '周瑜' },
+  { rank: 4, id: 'luxun', name: '陆逊' },
+  { rank: 5, id: 'dengai', name: '邓艾' },
+  { rank: 6, id: 'guanyu', name: '关羽' },
+  { rank: 7, id: 'zhangliao', name: '张辽' },
+  { rank: 8, id: 'lvmeng', name: '吕蒙' },
+  { rank: 9, id: 'zhugeliang', name: '诸葛亮' },
+  { rank: 10, id: 'zhangfei', name: '张飞' },
+  { rank: 11, id: 'zhanghe', name: '张郃' },
+  { rank: 12, id: 'xuhuang', name: '徐晃' },
+  { rank: 13, id: 'caoren', name: '曹仁' },
+  { rank: 14, id: 'ganning', name: '甘宁' },
+  { rank: 15, id: 'weiyan', name: '魏延' },
+  { rank: 16, id: 'huangzhong', name: '黄忠' },
+  { rank: 17, id: 'machao', name: '马超' },
+  { rank: 18, id: 'jiangwei', name: '姜维' },
+  { rank: 19, id: 'lvbu', name: '吕布' },
+  { rank: 20, id: 'taishici', name: '太史慈' },
+];
+
+/** 帅才档位：档数沿用旧榜的五档结构，但每档人数按 1 / 4 / 5 / 5 / 5 重排。 */
+const MARSHAL_COMMAND_TIERS = [
+  { tier: 1, from: 1, to: 1, command: 1.70 },
+  { tier: 2, from: 2, to: 5, command: 1.65 },
+  { tier: 3, from: 6, to: 10, command: 1.60 },
+  { tier: 4, from: 11, to: 15, command: 1.55 },
+  { tier: 5, from: 16, to: 20, command: 1.50 },
+];
+
+/** 武力榜前 50 的新战力值：按旧名次分七档，不再沿用旧的线性 cap。 */
+const GENERAL_FORCE_TIERS = [
+  { tier: 1, from: 1, to: 1, force: 4.0 },
+  { tier: 2, from: 2, to: 3, force: 3.5 },
+  { tier: 3, from: 4, to: 9, force: 3.0 },
+  { tier: 4, from: 10, to: 19, force: 2.6 },
+  { tier: 5, from: 20, to: 29, force: 2.5 },
+  { tier: 6, from: 30, to: 39, force: 1.8 },
+  { tier: 7, from: 40, to: 50, force: 1.5 },
+];
+
+/** 历史军师名录：S+ / S / A / B。开局天雷按档位杀敌，单次封顶 100。 */
+const STRATEGIST_GRADES = [
+  { grade: 'S+', pct: 0.50, cap: 100, ids: ['zhugeliang'] },
+  { grade: 'S', pct: 0.40, cap: 100, ids: ['simayi', 'guojia', 'zhouyu'] },
+  { grade: 'A', pct: 0.30, cap: 100, ids: ['jiaxu', 'pangtong', 'luxun', 'xunyu', 'xushu', 'dengai', 'zhonghui'] },
+  { grade: 'B', pct: 0.20, cap: 100, ids: ['chengyu', 'xunyou', 'fazheng', 'tianfeng', 'jushou', 'chengong', 'liru', 'zhangzhao', 'zhanghong'] },
+];
+
+/** 名录展示用；不在当前名册的军师也要能在帮助页看到。 */
+const STRATEGIST_NAMES = {
+  zhugeliang: '诸葛亮',
+  simayi: '司马懿',
+  guojia: '郭嘉',
+  zhouyu: '周瑜',
+  jiaxu: '贾诩',
+  pangtong: '庞统',
+  luxun: '陆逊',
+  xunyu: '荀彧',
+  xushu: '徐庶',
+  dengai: '邓艾',
+  zhonghui: '钟会',
+  chengyu: '程昱',
+  xunyou: '荀攸',
+  fazheng: '法正',
+  tianfeng: '田丰',
+  jushou: '沮授',
+  chengong: '陈宫',
+  liru: '李儒',
+  zhangzhao: '张昭',
+  zhanghong: '张纮',
+};
+
+const MARSHAL_BY_ID = MARSHAL_TOP20.reduce(function (out, item) {
+  const tier = MARSHAL_COMMAND_TIERS.filter(function (t) {
+    return item.rank >= t.from && item.rank <= t.to;
+  })[0] || MARSHAL_COMMAND_TIERS[MARSHAL_COMMAND_TIERS.length - 1];
+  out[item.id] = {
+    rank: item.rank,
+    id: item.id,
+    name: item.name,
+    tier: tier.tier,
+    command: tier.command,
+    force: 1.4,
+  };
+  return out;
+}, {});
+
+const STRATEGIST_BY_ID = STRATEGIST_GRADES.reduce(function (out, group) {
+  group.ids.forEach(function (id) {
+    out[id] = {
+      grade: group.grade,
+      pct: group.pct,
+      cap: group.cap,
+    };
+  });
+  return out;
+}, {});
+
+function generalForceForRank(rank) {
+  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
+  const tier = GENERAL_FORCE_TIERS.filter(function (t) {
+    return r >= t.from && r <= t.to;
+  })[0];
+  return tier ? tier.force : 1.5;
+}
+
+function marshalFor(id) {
+  return MARSHAL_BY_ID[id] || null;
+}
+
+function strategistFor(id) {
+  return STRATEGIST_BY_ID[id] || null;
+}
+
+/**
+ * 单个领主的三种身份可以同时存在，但每一类只取最高值：
+ *  - command：带兵指数（君主 1.5、军师 1.5、武将 1.4、帅才按档位 1.5～1.7）
+ *  - force：杀敌指数（军师 0.9、帅才 1.4、武将按七档 1.5～4.0）
+ *  - strategist：开局雷击档位，独立叠加，不参与 command/force 取最大。
+ */
+function roleInfoFor(lord, opts) {
+  const id = lord && lord.id;
+  if (!id) return { command: null, force: null, strategist: null };
+  const isRuler = !!(opts && opts.isRuler);
+  const commands = [];
+  const forces = [];
+  if (isRuler) {
+    commands.push(1.5);
+    forces.push(1.5);
+  }
+  const general = LORD_POWER_BY_ID[id];
+  if (general) {
+    commands.push(1.4);
+    forces.push(generalForceForRank(general.rank));
+  }
+  const marshal = MARSHAL_BY_ID[id];
+  if (marshal) {
+    commands.push(marshal.command);
+    forces.push(marshal.force);
+  }
+  const strategist = STRATEGIST_BY_ID[id];
+  if (strategist) {
+    commands.push(1.5);
+    forces.push(0.9);
+  }
+  return {
+    command: commands.length ? Math.max.apply(null, commands) : null,
+    force: forces.length ? Math.max.apply(null, forces) : null,
+    strategist: strategist || null,
+    general: general || null,
+    marshal: marshal || null,
+    isRuler: isRuler,
+  };
+}
+
+function commandCapFor(command, factionMul) {
+  if (command === null || command === undefined) return null;
+  const mul = Number(factionMul) > 0 ? Number(factionMul) : 1;
+  return Math.max(40, Math.round(COMMAND_BASE * command * mul));
+}
+
+/**
+ * 武力值上战场不是直接乘 4 倍，而是压成 (force / 1.5)^0.6：
+ * 吕布 4.0 约 1.78 倍杀敌，榜尾 1.5 正好 1.0；避免单将无双把团战打穿。
+ */
+function forceCombatMul(force) {
+  const n = Number(force);
+  if (!isFinite(n) || n <= 0) return 1;
+  return Math.pow(n / 1.5, 0.6);
+}
+
+module.exports = {
+  DEFAULT_MONARCH_RECRUIT_MUL,
+  LORD_POWER_LIST,
+  LORD_POWER_BY_ID,
+  capForRank,
+  recruitMulForRank,
+  COMMAND_BASE,
+  MARSHAL_TOP20,
+  MARSHAL_COMMAND_TIERS,
+  MARSHAL_BY_ID,
+  GENERAL_FORCE_TIERS,
+  STRATEGIST_GRADES,
+  STRATEGIST_NAMES,
+  STRATEGIST_BY_ID,
+  generalForceForRank,
+  marshalFor,
+  strategistFor,
+  roleInfoFor,
+  commandCapFor,
+  forceCombatMul,
+};
+
+  };
+
   /* js/core/battle.js */
   __defs[16] = function (module, exports, __require) {
 /**
@@ -5595,6 +5895,7 @@ module.exports = {
 
 const { TROOPS } = __require(10);
 const { HISTORY_MARKS } = __require(5);
+const { forceCombatMul } = __require(17);
 const { troopCount, strength, distributeLosses } = __require(9);
 
 const TACTICS = {
@@ -5673,6 +5974,11 @@ function makeSide(unit) {
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
     killMul: typeof unit.killMul === 'number' && unit.killMul > 0 ? unit.killMul : 1,
+    // 武力值：杀敌指数的标幺值；战场曲线压平，避免单将 4 倍杀敌直接打穿团战。
+    forceValue: typeof unit.forceValue === 'number' ? unit.forceValue : null,
+    forceMul: forceCombatMul(unit.forceValue),
+    commandValue: typeof unit.commandValue === 'number' ? unit.commandValue : null,
+    strategists: Array.isArray(unit.strategists) ? unit.strategists.slice() : [],
     gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
@@ -5730,6 +6036,8 @@ class Battle {
     this.aTactic = opts.aTactic && TACTICS[opts.aTactic] ? opts.aTactic : 'assault';
     this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
     this.context = opts.context || {};
+    this.state = opts.state || null;
+    this.battleKey = opts.battleKey || this.context.battleKey || null;
     this.round = 0;
     this.roundsInBatch = 0;
     this.batch = 1;
@@ -5748,6 +6056,53 @@ class Battle {
     this.shiEffect = null;
     this.galeEscape = false;
     this.galePinHours = 0;
+    this.strategistReports = [];
+    this.openingLog = '';
+    this.applyStrategistOpening();
+  }
+
+  /**
+   * 历史军师开局天雷：按 S+ 50% / S 40% / A 30% / B 20% 杀敌，单人封顶 100。
+   * 同一场战斗不同军师可叠加；同一军师只触发一次；同一战场反复进出不再触发。
+   */
+  applyStrategistOpening() {
+    const state = this.state;
+    const key = this.battleKey || '';
+    const used = state ? (state.strategistUsed = state.strategistUsed || {}) : {};
+    const seen = {};
+    const lines = [];
+    const self = this;
+    ['a', 'b'].forEach(function (sideKey) {
+      const side = self[sideKey];
+      const foeKey = sideKey === 'a' ? 'b' : 'a';
+      const foe = self[foeKey];
+      (side.strategists || []).forEach(function (s) {
+        if (!s || !s.id || seen[s.id]) return;
+        seen[s.id] = true;
+        const mark = key + ':' + s.id;
+        if (key && used[mark]) {
+          self.strategistReports.push({
+            side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
+            pct: s.pct || 0, cap: s.cap || 100, killed: 0, skipped: true,
+          });
+          return;
+        }
+        const base = foe.initialCount || troopCount(foe.troops);
+        const want = Math.max(0, Math.min(s.cap || 100, Math.round(base * (s.pct || 0))));
+        const real = self.directLosses(foeKey, Math.min(want, troopCount(foe.troops)));
+        const killed = lossSum(real);
+        if (killed > 0 && key) used[mark] = true;
+        const report = {
+          side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
+          pct: s.pct || 0, cap: s.cap || 100, killed: killed, skipped: false,
+        };
+        self.strategistReports.push(report);
+        if (killed > 0) {
+          lines.push((s.name || s.id) + '·' + (s.grade || 'B') + ' 天雷杀 ' + killed);
+        }
+      });
+    });
+    this.openingLog = lines.join('　');
   }
 
   tacticOf(side) {
@@ -5915,6 +6270,9 @@ class Battle {
     defA *= this.a.defenseEdge || this.a.combatEdge || 1;
     atkB *= this.b.combatEdge || 1;
     defB *= this.b.defenseEdge || this.b.combatEdge || 1;
+    // 武力值：只放大本方每轮杀敌，不改变自身防御；无武力值的旧测试双方都按 1.0。
+    atkA *= this.a.forceMul || 1;
+    atkB *= this.b.forceMul || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;
@@ -6137,6 +6495,8 @@ class Battle {
       shiTiming: this.shiTiming,
       shiEffect: this.shiEffect,
       shiNote: this.shiNoteText(),
+      strategistReports: this.strategistReports || [],
+      openingLog: this.openingLog || '',
       galeEscape: !!this.galeEscape,
       galePinHours: this.galePinHours,
       contingentsA: this.a.contingents || [],
@@ -6160,6 +6520,8 @@ class Battle {
       lossesA: this.lossesA,
       lossesB: this.lossesB,
       loot: 0,
+      strategistReports: this.strategistReports || [],
+      openingLog: this.openingLog || '',
     };
   }
 }
@@ -7199,6 +7561,15 @@ function fieldUnitInfo(state, ref, override) {
       troops: copyTroops(unit.troops), morale: unit.morale,
       atkPct: 0.05, defPct: 0.05, isPlayer: false, pos: unit,
       count: army.troopCount(unit.troops),
+      forceValue: unit.forceValue,
+      commandValue: unit.commandValue,
+      strategists: unit.strategistGrade ? [{
+        id: unit.id,
+        name: unit.name,
+        grade: unit.strategistGrade,
+        pct: unit.strategistPct || 0,
+        cap: unit.strategistCap || 100,
+      }] : [],
     };
   }
   return {
@@ -7306,11 +7677,26 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let edgeWeight = 0;
   let killWeight = 0;
   let gateWeight = 0;
+  let forceValue = null;
+  let commandValue = null;
+  const strategists = [];
+  const strategistIds = {};
   const primary = infos[0];
   infos.forEach(function (info) {
     const group = copyTroops(info.troops);
     const n = army.troopCount(group);
     if (n <= 0) return;
+    if (typeof info.forceValue === 'number' && (forceValue === null || info.forceValue > forceValue)) {
+      forceValue = info.forceValue;
+    }
+    if (typeof info.commandValue === 'number' && (commandValue === null || info.commandValue > commandValue)) {
+      commandValue = info.commandValue;
+    }
+    (info.strategists || []).forEach(function (s) {
+      if (!s || !s.id || strategistIds[s.id]) return;
+      strategistIds[s.id] = true;
+      strategists.push(s);
+    });
     Object.keys(group).forEach(function (id) {
       sideTroops[id] = (sideTroops[id] || 0) + group[id];
     });
@@ -7354,6 +7740,9 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     coalitionNames: names,
     contingents: contingents,
     force: forceTotal,
+    forceValue: forceValue,
+    commandValue: commandValue,
+    strategists: strategists,
   };
 }
 
@@ -7421,8 +7810,11 @@ function createFieldBattle(state, aRef, bRef, opts) {
   });
   const context = Object.assign({ kind: 'field' }, options.context || {});
   context.fieldBattleId = id;
+  context.battleKey = context.battleKey || ('field:' + id);
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    battleKey: context.battleKey,
     attacker: aSide,
     defender: bSide,
     context: context,
@@ -8964,6 +9356,9 @@ function beginSiegeAssault(state, cp, site, day) {
   });
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    // 同一场围城反复进出不重复触发军师雷击；下一次围城按新的 siegeStart 重新计。
+    battleKey: 'siege:' + site.id + ':' + (cp.siegeStart || day),
     attacker: aSide,
     defender: bSide,
     context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },
@@ -9451,7 +9846,7 @@ module.exports = {
   };
 
   /* js/data/story.js */
-  __defs[18] = function (module, exports, __require) {
+  __defs[19] = function (module, exports, __require) {
 /**
  * 汉末战略：各国按历史走势分阶段用兵，不再随机开战。
  *
@@ -10159,110 +10554,8 @@ module.exports = { STORY };
 
   };
 
-  /* js/data/lord-rank.js */
-  __defs[19] = function (module, exports, __require) {
-/**
- * 名将榜：决定历史领主的带兵上限与招兵速度。
- *
- * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
- * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
- * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
- */
-
-const LORD_POWER_LIST = [
-  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
-  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
-  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
-  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
-  { rank: 5, id: 'machao', name: '马超', score: 96 },
-  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
-  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
-  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
-  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
-  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
-  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
-  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
-  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
-  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
-  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
-  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
-  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
-  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
-  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
-  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
-  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
-  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
-  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
-  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
-  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
-  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
-  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
-  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
-  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
-  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
-  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
-  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
-  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
-  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
-  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
-  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
-  { rank: 37, id: 'madai', name: '马岱', score: 76 },
-  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
-  { rank: 39, id: 'handang', name: '韩当', score: 75 },
-  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
-  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
-  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
-  { rank: 43, id: 'liyan', name: '李严', score: 81 },
-  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
-  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
-  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
-  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
-  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
-  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
-  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
-];
-
-function capForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  return 270 - Math.round((r - 1) * 2.2);
-}
-
-const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
-
-function recruitMulForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  if (r <= 3) return 2.0;
-  if (r <= 9) return 1.8;
-  if (r <= 19) return 1.6;
-  if (r <= 29) return 1.4;
-  if (r <= 39) return 1.2;
-  return 1.1;
-}
-
-const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
-  out[item.id] = {
-    rank: item.rank,
-    id: item.id,
-    name: item.name,
-    score: item.score,
-    cap: capForRank(item.rank),
-    recruitMul: recruitMulForRank(item.rank),
-  };
-  return out;
-}, {});
-
-module.exports = {
-  DEFAULT_MONARCH_RECRUIT_MUL,
-  LORD_POWER_LIST,
-  LORD_POWER_BY_ID,
-  capForRank,
-  recruitMulForRank,
-};
-
-  };
-
   /* js/core/story.js */
-  __defs[17] = function (module, exports, __require) {
+  __defs[18] = function (module, exports, __require) {
 /**
  * 汉末战略状态机。
  *
@@ -10273,9 +10566,9 @@ module.exports = {
  *  4. 推动袁术称帝、荆州会战与三国循环。
  */
 
-const { STORY } = __require(18);
+const { STORY } = __require(19);
 const { FACTIONS, ROADS, FACTION_COMBAT } = __require(5);
-const { LORD_POWER_BY_ID } = __require(19);
+const { LORD_POWER_BY_ID } = __require(17);
 const { siteById } = __require(8);
 const army = __require(9);
 const war = __require(15);
@@ -12371,7 +12664,7 @@ const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
 const war = __require(15);
-const story = __require(17);
+const story = __require(18);
 const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
@@ -12383,7 +12676,7 @@ const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
 const { LORD_BIOS } = __require(20);
-const { LORD_POWER_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL } = __require(19);
+const { LORD_POWER_BY_ID, MARSHAL_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL, roleInfoFor, commandCapFor } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
@@ -12483,6 +12776,7 @@ function reconcileFactionRulers(state) {
       FACTIONS[id].banner = fs.rulerName.charAt(0);
     }
   });
+  if (Array.isArray(state.lords)) applyLordRoles(state);
 }
 
 /** 玩家那面旗在数据里的默认样子：没立国时仍是“你的旗” */
@@ -12726,11 +13020,13 @@ function createGame(opts) {
     rng,
     questSeq: 1,
     partySeq: 1,
+    fieldBattleSeq: 1,
     battle: null,
     playerSiege: null,
     foodWarning: null,
     postBattleLord: null,
     killRecords: {},
+    strategistUsed: {},
     noPeaceForever: {},
     peaceOfferCooldown: {},
     peaceOfferPending: null,
@@ -13106,7 +13402,7 @@ function stageGuandu(state) {
 
 function spawnLords(state) {
   const { LORDS } = __require(5);
-  const { STORY } = __require(18);
+  const { STORY } = __require(19);
   let defs = LORDS;
   if (state.storyMode || state.historicalRoster) {
     // 三国演义专属人事：吕布、刘表、刘璋削减领主；魏蜀吴补入新人。
@@ -13119,12 +13415,14 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordRoles(state);
   applyLordTier4Rule(state);
   applyLordPowerRoster(state);
   applyFactionRosterCap(state);
   if (state.flags) {
     state.flags.lordTier4V1 = true;
     state.flags.lordWeiCapV1 = true;
+    state.flags.lordRolesV1 = true;
   }
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
@@ -17003,6 +17301,9 @@ function startLordBattle(state, lord) {
   player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
+    state: state,
+    // 同一场遭遇战反复进出不重复触发；隔一个时辰再撞上才算新战场。
+    battleKey: 'lord:' + lord.id + ':' + state.clock.day + ':' + Math.floor(state.clock.hour),
     attacker: player,
     defender: {
       name: lord.name + '军',
@@ -17012,6 +17313,12 @@ function startLordBattle(state, lord) {
       atkPct: 0.05,
       defPct: 0.05,
       edge: war.factionEdge(lord.faction, player.faction),
+      forceValue: lord.forceValue,
+      commandValue: lord.commandValue,
+      strategists: lord.strategistGrade ? [{
+        id: lord.id, name: lord.name, grade: lord.strategistGrade,
+        pct: lord.strategistPct || 0, cap: lord.strategistCap || 100,
+      }] : [],
     },
     context: { kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction },
   });
@@ -18086,13 +18393,19 @@ function lordPowerInfo(lord) {
 /** 名将榜上限 × 国别系数；魏国名将多，单体上限下调，避免堆出双倍兵力。 */
 function lordBaseCap(lord) {
   if (!lord) return 30;
+  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
+  // 将帅值：带兵指数的标幺值，1.0 = 150 人；三类身份在 applyLordRoles 里取最高。
+  if (lord.commandValue !== null && lord.commandValue !== undefined) {
+    return commandCapFor(lord.commandValue, mul);
+  }
   const power = lordPowerInfo(lord);
   const base = power ? power.cap : lordCapForLevel(lordLevel(lord));
-  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
   return Math.max(40, Math.round(base * mul));
 }
 
 function lordPowerCap(lord) {
+  if (!lord) return 0;
+  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
   const power = lordPowerInfo(lord);
   if (!power) return 0;
   return lordBaseCap(lord);
@@ -18100,6 +18413,7 @@ function lordPowerCap(lord) {
 
 function lordTroopCap(lord) {
   if (!lord) return 30;
+  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
   if (lordPowerInfo(lord)) return lordPowerCap(lord);
   // 有国别系数的势力（目前是魏）连国君与榜外领主也按系数收口；其余势力仍保底原编制。
   if (FACTION_ROSTER_MUL[lord.faction]) return lordBaseCap(lord);
@@ -18138,10 +18452,11 @@ function rosterHasTier4(roster) {
   });
 }
 
-/** 名将榜前 50 或国君：只有这批人配带四阶精锐。 */
+/** 名将榜前 50、帅才 Top20 或国君：只有这批人配带四阶精锐。 */
 function lordKeepsTier4(lord) {
   if (!lord) return false;
   if (LORD_POWER_BY_ID[lord.id]) return true;
+  if (MARSHAL_BY_ID[lord.id]) return true;
   if (lord.rank === 'king') return true;
   const f = FACTIONS[lord.faction];
   return !!(f && f.lord && f.lord === lord.name);
@@ -18256,18 +18571,52 @@ function lordRosterScale(base, cap) {
   return out;
 }
 
-/** 新开局与旧档迁移共用：给榜单领主补足满编编制，并写入名次/倍率。 */
+/** 判断君主：优先看势力状态里的 rulerId，旧档再看 FACTIONS.lord 名字。 */
+function lordIsRuler(state, lord) {
+  if (!state || !lord || !lord.faction) return false;
+  const fs = state.factionState && state.factionState[lord.faction];
+  if (fs && fs.rulerId) return fs.rulerId === lord.id;
+  const f = FACTIONS[lord.faction];
+  return !!(f && f.lord && f.lord === lord.name);
+}
+
+/**
+ * 三类身份落到领主身上：将帅值、武力值、军师档位。
+ * 同一类只取最高值；三类之间互不覆盖，可以同时存在。
+ */
+function applyLordRoles(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord) return;
+    const info = roleInfoFor(lord, { isRuler: lordIsRuler(state, lord) });
+    lord.commandValue = info.command;
+    lord.forceValue = info.force;
+    lord.strategistGrade = info.strategist ? info.strategist.grade : null;
+    lord.strategistPct = info.strategist ? info.strategist.pct : 0;
+    lord.strategistCap = info.strategist ? info.strategist.cap : 0;
+    lord.marshalRank = info.marshal ? info.marshal.rank : null;
+    lord.generalRank = info.general ? info.general.rank : null;
+  });
+}
+
+/** 新开局与旧档迁移共用：给有将帅值的领主补足满编编制，并写入名次/倍率。 */
 function applyLordPowerRoster(state) {
   if (!state || !Array.isArray(state.lords)) return;
   state.lords.forEach(function (lord) {
     const power = lordPowerInfo(lord);
-    if (!power) return;
-    lord.powerRank = power.rank;
-    lord.powerScore = power.score;
+    if (power) {
+      lord.powerRank = power.rank;
+      lord.powerScore = power.score;
+    }
     lord.recruitMul = lordRecruitMul(lord);
-    const cap = lordPowerCap(lord);
+    if (lord.commandValue === null || lord.commandValue === undefined) return;
+    const cap = lordTroopCap(lord);
     const defCount = army.troopCount(lord.defTroops || {});
     if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);
+    else if (defCount > cap) lord.defTroops = lordRosterScale(lord.defTroops, cap);
+    // 现兵也夹到新上限：改档后不能留着超过新上限的部队。
+    const nowCount = army.troopCount(lord.troops || {});
+    if (nowCount > cap) lord.troops = lordRosterScale(lord.troops, cap);
   });
 }
 
@@ -19855,6 +20204,7 @@ function serialize(state) {
     timeScale: state.timeScale,
     questSeq: state.questSeq,
     partySeq: state.partySeq,
+    fieldBattleSeq: state.fieldBattleSeq || 1,
     flee: state.flee || {},
     factionState: state.factionState || {},
     knownHidden: state.knownHidden || {},
@@ -19867,6 +20217,7 @@ function serialize(state) {
     foodWarning: state.foodWarning || null,
     postBattleLord: state.postBattleLord || null,
     killRecords: state.killRecords || {},
+    strategistUsed: state.strategistUsed || {},
     peaceOfferCooldown: state.peaceOfferCooldown || {},
     peaceOfferPending: state.peaceOfferPending || null,
     playerWarSince: state.playerWarSince || {},
@@ -19952,6 +20303,7 @@ function deserialize(json) {
     rng: new RNG((data.seed || 1) + (data.clock ? data.clock.day : 1) * 7919),
     questSeq: data.questSeq || 1,
     partySeq: data.partySeq || 1,
+    fieldBattleSeq: data.fieldBattleSeq || 1,
     flee: data.flee || {},
     factionState: data.factionState || {},
     knownHidden: data.knownHidden || {},
@@ -19964,6 +20316,7 @@ function deserialize(json) {
     foodWarning: data.foodWarning || null,
     postBattleLord: data.postBattleLord || null,
     killRecords: data.killRecords || {},
+    strategistUsed: data.strategistUsed || {},
     peaceOfferCooldown: data.peaceOfferCooldown || {},
     peaceOfferPending: null,
     playerWarSince: data.playerWarSince || {},
@@ -20316,10 +20669,9 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
-  if (!state.flags.lordPowerV1) {
-    applyLordPowerRoster(state);
-    state.flags.lordPowerV1 = true;
-  }
+  // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
+  applyLordRoles(state);
+  state.flags.lordRolesV1 = true;
   // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
   if (!state.flags.lordTier4V1) {
     applyLordTier4Rule(state);
@@ -20338,6 +20690,10 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
+  // 国君可能已经换代：按最终 rulerId 再算一次三类身份，并把新帅才的满编编制补到上限。
+  applyLordRoles(state);
+  applyLordPowerRoster(state);
+  applyFactionRosterCap(state);
   state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
@@ -20497,6 +20853,8 @@ module.exports = {
   lordRecruitMul,
   lordPowerInfo,
   lordKeepsTier4,
+  lordIsRuler,
+  applyLordRoles,
   applyLordTier4Rule,
   applyLordPowerRoster,
   useHistory,
@@ -20560,26 +20918,191 @@ module.exports = {
   /* js/core/audio.js */
   __defs[21] = function (module, exports, __require) {
 /**
- * 程序化音乐：没有音频文件，用 WebAudio 现场合成两首循环
- *  - field  大地图：五声音阶长笛，慢，带一点空旷感
- *  - battle 遭遇战：鼓点 + 低音，紧
+ * 程序化场景音乐：不加载任何音频文件，全部用 WebAudio 现场合成。
+ *
+ * 版权说明：旋律、节奏、音色都是本项目按五声音阶即时生成的原创片段，
+ * 不采样、不引用任何现存歌曲，因此不存在音乐版权争议。
+ *
+ * 场景：
+ *  - title   标题 / 开局：编钟、古琴、低音鼓，庄重苍凉
+ *  - field   大地图：箫、笛、轻鼓，空旷行军
+ *  - town    城镇：琵琶、笛、木鱼，市井烟火
+ *  - battle  战斗：战鼓、铜锣、低音号，紧张压迫
+ *  - tense   宣战 / 史实 / 围城：急促鼓点与不谐和低音
+ *  - sorrow  败亡 / 国殇：低音弦、钟，悲凉
+ *  - victory 凯旋 / 庆功：鼓乐、号角、琵琶
+ *
+ * 每个场景有多首曲目，进入场景轮换；单曲循环约 70 秒后自动换下一首。
  * 环境不支持 WebAudio 时静默，不影响游戏。
  */
 
 const SCALE = [
   293.66, 329.63, 369.99, 440.0, 523.25,
-  587.33, 659.26, 739.99, 880.0,
+  587.33, 659.26, 739.99, 880.0, 987.77,
 ];
+const BASS = [73.42, 87.31, 98.0, 110.0, 130.81, 146.83];
+const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'victory'];
+
+/**
+ * 曲目表：melody 里的数字是 SCALE 下标，-1 表示休止；
+ * bass 是 BASS 下标；perc 是每步的打击乐记号（k 大鼓 / s 小鼓 / g 锣 / t 木鱼 / . 休止）。
+ */
+const TRACKS = [
+  {
+    id: 'title_hanfeng', mode: 'title', name: '汉末风起', bpm: 50, bars: 8,
+    lead: 'flute', melody: [4, -1, 6, 4, 2, -1, 0, -1, 4, -1, 7, 6, 4, -1, 2, -1,
+      0, -1, 2, 4, 6, -1, 4, -1, 2, -1, 0, -1, -1, -1, -1, -1],
+    bass: [0, 0, 3, 3, 4, 4, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [0, 2, 4], [2, 4, 6], [0, 3, 4]], padEvery: 16,
+    perc: '..k.....g.......', percGain: 0.06,
+  },
+  {
+    id: 'title_shanhe', mode: 'title', name: '山河旧梦', bpm: 56, bars: 8,
+    lead: 'pluck', melody: [2, 4, 6, 4, 2, 0, 2, -1, 4, 6, 7, 6, 4, 2, 0, -1,
+      2, 4, 2, 0, -1, 2, 4, 6, 4, -1, 2, 0, -1, -1, -1, -1],
+    bass: [0, 0, 2, 2, 3, 3, 2, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [2, 4, 6], [0, 2, 4], [3, 5, 7]], padEvery: 16,
+    perc: '..t.......t.....', percGain: 0.035,
+  },
+  {
+    id: 'title_qunxiong', mode: 'title', name: '群雄逐鹿', bpm: 72, bars: 8,
+    lead: 'saw', melody: [0, -1, 0, 2, 4, -1, 2, 0, -1, -1, 4, 6, 7, 6, 4, 2,
+      0, -1, 0, 2, 4, 6, 4, 2, 0, -1, -1, -1, -1, -1, -1, -1],
+    bass: [0, 0, 0, 3, 4, 4, 0, 0], bassEvery: 8,
+    pad: [[0, 3, 4], [0, 3, 4], [2, 4, 6], [0, 3, 4]], padEvery: 16,
+    perc: 'k...s...k.k.s...', percGain: 0.11,
+  },
+  {
+    id: 'field_yewang', mode: 'field', name: '野望', bpm: 58, bars: 8,
+    lead: 'flute', melody: [4, -1, 4, 6, -1, 4, 2, 0, -1, 2, 4, -1, 6, 4, -1, -1,
+      0, 2, 4, -1, 6, 7, 6, 4, 2, -1, 0, -1, -1, -1, -1, -1],
+    bass: [0, 0, 4, 4, 2, 2, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [0, 2, 4], [2, 4, 6], [0, 2, 4]], padEvery: 16,
+    perc: '..t.......t.....', percGain: 0.03,
+  },
+  {
+    id: 'field_gudao', mode: 'field', name: '古道西风', bpm: 54, bars: 8,
+    lead: 'bell', melody: [6, -1, 4, -1, 2, -1, 0, -1, 2, -1, 4, -1, 6, -1, 7, -1,
+      6, -1, 4, -1, 2, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    bass: [0, 0, 2, 2, 4, 4, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [2, 4, 6], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: '......t.........', percGain: 0.025,
+  },
+  {
+    id: 'field_qianli', mode: 'field', name: '千里行军', bpm: 66, bars: 8,
+    lead: 'flute', melody: [2, 4, 6, 4, 2, 4, 6, 7, 6, 4, 2, 4, 6, 4, 2, 0,
+      2, 4, 6, 7, 6, 4, 2, 4, 6, -1, 4, 2, 0, -1, -1, -1],
+    bass: [0, 0, 2, 2, 3, 3, 4, 4], bassEvery: 8,
+    pad: [[0, 2, 4], [2, 4, 6], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: 't...t...t...t...', percGain: 0.04,
+  },
+  {
+    id: 'town_shijing', mode: 'town', name: '市井', bpm: 88, bars: 8,
+    lead: 'pluck', melody: [4, 6, 4, 2, 4, -1, 6, 7, 6, 4, 2, 4, 6, 4, 2, 0,
+      4, 6, 4, 2, 4, -1, 7, 6, 4, 2, 0, 2, 4, -1, -1, -1],
+    bass: [0, 0, 3, 3, 4, 4, 0, 0], bassEvery: 8,
+    pad: null, padEvery: 0,
+    perc: 't.t.t.t.t.t.t.t.', percGain: 0.035,
+  },
+  {
+    id: 'town_chuiyan', mode: 'town', name: '炊烟', bpm: 72, bars: 8,
+    lead: 'flute', melody: [2, -1, 4, 6, -1, 4, 2, 0, 2, -1, 4, -1, 6, 4, 2, -1,
+      0, -1, 2, 4, -1, 2, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    bass: [0, 0, 4, 4, 2, 2, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [2, 4, 6], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: '..t.....t.......', percGain: 0.022,
+  },
+  {
+    id: 'battle_zhangu', mode: 'battle', name: '战鼓', bpm: 96, bars: 8,
+    lead: 'saw', melody: [0, -1, 0, -1, 2, -1, 0, -1, 0, -1, 3, -1, 2, -1, 0, -1,
+      0, -1, 0, -1, 2, -1, 4, -1, 3, -1, 2, -1, 0, -1, -1, -1],
+    bass: [0, 0, 0, 0, 3, 3, 3, 3], bassEvery: 8,
+    pad: null, padEvery: 0,
+    perc: 'k.s.k.s.k.s.ksss', percGain: 0.16,
+  },
+  {
+    id: 'battle_tieqi', mode: 'battle', name: '铁骑', bpm: 112, bars: 8,
+    lead: 'saw', melody: [4, 6, 4, 2, 4, 6, 7, 6, 4, 2, 0, 2, 4, 6, 4, 2,
+      4, 6, 7, 6, 4, 2, 0, -1, 4, 6, 4, 2, 0, -1, -1, -1],
+    bass: [0, 0, 4, 4, 2, 2, 0, 0], bassEvery: 4,
+    pad: null, padEvery: 0,
+    perc: 'kkskkkskkkskkksk', percGain: 0.16,
+  },
+  {
+    id: 'battle_luanjun', mode: 'battle', name: '乱军', bpm: 104, bars: 8,
+    lead: 'saw', melody: [0, 4, 2, 7, 4, 0, 6, 2, 0, 4, 2, 7, 4, 0, 6, 2,
+      0, -1, 4, -1, 2, -1, 7, -1, 4, -1, 0, -1, -1, -1, -1, -1],
+    bass: [0, 0, 3, 3, 2, 2, 0, 0], bassEvery: 4,
+    pad: null, padEvery: 0,
+    perc: 'k.sgk.sgk.sgk.ssg', percGain: 0.15,
+  },
+  {
+    id: 'tense_zhanzhu', mode: 'tense', name: '战书', bpm: 84, bars: 8,
+    lead: 'saw', melody: [0, -1, -1, 0, -1, 2, -1, -1, 0, -1, -1, 3, -1, 2, -1, -1,
+      0, -1, -1, 0, -1, 4, -1, 3, 2, -1, 0, -1, -1, -1, -1, -1],
+    bass: [0, 0, 0, 0, 3, 3, 2, 2], bassEvery: 8,
+    pad: [[0, 3, 4], [0, 3, 4], [0, 2, 4], [0, 3, 4]], padEvery: 16,
+    perc: 'k...k...k.k.k...', percGain: 0.12,
+  },
+  {
+    id: 'tense_yexun', mode: 'tense', name: '夜巡', bpm: 70, bars: 8,
+    lead: 'pluck', melody: [2, -1, -1, 0, -1, -1, 2, -1, 4, -1, -1, 2, -1, 0, -1, -1,
+      2, -1, -1, 0, -1, -1, 4, -1, 2, -1, 0, -1, -1, -1, -1, -1],
+    bass: [0, 0, 2, 2, 3, 3, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [0, 2, 4], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: '....k.......k...', percGain: 0.055,
+  },
+  {
+    id: 'sorrow_guoshang', mode: 'sorrow', name: '国殇', bpm: 46, bars: 8,
+    lead: 'saw', melody: [4, -1, 2, -1, 0, -1, -1, 2, 4, -1, 6, -1, 4, -1, 2, -1,
+      0, -1, -1, -1, 2, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    bass: [0, 0, 0, 0, 2, 2, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [0, 2, 4], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: '......g.........', percGain: 0.04,
+  },
+  {
+    id: 'sorrow_gucheng', mode: 'sorrow', name: '孤城', bpm: 42, bars: 8,
+    lead: 'bell', melody: [0, -1, -1, 2, -1, -1, 4, -1, 2, -1, -1, 0, -1, -1, -1, -1,
+      0, -1, -1, 2, -1, -1, 4, -1, 6, -1, 4, -1, 2, -1, -1, -1],
+    bass: [0, 0, 2, 2, 0, 0, 0, 0], bassEvery: 8,
+    pad: [[0, 3, 4], [0, 3, 4], [0, 2, 4], [0, 3, 4]], padEvery: 16,
+    perc: '....g.......g...', percGain: 0.03,
+  },
+  {
+    id: 'victory_kaixuan', mode: 'victory', name: '凯旋', bpm: 100, bars: 8,
+    lead: 'saw', melody: [4, 6, 7, 6, 4, 6, 4, 2, 4, 6, 7, 8, 7, 6, 4, 2,
+      4, 6, 7, 6, 4, 2, 4, -1, 0, 2, 4, 6, 4, -1, -1, -1],
+    bass: [0, 0, 4, 4, 2, 2, 0, 0], bassEvery: 8,
+    pad: [[0, 2, 4], [2, 4, 6], [0, 3, 4], [0, 2, 4]], padEvery: 16,
+    perc: 'k.s.k.s.k.s.ksss', percGain: 0.14,
+  },
+  {
+    id: 'victory_qinggong', mode: 'victory', name: '庆功', bpm: 108, bars: 8,
+    lead: 'pluck', melody: [4, 6, 4, 7, 6, 4, 2, 4, 6, 7, 8, 7, 6, 4, 2, 0,
+      4, 6, 4, 7, 6, 4, 2, 4, 6, 8, 7, 6, 4, 2, -1, -1],
+    bass: [0, 0, 3, 3, 4, 4, 0, 0], bassEvery: 8,
+    pad: null, padEvery: 0,
+    perc: 't.k.t.k.t.k.t.ks', percGain: 0.1,
+  },
+];
+
+const MODES = MODE_ORDER.reduce(function (out, mode) {
+  out[mode] = TRACKS.filter(function (t) { return t.mode === mode; });
+  return out;
+}, {});
 
 const S = {
   ctx: null,
   tried: false,
   mode: null,
+  track: null,
+  trackTime: 0,
   t: 0,
-  nextNote: 0,
-  beat: 0,
+  nextStep: 0,
+  step: 0,
   enabled: true,
   master: null,
+  cursor: {},
 };
 
 function storageGet(key) {
@@ -20614,7 +21137,7 @@ function createCtx() {
   if (S.ctx) {
     try {
       S.master = S.ctx.createGain();
-      S.master.gain.value = 0.32;
+      S.master.gain.value = 0.26;
       S.master.connect(S.ctx.destination);
     } catch (e) {
       S.master = null;
@@ -20626,6 +21149,7 @@ function createCtx() {
 }
 
 function resume() {
+  if (!S.enabled) return;
   const ctx = createCtx();
   if (!ctx) return;
   try {
@@ -20633,32 +21157,52 @@ function resume() {
   } catch (e) { /* ignore */ }
 }
 
+function setEnabled(on) {
+  S.enabled = !!on;
+  storageSet('bw_audio', S.enabled ? 'on' : 'off');
+  if (!S.enabled) {
+    stop();
+    if (S.master) S.master.gain.value = 0;
+  } else {
+    if (S.master) S.master.gain.value = 0.26;
+    resume();
+  }
+}
+
 function out() {
   return S.master || (S.ctx ? S.ctx.destination : null);
 }
 
-function tone(freq, dur, type, gain, delay) {
+function tone(freq, dur, type, gain, delay, opts) {
   const ctx = S.ctx;
-  if (!ctx) return;
+  if (!ctx || !freq) return;
+  const o = opts || {};
   try {
-    const o = ctx.createOscillator();
+    const osc = ctx.createOscillator();
     const g = ctx.createGain();
-    o.type = type || 'sine';
-    o.frequency.value = freq;
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    if (o.glideTo) {
+      const now0 = ctx.currentTime + (delay || 0);
+      osc.frequency.setValueAtTime(freq, now0);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.glideTo), now0 + dur * 0.8);
+    }
     const now = ctx.currentTime + (delay || 0);
+    const atk = o.attack === undefined ? 0.04 : o.attack;
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(gain, now + 0.05);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.2), now + dur * 0.75);
+    g.gain.linearRampToValueAtTime(Math.max(0.0002, gain), now + atk);
+    if (o.sustain) g.gain.setValueAtTime(Math.max(0.0002, gain), now + Math.max(atk, dur * 0.55));
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.18), now + dur * 0.82);
     g.gain.linearRampToValueAtTime(0.0001, now + dur);
-    o.connect(g);
+    osc.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
-    o.start(now);
-    o.stop(now + dur + 0.02);
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
   } catch (e) { /* ignore */ }
 }
 
-function noiseHit(dur, gain) {
+function noiseBurst(dur, gain, filterFreq, delay) {
   const ctx = S.ctx;
   if (!ctx) return;
   try {
@@ -20671,65 +21215,169 @@ function noiseHit(dur, gain) {
     src.buffer = buf;
     const g = ctx.createGain();
     g.gain.value = gain;
-    src.connect(g);
+    let node = src;
+    if (filterFreq && ctx.createBiquadFilter) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = filterFreq;
+      filter.Q.value = 0.8;
+      src.connect(filter);
+      node = filter;
+    }
+    node.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
-    src.start();
+    src.start(ctx.currentTime + (delay || 0));
   } catch (e) { /* ignore */ }
 }
 
-function play(mode) {
-  if (!createCtx()) return;
-  if (S.mode === mode) return;
-  S.mode = mode;
+function playLead(instrument, freq, gain) {
+  if (!freq) return;
+  if (instrument === 'flute') {
+    tone(freq, 1.25, 'triangle', gain * 0.8, 0, { attack: 0.08, sustain: true });
+    tone(freq * 2, 0.9, 'sine', gain * 0.18, 0.03, { attack: 0.1 });
+  } else if (instrument === 'pluck') {
+    tone(freq, 0.55, 'triangle', gain, 0, { attack: 0.006 });
+    tone(freq * 2.01, 0.32, 'sine', gain * 0.32, 0.01, { attack: 0.004 });
+  } else if (instrument === 'bell') {
+    tone(freq, 1.8, 'sine', gain * 0.8, 0, { attack: 0.01 });
+    tone(freq * 2.72, 1.2, 'sine', gain * 0.22, 0.01, { attack: 0.01 });
+  } else if (instrument === 'saw') {
+    tone(freq, 0.9, 'sawtooth', gain * 0.55, 0, { attack: 0.05, sustain: true });
+    tone(freq * 0.5, 1.1, 'triangle', gain * 0.22, 0, { attack: 0.06 });
+  }
+}
+
+function playPad(chord, gain) {
+  if (!chord) return;
+  chord.forEach(function (idx, i) {
+    const f = SCALE[Math.max(0, Math.min(SCALE.length - 1, idx))] * 0.5;
+    tone(f, 2.8, 'sine', gain * (i === 0 ? 0.6 : 0.4), i * 0.04, { attack: 0.4, sustain: true });
+  });
+}
+
+function playPerc(kind, gain) {
+  if (kind === 'k') {
+    tone(70, 0.26, 'sine', gain * 1.3, 0, { glideTo: 44, attack: 0.004 });
+    noiseBurst(0.12, gain * 0.45, 180);
+  } else if (kind === 's') {
+    noiseBurst(0.09, gain * 0.75, 1200);
+  } else if (kind === 'g') {
+    noiseBurst(0.65, gain * 0.55, 2600);
+    tone(196, 0.9, 'sine', gain * 0.22, 0, { attack: 0.01 });
+  } else if (kind === 't') {
+    tone(880, 0.08, 'square', gain * 0.35, 0, { attack: 0.002 });
+  }
+}
+
+function startTrack(track) {
+  S.track = track || null;
+  S.trackTime = 0;
   S.t = 0;
-  S.beat = 0;
-  S.nextNote = 0;
-  if (S.ctx && S.ctx.state === 'suspended' && S.ctx.resume) {
+  S.nextStep = 0;
+  S.step = 0;
+}
+
+function nextTrack() {
+  const mode = S.mode;
+  const list = MODES[mode] || [];
+  if (!list.length) return;
+  const idx = (S.cursor[mode] || 0) % list.length;
+  S.cursor[mode] = idx + 1;
+  startTrack(list[idx]);
+}
+
+function play(mode) {
+  if (!MODES[mode]) return;
+  if (S.mode === mode && S.track) return;
+  const changed = S.mode !== mode;
+  S.mode = mode;
+  if (changed) {
+    S.track = null;
+    S.trackTime = 0;
+    S.t = 0;
+    S.step = 0;
+  }
+  // 第一次播放要等用户点屏幕：createCtx 在 resume() 里调用，避免自动播放被浏览器拦截。
+  if (!S.ctx) return;
+  if (S.ctx.state === 'suspended' && S.ctx.resume) {
     try { S.ctx.resume(); } catch (e) { /* ignore */ }
   }
+  if (S.ctx.state === 'running') nextTrack();
 }
 
 function stop() {
   S.mode = null;
+  S.track = null;
+  S.trackTime = 0;
   S.t = 0;
 }
 
 function update(dt) {
   if (!S.ctx || !S.enabled || !S.mode) return;
+  // 浏览器/微信在用户第一次触摸前会把 AudioContext 挂在 suspended；
+  // 这时不排音符，否则恢复瞬间会把几十秒的音符一起挤到 0 秒播放。
+  if (S.ctx.state && S.ctx.state !== 'running') return;
+  if (!S.track) {
+    nextTrack();
+    return;
+  }
+  const track = S.track;
   S.t += dt;
+  S.trackTime += dt;
 
-  if (S.mode === 'field') {
-    // 每 0.85 秒一个音，旋律在五声音阶里绕
-    if (S.t >= S.nextNote) {
-      S.nextNote = S.t + 0.85;
-      const idx = Math.floor(Math.random() * 5) + (Math.random() < 0.3 ? 4 : 0);
-      const f = SCALE[Math.min(SCALE.length - 1, idx)];
-      tone(f, 1.1, 'triangle', 0.10);
-      if (Math.random() < 0.4) tone(f * 1.5, 0.9, 'sine', 0.05, 0.12);
-    }
+  // 单曲循环 70 秒后换同场景下一首，避免长时间听同一段。
+  if (S.trackTime > (track.rotateAfter || 70)) {
+    nextTrack();
     return;
   }
 
-  // battle：四拍一小节，拍点 0.42 秒
-  const beatLen = 0.42;
-  if (S.t >= S.nextNote) {
-    S.nextNote = S.t + beatLen;
-    S.beat = (S.beat + 1) % 4;
-    tone(S.beat === 0 ? 82 : 98, 0.16, 'square', 0.16);
-    if (S.beat === 2) noiseHit(0.08, 0.05);
-    if (S.beat === 0) tone(174, 0.5, 'sawtooth', 0.05, 0.02);
-  }
-}
+  const stepLen = 60 / Math.max(30, track.bpm) / 2;
+  if (S.t < S.nextStep) return;
+  S.nextStep = S.t + stepLen;
 
-function setEnabled(on) {
-  S.enabled = !!on;
-  storageSet('bw_audio', S.enabled ? 'on' : 'off');
-  if (!S.enabled) stop();
+  const melody = track.melody || [];
+  const step = S.step % Math.max(1, melody.length);
+  const note = melody[step];
+  if (note !== undefined && note >= 0) {
+    playLead(track.lead, SCALE[Math.min(SCALE.length - 1, note)], 0.075);
+  }
+
+  const bass = track.bass || [];
+  if (bass.length && S.step % (track.bassEvery || 8) === 0) {
+    const bi = bass[Math.floor(S.step / (track.bassEvery || 8)) % bass.length];
+    tone(BASS[Math.max(0, Math.min(BASS.length - 1, bi))], 1.4, 'triangle', 0.08, 0, { attack: 0.08, sustain: true });
+  }
+
+  const pad = track.pad || [];
+  if (pad.length && track.padEvery && S.step % track.padEvery === 0) {
+    playPad(pad[Math.floor(S.step / track.padEvery) % pad.length], 0.022);
+  }
+
+  const perc = track.perc || '';
+  if (perc) {
+    const kind = perc[step % perc.length];
+    if (kind && kind !== '.') playPerc(kind, track.percGain || 0.08);
+  }
+
+  S.step += 1;
 }
 
 function isEnabled() {
   return S.enabled;
+}
+
+function currentTrack() {
+  return S.track ? { id: S.track.id, name: S.track.name, mode: S.track.mode } : null;
+}
+
+function listMusic() {
+  return MODE_ORDER.map(function (mode) {
+    return {
+      mode: mode,
+      tracks: (MODES[mode] || []).map(function (t) { return t.name; }),
+    };
+  });
 }
 
 module.exports = {
@@ -20739,6 +21387,10 @@ module.exports = {
   resume,
   setEnabled,
   isEnabled,
+  currentTrack,
+  listMusic,
+  MODE_ORDER,
+  TRACKS,
 };
 
   };
@@ -27872,6 +28524,7 @@ const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
+const audio = __require(21);
 const { TROOPS } = __require(10);
 const { TACTICS, TACTIC_LIST } = __require(16);
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = __require(5);
@@ -27959,6 +28612,8 @@ const BattleScene = {
       if (b.finished) {
         bv.summary = stateLib.resolveBattle(app.state, b);
         bv.phase = 'result';
+        audio.play(bv.summary && bv.summary.result === 'win' ? 'victory'
+          : bv.summary && bv.summary.result === 'lose' ? 'sorrow' : 'field');
       } else if (b.batchDone) {
         bv.summary = b.interimSummary();
         bv.phase = 'interim';
@@ -28010,6 +28665,11 @@ const BattleScene = {
     if (sub) text(ctx, sub, w / 2, compact ? 56 : 92, {
       size: compact ? 15 : 18, align: 'center', color: '#a2947a',
     });
+    if (bv.phase === 'prep' && b.openingLog) {
+      text(ctx, '军师技 · ' + b.openingLog, w / 2, compact ? 78 : 122, {
+        size: compact ? 12 : 15, align: 'center', color: '#c9a0e0',
+      });
+    }
     if (fire) text(ctx, '火攻', w - 20, 10, { size: 16, align: 'right', color: '#ff8f4a' });
     if (b.shiName) text(ctx, '天机简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
 
@@ -28275,15 +28935,23 @@ function renderResult(app, sum, w, h, y0Top) {
   text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA, 16, y0 + 58, { size: 20, color: '#9fb8d8' });
   text(ctx, '敌方 ' + sum.remainB + ' / ' + sum.initialB, 16, y0 + 88, { size: 20, color: '#d8a09f' });
   if (win) text(ctx, '缴获 ' + sum.loot + ' 金钱', 16, y0 + 122, { size: 22, color: '#f0c060' });
-  if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
-    size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
-  });
+  let extraY = y0 + (win ? 150 : 122);
+  if (sum.duelNote) {
+    text(ctx, sum.duelNote, 16, extraY, {
+      size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
+    });
+    extraY += 28;
+  }
+  if (sum.openingLog) {
+    text(ctx, '军师技 · ' + sum.openingLog, 16, extraY, { size: 15, color: '#c9a0e0' });
+    extraY += 24;
+  }
   if (sum.shiMark) {
-    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
+    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, extraY, { size: 17, color: '#c9a0e0' });
     if (sum.shiNote) {
       const lines = wrap(ctx, sum.shiNote, w - 32, 15).slice(0, 2);
       lines.forEach(function (line, i) {
-        text(ctx, line, 16, y0 + 202 + i * 18, { size: 15, color: '#a2947a' });
+        text(ctx, line, 16, extraY + 24 + i * 18, { size: 15, color: '#a2947a' });
       });
     }
   }
@@ -30957,6 +31625,8 @@ const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
+const audio = __require(21);
+const rank = __require(17);
 const { FACTIONS, CAMPAIGN, ENDINGS } = __require(5);
 const { TROOPS } = __require(10);
 
@@ -30969,6 +31639,22 @@ const TABS = [
 ];
 
 const TAB_H = 116;
+
+const MODE_LABEL = {
+  title: '标题 / 开局',
+  field: '大地图',
+  town: '城镇',
+  battle: '战斗',
+  tense: '史实 / 宣战',
+  sorrow: '败亡 / 国殇',
+  victory: '凯旋',
+};
+
+function chunk(list, n) {
+  const out = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
 const CONTENT_TOP = TAB_H + 10;
 
 /** 每章的"该做什么"——只指路，不剧透后面发生什么 */
@@ -31112,6 +31798,36 @@ function buildOps(app, tab) {
     ops.push({ t: 'gap' });
     ops.push({ t: 'h1', s: '黄巾与山贼' });
     ops.push({ t: 'p', s: '六处贼巢，全部敌对。攻破一处声望 +45、金钱 +120，且不再刷匪团。' });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'h1', s: '将帅值 / 武力值 / 军师' });
+    ops.push({ t: 'p', s: '将帅值 = 带兵指数的标幺值，1.0 = 150 人。君主 / 军师 1.5、武将 1.4；帅才 1.50～1.70，第 1 名最高。' });
+    ops.push({ t: 'p', s: '武力值 = 杀敌指数的标幺值。军师默认 0.9、帅才默认 1.4、武将按旧榜七档 1.50～4.00；战场按 (武力/1.5)^0.6 压平，避免单将无双。' });
+    ops.push({ t: 'p', s: '帅才五档带兵：' });
+    [
+      '第 1 名：1.70',
+      '第 2-5 名：1.65',
+      '第 6-10 名：1.60',
+      '第 11-15 名：1.55',
+      '第 16-20 名：1.50',
+    ].forEach(function (s) { ops.push({ t: 'p', s: '· ' + s }); });
+    ops.push({ t: 'p', s: '帅才名录：' });
+    chunk(rank.MARSHAL_TOP20, 5).forEach(function (group) {
+      const names = group.map(function (m) { return m.rank + '.' + m.name; }).join('、');
+      ops.push({ t: 'p', s: '· ' + names });
+    });
+    ops.push({ t: 'p', s: '同一领主可以同时有将帅、武力、军师三种身份；同类只取最高值，三类之间可叠加。例如君主 1.5 与武将 1.4 重合时，带兵取 1.5。' });
+    ops.push({ t: 'p', s: '历史军师开局天降神雷：S+ 杀 50%、S 杀 40%、A 杀 30%、B 杀 20%，单人封顶 100 人。不同军师可叠加；同一场战斗每个军师只触发一次，反复进出同一战场不再触发。' });
+    ops.push({ t: 'p', s: '历史军师名录：' });
+    rank.STRATEGIST_GRADES.forEach(function (g) {
+      const names = g.ids.map(function (id) { return rank.STRATEGIST_NAMES[id] || id; });
+      ops.push({ t: 'p', s: '· ' + g.grade + '（雷击 ' + Math.round(g.pct * 100) + '%）：' + names.join('、') });
+    });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'h1', s: '场景音乐' });
+    audio.listMusic().forEach(function (m) {
+      ops.push({ t: 'p', s: '· ' + (MODE_LABEL[m.mode] || m.mode) + '：' + m.tracks.join('、') });
+    });
+    ops.push({ t: 'p', s: '全部为 WebAudio 现场合成的原创五声音阶片段，不采样、不引用现存歌曲，无版权争议。' });
     return ops;
   }
 
@@ -31565,18 +32281,32 @@ function drawArt(app, ctx, w, h, id, t) {
   ctx.fillRect(0, 0, w, h);
 }
 
+function isStoryMode(state) {
+  const st = state || {};
+  return !!(st.storyMode || st.historicalSandbox || st.background === 'romance');
+}
+
+/** 榜文停留秒数：三国演义 30 秒，乱世三国 15 秒；事件显式传 0 表示手动关闭。 */
+function autoSecondsFor(state, ev) {
+  const e = ev || {};
+  if (e.auto === 0) return 0;
+  return isStoryMode(state) ? 30 : 15;
+}
+
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
-    // 乱世三国：榜文停十息再自己散；三国演义的史实文书已在 flows 里直接跳过，不走这里。
-    const storyMode = !!(app.state && app.state.storyMode);
+    // 三国演义：史实文书停 30 秒，让玩家看清天下大势；乱世三国宣战频繁，15 秒即散。
+    const st = app.state || {};
+    const storyMode = isStoryMode(st);
+    const auto = autoSecondsFor(st, ev);
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: storyMode ? 10 : (ev.auto || 10),
+      auto: auto,
       art: pickArt(ev),
       skipAny: storyMode ? false : !!ev.skipAny,
       t: 0,
@@ -31672,7 +32402,7 @@ const NewsScene = {
     } else {
       text(ctx, v.skipAny
         ? '点屏幕任意处跳过 · ' + Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散'
-        : (v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。'),
+        : (v.auto > 0 ? Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散' : '榜文贴在各城门口，来往的人都在看。'),
         cx + cw / 2, cy + chHeight - 78, {
           size: 14, align: 'center', color: '#b7a58a',
         });
@@ -31706,6 +32436,9 @@ const NewsScene = {
   },
 };
 
+NewsScene.autoSecondsFor = autoSecondsFor;
+NewsScene.isStoryMode = isStoryMode;
+
 module.exports = NewsScene;
 
   };
@@ -31720,7 +32453,7 @@ module.exports = NewsScene;
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const { drawBackdrop } = __require(28);
-const { STORY } = __require(18);
+const { STORY } = __require(19);
 
 const ArcScene = {
   enter(app, params) {
@@ -32209,6 +32942,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
+const rank = __require(17);
 const { lookFor } = __require(12);
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
@@ -32386,7 +33120,15 @@ function act(app, id) {
   if (id === 'troops') {
     const rows = stateLib.lordTroopLine(lord);
     const power = stateLib.lordPowerInfo(lord);
+    const marshal = rank.MARSHAL_BY_ID[lord.id];
+    const cmd = typeof lord.commandValue === 'number' ? lord.commandValue.toFixed(2) : '—';
+    const force = typeof lord.forceValue === 'number' ? lord.forceValue.toFixed(2) : '—';
+    const strategist = lord.strategistGrade
+      ? ' · 军师 ' + lord.strategistGrade + '（开局雷击 ' + Math.round((lord.strategistPct || 0) * 100) + '%）'
+      : '';
     d.line = '“我的家底？”\n' + (power ? '名将榜第 ' + power.rank + ' 位 · ' : '') +
+      (marshal ? '帅才第 ' + marshal.rank + ' 位 · ' : '') +
+      '将帅值 ' + cmd + ' · 武力值 ' + force + strategist + '\n' +
       (rows.length ? rows.join(' · ') : '人已经打光了') +
       '\n合计 ' + army.troopCount(lord.troops) + ' / 上限 ' + stateLib.lordTroopCap(lord) +
       ' 人，士气 ' + Math.round(lord.morale) +
@@ -32836,7 +33578,10 @@ const MenuScene = {
       id: 'menu_audio', size: 22, fill: '#241c14', onTap: function () {
         const on = !audio.isEnabled();
         audio.setEnabled(on);
-        if (on) audio.play(app.top() && app.top().name === 'battle' ? 'battle' : 'field');
+        if (on) {
+          const below = app.stack.length > 1 ? app.stack[app.stack.length - 2].name : 'title';
+          app.applyMusic(below);
+        }
         app.showToast(on ? '音乐已打开' : '音乐已关闭', 1.6);
       },
     });
@@ -32989,8 +33734,35 @@ class App {
   }
 
   applyMusic(name) {
-    if (name === 'battle') audio.play('battle');
-    else if (name === 'map' || name === 'title') audio.play('field');
+    const mode = {
+      title: 'title',
+      menu: 'title',
+      saves: 'title',
+      map: 'field',
+      camp: 'field',
+      journal: 'field',
+      help: 'field',
+      atlas: 'field',
+      town: 'town',
+      fief: 'town',
+      govern: 'town',
+      shop: 'town',
+      army: 'town',
+      hero: 'town',
+      battle: 'battle',
+      chase: 'battle',
+      chapter: 'tense',
+      news: 'tense',
+      arc: 'tense',
+      founding: 'tense',
+      tourney: 'tense',
+      contact: 'tense',
+      lord: 'tense',
+      prison: 'sorrow',
+      revive: 'sorrow',
+      ending: 'sorrow',
+    }[name];
+    if (mode) audio.play(mode);
   }
 
   pop() {
