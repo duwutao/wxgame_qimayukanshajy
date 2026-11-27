@@ -21,7 +21,7 @@ jobs:
           node-version: '20'
       - name: Apply n64 patch
         run: |
-          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n64.patch 'https://aka.doubaocdn.com/s/3HMVeafP45'
+          curl --http1.1 --tlsv1.2 --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -L --fail -o /tmp/juqing-n64.patch 'https://aka.doubaocdn.com/s/3HMVeafP45'
           git apply --check /tmp/juqing-n64.patch
           git apply /tmp/juqing-n64.patch
       - name: Test
