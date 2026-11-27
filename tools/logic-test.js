@@ -2228,6 +2228,13 @@ group('领主追击与逃遁');
   const a = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   const b = g.lords.filter(function (l) { return l.id === 'jiling'; })[0];
   const base = g.world.sites.filter(function (s) { return s.id === 'xuchang'; })[0];
+  // 这一条只验“势均力敌不盲目追击/逃遁”，先把曹袁两家按停战处理；
+  // 否则开局外交一旦随机到两家开战，曹操会按国战规则主动压上，测的就不是均势了。
+  delete g.factionWars['wei|yuanshu'];
+  delete g.factionWars['yuanshu|wei'];
+  // 只留这两位对练，别让附近匪团或第三支队伍把“均势”测成追击。
+  g.parties = [];
+  g.lords = [a, b];
   [a, b].forEach(function (l) {
     l.inCity = null; l.order = null; l.pauseUntil = 0; l.moveTick = 0;
     l.wander = null; l.patrolRouteIds = null; l.patrolPath = null;
@@ -3174,6 +3181,20 @@ group('n7 版：城下暂停 · 假交战 · 入川 · 国别战力');
     FACTION_COMBAT.wu.power === 1.5 &&
     FACTION_COMBAT.wei.neutral.indexOf('shu') >= 0 &&
     FACTION_COMBAT.shu.neutral.indexOf('wu') >= 0);
+  ok('南蛮整国杀敌基数 0.8', warLib.factionKillMul('nanman') === 0.8,
+    String(warLib.factionKillMul('nanman')));
+  ok('南越整国杀敌基数 0.8', warLib.factionKillMul('shanyue') === 0.8,
+    String(warLib.factionKillMul('shanyue')));
+  storyLib.resetCombat();
+  ok('剧情重置后南蛮南越基数不被冲掉', warLib.factionKillMul('nanman') === 0.8 &&
+    warLib.factionKillMul('shanyue') === 0.8);
+  const newWu = ['heqi', 'buzhi', 'chenwu', 'dongxi', 'zhuzhi', 'lufan'];
+  ok('孙权补入六名江东领主', newWu.every(function (id) {
+    return LORDS.some(function (l) { return l.id === id && l.faction === 'wu'; });
+  }), newWu.filter(function (id) {
+    return !LORDS.some(function (l) { return l.id === id && l.faction === 'wu'; });
+  }).join(','));
+  ok('孙权领主已扩到 27 位', counts.wu === 27, String(counts.wu));
 
   const g = stateLib.createGame({ seed: 2026112554 });
   function clashLord(id, faction, n, x) {

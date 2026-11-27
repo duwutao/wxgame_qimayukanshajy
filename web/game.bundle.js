@@ -1117,6 +1117,10 @@ const FACTION_COMBAT = {
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
   gongsun: { power: 0.5, note: '公孙瓒军：白马义从已老，两兵只当一兵用，给袁绍第一阶段让路' },
   zhanglu: { power: 1.0, note: '张鲁军：汉中教众守山，不主动扩张' },
+  // n58：南蛮、南越多洞兵各自为战，整国杀敌基数压到 0.8；
+  // 只削“给敌军造成的杀伤”，不改自身防御与兵力上限。
+  nanman: { killBase: 0.8, note: '南蛮军：洞兵各自为战，全国杀敌基数 0.8' },
+  shanyue: { killBase: 0.8, note: '南越军：山路熟、阵战弱，全国杀敌基数 0.8' },
 };
 
 /**
@@ -1433,6 +1437,13 @@ const LORDS = [
   { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
   { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
   { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
+  // ---- n58：孙权补六名江东领主，摊开在建业、吴、会稽、柴桑 ----
+  { id: 'heqi', name: '贺齐', faction: 'wu', home: 'kuaiji', soldiers: { militia: 28, spear: 25, archer: 22, danyang: 8 }, morale: 84, sight: 7, title: '安东将军' },
+  { id: 'buzhi', name: '步骘', faction: 'wu', home: 'chaisang', soldiers: { militia: 26, spear: 20, archer: 16, boat: 12 }, morale: 78, sight: 7, title: '交州刺史' },
+  { id: 'chenwu', name: '陈武', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 28, danyang: 14 }, morale: 86, sight: 7, title: '偏将军' },
+  { id: 'dongxi', name: '董袭', faction: 'wu', home: 'kuaiji', soldiers: { militia: 24, spear: 22, boat: 20 }, morale: 82, sight: 6, title: '偏将军' },
+  { id: 'zhuzhi', name: '朱治', faction: 'wu', home: 'wujun', soldiers: { militia: 30, spear: 24, archer: 14 }, morale: 80, sight: 6, title: '安国将军' },
+  { id: 'lufan', name: '吕范', faction: 'wu', home: 'jianye', soldiers: { militia: 24, spear: 20, boat: 16 }, morale: 78, sight: 7, title: '建威将军' },
 
   // ---- 名将榜补录：原先名单里没有、按榜单补进来的领主 ----
   { id: 'sunce', name: '孙策', faction: 'wu', home: 'wujun', soldiers: { cav: 35, spear: 30, danyang: 22, boat: 15 }, morale: 95, sight: 8, title: '讨逆将军' },
@@ -7191,11 +7202,15 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
-/** 荆州第十轮霸主的额外杀敌系数；只放大对敌杀伤，不改变自身防御。 */
+/** 国别杀敌系数：killBase 是整国基数（不会被剧情重置），killMul 是荆州霸主的临时加成。 */
 function factionKillMul(faction) {
   const cfg = faction && FACTION_COMBAT[faction];
-  const value = cfg && Number(cfg.killMul);
-  return isFinite(value) && value > 0 ? value : 1;
+  if (!cfg) return 1;
+  const base = Number(cfg.killBase);
+  const bonus = Number(cfg.killMul);
+  const baseMul = isFinite(base) && base > 0 ? base : 1;
+  const bonusMul = isFinite(bonus) && bonus > 0 ? bonus : 1;
+  return baseMul * bonusMul;
 }
 
 function combatTroops(unit, foeFaction) {
@@ -27810,7 +27825,8 @@ function renderHall(app, site) {
 
   // 情报：该势力的领主
   const resting = st.lords.filter(function (l) {
-    return l.alive && l.inCity === site.id && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.dead && !l.retired && !l.prisoner &&
+      l.inCity === site.id && !l.scatterHidden;
   });
   if (resting.length) {
     text(ctx, '府中歇脚 · ' + resting.length + ' 位领主', PAD, y + 6, { size: 20, color: '#d9a441' });
@@ -27826,15 +27842,20 @@ function renderHall(app, site) {
     if (resting.length > 3) {
       app.ui.button(ctx, PAD, y + 2, w - PAD * 2, 54, '查看全部 · ' + resting.length + ' 位府中领主', {
         id: 'hall_all_resting', size: 20, fill: '#2b2419',
-        onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+        onTap: function () {
+          app.townView.lordMode = 'resting';
+          app.townView.view = 'lords';
+          app.townView.lordScroll = 0;
+        },
       });
       y += 66;
     }
   }
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.inCity && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.dead && !l.retired && !l.prisoner &&
+      !l.inCity && !l.scatterHidden;
   });
-  text(ctx, '麾下领主', PAD, y + 6, { size: 20, color: '#a2947a' });
+  text(ctx, '麾下领主 · ' + lords.length + ' 位', PAD, y + 6, { size: 20, color: '#a2947a' });
   y += 40;
   lords.slice(0, 3).forEach(function (l) {
     const n = army.troopCount(l.troops);
@@ -27846,7 +27867,11 @@ function renderHall(app, site) {
   if (lords.length > 3) {
     app.ui.button(ctx, PAD, y + 4, w - PAD * 2, 54, '查看全部 · ' + lords.length + ' 位领主', {
       id: 'hall_all_lords', size: 20, fill: '#2b2419',
-      onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+      onTap: function () {
+        app.townView.lordMode = 'field';
+        app.townView.view = 'lords';
+        app.townView.lordScroll = 0;
+      },
     });
     y += 66;
   }
@@ -27878,15 +27903,22 @@ function renderLordList(app, site) {
   const H = app.runtime.height;
   const st = app.state;
   const f = site.ownerFaction;
+  const mode = app.townView.lordMode || 'all';
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.dead && !l.retired && !l.scatterHidden;
+    if (l.faction !== f || !l.alive || l.dead || l.retired || l.prisoner || l.scatterHidden) return false;
+    // 名册页和领主府入口共用同一个过滤口径：
+    // 府中入口只看在城领主，麾下入口只看在外领主，默认显示全部。
+    if (mode === 'resting') return l.inCity === site.id;
+    if (mode === 'field') return !l.inCity;
+    return true;
   });
   const rows = lords.slice().sort(function (a, b) {
     const ra = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(a)] || 3;
     const rb = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(b)] || 3;
     return ra - rb || army.troopCount(b.troops) - army.troopCount(a.troops);
   });
-  const title = f ? (FACTIONS[f].full + ' · 麾下领主') : '无主之地的领主';
+  const tail = mode === 'resting' ? '府中领主' : '麾下领主';
+  const title = f && FACTIONS[f] ? (FACTIONS[f].full + ' · ' + tail) : ('无主之地 · ' + tail);
   text(ctx, title, PAD, 296, { size: 27, color: '#f0c060' });
   text(ctx, '共 ' + rows.length + ' 位 · 上下拖动或滚轮查看全部', w - PAD, 302, {
     size: 15, align: 'right', color: '#a2947a',
@@ -28105,6 +28137,7 @@ const TownScene = {
       maxScroll: 0,
       lordScroll: 0,
       lordMaxScroll: 0,
+      lordMode: 'all',
     };
   },
 

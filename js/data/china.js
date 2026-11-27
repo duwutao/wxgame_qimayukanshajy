@@ -490,6 +490,10 @@ const FACTION_COMBAT = {
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
   gongsun: { power: 0.5, note: '公孙瓒军：白马义从已老，两兵只当一兵用，给袁绍第一阶段让路' },
   zhanglu: { power: 1.0, note: '张鲁军：汉中教众守山，不主动扩张' },
+  // n58：南蛮、南越多洞兵各自为战，整国杀敌基数压到 0.8；
+  // 只削“给敌军造成的杀伤”，不改自身防御与兵力上限。
+  nanman: { killBase: 0.8, note: '南蛮军：洞兵各自为战，全国杀敌基数 0.8' },
+  shanyue: { killBase: 0.8, note: '南越军：山路熟、阵战弱，全国杀敌基数 0.8' },
 };
 
 /**
@@ -806,6 +810,13 @@ const LORDS = [
   { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
   { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
   { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
+  // ---- n58：孙权补六名江东领主，摊开在建业、吴、会稽、柴桑 ----
+  { id: 'heqi', name: '贺齐', faction: 'wu', home: 'kuaiji', soldiers: { militia: 28, spear: 25, archer: 22, danyang: 8 }, morale: 84, sight: 7, title: '安东将军' },
+  { id: 'buzhi', name: '步骘', faction: 'wu', home: 'chaisang', soldiers: { militia: 26, spear: 20, archer: 16, boat: 12 }, morale: 78, sight: 7, title: '交州刺史' },
+  { id: 'chenwu', name: '陈武', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 28, danyang: 14 }, morale: 86, sight: 7, title: '偏将军' },
+  { id: 'dongxi', name: '董袭', faction: 'wu', home: 'kuaiji', soldiers: { militia: 24, spear: 22, boat: 20 }, morale: 82, sight: 6, title: '偏将军' },
+  { id: 'zhuzhi', name: '朱治', faction: 'wu', home: 'wujun', soldiers: { militia: 30, spear: 24, archer: 14 }, morale: 80, sight: 6, title: '安国将军' },
+  { id: 'lufan', name: '吕范', faction: 'wu', home: 'jianye', soldiers: { militia: 24, spear: 20, boat: 16 }, morale: 78, sight: 7, title: '建威将军' },
 
   // ---- 名将榜补录：原先名单里没有、按榜单补进来的领主 ----
   { id: 'sunce', name: '孙策', faction: 'wu', home: 'wujun', soldiers: { cav: 35, spear: 30, danyang: 22, boat: 15 }, morale: 95, sight: 8, title: '讨逆将军' },

@@ -988,7 +988,8 @@ function renderHall(app, site) {
 
   // 情报：该势力的领主
   const resting = st.lords.filter(function (l) {
-    return l.alive && l.inCity === site.id && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.dead && !l.retired && !l.prisoner &&
+      l.inCity === site.id && !l.scatterHidden;
   });
   if (resting.length) {
     text(ctx, '府中歇脚 · ' + resting.length + ' 位领主', PAD, y + 6, { size: 20, color: '#d9a441' });
@@ -1004,15 +1005,20 @@ function renderHall(app, site) {
     if (resting.length > 3) {
       app.ui.button(ctx, PAD, y + 2, w - PAD * 2, 54, '查看全部 · ' + resting.length + ' 位府中领主', {
         id: 'hall_all_resting', size: 20, fill: '#2b2419',
-        onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+        onTap: function () {
+          app.townView.lordMode = 'resting';
+          app.townView.view = 'lords';
+          app.townView.lordScroll = 0;
+        },
       });
       y += 66;
     }
   }
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.inCity && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.dead && !l.retired && !l.prisoner &&
+      !l.inCity && !l.scatterHidden;
   });
-  text(ctx, '麾下领主', PAD, y + 6, { size: 20, color: '#a2947a' });
+  text(ctx, '麾下领主 · ' + lords.length + ' 位', PAD, y + 6, { size: 20, color: '#a2947a' });
   y += 40;
   lords.slice(0, 3).forEach(function (l) {
     const n = army.troopCount(l.troops);
@@ -1024,7 +1030,11 @@ function renderHall(app, site) {
   if (lords.length > 3) {
     app.ui.button(ctx, PAD, y + 4, w - PAD * 2, 54, '查看全部 · ' + lords.length + ' 位领主', {
       id: 'hall_all_lords', size: 20, fill: '#2b2419',
-      onTap: function () { app.townView.view = 'lords'; app.townView.lordScroll = 0; },
+      onTap: function () {
+        app.townView.lordMode = 'field';
+        app.townView.view = 'lords';
+        app.townView.lordScroll = 0;
+      },
     });
     y += 66;
   }
@@ -1056,15 +1066,22 @@ function renderLordList(app, site) {
   const H = app.runtime.height;
   const st = app.state;
   const f = site.ownerFaction;
+  const mode = app.townView.lordMode || 'all';
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.dead && !l.retired && !l.scatterHidden;
+    if (l.faction !== f || !l.alive || l.dead || l.retired || l.prisoner || l.scatterHidden) return false;
+    // 名册页和领主府入口共用同一个过滤口径：
+    // 府中入口只看在城领主，麾下入口只看在外领主，默认显示全部。
+    if (mode === 'resting') return l.inCity === site.id;
+    if (mode === 'field') return !l.inCity;
+    return true;
   });
   const rows = lords.slice().sort(function (a, b) {
     const ra = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(a)] || 3;
     const rb = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(b)] || 3;
     return ra - rb || army.troopCount(b.troops) - army.troopCount(a.troops);
   });
-  const title = f ? (FACTIONS[f].full + ' · 麾下领主') : '无主之地的领主';
+  const tail = mode === 'resting' ? '府中领主' : '麾下领主';
+  const title = f && FACTIONS[f] ? (FACTIONS[f].full + ' · ' + tail) : ('无主之地 · ' + tail);
   text(ctx, title, PAD, 296, { size: 27, color: '#f0c060' });
   text(ctx, '共 ' + rows.length + ' 位 · 上下拖动或滚轮查看全部', w - PAD, 302, {
     size: 15, align: 'right', color: '#a2947a',
@@ -1283,6 +1300,7 @@ const TownScene = {
       maxScroll: 0,
       lordScroll: 0,
       lordMaxScroll: 0,
+      lordMode: 'all',
     };
   },
 

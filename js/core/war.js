@@ -628,11 +628,15 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
-/** 荆州第十轮霸主的额外杀敌系数；只放大对敌杀伤，不改变自身防御。 */
+/** 国别杀敌系数：killBase 是整国基数（不会被剧情重置），killMul 是荆州霸主的临时加成。 */
 function factionKillMul(faction) {
   const cfg = faction && FACTION_COMBAT[faction];
-  const value = cfg && Number(cfg.killMul);
-  return isFinite(value) && value > 0 ? value : 1;
+  if (!cfg) return 1;
+  const base = Number(cfg.killBase);
+  const bonus = Number(cfg.killMul);
+  const baseMul = isFinite(base) && base > 0 ? base : 1;
+  const bonusMul = isFinite(bonus) && bonus > 0 ? bonus : 1;
+  return baseMul * bonusMul;
 }
 
 function combatTroops(unit, foeFaction) {

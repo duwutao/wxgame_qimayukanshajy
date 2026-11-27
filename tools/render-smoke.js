@@ -1152,6 +1152,60 @@ smoke('城池：麾下领主名册可滚轮看全部', function () {
     before + '→' + app.townView.lordScroll);
 });
 
+smoke('城池：领主府两个入口的领主数与名册页一致', function () {
+  const st = app.state = stateLib.createGame({ seed: 4333 });
+  st.events.length = 0;
+  const wei = st.lords.filter(function (l) { return l.faction === 'wei' && !l.dead; });
+  ok('测试能找到四位魏国领主', wei.length >= 4, String(wei.length));
+  wei.slice(0, 4).forEach(function (l) {
+    l.inCity = 'xuchang';
+    l.scatterHidden = false;
+    l.prisoner = null;
+  });
+  app.replace('town', { siteId: 'xuchang' });
+  app.townView.view = 'hall';
+
+  const ctx = app.runtime.ctx;
+  const oldFillText = ctx.fillText;
+  let texts = [];
+  ctx.fillText = function (s) { texts.push(String(s)); };
+  function renderAndCapture() {
+    texts = [];
+    app.ui.begin();
+    app.top().scene.render(app);
+    return texts;
+  }
+  try {
+    let lines = renderAndCapture();
+    ok('府中入口显示四位', lines.indexOf('府中歇脚 · 4 位领主') >= 0, lines.join(' | '));
+    const resting = app.ui.items.filter(function (b) { return b.id === 'hall_all_resting'; })[0];
+    ok('府中入口按钮写四位', !!resting && resting.label.indexOf('4 位') >= 0,
+      resting ? resting.label : 'none');
+    if (resting) resting.onTap();
+    ok('府中入口进入名册', app.townView.view === 'lords' && app.townView.lordMode === 'resting',
+      app.townView.view + '/' + app.townView.lordMode);
+    lines = renderAndCapture();
+    ok('府中名册标题正确', lines.some(function (s) { return s.indexOf('· 府中领主') >= 0; }), lines.join(' | '));
+    ok('府中名册共四位', lines.indexOf('共 4 位 · 上下拖动或滚轮查看全部') >= 0, lines.join(' | '));
+
+    app.townView.view = 'hall';
+    lines = renderAndCapture();
+    const field = app.ui.items.filter(function (b) { return b.id === 'hall_all_lords'; })[0];
+    const fieldCount = st.lords.filter(function (l) {
+      return l.faction === 'wei' && l.alive && !l.dead && !l.retired && !l.prisoner &&
+        !l.inCity && !l.scatterHidden;
+    }).length;
+    ok('麾下入口按钮数与实际一致', !!field && field.label.indexOf(fieldCount + ' 位') >= 0,
+      (field ? field.label : 'none') + ' / ' + fieldCount);
+    if (field) field.onTap();
+    lines = renderAndCapture();
+    ok('麾下名册共数与入口一致',
+      lines.indexOf('共 ' + fieldCount + ' 位 · 上下拖动或滚轮查看全部') >= 0, lines.join(' | '));
+  } finally {
+    ctx.fillText = oldFillText;
+  }
+});
+
 smoke('继任事件弹出新君榜文', function () {
   const st = app.state = stateLib.createGame({ seed: 4332 });
   st.events.length = 0;
