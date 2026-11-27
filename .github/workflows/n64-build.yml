@@ -1,0 +1,51 @@
+name: n64 build juqing
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n64-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n64 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n64.patch 'https://aka.doubaocdn.com/s/3HMVeafP45'
+          git apply --check /tmp/juqing-n64.patch
+          git apply /tmp/juqing-n64.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Build web entry
+        run: node tools/build-entry.js
+      - name: Verify bundle
+        run: |
+          node -e "const fs=require('fs');const s=fs.readFileSync('web/game.bundle.js','utf8');for(const k of ['function fillGuanduFaction','RECRUIT_SOURCE_COOLDOWN_DAYS','function recruitSourceInfo','function renderRecruitSource','选择兵源国'])if(!s.includes(k))throw new Error('missing '+k);console.log('bundle ok',fs.statSync('web/game.bundle.js').size)"
+          echo "83f99987076a087e13416f3c25c574d1a4e47afbd58c862c79669b2513776df1  web/game.bundle.js" | sha256sum -c -
+      - name: Commit n64
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js tools web/index.html web/game.bundle.js manifest.json
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n64 T3门槛与自立兵源切换 [skip ci]'
+          git push origin HEAD:juqing
