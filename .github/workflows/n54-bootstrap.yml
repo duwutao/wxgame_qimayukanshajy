@@ -29,6 +29,11 @@ jobs:
           git apply --check /tmp/n54.patch
           git apply /tmp/n54.patch
 
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
       - name: Fetch and convert CC0 audio
         run: |
           set -euo pipefail
