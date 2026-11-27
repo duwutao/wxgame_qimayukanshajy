@@ -436,7 +436,7 @@ const FACTIONS = {
   },
   rebel: {
     id: 'rebel', name: '叛', full: '叛军', color: '#6d2f2a', banner: '叛',
-    lord: '叛将', desc: '统一之后突然翻脸的全国旧臣。旗号杂乱，人数众多。',
+    lord: '叛将', desc: '旗号杂乱，人数众多，来历不明。',
   },
   xianbei: {
     id: 'xianbei', name: '鲜卑', full: '轲比能', color: '#7a6a4a', banner: '鲜',

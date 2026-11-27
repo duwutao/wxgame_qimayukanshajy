@@ -503,7 +503,7 @@ smoke('结局页', function () {
 
 smoke('玩法：五个分类', function () {
   app.push('help');
-  ['basic', 'campaign', 'factions', 'troops', 'endings'].forEach(function (tab) {
+  ['basic', 'guide', 'campaign', 'factions', 'troops', 'endings'].forEach(function (tab) {
     app.helpView.tab = tab;
     app.ui.begin();
     app.top().scene.render(app);

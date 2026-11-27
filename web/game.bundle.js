@@ -1063,7 +1063,7 @@ const FACTIONS = {
   },
   rebel: {
     id: 'rebel', name: '叛', full: '叛军', color: '#6d2f2a', banner: '叛',
-    lord: '叛将', desc: '统一之后突然翻脸的全国旧臣。旗号杂乱，人数众多。',
+    lord: '叛将', desc: '旗号杂乱，人数众多，来历不明。',
   },
   xianbei: {
     id: 'xianbei', name: '鲜卑', full: '轲比能', color: '#7a6a4a', banner: '鲜',
@@ -6048,6 +6048,9 @@ class Battle {
     this.context = opts.context || {};
     this.state = opts.state || null;
     this.battleKey = opts.battleKey || this.context.battleKey || null;
+    // 攻城战不把一方打光才收场：兵力降到初始的四分之一，弱的一边就溃退。
+    // 普通野战保持 0，仍然打到分出胜负为止。
+    this.routAt = typeof opts.routAt === 'number' ? opts.routAt : 0;
     this.round = 0;
     this.roundsInBatch = 0;
     this.batch = 1;
@@ -6363,6 +6366,21 @@ class Battle {
       alphaStrike,
     };
     this.log.push(entry);
+
+    // 攻城战：一方只剩初始兵力的四分之一，就判它溃退；不再打到最后一人。
+    // 普通战斗 routAt 为 0，仍按“打光一方”收场。
+    if (this.routAt > 0) {
+      const aLine = Math.max(1, Math.floor(this.a.initialCount * this.routAt));
+      const bLine = Math.max(1, Math.floor(this.b.initialCount * this.routAt));
+      const aRout = this.remainA() <= aLine;
+      const bRout = this.remainB() <= bLine;
+      if (aRout || bRout) {
+        // 攻方先溃则撤离；守方先溃则攻城得手。双方同到线时按攻方撤退处理。
+        this.retreated = aRout;
+        this.finish(aRout ? 'retreat' : 'win');
+        return entry;
+      }
+    }
 
     // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
     // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。
@@ -9378,6 +9396,7 @@ function beginSiegeAssault(state, cp, site, day) {
     attacker: aSide,
     defender: bSide,
     context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },
+    routAt: 0.25,
   });
   cp.stage = 'assault';
   cp.assaultStartDay = day;
@@ -9822,15 +9841,32 @@ function nearestFoe(state, lord, range) {
   return best;
 }
 
+function factionDead(state, id) {
+  return !!(state && state.factionState && state.factionState[id] && state.factionState[id].dead);
+}
+
+/** 亡国的旗从外交战事里撤掉：旧档可能还留着战事键，也不能再显示。 */
 function summaryLines(state) {
   const m = state.factionWars || {};
   const lines = [];
   Object.keys(m).forEach(function (k) {
     const parts = k.split('|');
+    if (factionDead(state, parts[0]) || factionDead(state, parts[1])) return;
     const days = state.clock.day - (m[k].since || 1);
     lines.push({ a: parts[0], b: parts[1], days: days });
   });
   return lines;
+}
+
+/** 势力灭亡时清掉它的战事记录，避免营帐和天下大势继续统计。 */
+function dropFactionWars(state, id) {
+  if (!state || !id) return;
+  const m = state.factionWars || {};
+  Object.keys(m).forEach(function (k) {
+    const parts = k.split('|');
+    if (parts[0] === id || parts[1] === id) delete m[k];
+  });
+  if (state.wars) state.wars[id] = false;
 }
 
 module.exports = {
@@ -9839,7 +9875,7 @@ module.exports = {
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
-  ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
+  ransom, release, listPrisoners, summaryLines, dropFactionWars, warPartners, bindLogger, bindPassable, weight,
   factionEdge, factionKillMul, combatTroops,
   ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
   canPlayerDeclareFaction, canPlayerDeclareSite,
@@ -10554,9 +10590,9 @@ const STORY = {
       '一支冷箭从背后射来，你失去三分之一的弟兄；他们拼死断后，护着你往西逃。',
       '边境小镇的雾里还有一条活路。主线已在地图上标出，沿着线条走，不要回头。',
     ],
-    betrayTitle: '全国背叛',
+    betrayTitle: '长夜',
     betrayLines: [
-      '统一大典还没结束，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
+      '统一大典还没结束，各地兵马同时动了，旗号乱成一片。',
       '你身边只剩兄弟旧部；三分之一的弟兄在乱军中倒下，用命换出一条缺口。',
       '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往边陲小镇走。',
     ],
@@ -12329,8 +12365,8 @@ function forceEndgameUnification(state) {
     '荆州十轮打了两年，最后一座城仍悬而未决。',
     '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
     playerInWinner
-      ? '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。'
-      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，天下不会因你而起背叛。',
+      ? '旧旗一夜之间换了颜色；接下来，天下还不会太平。'
+      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，你只能另寻出路。',
   ], { tag: '终局', art: 'war', auto: 9 });
   logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
   refreshHeadline(state);
@@ -17979,6 +18015,7 @@ function startSiege(state, site) {
       gateEdge: gateEdge,
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
+    routAt: 0.25,
   });
   state.battle = battle;
   return battle;
@@ -19975,6 +20012,7 @@ function fallFaction(state, id, opts) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  war.dropFactionWars(state, id);
   if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
   state.events.push({
@@ -20513,16 +20551,16 @@ function startUnification(state) {
 
   state.events.push({
     type: 'arc', phase: 'betrayal',
-    title: '全国背叛',
+    title: '长夜',
     lines: [
-      '最后一座城归旗的当天，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
+      '最后一座城归旗的当天，各地兵马同时动了，旗号一夜之间全换了。',
       '除了从你帐下出去的兄弟，所有人都翻脸了；' +
         (state.arc.lostBrothers.length ? ('断后的' + state.arc.lostBrothers.join('、') + '再也没跟上来。') : '你在乱军里丢了三分之一的弟兄。'),
       '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往西走。',
       '边陲小镇的雾已经散开一线；跟着地图上的线条走，不要回头。',
     ],
   });
-  pushLog(state, '【全国背叛】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
+  pushLog(state, '【长夜】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
   state.arc.troopLoss = troopLoss;
   state.arc.rebelCount = rebels.length;
   if (state.story) state.story.unifiedFaction = formerFaction || 'player';
@@ -32844,7 +32882,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '村里三件事：找壮丁（只有民兵，比城里便宜）、找村长买牛羊肉粮、屠村（抢钱抢粮，关系 -5，村子会记很久）。' });
     ops.push({ t: 'h1', s: '战斗' });
     ops.push({ t: 'p', s: '战前选战术：冲锋 / 结阵 / 包抄 / 弓弩先射。回合自动推进，双方同时结算，低阶兵先倒。' });
-    ops.push({ t: 'p', s: '减员到三成半以下就溃。打不过可以撤——战前能"撤出"（不算败），战中"撤退"额外损失 25%。' });
+    ops.push({ t: 'p', s: '普通遭遇战要打到一方失去战斗力才收场；攻城战则是兵力降到四分之一，弱的一边才会溃退。打不过可以撤——战前能"撤出"（不算败），战中"撤退"额外损失 25%。' });
     ops.push({ t: 'p', s: '撤退后有一段时间对方不会再贴上来，趁机走远。' });
     ops.push({ t: 'h1', s: '天机简' });
     ops.push({ t: 'p', s: '战斗中能落一笔天机简，共七种：南风起（本场攻防按高两阶结算，T1 打 T3、T2 打 T4、T3 打 T5，一人可敌四路同阶）、天降火球（敌军当场折四成，单次最多 80 人）、风行（立刻脱离战场，敌军折一成并原地停 8 小时）、夜袭（敌军 3 回合完全打不出伤害）、倒戈（一成半敌军当场倒戈，最多 60 人）、瘴气（敌军每回合额外折 4%，连折 5 回合）、回魂（战后复活本场阵亡的我方八成士兵）。' });
@@ -32895,32 +32933,35 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'guide') {
+    // 只教新手怎么开局、怎么活下来；内部公式、概率和后期剧情不写在这里。
     ops.push({ t: 'h1', s: '前几天怎么活' });
-    ops.push({ t: 'p', s: '1. 先往东走，别停。序章那支西凉步卒比你强得多，硬打会散伙。' });
-    ops.push({ t: 'p', s: '2. 到陈留进村/进城，找壮丁。民兵便宜得几乎白给，先堆人数。' });
-    ops.push({ t: 'p', s: '3. 粮草按"两日口粮 × 3"备。地图比过去大了一倍，路程一长就容易断粮。' });
-    ops.push({ t: 'h1', s: '怎么赚钱（新手最缺的）' });
-    ops.push({ t: 'p', s: '· 打青巾匪团：地图上到处是绿衣小队伍，人数 6-12，打散一队能拿 150-250 金钱。这是前期最稳的钱。' });
-    ops.push({ t: 'p', s: '· 做酒馆的活：清剿、送粮、侦察，一桩 130-250 金钱，还涨声望和关系。' });
-    ops.push({ t: 'p', s: '· 跑商：市场"货物"页买低价的粟米/盐/铁，用"估价"看哪座城收得贵，走一趟赚差价。驮队上限 80 件。' });
-    ops.push({ t: 'p', s: '· 屠村：一次 90-200 金钱 + 40-85 粮，但关系 -5，声望也掉。缺钱时能用，别指望它长久。' });
-    ops.push({ t: 'p', s: '· 打下贼巢：+120 金钱、+45 声望。' });
-    ops.push({ t: 'h1', s: '匪团有等级' });
-    ops.push({ t: 'p', s: '地图上的匪团按衣服颜色分级：青（最多，好打）、蓝（有弓有骑）、橙（成建制的山贼）、赤（只比领主差一线）。' });
-    ops.push({ t: 'p', s: '青六成、蓝三成、橙 8%、赤 2%。主线没过半之前不会出橙和赤——前期地图上是安全的。' });
-    ops.push({ t: 'p', s: '匪团也会和领主的部曲撞上，双方都掉人。你只在自己附近看得见这种混战。' });
-    ops.push({ t: 'h1', s: '兵怎么买' });
-    ops.push({ t: 'p', s: '低阶兵便宜得像消耗品，高阶兵一件就是一笔钱。民兵几个金钱，枪盾二十上下，亲卫一百多，禁军两百多。' });
-    ops.push({ t: 'p', s: '村庄的壮丁最便宜，但只有民兵；城里的兵种多，价钱也高。前期靠民兵堆量，中期再换枪盾和弓。' });
-    ops.push({ t: 'h1', s: '英雄' });
-    ops.push({ t: 'p', s: '酒馆角落里坐着一些不起眼的人：廖化、周仓、马岱、凌统、丁奉、李典、乐进、于禁……' });
-    ops.push({ t: 'p', s: '花一笔钱能请进队伍，随队不死，打仗攒经验，1 到 10 级。' });
-    ops.push({ t: 'p', s: '每人的长处不一样：有人添攻击，有人添防御，有人让队伍跑得快、吃得少、缴获多，还有老将每天给队伍提士气。' });
-    ops.push({ t: 'p', s: '随行名额看声望：开局 3 位，声望每 30 点加一位，最多 15 位。队伍页里点英雄的名字能和他说话，也能让他走（后会有期，回旧地还能再遇见）。' });
-    ops.push({ t: 'p', s: '队伍页里每个兵种行右边有"遣1 / 遣5"，把兵遣散省口粮；遣散不退钱。' });
+    ops.push({ t: 'p', s: '1. 先往东走，别停。序章那支西凉步卒比你强，硬打会散伙。' });
+    ops.push({ t: 'p', s: '2. 到陈留进村或进城，先招民兵。民兵便宜，先把人数堆起来。' });
+    ops.push({ t: 'p', s: '3. 出远门前把粮草备足两三天，路上断粮会跑兵。' });
+
+    ops.push({ t: 'h1', s: '怎么赚钱' });
+    ops.push({ t: 'p', s: '· 打青巾匪团：地图上那些穿青衣的小队伍最好欺负，打散一队就有钱粮。' });
+    ops.push({ t: 'p', s: '· 做酒馆的活：清剿、送粮、侦察，钱不算多，但稳当，还能涨声望。' });
+    ops.push({ t: 'p', s: '· 跑商：在市场买便宜货，去别的城卖；先看估价，别把本钱压在一趟上。' });
+    ops.push({ t: 'p', s: '· 攻贼巢：打下来有一笔现钱和声望，但守军不弱，等队伍成型再去。' });
+    ops.push({ t: 'p', s: '· 劫村来钱快，但掉声望、结仇，新手不建议。' });
+
+    ops.push({ t: 'h1', s: '路上遇到什么队伍' });
+    ops.push({ t: 'p', s: '青衣匪团最好打；蓝旗开始有弓有骑，别用民兵硬冲；橙旗和赤旗是成建制的硬茬，前期看见就绕开。' });
+    ops.push({ t: 'p', s: '匪团和诸侯的部曲撞上也会互砍。你只在附近看得见，别凑太近。' });
+
+    ops.push({ t: 'h1', s: '兵怎么补' });
+    ops.push({ t: 'p', s: '民兵便宜，前期靠它撑人数；枪盾和弓贵一些，等钱稳了再换；禁军很贵，别开局就买。' });
+    ops.push({ t: 'p', s: '村里的壮丁最便宜，但只有民兵；城里的兵种多，价钱也高。' });
+
+    ops.push({ t: 'h1', s: '酒馆里的人' });
+    ops.push({ t: 'p', s: '酒馆角落里坐着一些不起眼的人，花一笔钱能请进队伍。' });
+    ops.push({ t: 'p', s: '每人的长处不一样：有人添攻击，有人添防御，有人让队伍跑得快、吃得少，还有老将每天提士气。' });
+    ops.push({ t: 'p', s: '随行名额随声望增加；队伍页里能看他们的本事，也能让他们走。' });
+
     ops.push({ t: 'h1', s: '打不过怎么办' });
-    ops.push({ t: 'p', s: '战前"撤出"、战中"撤退"都行。撤出后再走一格，对方短时间追不上。' });
-    ops.push({ t: 'p', s: '真被打光了，天会往回退一天——醒来时人在最近的城里，队伍会重新拉起来。' });
+    ops.push({ t: 'p', s: '战前“撤出”、战中“撤退”都行。撤出后再走一格，对方短时间内追不上。' });
+    ops.push({ t: 'p', s: '真被打光了，不会直接结束；你会回到附近城里重整队伍，再想办法。' });
     return ops;
   }
 
@@ -32957,7 +32998,8 @@ function buildOps(app, tab) {
       if (id === 'rebel' && !(st && st.arc)) return;
       const f = FACTIONS[id];
       const rel = st ? stateLib.relationOf(st, id) : 0;
-      ops.push({ t: 'faction', f, rel, sworn: st && st.player.faction === id });
+      const dead = !!(st && st.factionState && st.factionState[id] && st.factionState[id].dead);
+      ops.push({ t: 'faction', f, rel, sworn: st && st.player.faction === id, dead: dead });
     });
     ops.push({ t: 'gap' });
     ops.push({ t: 'h1', s: '黄巾与山贼' });
@@ -33077,14 +33119,16 @@ function renderOps(app, ops, scroll, w, h, ctx) {
     }
     if (op.t === 'faction') {
       const f = op.f;
-      ctx.fillStyle = f.color;
+      const dead = !!op.dead;
+      ctx.fillStyle = dead ? '#4a4038' : f.color;
       ctx.fillRect(24, y + 4, 8, 44);
-      text(ctx, f.name + ' · ' + f.full, 44, y, { size: 24, color: f.color });
+      text(ctx, f.name + ' · ' + f.full, 44, y, { size: 24, color: dead ? '#6a6050' : f.color });
       const rel = op.rel;
-      text(ctx, '关系 ' + rel + (op.sworn ? ' · 已效忠' : ''), w - 24, y + 4, {
-        size: 18, align: 'right', color: rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#a2947a',
+      const status = dead ? '亡' : '关系 ' + rel + (op.sworn ? ' · 已效忠' : '');
+      text(ctx, status, w - 24, y + 4, {
+        size: 18, align: 'right', color: dead ? '#8a8070' : rel < -25 ? '#d06a4a' : rel > 25 ? '#8fbf7a' : '#a2947a',
       });
-      text(ctx, f.desc, 44, y + 34, { size: 15, color: '#8a8070' });
+      text(ctx, f.desc, 44, y + 34, { size: 15, color: dead ? '#5a5046' : '#8a8070' });
       y += hh;
       return;
     }
@@ -33654,7 +33698,7 @@ const ArcScene = {
       }
       : phase === 'disaster'
         ? {
-          title: '大旱 · 天下皆反',
+          title: '大旱 · 长夜',
           sub: '第三十天',
           lines: [
             '西边的天一直黄着。井先干了，然后是河。',
@@ -33679,7 +33723,7 @@ const ArcScene = {
           }
           : phase === 'retreat'
             ? {
-              title: STORY.unification.betrayTitle || '全国背叛',
+              title: STORY.unification.betrayTitle || '长夜',
               sub: '退往边陲小镇 · 第 ' + (arc.disasterDay || st.clock.day) + ' 天',
               lines: STORY.unification.betrayLines || [],
               btn: '继续往边陲小镇',

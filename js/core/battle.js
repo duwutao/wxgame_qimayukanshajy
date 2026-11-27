@@ -149,6 +149,9 @@ class Battle {
     this.context = opts.context || {};
     this.state = opts.state || null;
     this.battleKey = opts.battleKey || this.context.battleKey || null;
+    // 攻城战不把一方打光才收场：兵力降到初始的四分之一，弱的一边就溃退。
+    // 普通野战保持 0，仍然打到分出胜负为止。
+    this.routAt = typeof opts.routAt === 'number' ? opts.routAt : 0;
     this.round = 0;
     this.roundsInBatch = 0;
     this.batch = 1;
@@ -464,6 +467,21 @@ class Battle {
       alphaStrike,
     };
     this.log.push(entry);
+
+    // 攻城战：一方只剩初始兵力的四分之一，就判它溃退；不再打到最后一人。
+    // 普通战斗 routAt 为 0，仍按“打光一方”收场。
+    if (this.routAt > 0) {
+      const aLine = Math.max(1, Math.floor(this.a.initialCount * this.routAt));
+      const bLine = Math.max(1, Math.floor(this.b.initialCount * this.routAt));
+      const aRout = this.remainA() <= aLine;
+      const bRout = this.remainB() <= bLine;
+      if (aRout || bRout) {
+        // 攻方先溃则撤离；守方先溃则攻城得手。双方同到线时按攻方撤退处理。
+        this.retreated = aRout;
+        this.finish(aRout ? 'retreat' : 'win');
+        return entry;
+      }
+    }
 
     // 不再因为“剩得少”就提前溃败：只有真正打光一方，才算这一仗结束。
     // 12 轮只是“一阵”，一阵结束双方还有人就继续下一阵；中途不结算、不判胜。

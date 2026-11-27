@@ -42,7 +42,7 @@ const ArcScene = {
       }
       : phase === 'disaster'
         ? {
-          title: '大旱 · 天下皆反',
+          title: '大旱 · 长夜',
           sub: '第三十天',
           lines: [
             '西边的天一直黄着。井先干了，然后是河。',
@@ -67,7 +67,7 @@ const ArcScene = {
           }
           : phase === 'retreat'
             ? {
-              title: STORY.unification.betrayTitle || '全国背叛',
+              title: STORY.unification.betrayTitle || '长夜',
               sub: '退往边陲小镇 · 第 ' + (arc.disasterDay || st.clock.day) + ' 天',
               lines: STORY.unification.betrayLines || [],
               btn: '继续往边陲小镇',

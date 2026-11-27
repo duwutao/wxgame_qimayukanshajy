@@ -377,7 +377,7 @@ group('n43 统一背叛与边陲小镇');
   }));
   ok('玩家被剥夺所有城', st.world.sites.filter(function (s) { return s.playerOwned && s.id !== 'edge_town'; }).length === 0);
   ok('残部路线自动指向边陲小镇', Array.isArray(st.player.route) && st.player.route.length > 0);
-  ok('统一事件写着全国背叛', st.events.some(function (e) { return e.title === '全国背叛'; }));
+  ok('统一事件写着长夜', st.events.some(function (e) { return e.title === '长夜'; }));
 
   st.player.x = st.world.edgeTown.x;
   st.player.y = st.world.edgeTown.y;

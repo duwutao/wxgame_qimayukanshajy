@@ -4908,6 +4908,7 @@ function startSiege(state, site) {
       gateEdge: gateEdge,
     },
     context: { kind: 'siege', siteId: site.id, siteName: site.name },
+    routAt: 0.25,
   });
   state.battle = battle;
   return battle;
@@ -6904,6 +6905,7 @@ function fallFaction(state, id, opts) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  war.dropFactionWars(state, id);
   if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
   state.events.push({
@@ -7442,16 +7444,16 @@ function startUnification(state) {
 
   state.events.push({
     type: 'arc', phase: 'betrayal',
-    title: '全国背叛',
+    title: '长夜',
     lines: [
-      '最后一座城归旗的当天，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
+      '最后一座城归旗的当天，各地兵马同时动了，旗号一夜之间全换了。',
       '除了从你帐下出去的兄弟，所有人都翻脸了；' +
         (state.arc.lostBrothers.length ? ('断后的' + state.arc.lostBrothers.join('、') + '再也没跟上来。') : '你在乱军里丢了三分之一的弟兄。'),
       '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往西走。',
       '边陲小镇的雾已经散开一线；跟着地图上的线条走，不要回头。',
     ],
   });
-  pushLog(state, '【全国背叛】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
+  pushLog(state, '【长夜】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
   state.arc.troopLoss = troopLoss;
   state.arc.rebelCount = rebels.length;
   if (state.story) state.story.unifiedFaction = formerFaction || 'player';

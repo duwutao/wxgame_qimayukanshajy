@@ -1205,6 +1205,36 @@ ok('亡国君主有去向（被杀或隐世）',
   st13.factionState.lv.fate === 'killed' || st13.factionState.lv.fate === 'hidden',
   String(st13.factionState.lv.fate));
 
+// 亡国从外国战事里撤旗；玩法势力页也要能标“亡”。
+const stFactionWars = stateLib.createGame({ seed: 777009 });
+stFactionWars.factionWars['lv|wei'] = { since: 1 };
+stFactionWars.factionState.lv = Object.assign({}, stFactionWars.factionState.lv, { dead: true });
+ok('亡国的战事不再出现在外国战事里',
+  !warLib.summaryLines(stFactionWars).some(function (row) { return row.a === 'lv' || row.b === 'lv'; }),
+  JSON.stringify(warLib.summaryLines(stFactionWars)));
+ok('亡国在势力状态里可读为 dead', !!(stFactionWars.factionState.lv && stFactionWars.factionState.lv.dead));
+warLib.dropFactionWars(stFactionWars, 'lv');
+ok('清掉亡国战事键', !stFactionWars.factionWars['lv|wei'] && stFactionWars.wars.lv === false);
+
+ok('叛军说明不提前解释来历',
+  !/(统一|全国|旧臣|背叛)/.test(FACTIONS.rebel.desc), FACTIONS.rebel.desc);
+
+const routBattle = new Battle({
+  rng: new RNG(777010),
+  attacker: { name: '攻方', troops: { militia: 100 }, morale: 70 },
+  defender: { name: '守方', troops: { militia: 100 }, morale: 70 },
+  context: { kind: 'siege' },
+  routAt: 0.25,
+});
+fightToEnd(routBattle, 800);
+const aRout = routBattle.remainA() <= Math.max(1, Math.floor(routBattle.a.initialCount * 0.25));
+const bRout = routBattle.remainB() <= Math.max(1, Math.floor(routBattle.b.initialCount * 0.25));
+ok('攻城战打到一方只剩四分之一就收场', routBattle.finished && (aRout || bRout),
+  'A ' + routBattle.remainA() + '/' + routBattle.a.initialCount +
+  ' B ' + routBattle.remainB() + '/' + routBattle.b.initialCount);
+ok('攻城战溃退结果只判胜或撤退',
+  routBattle.result === 'win' || routBattle.result === 'retreat', routBattle.result);
+
 const st14 = stateLib.createGame({ seed: 777008 });
 st14.events.length = 0;
 // 吕布死，但高顺活着 → 史实投魏；陈宫活着一律不降

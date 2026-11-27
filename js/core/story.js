@@ -1747,8 +1747,8 @@ function forceEndgameUnification(state) {
     '荆州十轮打了两年，最后一座城仍悬而未决。',
     '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
     playerInWinner
-      ? '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。'
-      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，天下不会因你而起背叛。',
+      ? '旧旗一夜之间换了颜色；接下来，天下还不会太平。'
+      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，你只能另寻出路。',
   ], { tag: '终局', art: 'war', auto: 9 });
   logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
   refreshHeadline(state);

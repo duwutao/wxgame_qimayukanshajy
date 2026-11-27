@@ -2833,6 +2833,7 @@ function beginSiegeAssault(state, cp, site, day) {
     attacker: aSide,
     defender: bSide,
     context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },
+    routAt: 0.25,
   });
   cp.stage = 'assault';
   cp.assaultStartDay = day;
@@ -3277,15 +3278,32 @@ function nearestFoe(state, lord, range) {
   return best;
 }
 
+function factionDead(state, id) {
+  return !!(state && state.factionState && state.factionState[id] && state.factionState[id].dead);
+}
+
+/** 亡国的旗从外交战事里撤掉：旧档可能还留着战事键，也不能再显示。 */
 function summaryLines(state) {
   const m = state.factionWars || {};
   const lines = [];
   Object.keys(m).forEach(function (k) {
     const parts = k.split('|');
+    if (factionDead(state, parts[0]) || factionDead(state, parts[1])) return;
     const days = state.clock.day - (m[k].since || 1);
     lines.push({ a: parts[0], b: parts[1], days: days });
   });
   return lines;
+}
+
+/** 势力灭亡时清掉它的战事记录，避免营帐和天下大势继续统计。 */
+function dropFactionWars(state, id) {
+  if (!state || !id) return;
+  const m = state.factionWars || {};
+  Object.keys(m).forEach(function (k) {
+    const parts = k.split('|');
+    if (parts[0] === id || parts[1] === id) delete m[k];
+  });
+  if (state.wars) state.wars[id] = false;
 }
 
 module.exports = {
@@ -3294,7 +3312,7 @@ module.exports = {
   fieldTick, clash, capture, freeLord, prisonerTick, onSiteTaken, playerDefeatsLord,
   markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
-  ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
+  ransom, release, listPrisoners, summaryLines, dropFactionWars, warPartners, bindLogger, bindPassable, weight,
   factionEdge, factionKillMul, combatTroops,
   ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
   canPlayerDeclareFaction, canPlayerDeclareSite,
