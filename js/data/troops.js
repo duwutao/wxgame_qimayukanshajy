@@ -363,8 +363,10 @@ function t5UnlockedForPlayer(state, faction) {
   return !!(p.t5Unlocked && p.t5Unlocked[faction]);
 }
 
-/** T3/T4 的国家兵门槛：先有旗（投国或自立），再看声望。 */
+/** T3 只看声望；T4 仍要投国或自立，再看声望。 */
 const TIER_RENOWN_REQ = { 3: 200, 4: 500 };
+/** 自立后自选兵源国的冷却：换一次锁 30 天。 */
+const RECRUIT_SOURCE_COOLDOWN_DAYS = 30;
 
 function playerHasBanner(state) {
   const p = state && state.player;
@@ -384,7 +386,8 @@ function troopAccess(state, site, troopId) {
   const tier = Number(t.tier) || 1;
   const tierReq = TIER_RENOWN_REQ[tier];
   if (tierReq) {
-    if (!playerHasBanner(state)) {
+    // n64：T3 只需声望 200，不再要求投国或自立；T4 仍要有旗。
+    if (tier >= 4 && !playerHasBanner(state)) {
       return {
         ok: false,
         code: 'banner',
@@ -425,7 +428,12 @@ function effectiveSiteFaction(state, site) {
   if (owner !== 'player') return owner;
   const p = state && state.player;
   if (p && p.faction && p.faction !== 'player' && FACTION_TROOPS[p.faction]) return p.faction;
-  // 自立/无旗玩家：沿用这块地方原本的兵源文化；没有文化才用通用兵。
+  // 自立后选了兵源国：所有自己的城统一用这套兵源。
+  if (p && p.faction === 'player' && p.country && p.recruitFaction &&
+      FACTION_TROOPS[p.recruitFaction]) {
+    return p.recruitFaction;
+  }
+  // 自立/无旗玩家未选兵源：沿用这块地方原本的兵源文化；没有文化才用通用兵。
   if (site.originFaction && FACTION_TROOPS[site.originFaction]) return site.originFaction;
   return 'player';
 }
@@ -585,6 +593,7 @@ module.exports = {
   t5FactionOf,
   t5UnlockedForPlayer,
   TIER_RENOWN_REQ,
+  RECRUIT_SOURCE_COOLDOWN_DAYS,
   playerHasBanner,
   troopAccess,
   stockCapFor,

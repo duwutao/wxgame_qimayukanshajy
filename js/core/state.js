@@ -45,6 +45,7 @@ const {
   factionLabel,
   t5UnlockedForPlayer,
   troopAccess,
+  RECRUIT_SOURCE_COOLDOWN_DAYS,
   stockCapFor,
   effectiveSiteFaction,
   syncSiteRecruitList,
@@ -212,6 +213,60 @@ function applyPlayerCountry(state) {
   });
 }
 
+/** 自立后兵源状态：当前选择、冷却剩余天数；未选时显示本地兵源。 */
+function recruitSourceInfo(state) {
+  const p = state && state.player;
+  const enabled = !!(p && p.faction === 'player' && p.country);
+  const current = enabled && p.recruitFaction && FACTION_TROOPS[p.recruitFaction]
+    ? p.recruitFaction
+    : null;
+  const lastDay = Number(p && p.recruitFactionDay) || 0;
+  const elapsed = state && state.clock ? state.clock.day - lastDay : 0;
+  const remain = current && lastDay > 0
+    ? Math.max(0, RECRUIT_SOURCE_COOLDOWN_DAYS - Math.max(0, elapsed))
+    : 0;
+  return {
+    enabled,
+    current,
+    lastDay,
+    remain,
+    canChange: !current || remain <= 0,
+  };
+}
+
+/** 自立后换兵源国：全局生效，所有自己的城一起换；换一次锁 30 天。 */
+function setPlayerRecruitSource(state, faction) {
+  const p = state && state.player;
+  if (!p) return { ok: false, msg: '还没有自己的队伍' };
+  if (p.faction !== 'player' || !p.country) {
+    return { ok: false, msg: '自立后才能自选兵源国' };
+  }
+  if (!FACTION_TROOPS[faction]) return { ok: false, msg: '没有这个国家的兵源' };
+  if (p.recruitFaction === faction) {
+    return { ok: false, msg: '当前已经是' + factionLabel(faction) + '兵源' };
+  }
+  const info = recruitSourceInfo(state);
+  if (info.remain > 0) {
+    return {
+      ok: false,
+      code: 'cooldown',
+      remain: info.remain,
+      msg: '刚换过兵源，还需 ' + info.remain + ' 天才能再换',
+    };
+  }
+  p.recruitFaction = faction;
+  p.recruitFactionDay = state.clock.day;
+  // 所有玩家城一起换牌；旧库存留着不删，切回来时还能接上。
+  refreshSiteRosters(state, true, true);
+  pushLog(state, '你把招兵旗号换成' + factionLabel(faction) +
+    '，各城兵源随之更换；' + RECRUIT_SOURCE_COOLDOWN_DAYS + ' 天内不能再换。', 'war');
+  return {
+    ok: true,
+    faction,
+    msg: '兵源已换成' + factionLabel(faction) + '，' + RECRUIT_SOURCE_COOLDOWN_DAYS + ' 天内不能更换',
+  };
+}
+
 /** 国号必须是且只能是一个汉字 */
 function cleanCountryName(name) {
   const s = String(name === undefined || name === null ? '' : name).trim();
@@ -352,6 +407,9 @@ function createGame(opts) {
     t5Unlocked: {},
     // 自立后的国号与旗色：打下第一座城才会立，固定一字
     country: null,
+    // 自立后自选的兵源国；换一次后 30 天内不能换。
+    recruitFaction: null,
+    recruitFactionDay: 0,
     banner: false,
     foodWarnDay: 0,
     foodWarned: false,
@@ -5432,6 +5490,9 @@ function beginSelfRule(state, site) {
     oldFaction: oldFaction || null,
   };
   p.faction = 'player';
+  // 延续旧旗的兵源；没有旧旗就先用各城本地文化，等玩家自己选。
+  p.recruitFaction = oldFaction && FACTION_TROOPS[oldFaction] ? oldFaction : null;
+  p.recruitFactionDay = 0;
   p.banner = true;
   syncPlayerFaction(p.country);
   if (oldFaction && oldFaction !== 'player' && FACTIONS[oldFaction]) {
@@ -8163,6 +8224,8 @@ function deserialize(json) {
     state.parties = (state.parties || []).filter(function (q) { return q.banditTier !== 'hong'; });
   }
   state.player.country = state.player.country || null;
+  state.player.recruitFaction = state.player.recruitFaction || null;
+  state.player.recruitFactionDay = Number(state.player.recruitFactionDay) || 0;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
   state.player.adShiDay = state.player.adShiDay || 0;
@@ -8632,6 +8695,8 @@ module.exports = {
   questTargetPos,
   foundCountry,
   applyPlayerCountry,
+  recruitSourceInfo,
+  setPlayerRecruitSource,
   cleanCountryName,
   flagColorName,
   nextFoodNeed,

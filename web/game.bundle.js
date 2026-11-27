@@ -3707,8 +3707,10 @@ function t5UnlockedForPlayer(state, faction) {
   return !!(p.t5Unlocked && p.t5Unlocked[faction]);
 }
 
-/** T3/T4 的国家兵门槛：先有旗（投国或自立），再看声望。 */
+/** T3 只看声望；T4 仍要投国或自立，再看声望。 */
 const TIER_RENOWN_REQ = { 3: 200, 4: 500 };
+/** 自立后自选兵源国的冷却：换一次锁 30 天。 */
+const RECRUIT_SOURCE_COOLDOWN_DAYS = 30;
 
 function playerHasBanner(state) {
   const p = state && state.player;
@@ -3728,7 +3730,8 @@ function troopAccess(state, site, troopId) {
   const tier = Number(t.tier) || 1;
   const tierReq = TIER_RENOWN_REQ[tier];
   if (tierReq) {
-    if (!playerHasBanner(state)) {
+    // n64：T3 只需声望 200，不再要求投国或自立；T4 仍要有旗。
+    if (tier >= 4 && !playerHasBanner(state)) {
       return {
         ok: false,
         code: 'banner',
@@ -3769,7 +3772,12 @@ function effectiveSiteFaction(state, site) {
   if (owner !== 'player') return owner;
   const p = state && state.player;
   if (p && p.faction && p.faction !== 'player' && FACTION_TROOPS[p.faction]) return p.faction;
-  // 自立/无旗玩家：沿用这块地方原本的兵源文化；没有文化才用通用兵。
+  // 自立后选了兵源国：所有自己的城统一用这套兵源。
+  if (p && p.faction === 'player' && p.country && p.recruitFaction &&
+      FACTION_TROOPS[p.recruitFaction]) {
+    return p.recruitFaction;
+  }
+  // 自立/无旗玩家未选兵源：沿用这块地方原本的兵源文化；没有文化才用通用兵。
   if (site.originFaction && FACTION_TROOPS[site.originFaction]) return site.originFaction;
   return 'player';
 }
@@ -3929,6 +3937,7 @@ module.exports = {
   t5FactionOf,
   t5UnlockedForPlayer,
   TIER_RENOWN_REQ,
+  RECRUIT_SOURCE_COOLDOWN_DAYS,
   playerHasBanner,
   troopAccess,
   stockCapFor,
@@ -14564,6 +14573,7 @@ const {
   factionLabel,
   t5UnlockedForPlayer,
   troopAccess,
+  RECRUIT_SOURCE_COOLDOWN_DAYS,
   stockCapFor,
   effectiveSiteFaction,
   syncSiteRecruitList,
@@ -14731,6 +14741,60 @@ function applyPlayerCountry(state) {
   });
 }
 
+/** 自立后兵源状态：当前选择、冷却剩余天数；未选时显示本地兵源。 */
+function recruitSourceInfo(state) {
+  const p = state && state.player;
+  const enabled = !!(p && p.faction === 'player' && p.country);
+  const current = enabled && p.recruitFaction && FACTION_TROOPS[p.recruitFaction]
+    ? p.recruitFaction
+    : null;
+  const lastDay = Number(p && p.recruitFactionDay) || 0;
+  const elapsed = state && state.clock ? state.clock.day - lastDay : 0;
+  const remain = current && lastDay > 0
+    ? Math.max(0, RECRUIT_SOURCE_COOLDOWN_DAYS - Math.max(0, elapsed))
+    : 0;
+  return {
+    enabled,
+    current,
+    lastDay,
+    remain,
+    canChange: !current || remain <= 0,
+  };
+}
+
+/** 自立后换兵源国：全局生效，所有自己的城一起换；换一次锁 30 天。 */
+function setPlayerRecruitSource(state, faction) {
+  const p = state && state.player;
+  if (!p) return { ok: false, msg: '还没有自己的队伍' };
+  if (p.faction !== 'player' || !p.country) {
+    return { ok: false, msg: '自立后才能自选兵源国' };
+  }
+  if (!FACTION_TROOPS[faction]) return { ok: false, msg: '没有这个国家的兵源' };
+  if (p.recruitFaction === faction) {
+    return { ok: false, msg: '当前已经是' + factionLabel(faction) + '兵源' };
+  }
+  const info = recruitSourceInfo(state);
+  if (info.remain > 0) {
+    return {
+      ok: false,
+      code: 'cooldown',
+      remain: info.remain,
+      msg: '刚换过兵源，还需 ' + info.remain + ' 天才能再换',
+    };
+  }
+  p.recruitFaction = faction;
+  p.recruitFactionDay = state.clock.day;
+  // 所有玩家城一起换牌；旧库存留着不删，切回来时还能接上。
+  refreshSiteRosters(state, true, true);
+  pushLog(state, '你把招兵旗号换成' + factionLabel(faction) +
+    '，各城兵源随之更换；' + RECRUIT_SOURCE_COOLDOWN_DAYS + ' 天内不能再换。', 'war');
+  return {
+    ok: true,
+    faction,
+    msg: '兵源已换成' + factionLabel(faction) + '，' + RECRUIT_SOURCE_COOLDOWN_DAYS + ' 天内不能更换',
+  };
+}
+
 /** 国号必须是且只能是一个汉字 */
 function cleanCountryName(name) {
   const s = String(name === undefined || name === null ? '' : name).trim();
@@ -14871,6 +14935,9 @@ function createGame(opts) {
     t5Unlocked: {},
     // 自立后的国号与旗色：打下第一座城才会立，固定一字
     country: null,
+    // 自立后自选的兵源国；换一次后 30 天内不能换。
+    recruitFaction: null,
+    recruitFactionDay: 0,
     banner: false,
     foodWarnDay: 0,
     foodWarned: false,
@@ -19951,6 +20018,9 @@ function beginSelfRule(state, site) {
     oldFaction: oldFaction || null,
   };
   p.faction = 'player';
+  // 延续旧旗的兵源；没有旧旗就先用各城本地文化，等玩家自己选。
+  p.recruitFaction = oldFaction && FACTION_TROOPS[oldFaction] ? oldFaction : null;
+  p.recruitFactionDay = 0;
   p.banner = true;
   syncPlayerFaction(p.country);
   if (oldFaction && oldFaction !== 'player' && FACTIONS[oldFaction]) {
@@ -22682,6 +22752,8 @@ function deserialize(json) {
     state.parties = (state.parties || []).filter(function (q) { return q.banditTier !== 'hong'; });
   }
   state.player.country = state.player.country || null;
+  state.player.recruitFaction = state.player.recruitFaction || null;
+  state.player.recruitFactionDay = Number(state.player.recruitFactionDay) || 0;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
   state.player.adShiDay = state.player.adShiDay || 0;
@@ -23151,6 +23223,8 @@ module.exports = {
   questTargetPos,
   foundCountry,
   applyPlayerCountry,
+  recruitSourceInfo,
+  setPlayerRecruitSource,
   cleanCountryName,
   flagColorName,
   nextFoodNeed,
@@ -28583,8 +28657,9 @@ const heroes = __require(14);
 const army = __require(10);
 const tourney = __require(30);
 const { siteById, regionDef } = __require(8);
-const { TROOPS } = __require(9);
-const { troopAccess } = __require(9);
+const {
+  TROOPS, FACTION_TROOPS, factionLabel, effectiveSiteFaction, troopAccess,
+} = __require(9);
 
 /** 每个据点一个稳定的背景种子，同类型城镇也能有不同街景 */
 function siteSeed(id) {
@@ -28675,11 +28750,11 @@ function statusBar(app, y) {
   return y + 106;
 }
 
-function backButton(app, y) {
+function backButton(app, y, target) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
   app.ui.button(ctx, PAD, y, 150, 64, '← 返回', {
-    id: 'back', size: 22, onTap: function () { app.townView.view = 'menu'; },
+    id: 'back', size: 22, onTap: function () { app.townView.view = target || 'menu'; },
   });
 }
 
@@ -28959,13 +29034,37 @@ function renderRecruit(app, site) {
   text(ctx, '兵阶：T2 能打两个 T1，T3 又压 T2 一头，T4 是国中精锐，T5 为镇国兵。', PAD, 258, {
     size: 15, color: '#c9bda2',
   });
-  text(ctx, 'T3 需投国或自立、声望 200；T4 需声望 500；T5 只限特定国家。', PAD, 278, {
+  text(ctx, 'T3 声望 200 即可；T4 需投国/自立且声望 500；T5 只限特定国家。', PAD, 278, {
     size: 15, color: '#a2947a',
   });
   text(ctx, '可招募', PAD, 300, { size: 26, color: '#f0c060' });
   text(ctx, '队伍 ' + army.troopCount(p.troops) + ' / ' + stateLib.capacity(st), w - PAD, 306, {
     size: 18, align: 'right', color: '#a2947a',
   });
+
+  // 自立后在自己的城招兵，可以在顶部切换兵源国；换一次锁 30 天。
+  const sourceInfo = stateLib.recruitSourceInfo(st);
+  const selfSource = sourceInfo.enabled && !!site.playerOwned;
+  let listTop = 340;
+  if (selfSource) {
+    const localFaction = effectiveSiteFaction(st, site);
+    const sourceName = sourceInfo.current
+      ? factionLabel(sourceInfo.current)
+      : (localFaction ? factionLabel(localFaction) + '（本地）' : '本地');
+    panel(ctx, PAD, 318, w - PAD * 2, 48, { fill: '#1d1711' });
+    text(ctx,
+      '兵源：' + sourceName + (sourceInfo.remain > 0 ? ' · 还剩 ' + sourceInfo.remain + ' 天' : ''),
+      PAD + 12, 334, {
+        size: 17,
+        color: sourceInfo.remain > 0 ? '#d08a5a' : '#c9bda2',
+      });
+    app.ui.button(ctx, w - PAD - 154, 324, 142, 36, sourceInfo.remain > 0 ? '查看兵源' : '更换兵源', {
+      id: 'recruit_source', size: 17, onTap: function () {
+        app.townView.view = 'recruitSource';
+      },
+    });
+    listTop = 376;
+  }
 
   let list = site.recruitList || [];
   // 村庄只出本地最低一档；城/关按当前管辖势力出完整兵源牌。
@@ -28976,7 +29075,7 @@ function renderRecruit(app, site) {
   const compact = list.length >= 6;
   const rowH = compact ? 88 : 104;
   const step = compact ? 96 : 116;
-  let y = 340;
+  let y = listTop;
 
   if (!list.length) {
     text(ctx, '这里不卖人。', PAD, y + 20, { size: 22, color: '#a2947a' });
@@ -29029,6 +29128,64 @@ function renderRecruit(app, site) {
   });
 
   backButton(app, y + 4);
+}
+
+/* ---------------------------------------------------------------- 兵源国 */
+
+function renderRecruitSource(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const H = app.runtime.height;
+  const st = app.state;
+  const info = stateLib.recruitSourceInfo(st);
+  if (!info.enabled) {
+    app.townView.view = 'recruit';
+    return;
+  }
+
+  text(ctx, '选择兵源国', PAD, 270, { size: 28, color: '#f0c060' });
+  const localFaction = effectiveSiteFaction(st, site);
+  text(ctx, info.current
+    ? '当前：' + factionLabel(info.current)
+    : '当前：本地兵源（' + (localFaction ? factionLabel(localFaction) : '各城原文化') + '）',
+    PAD, 306, { size: 18, color: '#c9bda2' });
+  text(ctx, info.remain > 0
+    ? '已换过兵源，' + info.remain + ' 天后才能再换。'
+    : '自立后可任选一国兵源；换过后 30 天内不能更换。',
+    PAD, 330, { size: 15, color: info.remain > 0 ? '#d08a5a' : '#a2947a' });
+
+  const factions = Object.keys(FACTION_TROOPS);
+  const cols = 2;
+  const gap = 10;
+  const cw = (w - PAD * 2 - gap) / cols;
+  const ch = 56;
+  const top = 360;
+  const rowStep = ch + 10;
+  const locked = info.remain > 0;
+  factions.forEach(function (f, i) {
+    const x = PAD + (i % cols) * (cw + gap);
+    const y = top + Math.floor(i / cols) * rowStep;
+    const label = (info.current === f ? '当前 · ' : '') + factionLabel(f);
+    app.ui.button(ctx, x, y, cw, ch, label, {
+      id: 'src_' + f, size: 20, disabled: locked,
+      fill: info.current === f ? '#4a3520' : '#2c2117',
+      border: info.current === f ? '#c9a05a' : undefined,
+      onTap: function () {
+        const r = stateLib.setPlayerRecruitSource(st, f);
+        app.showToast(r.msg, 2.2);
+        if (r.ok) app.townView.view = 'recruit';
+      },
+    });
+  });
+
+  // 最后一行按钮下留出完整一行的高度，提示文字不能压到按钮边框上。
+  const noteY = top + Math.ceil(factions.length / cols) * rowStep + 28;
+  ctx.fillStyle = 'rgba(20,15,10,0.78)';
+  ctx.fillRect(PAD, noteY - 20, w - PAD * 2, 30);
+  text(ctx, 'T5 仍按原规则：需加入该国，或亲手灭其国。', PAD, noteY, {
+    size: 14, color: '#c9bda2',
+  });
+  backButton(app, H - 100, 'recruit');
 }
 
 /* ---------------------------------------------------------------- 市场 */
@@ -29923,6 +30080,7 @@ const TownScene = {
 
     const v = app.townView.view;
     if (v === 'recruit') renderRecruit(app, site);
+    else if (v === 'recruitSource') renderRecruitSource(app, site);
     else if (v === 'market') renderMarket(app, site, app.townView.tab || 'goods');
     else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);

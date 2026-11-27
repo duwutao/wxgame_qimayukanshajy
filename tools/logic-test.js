@@ -4837,37 +4837,86 @@ group('n59 各国兵源 · T5 解锁');
     illegalT5.map(function (l) { return l.name; }).join(','));
 }
 
-group('n62 T3/T4 兵源门槛 · 投国或自立');
+group('n64 T3 只需声望 · T4 仍需旗');
 {
   const troopLib = require(R + '/data/troops.js');
   const gateState = stateLib.createGame({ seed: 2026112762 });
   const weiCity = gateState.world.sites.filter(function (x) {
     return x.ownerFaction === 'wei' && x.type === 'town';
   })[0];
-  gateState.player.renown = 9999;
   gateState.player.faction = null;
-  ok('无旗时 T3 招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
-  ok('无旗时 T4 也招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === false);
+  gateState.player.country = null;
+  gateState.player.renown = 199;
+  ok('无旗声望 199，T3 仍招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
+  gateState.player.renown = 200;
+  ok('无旗声望 200，T3 可直接招', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
+  gateState.player.renown = 9999;
+  ok('无旗时 T4 仍招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === false);
 
   gateState.player.faction = 'wei';
   gateState.player.renown = 199;
-  ok('投国后声望 199 仍招不了 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
+  ok('有旗声望 199 仍招不了 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
   gateState.player.renown = 200;
-  ok('投国且声望 200 可招 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
+  ok('有旗声望 200 可招 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
   gateState.player.renown = 499;
   ok('声望 499 仍招不了 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === false);
   gateState.player.renown = 500;
-  ok('投国且声望 500 可招 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === true);
+  ok('有旗声望 500 可招 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === true);
 
   gateState.player.faction = 'player';
   gateState.player.country = { name: '测', color: '#d9a441' };
-  gateState.player.renown = 200;
-  ok('自立也算有旗，可招 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
+  gateState.player.renown = 500;
+  ok('自立也算有旗，可招 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === true);
 
   gateState.player.faction = 'wei';
   gateState.player.renown = 9999;
   ok('加入魏国可招魏 T5', troopLib.troopAccess(gateState, weiCity, 'wei_t5').ok === true);
   ok('加入魏国不能招蜀 T5', troopLib.troopAccess(gateState, weiCity, 'shu_t5').ok === false);
+}
+
+group('n64 自立后自选兵源国 · 30 天冷却');
+{
+  const troopLib = require(R + '/data/troops.js');
+  const st = stateLib.createGame({ seed: 2026112764 });
+  const own = st.world.sites.filter(function (x) {
+    return x.type === 'town' && x.ownerFaction === 'wei';
+  })[0];
+  own.playerOwned = true;
+  own.ownerFaction = 'player';
+  own.faction = 'player';
+  st.player.faction = 'player';
+  st.player.country = { name: '测', color: '#d9a441' };
+  st.clock.day = 100;
+
+  // 先模拟还在投靠魏国：没有自立，不能自选兵源。
+  st.player.faction = 'wei';
+  st.player.country = null;
+  const serving = stateLib.setPlayerRecruitSource(st, 'shu');
+  ok('投国时不能自选兵源', serving.ok === false, serving.msg);
+  st.player.faction = 'player';
+  st.player.country = { name: '测', color: '#d9a441' };
+
+  const first = stateLib.setPlayerRecruitSource(st, 'shu');
+  ok('自立后可自选蜀汉兵源', first.ok === true && st.player.recruitFaction === 'shu', first.msg);
+  ok('换兵源后自己的城改用蜀汉兵源', troopLib.effectiveSiteFaction(st, own) === 'shu',
+    troopLib.effectiveSiteFaction(st, own));
+  ok('蜀汉兵源牌已经重铺', (own.recruitList || []).indexOf('shu_t3a') >= 0 &&
+    (own.recruitList || []).indexOf('wei_t3a') < 0, (own.recruitList || []).join(','));
+
+  const tooSoon = stateLib.setPlayerRecruitSource(st, 'wei');
+  ok('同月不能换第二次', tooSoon.ok === false && tooSoon.code === 'cooldown',
+    tooSoon.msg);
+  ok('冷却剩余 30 天', tooSoon.remain === 30, String(tooSoon.remain));
+
+  st.clock.day = 129;
+  const day29 = stateLib.setPlayerRecruitSource(st, 'wei');
+  ok('第 29 天仍不能换', day29.ok === false && day29.remain === 1, day29.msg);
+
+  st.clock.day = 130;
+  const day30 = stateLib.setPlayerRecruitSource(st, 'wei');
+  ok('满 30 天可换魏国兵源', day30.ok === true && st.player.recruitFaction === 'wei', day30.msg);
+  ok('换魏后城头改出魏国兵源', troopLib.effectiveSiteFaction(st, own) === 'wei' &&
+    (own.recruitList || []).indexOf('wei_t3a') >= 0, (own.recruitList || []).join(','));
 }
 
 group('n60 玩家三国阵法 · T5 开局特效');

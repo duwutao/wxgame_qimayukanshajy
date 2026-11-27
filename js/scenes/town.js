@@ -15,8 +15,9 @@ const heroes = require('../core/heroes.js');
 const army = require('../core/army.js');
 const tourney = require('../core/tourney.js');
 const { siteById, regionDef } = require('../core/world.js');
-const { TROOPS } = require('../data/troops.js');
-const { troopAccess } = require('../data/troops.js');
+const {
+  TROOPS, FACTION_TROOPS, factionLabel, effectiveSiteFaction, troopAccess,
+} = require('../data/troops.js');
 
 /** 每个据点一个稳定的背景种子，同类型城镇也能有不同街景 */
 function siteSeed(id) {
@@ -107,11 +108,11 @@ function statusBar(app, y) {
   return y + 106;
 }
 
-function backButton(app, y) {
+function backButton(app, y, target) {
   const ctx = app.runtime.ctx;
   const w = app.runtime.width;
   app.ui.button(ctx, PAD, y, 150, 64, '← 返回', {
-    id: 'back', size: 22, onTap: function () { app.townView.view = 'menu'; },
+    id: 'back', size: 22, onTap: function () { app.townView.view = target || 'menu'; },
   });
 }
 
@@ -391,13 +392,37 @@ function renderRecruit(app, site) {
   text(ctx, '兵阶：T2 能打两个 T1，T3 又压 T2 一头，T4 是国中精锐，T5 为镇国兵。', PAD, 258, {
     size: 15, color: '#c9bda2',
   });
-  text(ctx, 'T3 需投国或自立、声望 200；T4 需声望 500；T5 只限特定国家。', PAD, 278, {
+  text(ctx, 'T3 声望 200 即可；T4 需投国/自立且声望 500；T5 只限特定国家。', PAD, 278, {
     size: 15, color: '#a2947a',
   });
   text(ctx, '可招募', PAD, 300, { size: 26, color: '#f0c060' });
   text(ctx, '队伍 ' + army.troopCount(p.troops) + ' / ' + stateLib.capacity(st), w - PAD, 306, {
     size: 18, align: 'right', color: '#a2947a',
   });
+
+  // 自立后在自己的城招兵，可以在顶部切换兵源国；换一次锁 30 天。
+  const sourceInfo = stateLib.recruitSourceInfo(st);
+  const selfSource = sourceInfo.enabled && !!site.playerOwned;
+  let listTop = 340;
+  if (selfSource) {
+    const localFaction = effectiveSiteFaction(st, site);
+    const sourceName = sourceInfo.current
+      ? factionLabel(sourceInfo.current)
+      : (localFaction ? factionLabel(localFaction) + '（本地）' : '本地');
+    panel(ctx, PAD, 318, w - PAD * 2, 48, { fill: '#1d1711' });
+    text(ctx,
+      '兵源：' + sourceName + (sourceInfo.remain > 0 ? ' · 还剩 ' + sourceInfo.remain + ' 天' : ''),
+      PAD + 12, 334, {
+        size: 17,
+        color: sourceInfo.remain > 0 ? '#d08a5a' : '#c9bda2',
+      });
+    app.ui.button(ctx, w - PAD - 154, 324, 142, 36, sourceInfo.remain > 0 ? '查看兵源' : '更换兵源', {
+      id: 'recruit_source', size: 17, onTap: function () {
+        app.townView.view = 'recruitSource';
+      },
+    });
+    listTop = 376;
+  }
 
   let list = site.recruitList || [];
   // 村庄只出本地最低一档；城/关按当前管辖势力出完整兵源牌。
@@ -408,7 +433,7 @@ function renderRecruit(app, site) {
   const compact = list.length >= 6;
   const rowH = compact ? 88 : 104;
   const step = compact ? 96 : 116;
-  let y = 340;
+  let y = listTop;
 
   if (!list.length) {
     text(ctx, '这里不卖人。', PAD, y + 20, { size: 22, color: '#a2947a' });
@@ -461,6 +486,64 @@ function renderRecruit(app, site) {
   });
 
   backButton(app, y + 4);
+}
+
+/* ---------------------------------------------------------------- 兵源国 */
+
+function renderRecruitSource(app, site) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const H = app.runtime.height;
+  const st = app.state;
+  const info = stateLib.recruitSourceInfo(st);
+  if (!info.enabled) {
+    app.townView.view = 'recruit';
+    return;
+  }
+
+  text(ctx, '选择兵源国', PAD, 270, { size: 28, color: '#f0c060' });
+  const localFaction = effectiveSiteFaction(st, site);
+  text(ctx, info.current
+    ? '当前：' + factionLabel(info.current)
+    : '当前：本地兵源（' + (localFaction ? factionLabel(localFaction) : '各城原文化') + '）',
+    PAD, 306, { size: 18, color: '#c9bda2' });
+  text(ctx, info.remain > 0
+    ? '已换过兵源，' + info.remain + ' 天后才能再换。'
+    : '自立后可任选一国兵源；换过后 30 天内不能更换。',
+    PAD, 330, { size: 15, color: info.remain > 0 ? '#d08a5a' : '#a2947a' });
+
+  const factions = Object.keys(FACTION_TROOPS);
+  const cols = 2;
+  const gap = 10;
+  const cw = (w - PAD * 2 - gap) / cols;
+  const ch = 56;
+  const top = 360;
+  const rowStep = ch + 10;
+  const locked = info.remain > 0;
+  factions.forEach(function (f, i) {
+    const x = PAD + (i % cols) * (cw + gap);
+    const y = top + Math.floor(i / cols) * rowStep;
+    const label = (info.current === f ? '当前 · ' : '') + factionLabel(f);
+    app.ui.button(ctx, x, y, cw, ch, label, {
+      id: 'src_' + f, size: 20, disabled: locked,
+      fill: info.current === f ? '#4a3520' : '#2c2117',
+      border: info.current === f ? '#c9a05a' : undefined,
+      onTap: function () {
+        const r = stateLib.setPlayerRecruitSource(st, f);
+        app.showToast(r.msg, 2.2);
+        if (r.ok) app.townView.view = 'recruit';
+      },
+    });
+  });
+
+  // 最后一行按钮下留出完整一行的高度，提示文字不能压到按钮边框上。
+  const noteY = top + Math.ceil(factions.length / cols) * rowStep + 28;
+  ctx.fillStyle = 'rgba(20,15,10,0.78)';
+  ctx.fillRect(PAD, noteY - 20, w - PAD * 2, 30);
+  text(ctx, 'T5 仍按原规则：需加入该国，或亲手灭其国。', PAD, noteY, {
+    size: 14, color: '#c9bda2',
+  });
+  backButton(app, H - 100, 'recruit');
 }
 
 /* ---------------------------------------------------------------- 市场 */
@@ -1355,6 +1438,7 @@ const TownScene = {
 
     const v = app.townView.view;
     if (v === 'recruit') renderRecruit(app, site);
+    else if (v === 'recruitSource') renderRecruitSource(app, site);
     else if (v === 'market') renderMarket(app, site, app.townView.tab || 'goods');
     else if (v === 'village') renderVillage(app, site);
     else if (v === 'tavern') renderTavern(app, site);
