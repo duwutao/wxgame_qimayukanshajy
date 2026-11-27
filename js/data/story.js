@@ -317,7 +317,8 @@ const STORY = {
         targets: ['ma', 'hansui'],
         objective: { type: 'destroy', factions: ['ma', 'hansui'] },
         noTimeout: true,
-        waitDays: 15,
+        // 赤壁善后本身已是半个月（chibi.aftermathRestDays=15），这里不再叠加等待。
+        waitDays: 0,
         restDays: 0,
         next: 'wei_jingzhou',
         title: '赤壁败后',

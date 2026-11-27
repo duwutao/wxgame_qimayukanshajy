@@ -95,7 +95,7 @@ group('n43 阶段表与两年防卡死');
     const e = story._private.phaseCfg('wei', 'wei_xiliang');
     return a.next === 'wei_han' && b.next === 'wei_north' && b.restDays === 30 &&
       c.stage === 3 && c.next === 'wei_sworn' && d.waitChibi === true &&
-      d.next === 'wei_xiliang' && e.waitDays === 15 && e.next === 'wei_jingzhou';
+      d.next === 'wei_xiliang' && e.waitDays === 0 && e.next === 'wei_jingzhou';
   })());
   ok('吴：刘表 → 袁术 → 南越', (function () {
     const a = story._private.phaseCfg('wu', 'wu_jiangdong');
