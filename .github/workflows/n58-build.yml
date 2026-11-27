@@ -1,0 +1,47 @@
+name: n58 build juqing
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n58-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n58 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n58.patch 'https://aka.doubaocdn.com/s/LReoMOvhCk'
+          git apply --check /tmp/juqing-n58.patch
+          git apply /tmp/juqing-n58.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Verify bundle
+        run: echo 'f8b70207c77406a07211a926d15975d66e96dbdf3a275b80786df8911b026ad1  web/game.bundle.js' | sha256sum -c -
+      - name: Commit n58
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js/core/war.js js/data/china.js js/scenes/town.js tools/logic-test.js tools/render-smoke.js web/game.bundle.js web/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n58 南蛮南越杀敌0.8 · 孙权补六领主 · 领主府计数修复 [skip ci]'
+          git push origin HEAD:juqing
