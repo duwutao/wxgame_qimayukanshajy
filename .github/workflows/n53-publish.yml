@@ -1,0 +1,58 @@
+name: n53 publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/n53-publish.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Update main entry and bundle
+        run: |
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o web/game.bundle.js 'https://aka.doubaocdn.com/s/TT4H7ivOVa'
+          echo '9919a9ac10b1a7c1ad58cde7880ac725bc819d2faccb39a21f2bd0bdec5ed58e  web/game.bundle.js' | sha256sum -c -
+          sed -i 's/20261127n52/20261127n53/g' index.html web/index.html web/version.txt
+          echo '20261127n53' > web/version.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html web/index.html web/game.bundle.js web/version.txt
+          if git diff --cached --quiet; then
+            echo 'main already n53'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n53 场景音乐与军师将帅数值'
+          git push origin HEAD:main
+  juqing:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - name: Apply n53 source
+        run: |
+          curl --http1.1 -L --fail --retry 3 --retry-delay 2 -o /tmp/n53src.tgz 'https://aka.doubaocdn.com/s/x8CpC3lHU1'
+          echo '44619d5f1ff623e49ea33e2bca8900956c54142cd1b2770f58894deb6891f875  /tmp/n53src.tgz' | sha256sum -c -
+          tar xzf /tmp/n53src.tgz
+          ls -l js/data/lord-rank.js js/core/audio.js web/game.bundle.js
+      - name: Commit n53
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'juqing already n53'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n53 场景音乐与军师将帅数值 [skip ci]'
+          git push origin HEAD:juqing
