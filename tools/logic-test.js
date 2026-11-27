@@ -4837,6 +4837,39 @@ group('n59 各国兵源 · T5 解锁');
     illegalT5.map(function (l) { return l.name; }).join(','));
 }
 
+group('n62 T3/T4 兵源门槛 · 投国或自立');
+{
+  const troopLib = require(R + '/data/troops.js');
+  const gateState = stateLib.createGame({ seed: 2026112762 });
+  const weiCity = gateState.world.sites.filter(function (x) {
+    return x.ownerFaction === 'wei' && x.type === 'town';
+  })[0];
+  gateState.player.renown = 9999;
+  gateState.player.faction = null;
+  ok('无旗时 T3 招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
+  ok('无旗时 T4 也招不了', weiCity && troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === false);
+
+  gateState.player.faction = 'wei';
+  gateState.player.renown = 199;
+  ok('投国后声望 199 仍招不了 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === false);
+  gateState.player.renown = 200;
+  ok('投国且声望 200 可招 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
+  gateState.player.renown = 499;
+  ok('声望 499 仍招不了 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === false);
+  gateState.player.renown = 500;
+  ok('投国且声望 500 可招 T4', troopLib.troopAccess(gateState, weiCity, 'wei_t4').ok === true);
+
+  gateState.player.faction = 'player';
+  gateState.player.country = { name: '测', color: '#d9a441' };
+  gateState.player.renown = 200;
+  ok('自立也算有旗，可招 T3', troopLib.troopAccess(gateState, weiCity, 'wei_t3a').ok === true);
+
+  gateState.player.faction = 'wei';
+  gateState.player.renown = 9999;
+  ok('加入魏国可招魏 T5', troopLib.troopAccess(gateState, weiCity, 'wei_t5').ok === true);
+  ok('加入魏国不能招蜀 T5', troopLib.troopAccess(gateState, weiCity, 'shu_t5').ok === false);
+}
+
 group('n60 玩家三国阵法 · T5 开局特效');
 {
   const { TACTICS } = require(R + '/core/battle.js');

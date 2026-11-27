@@ -363,6 +363,14 @@ function t5UnlockedForPlayer(state, faction) {
   return !!(p.t5Unlocked && p.t5Unlocked[faction]);
 }
 
+/** T3/T4 的国家兵门槛：先有旗（投国或自立），再看声望。 */
+const TIER_RENOWN_REQ = { 3: 200, 4: 500 };
+
+function playerHasBanner(state) {
+  const p = state && state.player;
+  return !!(p && p.faction && p.faction !== 'bandit');
+}
+
 function troopAccess(state, site, troopId) {
   const t = TROOPS[troopId];
   if (!t) return { ok: false, msg: '没有这种兵' };
@@ -372,6 +380,24 @@ function troopAccess(state, site, troopId) {
       code: 't5-locked',
       msg: '需加入' + factionLabel(t.faction) + '，或灭其国',
     };
+  }
+  const tier = Number(t.tier) || 1;
+  const tierReq = TIER_RENOWN_REQ[tier];
+  if (tierReq) {
+    if (!playerHasBanner(state)) {
+      return {
+        ok: false,
+        code: 'banner',
+        msg: 'T' + tier + ' 需先投国或自立，声望 ' + tierReq,
+      };
+    }
+    if (!state.player || state.player.renown < tierReq) {
+      return {
+        ok: false,
+        code: 'renown',
+        msg: '声望不足 ' + tierReq + '，招不到' + t.name,
+      };
+    }
   }
   if (t.renownReq && (!state || !state.player || state.player.renown < t.renownReq)) {
     return { ok: false, code: 'renown', msg: '声望不足' + t.renownReq + '，招不到' + t.name };
@@ -558,6 +584,8 @@ module.exports = {
   factionLabel,
   t5FactionOf,
   t5UnlockedForPlayer,
+  TIER_RENOWN_REQ,
+  playerHasBanner,
   troopAccess,
   stockCapFor,
   seedStockFor,

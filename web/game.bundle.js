@@ -3707,6 +3707,14 @@ function t5UnlockedForPlayer(state, faction) {
   return !!(p.t5Unlocked && p.t5Unlocked[faction]);
 }
 
+/** T3/T4 的国家兵门槛：先有旗（投国或自立），再看声望。 */
+const TIER_RENOWN_REQ = { 3: 200, 4: 500 };
+
+function playerHasBanner(state) {
+  const p = state && state.player;
+  return !!(p && p.faction && p.faction !== 'bandit');
+}
+
 function troopAccess(state, site, troopId) {
   const t = TROOPS[troopId];
   if (!t) return { ok: false, msg: '没有这种兵' };
@@ -3716,6 +3724,24 @@ function troopAccess(state, site, troopId) {
       code: 't5-locked',
       msg: '需加入' + factionLabel(t.faction) + '，或灭其国',
     };
+  }
+  const tier = Number(t.tier) || 1;
+  const tierReq = TIER_RENOWN_REQ[tier];
+  if (tierReq) {
+    if (!playerHasBanner(state)) {
+      return {
+        ok: false,
+        code: 'banner',
+        msg: 'T' + tier + ' 需先投国或自立，声望 ' + tierReq,
+      };
+    }
+    if (!state.player || state.player.renown < tierReq) {
+      return {
+        ok: false,
+        code: 'renown',
+        msg: '声望不足 ' + tierReq + '，招不到' + t.name,
+      };
+    }
   }
   if (t.renownReq && (!state || !state.player || state.player.renown < t.renownReq)) {
     return { ok: false, code: 'renown', msg: '声望不足' + t.renownReq + '，招不到' + t.name };
@@ -3902,6 +3928,8 @@ module.exports = {
   factionLabel,
   t5FactionOf,
   t5UnlockedForPlayer,
+  TIER_RENOWN_REQ,
+  playerHasBanner,
   troopAccess,
   stockCapFor,
   seedStockFor,
@@ -28878,6 +28906,13 @@ function renderRecruit(app, site) {
   const st = app.state;
   const p = st.player;
 
+  // 招兵页只讲兵阶，不再把攻/防/粮摊给玩家；高阶兵的门槛写在最上面。
+  text(ctx, '兵阶：T2 能打两个 T1，T3 又压 T2 一头，T4 是国中精锐，T5 为镇国兵。', PAD, 258, {
+    size: 15, color: '#c9bda2',
+  });
+  text(ctx, 'T3 需投国或自立、声望 200；T4 需声望 500；T5 只限特定国家。', PAD, 278, {
+    size: 15, color: '#a2947a',
+  });
   text(ctx, '可招募', PAD, 300, { size: 26, color: '#f0c060' });
   text(ctx, '队伍 ' + army.troopCount(p.troops) + ' / ' + stateLib.capacity(st), w - PAD, 306, {
     size: 18, align: 'right', color: '#a2947a',
@@ -28889,7 +28924,7 @@ function renderRecruit(app, site) {
     list = list.filter(function (id) { return TROOPS[id] && Number(TROOPS[id].tier) === 1; });
   }
   // 六人以内用原来的大行；七个以上（含灭国降卒 T5）压成紧凑行，保证返回键不越屏。
-  const compact = list.length > 6;
+  const compact = list.length >= 6;
   const rowH = compact ? 88 : 104;
   const step = compact ? 96 : 116;
   let y = 340;
@@ -28910,14 +28945,22 @@ function renderRecruit(app, site) {
     text(ctx, t.name, PAD + 18, y + (compact ? 10 : 14), {
       size: compact ? 24 : 26, color: locked ? '#7a7160' : '#efe3c6',
     });
-    text(ctx, '攻 ' + t.atk + ' / 防 ' + t.def + ' / 粮 ' + t.food, PAD + 214, y + (compact ? 13 : 20), {
-      size: 16, color: '#a2947a',
+    text(ctx, 'T' + (t.tier || 1), PAD + 214, y + (compact ? 13 : 20), {
+      size: 18, color: locked ? '#7a7160' : '#c9a05a',
     });
+    // 锁着的兵把价钱放第一行右侧，第二行整行留给门槛说明；能招的兵价钱照旧跟“余量”一排。
+    if (locked) {
+      text(ctx, price + '金钱/人', w - PAD - 18, y + (compact ? 10 : 14), {
+        size: 18, align: 'right', color: '#f0c060',
+      });
+    }
     text(ctx, locked ? gate.msg : '余 ' + stock + ' 人', PAD + 18, y + (compact ? 48 : 58), {
       size: locked ? 16 : 17,
       color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
     });
-    text(ctx, price + '金钱/人', PAD + 214, y + (compact ? 48 : 58), { size: 18, color: '#f0c060' });
+    if (!locked) {
+      text(ctx, price + '金钱/人', PAD + 214, y + (compact ? 48 : 58), { size: 18, color: '#f0c060' });
+    }
 
     if (!locked && stock > 0) {
       app.ui.button(ctx, w - PAD - 190, y + (compact ? 14 : 22), 86, compact ? 52 : 58, '招 1', {
