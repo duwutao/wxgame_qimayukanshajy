@@ -1,0 +1,50 @@
+name: n57-bundle
+
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n57-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download and apply n57 patch
+        run: |
+          set -euo pipefail
+          curl --http1.1 -L --fail --retry 5 --retry-delay 3 -o /tmp/n57.patch https://dpaste.org/t3v60/raw/
+          echo '8e4ce3594c184a3b97a3e2cf55ddddcd3985dc971a426dc2c21f0a154dae6ee8  /tmp/n57.patch' | sha256sum -c -
+          head -1 /tmp/n57.patch | grep -q '^diff --git'
+          git apply --check /tmp/n57.patch
+          git apply /tmp/n57.patch
+      - name: Build and test
+        run: |
+          set -euo pipefail
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+          node tools/bundle.js
+      - name: Commit release
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/n57-bundle.yml
+          git add -A
+          git status --short
+          git commit -m 'release: 20261127n57 亡国战事清理 · 新手攻略 · 攻城四分之一溃退 [skip ci]'
+          git push origin HEAD:juqing
