@@ -80,7 +80,7 @@ group('n45 开局不误报叛军亡国');
 group('n43 阶段表与两年防卡死');
 {
   ok('两年是 720 天', STORY.phaseDeadlineDays === 720);
-  ok('荆州最多十轮', STORY.jingzhouMaxCycles === 10);
+  ok('荆州按三镇易主次数封顶十次', STORY.jingzhouMaxTakeovers === 10);
   ok('袁术称帝延迟三天', STORY.emperorDelayDays === 3);
   ok('蜀：刘璋 → 张鲁 → 南蛮', (function () {
     const a = story._private.phaseCfg('shu', 'shu_yizhou');
@@ -113,8 +113,8 @@ group('n43 阶段表与两年防卡死');
     return c && c.targets.indexOf('yuan') >= 0;
   })());
   ok('荆州三镇配置完整', STORY.jingzhouSites.join(',') === 'xiangyang,xinye,jiangling');
-  ok('强势方募兵 +20%', STORY.jingzhouStrongRecruitMul === 1.2);
-  ok('第十轮霸主额外杀敌 +50%', STORY.jingzhouKillMul === 1.5);
+  ok('占尽三镇全国募兵 +50%', STORY.jingzhouStrongRecruitMul === 1.5);
+  ok('不再保留第十轮霸主额外杀敌', STORY.jingzhouKillMul === undefined);
   ok('赤壁火攻折损八成', STORY.chibi.fireLossPct === 0.8);
   ok('赤壁后曹操只剩一成', STORY.chibi.caoRemainPct === 0.1);
 }
@@ -132,7 +132,8 @@ group('n51 魏国史实节奏与袁绍昏君');
     restUntil: 0, nextId: 'end', completed: 3, success: false, timedOut: false };
   const before = (st.lords.filter(function (l) { return l.faction === 'yuan'; })[0] || {}).morale;
   tickDay(st, 100);
-  ok('官渡袁军对碰系数为 0.8', FACTION_COMBAT.yuan.power === 0.8 && st.story.yuanWeak === true);
+  ok('官渡袁军杀敌系数为 0.8、对碰不削', FACTION_COMBAT.yuan.power === 1 &&
+    FACTION_COMBAT.yuan.killBase === 0.8 && st.story.yuanWeak === true);
   ok('昏君不再把袁军士气钉死在 35', (st.lords.filter(function (l) { return l.faction === 'yuan'; })[0] || {}).morale === before);
   story.resetCombat();
 }
@@ -157,12 +158,37 @@ group('n55 官渡只报一次，曹袁不死不休');
   ok('官渡合战只开一场', (st.fieldBattles || []).filter(function (bf) {
     return bf.context && bf.context.cause === 'guandu';
   }).length === 1);
+  const sumTroops = function (f) {
+    return st.lords.filter(function (l) { return l.faction === f && l.alive && !l.dead; })
+      .reduce(function (n, l) {
+        return n + Object.keys(l.troops || {}).reduce(function (m, k) { return m + (l.troops[k] || 0); }, 0);
+      }, 0);
+  };
+  const sumDef = function (f) {
+    return st.lords.filter(function (l) { return l.faction === f && l.alive && !l.dead; })
+      .reduce(function (n, l) {
+        return n + Object.keys(l.defTroops || {}).reduce(function (m, k) { return m + (l.defTroops[k] || 0); }, 0);
+      }, 0);
+  };
+  ok('官渡开战前曹袁两军拉满', sumTroops('wei') === sumDef('wei') && sumTroops('yuan') === sumDef('yuan'),
+    sumTroops('wei') + '/' + sumDef('wei') + '，' + sumTroops('yuan') + '/' + sumDef('yuan'));
+  ok('官渡战前不额外扣兵', sumTroops('wei') > 0 && sumTroops('yuan') > 0);
   ok('曹袁官渡后不能议和', warLib.makePeace(st, 'wei', 'yuan', true) === false);
   ok('官渡阶段没有两年逾期出口', story._private.phaseCfg('wei', 'wei_north').noTimeout === true &&
     story._private.phaseCfg('yuan', 'yuan_guandu').noTimeout === true);
 }
 
-group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
+group('n61 停战期不能宣战');
+{
+  const st = game(2026112709);
+  st.clock.day = 40;
+  st.story.truce['shu|wei'] = 70;
+  ok('停战期内魏蜀不能宣战', warLib.canOpenWar(st, 'wei', 'shu', true) === false);
+  st.clock.day = 71;
+  ok('停战到期后恢复宣战判断', warLib.canOpenWar(st, 'wei', 'shu', true) === true);
+}
+
+group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州再战');
 {
   const st = game(20261126031);
   ['yuan', 'gongsun'].forEach(function (f) {
@@ -176,29 +202,57 @@ group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
   st.story.chibiDone = false;
   st.story.phases.wei = { id: 'wei_sworn', status: 'waiting', startedDay: 1,
     restUntil: 0, nextId: 'wei_xiliang', completed: 3, success: false, timedOut: false };
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id);
+    s.ownerFaction = 'wei';
+    s.faction = 'wei';
+    s.playerOwned = false;
+  });
   st.clock.day = 31;
   story.tick(st);
   const c = st.story.chibi;
-  ok('三国第三阶段后先入赤壁前置', !!c && c.phase === 'rest' && !st.story.jingzhou);
-  ok('曹操先占荆州三镇', STORY.jingzhouSites.every(function (id) {
+  ok('曹操首次占尽三镇才进入赤壁前置', !!c && c.phase === 'rest' && !st.story.jingzhou);
+  ok('赤壁前置让孙刘停战结盟', !warLib.atWar(st, 'shu', 'wu') &&
+    !warLib.atWar(st, 'wei', 'shu') && !warLib.atWar(st, 'wei', 'wu'));
+  ok('赤壁前置休战一个月', c.until === 31 + STORY.chibi.caoRestDays);
+  ok('三镇仍在曹操手里', STORY.jingzhouSites.every(function (id) {
     return site(st, id).ownerFaction === 'wei';
   }));
-  ok('赤壁前置休战一个月', c.until === 31 + STORY.chibi.caoRestDays);
 
+  // 额外塞四名没有三值、没有排行榜的曹营低级领主，用来验证“裁到孙刘之和的一半”。
+  const shuN = st.lords.filter(function (l) { return l.faction === 'shu' && l.alive && !l.dead; }).length;
+  const wuN = st.lords.filter(function (l) { return l.faction === 'wu' && l.alive && !l.dead; }).length;
+  for (let i = 0; i < 4; i++) {
+    st.lords.push({
+      id: 'chibi_extra_' + i, name: '赤壁厢军' + i, faction: 'wei', alive: true, dead: false,
+      level: 1, x: 1, y: 1, troops: { militia: 20 }, defTroops: { militia: 20 },
+      morale: 80, baseMorale: 80, commandValue: null, forceValue: null,
+      strategistGrade: null, generalRank: null, marshalRank: null,
+    });
+  }
+  const caoN = st.lords.filter(function (l) { return l.faction === 'wei' && l.alive && !l.dead; }).length;
+  const target = Math.max(1, Math.round((shuN + wuN) / 2));
   tickDay(st, c.until);
   ok('休战结束进入赤壁决战', c.phase === 'battle');
-  ok('火攻烧掉曹军八成', c.caoAfterFire < c.caoBefore * 0.25 &&
-    c.caoAfterFire > c.caoBefore * 0.15, c.caoBefore + '→' + c.caoAfterFire);
+  ok('火攻烧掉曹军八成', c.caoAfterFire <= c.caoBefore * 0.22 &&
+    c.caoAfterFire >= c.caoBefore * 0.17, c.caoBefore + '→' + c.caoAfterFire);
   ok('孙刘联军对曹宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu'));
+  ok('三家军队向赤壁集结', c.gathered === true && st.lords.filter(function (l) {
+    return l.faction === 'wei' && l.alive && Math.max(Math.abs(l.x - site(st, 'chibi').x),
+      Math.abs(l.y - site(st, 'chibi').y)) <= 22;
+  }).length > 0);
 
   tickDay(st, c.until + STORY.chibi.battleDays);
   ok('赤壁决战进入败逃结算', c.phase === 'aftermath');
   ok('曹军只余约一成', c.caoAfterBattle <= c.caoBefore * 0.11,
     c.caoBefore + '→' + c.caoAfterBattle);
-  ok('低阶曹将战死', c.deadLords.length > 0, c.deadLords.join('、'));
-  ok('名将榜前 50 不写死', c.deadLords.every(function (name) {
+  ok('曹营领主裁到孙刘之和的一半', c.caoLordTarget === target && c.caoLordsAfter === target,
+    '曹 ' + c.caoLordsBefore + '→' + c.caoLordsAfter + '，目标 ' + target);
+  ok('赤壁确实死伤多名曹营领主', c.deadLords.length >= 3, c.deadLords.join('、'));
+  ok('战死领主没有三值与排行榜保护', c.deadLords.every(function (name) {
     const lord = st.lords.filter(function (l) { return l.name === name; })[0];
-    return !lord || !require(R + '/data/lord-rank.js').LORD_POWER_BY_ID[lord.id];
+    return lord && lord.commandValue === null && lord.forceValue === null &&
+      !lord.strategistGrade && lord.generalRank === null && lord.marshalRank === null;
   }));
   ok('曹操仍在', !!(st.lords.filter(function (l) { return l.id === 'caocao' && l.alive; })[0]));
   ok('孙刘分荆州', site(st, 'xiangyang').ownerFaction === 'shu' &&
@@ -206,14 +260,54 @@ group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
     site(st, 'jiangling').ownerFaction === 'wu');
 
   tickDay(st, c.until + STORY.chibi.battleDays + STORY.chibi.aftermathRestDays);
-  ok('赤壁结束后魏国先入西凉阶段', st.story.chibiDone && st.story.phases.wei.id === 'wei_xiliang' &&
-    !st.story.jingzhou);
+  ok('赤壁后直接开启荆州争霸，不再先扫西凉', st.story.chibiDone &&
+    st.story.jingzhou && st.story.jingzhou.started && st.story.phases.wei.id === 'wei_jingzhou');
+  ok('赤壁后不再保留旧的西凉前置', st.story.xiliangDone === true);
+  ok('赤壁后孙刘重新开战', warLib.atWar(st, 'shu', 'wu'));
+}
+
+group('n46 荆州增益与易主计数');
+{
+  const st = game(20261126032);
+  ['yuan', 'gongsun'].forEach(function (f) {
+    st.story.phases[f].status = 'rest';
+    st.story.phases[f].restUntil = 99999;
+  });
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.chibi = { done: true };
+  st.story.chibiDone = true;
   st.story.xiliangDone = true;
-  st.story.phases.wei.id = 'wei_jingzhou';
-  st.story.phases.wei.status = 'waiting';
-  st.story.phases.wei.nextId = 'end';
+  st.clock.day = 31;
   story.tick(st);
-  ok('西凉扫平后开启荆州十轮', !!st.story.jingzhou);
+  const jz = st.story.jingzhou;
+  ok('三家完成第三阶段后开启荆州', !!jz && jz.active && jz.cycle === 1);
+  ok('首轮三家互相宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu') &&
+    warLib.atWar(st, 'shu', 'wu'));
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'wei'; s.faction = 'wei'; s.playerOwned = false;
+  });
+  ok('同时占三城全国募兵 +50%', Math.abs(story.recruitRate(st, 'wei') - 0.36) < 1e-9 &&
+    Math.abs(story.recruitRate(st, 'shu') - 0.24) < 1e-9);
+  story.tick(st);
+  ok('占尽三镇进入一个月停战', st.story.endgame.phase === 'rest' &&
+    st.story.endgame.strongest === 'wei');
+  ok('三镇易主从三家完成第三阶段后开始计数', st.story.jingzhou.countingFromDay === 31);
+
+  let count = st.story.jingzhou.takeoverCount;
+  for (let i = 0; i < 12 && !st.story.jingzhou.final; i++) {
+    st.clock.day = st.story.endgame.until;
+    story.tick(st);
+    const next = i % 2 === 0 ? 'shu' : 'wei';
+    STORY.jingzhouSites.forEach(function (id) {
+      const s = site(st, id); s.ownerFaction = next; s.faction = next; s.playerOwned = false;
+    });
+    st.clock.day += 1;
+    story.tick(st);
+    count = st.story.jingzhou.takeoverCount;
+  }
+  ok('三城易主超过十次后取消停战', st.story.jingzhou.final === true &&
+    st.story.jingzhouDone === true && count > 10);
+  ok('最终阶段三家继续互战', st.story.endgame.final === true && st.story.endgame.phase === 'final');
 }
 
 
@@ -263,14 +357,14 @@ group('n43 袁术称帝：曹孙完成第一阶段后三天');
     (st.story.targets.wu || []).indexOf('yuanshu') >= 0);
 }
 
-group('n43 荆州十轮：霸主、联盟与休整');
+group('n61 荆州入场：先完成第三阶段者先入场');
 {
   const st = game(2026112603);
   ['yuan', 'gongsun'].forEach(function (f) {
     st.story.phases[f].status = 'rest';
     st.story.phases[f].restUntil = 99999;
   });
-  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.stage3Done = { wei: 1 };
   st.story.endgame = null;
   st.story.jingzhou = null;
   st.story.chibi = { done: true };
@@ -278,41 +372,30 @@ group('n43 荆州十轮：霸主、联盟与休整');
   st.story.xiliangDone = true;
   st.clock.day = 31;
   story.tick(st);
-  ok('三國第三阶段完成后一个月聚战荆州', !!(st.story.endgame && st.story.endgame.active) &&
-    !!(st.story.jingzhou && st.story.jingzhou.active));
-  ok('首轮三家互相宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu') &&
-    warLib.atWar(st, 'shu', 'wu'));
-  ok('首轮从第一轮开始', st.story.jingzhou.cycle === 1);
+  ok('只有魏国完成第三阶段也能先入场', !!st.story.jingzhou &&
+    st.story.jingzhou.active && st.story.jingzhou.eligible.wei === true);
+  ok('未完成第三阶段的蜀吴不能主动争夺荆州', !st.story.jingzhou.eligible.shu &&
+    !st.story.jingzhou.eligible.wu);
+  ok('先入场国只把三镇当前占有者列为目标', (st.story.targets.wei || []).length > 0);
 
-  // 让魏独吞三镇：本轮回合应立即结算。
-  st.world.sites.forEach(function (s) {
-    if (STORY.jingzhouSites.indexOf(s.id) >= 0) {
-      s.ownerFaction = 'wei';
-      s.faction = 'wei';
-      s.playerOwned = false;
-    }
+  st.story.stage3Done = { wei: 1, shu: 1 };
+  story.tick(st);
+  ok('蜀国完成第三阶段后加入争夺', st.story.jingzhou.eligible.shu === true);
+  ok('三家没齐时不计三镇易主', st.story.jingzhou.countingFromDay === 0);
+
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  story.tick(st);
+  ok('魏蜀吴都完成后才开始计易主', st.story.jingzhou.countingFromDay > 0);
+  const before = st.story.jingzhou.takeoverCount;
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'shu'; s.faction = 'shu'; s.playerOwned = false;
   });
   story.tick(st);
-  ok('占尽三镇者成为霸主', st.story.endgame.strongest === 'wei');
-  ok('另外两国结盟', st.story.endgame.allies.length === 2 &&
-    st.story.endgame.allies.indexOf('wei') < 0);
-  ok('霸主轮结束后进入一个月休整', st.story.endgame.phase === 'rest' &&
+  ok('换主后停战一个月', st.story.endgame.phase === 'rest' &&
     st.story.endgame.until === st.clock.day + STORY.jingzhouCycleRestDays);
-  const strong = st.story.endgame.strongest;
-
-  tickDay(st, st.story.endgame.until);
-  ok('休整结束后进入第二轮', st.story.endgame.phase === 'battle' && st.story.endgame.cycle === 2);
-  ok('第二轮霸主同时打两家', st.story.targets[strong].length === 2);
-  ok('第二轮联盟两国只打霸主', st.story.endgame.allies.every(function (a) {
-    return st.story.targets[a].length === 1 && st.story.targets[a][0] === strong;
-  }));
-
-  st.story.endgame.cycle = 10;
-  st.story.endgame.phase = 'battle';
-  st.story.jingzhou.active = true;
-  story.tick(st);
-  ok('第十轮结算后不再停战', st.story.endgame.final === true && st.story.jingzhouDone === true);
+  ok('第一次占尽三镇作为计数基线，不计易主', st.story.jingzhou.takeoverCount === before);
 }
+
 
 group('n51 荆州停战清扫小国');
 {

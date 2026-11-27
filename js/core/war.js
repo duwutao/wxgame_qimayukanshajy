@@ -373,6 +373,11 @@ function canOpenWar(state, a, b, ignoreNeighbor) {
   // 只有道路接壤的邻国才能宣战。开局的历史战事由调用方强制放行。
   if (!ignoreNeighbor && !factionsAdjacent(state, a, b)) return false;
   const day = state && state.clock ? state.clock.day : 1;
+  // 荆州霸主/赤壁前置的停战期：日期未到之前，任何一方都不能翻脸。
+  if (state && state.story && state.story.truce) {
+    const until = Number(state.story.truce[key(a, b)]) || 0;
+    if (until > day) return false;
+  }
   if (day <= OPENING_DAYS) {
     const k = key(a, b);
     if (OPENING_FORBIDDEN[k]) return false;
@@ -629,7 +634,7 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
-/** 国别杀敌系数：killBase 是整国基数（不会被剧情重置），killMul 是荆州霸主的临时加成。 */
+/** 国别杀敌系数：killBase 是整国基数（例如袁绍昏庸 0.8），killMul 只保留给旧机制兼容。 */
 function factionKillMul(faction) {
   const cfg = faction && FACTION_COMBAT[faction];
   if (!cfg) return 1;
@@ -919,7 +924,7 @@ function clash(state, a, b) {
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
   // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
-  // 荆州第十轮霸主的 +50% 杀敌只加在“给敌军造成的损失”上。
+  // 国别杀敌系数：荆州霸主不再附带额外杀敌；这里只结算基础国别系数。
   const baseLossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
   const baseLossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
   const lossA = Math.max(1, Math.round(baseLossA * factionKillMul(b.faction)));
@@ -2357,6 +2362,12 @@ function planCampaign(state, faction, day) {
       if (!s.ownerFaction) return;
       // NPC 不能进入边陲小镇十格，更不能把它当围城目标。
       if (edgeTown && Math.max(Math.abs(s.x - edgeTown.x), Math.abs(s.y - edgeTown.y)) <= (edgeTown.radius || 10)) return;
+      // 荆州三镇：只有完成第三阶段的国家才能主动争夺；未完成国可以守，不能来抢。
+      if (story && story.jingzhou && story.jingzhou.started && !story.jingzhou.final) {
+        const jzSites = story.jingzhou.sites || [];
+        const jzEligible = story.jingzhou.eligible || {};
+        if (jzSites.indexOf(s.id) >= 0 && !jzEligible[faction]) return;
+      }
       // 复国阶段：叛军只追人，不主动攻主角已经打下的城。
       if (faction === 'rebel' && state.arc && state.arc.phase === 'reconquest' && s.playerOwned) return;
       // 南越只取长沙以南，不碰襄阳、江陵、夏口；其他敌人仍按正常规则。

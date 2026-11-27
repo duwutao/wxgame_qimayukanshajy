@@ -442,7 +442,7 @@ function createGame(opts) {
     },
   };
 
-  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
+  state.storyHooks = { stageGuandu: stageGuandu, stageChibi: stageChibi, fallFaction: fallFaction };
   syncPlayerFaction(null);
   spawnLords(state);
   autoAssignFiefs(state);
@@ -805,6 +805,63 @@ function stageGuandu(state) {
       { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
   }
   if (state.story) state.story.guanduBattleStaged = true;
+  return true;
+}
+
+/**
+ * 赤壁开局：孙曹刘三家的军队全部向赤壁集结。
+ * 只挪位置、清军令，不补兵也不额外扣兵；火攻损失由剧情层按现有兵力结算。
+ * 玩家本人不强行传送，留在原地决定是否参战。
+ */
+function stageChibi(state) {
+  if (!state || !state.story) return false;
+  if (state.story.chibiBattleStaged) return true;
+  const chibi = siteById(state.world, 'chibi');
+  if (!chibi) return false;
+  ['wei', 'shu', 'wu'].forEach(function (faction, sideIndex) {
+    let index = 0;
+    (state.lords || []).forEach(function (lord) {
+      if (!lord || lord.faction !== faction || !lord.alive || lord.dead || lord.retired || lord.prisoner) return;
+      if (lord.isPlayer || !army.troopCount(lord.troops || {})) return;
+      const around = Math.PI * 2 * (index % 16) / 16;
+      const ring = 5 + Math.floor(index / 16) * 2;
+      const side = faction === 'wei' ? -1 : 1;
+      const ax = Math.round(chibi.x + Math.cos(around) * ring);
+      const ay = Math.round(chibi.y + side * (5 + Math.abs(Math.sin(around)) * 3) + Math.floor(index / 16));
+      const spot = findFreeSpotNear(state, ax, ay, 8, lord) ||
+        findFreeSpotNear(state, chibi.x, chibi.y, 18, lord);
+      lord.inCity = null;
+      lord.resting = false;
+      lord.defending = null;
+      lord.order = null;
+      lord.chasing = false;
+      lord.hunting = false;
+      lord.fleeing = false;
+      lord.engagedWith = null;
+      lord.engagedSinceH = null;
+      lord.enteringSiteId = null;
+      lord.cityEnterAtH = null;
+      lord.routePath = null;
+      lord.routePathFor = null;
+      lord.orderPath = null;
+      lord.patrolPath = null;
+      lord.patrolLoop = null;
+      lord.wander = null;
+      lord.stepFrom = null;
+      lord.stepTo = null;
+      lord.stepStartH = null;
+      lord.stepHours = null;
+      lord.nextMoveH = 0;
+      if (spot) {
+        lord.x = spot.x;
+        lord.y = spot.y;
+        lord.prevX = spot.x;
+        lord.prevY = spot.y;
+      }
+      index += 1;
+    });
+  });
+  state.story.chibiBattleStaged = true;
   return true;
 }
 
@@ -8436,7 +8493,7 @@ function deserialize(json) {
   applyLordPowerRoster(state);
   applyLordT5Rule(state);
   applyFactionRosterCap(state);
-  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
+  state.storyHooks = { stageGuandu: stageGuandu, stageChibi: stageChibi, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
