@@ -9,6 +9,7 @@ const R = path.join(__dirname, '..', 'js');
 const stateLib = require(R + '/core/state.js');
 const warLib = require(R + '/core/war.js');
 const story = require(R + '/core/story.js');
+const border = require(R + '/core/border.js');
 const { STORY } = require(R + '/data/story.js');
 const { ROADS, FACTIONS, FACTION_COMBAT, SITE_ROWS } = require(R + '/data/china.js');
 
@@ -342,6 +343,8 @@ group('n43 最终阶段两年未决强制统一');
     allies: ['shu', 'wu'], cycle: 10, since: 31,
   };
   st.story.jingzhouDone = true;
+  // 先让玩家站进魏国这面旗，强制推举魏国共主才算“统一阵容包含玩家”。
+  st.player.faction = 'wei';
   st.clock.day = 751;
   story.tick(st);
   const eg = st.story.endgame;
@@ -386,7 +389,7 @@ group('n43 统一背叛与边陲小镇');
   st.clock.day = st.arc.lastGrantDay + 30;
   stateLib.arcTick(st);
   ok('边陲小镇每月给 1000 金币', st.player.gold === gold0 + 1000, String(st.player.gold - gold0));
-  ok('边陲小镇每月给 2000 粮草', st.player.food === food0 + 2000, String(st.player.food - food0));
+  ok('边陲小镇每月给 400 粮草', st.player.food === food0 + 400, String(st.player.food - food0));
 
   st.world.sites.forEach(function (s) {
     if (s.type === 'town' || s.type === 'castle') {
@@ -421,6 +424,161 @@ group('n43 叛军巡逻与边界禁入');
     st.world.edgeTown.x + 1, st.world.edgeTown.y + 1) === true);
   ok('边陲小镇十格外不影响 NPC', require(R + '/core/world.js').edgeTownBlocked(st.world,
     st.world.edgeTown.x + 20, st.world.edgeTown.y + 20) === false);
+}
+
+group('n56 统一背叛只认“统一旗里有玩家”');
+{
+  function crown(st, faction) {
+    st.world.sites.forEach(function (s) {
+      if (s.type !== 'town' && s.type !== 'castle') return;
+      if (faction === 'player') {
+        s.ownerFaction = 'player';
+        s.playerOwned = true;
+      } else {
+        s.ownerFaction = faction;
+        s.playerOwned = false;
+      }
+    });
+  }
+  const npc = game(2026112701);
+  crown(npc, 'wei');
+  npc.player.faction = 'player';
+  npc.clock.day = 2949;
+  stateLib.checkVictory(npc);
+  ok('NPC 统一且玩家不在旗中：第 2949 天也不触发全国背叛', !npc.arc);
+  ok('NPC 统一且玩家不在旗中：底层入口也不能直接开全国背叛',
+    stateLib.startUnification(npc) === false && !npc.arc);
+
+  const vassal = game(2026112702);
+  crown(vassal, 'wei');
+  vassal.player.faction = 'wei';
+  vassal.clock.day = 2949;
+  stateLib.checkVictory(vassal);
+  ok('统一旗里包含玩家（魏臣）：立即触发全国背叛', !!vassal.arc && vassal.arc.phase === 'retreat');
+
+  const own = game(2026112703);
+  crown(own, 'player');
+  own.player.faction = 'player';
+  own.clock.day = 2949;
+  stateLib.checkVictory(own);
+  ok('玩家自立统一：触发全国背叛', !!own.arc && own.arc.phase === 'retreat');
+
+  // 从主角队伍出去、后来改投别家的领主：统一时不能翻成叛军。
+  const leave = game(2026112707);
+  const oldLord = leave.lords.filter(function (l) { return l.alive && !l.hero; })[0];
+  oldLord.faction = 'player';
+  if (stateLib.moveLordToFaction) stateLib.moveLordToFaction(leave, oldLord, 'wei');
+  ok('离开主角队伍的领主保留旧部标记', oldLord.exPlayer === true);
+  crown(leave, 'wei');
+  leave.player.faction = 'wei';
+  stateLib.checkVictory(leave);
+  ok('曾属主角队伍的领主不会变成叛军', !!leave.arc && oldLord.faction !== 'rebel');
+}
+
+group('n56 边陲小镇：锁镇 · 1000 义军 · 5 金粮草 · 驿站旧部');
+{
+  const locked = game(2026112704);
+  ok('全国背叛前边陲小镇锁着', border.unlocked(locked) === false);
+  ok('锁镇时招募池不写入', border.poolInfo(locked).total === 0);
+  locked.campaign.stage = 3;
+  ok('全国背叛前不刷“赤色叛军”', stateLib.allowedTiers(locked).indexOf('hong') < 0,
+    stateLib.allowedTiers(locked).join(','));
+
+  const st = game(2026112705);
+  st.world.sites.forEach(function (s) {
+    if (s.type === 'town' || s.type === 'castle') {
+      s.ownerFaction = 'player';
+      s.playerOwned = true;
+    }
+  });
+  stateLib.startUnification(st);
+  st.player.x = st.world.edgeTown.x;
+  st.player.y = st.world.edgeTown.y;
+  st.player.atSiteId = 'edge_town';
+  stateLib.arcTick(st);
+  ok('落脚后边陲小镇解锁', border.unlocked(st) === true);
+  ok('边陲复国额外给 1000 兵编制', stateLib.capacity(st) >= 1000, String(stateLib.capacity(st)));
+  st.campaign.stage = 3;
+  ok('叛军开始后赤色叛军才可刷', stateLib.allowedTiers(st).indexOf('hong') >= 0);
+  const info0 = border.poolInfo(st);
+  ok('每周义军池正好 1000', info0.total === 1000, String(info0.total));
+  const tiers = border.RECRUIT_TIERS.map(function (r) { return r.tier; }).join(',');
+  ok('招募覆盖 T1 到 T5', tiers === '1,2,3,4,5', tiers);
+
+  st.player.gold = 100000;
+  st.player.troops = {};
+  const r1 = border.recruit(st, 'militia', 100);
+  ok('边陲能招 T1 义军', r1.ok && (st.player.troops.militia || 0) === 100, JSON.stringify(r1));
+  const r2 = border.recruit(st, 'militia', 100);
+  const r3 = border.recruit(st, 'militia', 100);
+  ok('同一周招完 200 后 T1 断货', !r3.ok && (st.player.troops.militia || 0) === 200, JSON.stringify(r3));
+  const r4 = border.recruit(st, 'jinjun', 10);
+  ok('T5 禁军不问声望也能招', r4.ok && (st.player.troops.jinjun || 0) === 10, JSON.stringify(r4));
+
+  st.player.troops = {};
+  st.player.gold = 1000000;
+  const bb = border.getBorder(st);
+  bb.week = -1;
+  border.refresh(st);
+  const full = border.RECRUIT_TIERS.map(function (row) {
+    return border.recruit(st, row.troop, row.count);
+  });
+  const totalTroops = Object.keys(st.player.troops).reduce(function (n, id) {
+    return n + (st.player.troops[id] || 0);
+  }, 0);
+  ok('一周内能把 1000 义军全部招走', full.every(function (x) { return x.ok; }) && totalTroops === 1000,
+    JSON.stringify(full) + ' total=' + totalTroops);
+
+  const edge = border.edgeSite(st);
+  const rest = stateLib.startRest(st, edge);
+  ok('边陲小镇可以在镇中歇息且视为安全城镇', rest.ok && st.player.resting === edge.id && stateLib.isSafeResting(st) === true,
+    JSON.stringify(rest));
+  stateLib.stopRest(st);
+
+  st.player.gold = 5000;
+  st.player.food = 0;
+  const f = border.buyFood(st, 1000);
+  ok('粮草固定 5 金/单位且不卡上限', f.ok && st.player.food === 1000 && st.player.gold === 0, JSON.stringify(f));
+
+  // 驿站：一个从主角队伍里出去的领主，被打散后自动回镇。
+  const lord = st.lords.filter(function (l) { return l.id !== 'hero_test' && l.faction !== 'player'; })[0];
+  lord.exPlayer = true;
+  lord.alive = true;
+  lord.dead = false;
+  lord.scattered = true;
+  border.sendToStation(st, lord);
+  const station = border.stationLords(st);
+  ok('旧部被打散后进入边陲驿站', station.length === 1 && station[0].lord.id === lord.id, String(station.length));
+  ok('驿站旧部有专属抱怨台词', !!station[0].complaint && station[0].complaint.length > 8);
+  const rr = border.recruitStationLord(st, lord.id);
+  ok('驿站旧部可免费重新入队', rr.ok && lord.faction === 'player' && !lord.borderStation, JSON.stringify(rr));
+  ok('入队后带一份乡勇而不是空架子', Object.keys(lord.troops || {}).length > 0);
+  ok('玩家旧部不会变成叛军', lord.exPlayer === true && lord.faction === 'player');
+
+  st.wars.rebel = true;
+  const terms = stateLib.peaceTerms(st, 'rebel');
+  ok('叛军永远不能议和', terms.ok === false && terms.rebel === true, JSON.stringify(terms));
+  ok('war.makePeace 对叛军直接拒绝', warLib.makePeace(st, 'player', 'rebel', false) === false);
+}
+
+group('n56 叛军城池五条巡视路线');
+{
+  const st = game(2026112706);
+  const city = st.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+  city.ownerFaction = 'rebel';
+  // 通过巡逻路线缓存观察：叛军城固定生成 5 条短路线。
+  const routes = stateLib.patrolRoutesForSite ? stateLib.patrolRoutesForSite(st, city) : null;
+  ok('叛军城巡逻路线固定 5 条', !routes || routes.length === 5, routes ? String(routes.length) : 'not exported');
+
+  // 先按普通城生成一次缓存，再换叛军旗；缓存必须失效，不能继续沿用 9/10 条。
+  const xinye = st.world.sites.filter(function (s) { return s.id === 'xinye'; })[0];
+  if (xinye) {
+    xinye.ownerFaction = 'wei';
+    if (stateLib.patrolRoutesForSite) stateLib.patrolRoutesForSite(st, xinye);
+    xinye.ownerFaction = 'rebel';
+    const rebelRoutes = stateLib.patrolRoutesForSite(st, xinye);
+    ok('新野变叛军城后也只剩 5 条巡视路线', rebelRoutes.length === 5, String(rebelRoutes.length));
+  }
 }
 
 console.log('\n============================================');

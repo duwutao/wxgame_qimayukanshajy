@@ -894,7 +894,7 @@ const SITE_ROWS = [
   ['changsha', '长沙', 'town', 'biao', 23, 42, 1.0, 88, 'biao', '湘水与浏水交汇的荆州城。谁握住长沙，谁就能把荆南的粮船扣在港里。'],
   ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
   ['guiyang', '桂阳村', 'village', 'biao', 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
-  ['edge_town', '边陲小镇', 'village', null, 2, 40, 0.7, 10, 'village', '地图西缘的一座无名小镇。一年四季被浓雾裹着，没人说得清镇里还住着谁。'],
+  ['edge_town', '边陲小镇', 'edge', null, 2, 40, 0.7, 10, 'village', '地图西缘的一座无名小镇。一年四季被浓雾裹着，没人说得清镇里还住着谁。'],
   // ---- 匪巢 ----
   ['heishan', '黑山营', 'camp', 'bandit', 24, 16, 0, 45, 'bandit', '太行山里的黄巾余部，张燕带着几万人钻山沟。'],
   ['taishan', '泰山寇', 'camp', 'bandit', 32, 19, 0, 38, 'bandit', '泰山周边的山贼，专抢青徐之间的粮队。'],
@@ -5229,6 +5229,8 @@ function dailyIncome(state) {
   let income = 0;
   state.world.sites.forEach(function (site) {
     if (!site.playerOwned) return;
+    // 边陲小镇只按“每月 1000 金 + 400 粮”结算，不再叠每日商税。
+    if (site.specialEdge) return;
     if (site.type === 'town') income += 26;
     else if (site.type === 'castle') income += 16;
     else income += 9;
@@ -6949,6 +6951,8 @@ function declare(state, a, b, quiet, ignoreNeighbor) {
 }
 
 function makePeace(state, a, b, quiet) {
+  // 叛军没有议和桌：不是“这次不谈”，而是整场复国战都不允许停火。
+  if (a === 'rebel' || b === 'rebel') return false;
   // 斩了君主就是不死不休：这对玩家与那一家永远没有议和这一页
   const forever = state.noPeaceForever || {};
   if ((a === 'player' && forever[b]) || (b === 'player' && forever[a])) return false;
@@ -7042,7 +7046,10 @@ function diplomacyTick(state) {
   // 一天最多合成一条军情，降低连续弹窗
   if (state.lastDiplomacyDay === state.clock.day) return;
   const rng = state.rng;
-  const ids = Object.keys(FACTIONS).filter(function (id) { return id !== 'bandit' && id !== 'player'; });
+  const ids = Object.keys(FACTIONS).filter(function (id) {
+    if (id === 'rebel' && !state.arc) return false;
+    return id !== 'bandit' && id !== 'player';
+  });
   const warPairs = [];
   const peacePairs = [];
 
@@ -7097,6 +7104,7 @@ function peaceOfferTick(state) {
   });
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
+    if (id === 'rebel') continue;
     if (!atWar(state, 'player', id)) continue;
     if ((state.factionState[id] || {}).dead) continue;
     if (state.noPeaceForever && state.noPeaceForever[id]) continue;
@@ -8480,7 +8488,9 @@ function recruitLord(state, lordId) {
   lord.prisoner = null;
   lord.dead = false;
   lord.alive = true;
+  const wasPlayer = lord.faction === 'player' || !!lord.exPlayer;
   lord.faction = target;
+  if (target === 'player' || wasPlayer) lord.exPlayer = true;
   lord.chasing = false;
   lord.resting = false;
   lord.order = null;
@@ -9642,6 +9652,7 @@ function strategyTick(state) {
   ensureHanSuiMieMaWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
+    if (faction === 'rebel' && !state.arc) return;
     if ((state.factionState[faction] || {}).dead) {
       const cp = state.warCampaigns[faction];
       if (cp) {
@@ -10552,7 +10563,8 @@ const STORY = {
     edgeTitle: '边陲小镇',
     edgeLines: [
       '雾散开一线，小镇的灯火在雾里亮着。',
-      '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
+      '这里每月送来 1000 金币、400 粮草；其余诸侯的人马不敢靠近小镇十格。',
+      '镇上每周能募 1000 义军，粮草 5 金一单位；打散的旧部会回驿站等你。',
       '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
     ],
     fogTitle: '迷雾迷人眼',
@@ -12312,10 +12324,13 @@ function forceEndgameUnification(state) {
   eg.forced = true;
   eg.forcedWinner = winner;
   eg.forcedDay = state.clock.day;
+  const playerInWinner = winner === 'player' || state.player.faction === winner;
   pushStoryEvent(state, STORY.unification ? STORY.unification.forceTitle || '天下易主' : '天下易主', [
     '荆州十轮打了两年，最后一座城仍悬而未决。',
     '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
-    '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。',
+    playerInWinner
+      ? '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。'
+      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，天下不会因你而起背叛。',
   ], { tag: '终局', art: 'war', auto: 9 });
   logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
   refreshHeadline(state);
@@ -12498,8 +12513,399 @@ module.exports = {
 
   };
 
-  /* js/data/bios.js */
+  /* js/core/border.js */
   __defs[20] = function (module, exports, __require) {
+/**
+ * 边陲小镇：全国背叛后的最后一块落脚地。
+ *
+ * 这里不套用村庄的柴房/村市，也不走普通城池的“市场—议和”流程：
+ *  - 每周只开一次义军招募，固定 1000 人，T1~T5 各 200；
+ *  - 粮草按 5 金 / 单位无限买，不设货架上限；
+ *  - 旧部被打散后回镇上的驿站，免费重新入队；
+ *  - 叛军未起时，镇民只认熟人，玩家进门就被赶出去。
+ */
+
+const army = __require(9);
+const { siteById } = __require(8);
+const { TROOPS } = __require(10);
+
+const EDGE_ID = 'edge_town';
+const GOLD_MONTH = 1000;
+const FOOD_MONTH = 400;
+const FOOD_PRICE = 5;
+const WEEK_DAYS = 7;
+const BORDER_TROOP_CAP = 1000;
+
+/** 五个档次各 200，一周刚好 1000；刷新时整池重置，不累积。 */
+const RECRUIT_TIERS = [
+  { tier: 1, troop: 'militia', count: 200 },
+  { tier: 2, troop: 'spear', count: 200 },
+  { tier: 3, troop: 'cav', count: 200 },
+  { tier: 4, troop: 'heavy', count: 200 },
+  { tier: 5, troop: 'jinjun', count: 200 },
+];
+
+/** 每人一句，尽量不重样；真撞了也会按姓名补成独有的一句。 */
+const COMPLAINTS = [
+  '那帮叛军把我的旗烧了，连我家祠堂都没放过。',
+  '我在城外看见他们押着粮车走，车上插的还是我旧部的旗。',
+  '他们说清君侧，清到最后，连我这样的老骨头也要杀。',
+  '我打了一辈子仗，没想到有一天要防着背后射来的箭。',
+  '叛军里有个校尉，前些天还在我帐下喝酒。',
+  '我的城没丢在敌人手里，丢在了自己人手里。',
+  '他们把我的名字从军籍上划了，说我是“旧党”。',
+  '我在驿站等了七天，就等你回来点一次头。',
+  '叛军占了城，却连城门都不会修，城外全是逃难的人。',
+  '我这条命是你从乱军里捡回来的，再跟你走一趟。',
+  '他们把我的马牵走了，那匹马跟我打了八年仗。',
+  '我不怕死，我怕死了以后，史书上写我反的是你。',
+  '叛军说只要交出兵符就饶我一命；我把兵符烧了。',
+  '我在镇口看见他们的探子，一天来三回。',
+  '他们连边陲小镇都不放过，迟早要打到这儿来。',
+  '我手下的弟兄散了，可只要旗还在，我还能再聚起来。',
+  '那帮人抢完粮，还把锅砸了；这不是打仗，是绝户。',
+  '我老了，本来想种地；可他们把地也分了。',
+  '叛军里有人劝我降，我说我先回来问问你。',
+  '我这一路装成货郎才走到镇上，鞋底都磨穿了。',
+  '他们占了我的城，却没人肯守城门，夜里全是火。',
+  '我在驿站里听见他们说你已经死了；我说放屁。',
+  '你要是还打，我就还跟；你要是不打，我就在这儿种地。',
+  '叛军把我的印绶挂在了马脖子上，我咽不下这口气。',
+  '我从乱军里爬出来的时候，身上只剩一把断刀。',
+  '他们说要清君侧，可君在哪？侧又在哪？',
+  '我认得他们的旗，也认得他们旗底下那些逃兵。',
+  '这镇上的人嘴严，心也热；我在这儿躲了几天。',
+  '我的旧部还有几十个在山里，只要你一句话。',
+  '我不求封侯，只求再打一仗，把旗插回去。',
+];
+
+function edgeSite(state) {
+  if (!state || !state.world) return null;
+  return siteById(state.world, (state.world.edgeTown && state.world.edgeTown.id) || EDGE_ID);
+}
+
+function hasArc(state) {
+  return !!(state && state.arc);
+}
+
+/** 只有真正落脚小镇、进入复国阶段后，镇上的功能才开。 */
+function unlocked(state) {
+  if (!hasArc(state)) return false;
+  const phase = state.arc.phase;
+  return phase === 'reconquest' || phase === 'finale' || phase === 'sandbox' || phase === 'done';
+}
+
+function emptyPool() {
+  const out = {};
+  RECRUIT_TIERS.forEach(function (row) { out[row.troop] = row.count; });
+  return out;
+}
+
+function totalOf(pool) {
+  let n = 0;
+  RECRUIT_TIERS.forEach(function (row) { n += (pool && pool[row.troop]) || 0; });
+  return n;
+}
+
+function getBorder(state) {
+  if (!hasArc(state)) return null;
+  const arc = state.arc;
+  if (!arc.border || typeof arc.border !== 'object') {
+    arc.border = {
+      version: 1,
+      day0: arc.arrivalDay || arc.startDay || (state.clock && state.clock.day) || 1,
+      week: -1,
+      pool: emptyPool(),
+      station: [],
+      complaints: {},
+    };
+  }
+  const b = arc.border;
+  if (!b.day0) b.day0 = arc.arrivalDay || arc.startDay || (state.clock && state.clock.day) || 1;
+  if (!Array.isArray(b.station)) b.station = [];
+  if (!b.complaints || typeof b.complaints !== 'object') b.complaints = {};
+  if (!b.pool || typeof b.pool !== 'object') b.pool = emptyPool();
+  b.version = 1;
+  return b;
+}
+
+/** 每七天整池刷新；不到七天不动，招掉的兵不会自己长回来。 */
+function refresh(state) {
+  const b = getBorder(state);
+  if (!b) return null;
+  const day = (state.clock && state.clock.day) || b.day0;
+  const week = Math.max(0, Math.floor((day - b.day0) / WEEK_DAYS));
+  if (b.week !== week) {
+    b.week = week;
+    b.pool = emptyPool();
+  }
+  b.nextRefreshDay = b.day0 + (week + 1) * WEEK_DAYS;
+  b.total = totalOf(b.pool);
+  return b;
+}
+
+function poolInfo(state) {
+  const b = refresh(state);
+  if (!b) return { pool: emptyPool(), total: 0, nextRefreshDay: 0, week: 0 };
+  return {
+    pool: b.pool,
+    total: b.total,
+    nextRefreshDay: b.nextRefreshDay,
+    week: b.week,
+  };
+}
+
+function troopCap(state) {
+  if (!state || !state.player) return 0;
+  const base = army.troopCapacity(state.player.renown);
+  // 复国阶段额外给 1000 个“义军编制”，不占玩家原本的声望带兵上限。
+  return unlocked(state) ? base + BORDER_TROOP_CAP : base;
+}
+
+function priceFor(state, troopId) {
+  const t = TROOPS[troopId];
+  if (!t) return 0;
+  // 边陲不按名城物价，统一按兵种基准的六成；高阶级也买得到。
+  return Math.max(4, Math.round((t.recruit || 10) * 0.6));
+}
+
+function recruit(state, troopId, count) {
+  if (!unlocked(state)) return { ok: false, msg: '镇民还没让你进门。' };
+  const row = RECRUIT_TIERS.filter(function (r) { return r.troop === troopId; })[0];
+  if (!row || !TROOPS[troopId]) return { ok: false, msg: '这里不招这种兵。' };
+  const b = refresh(state);
+  const stock = b.pool[troopId] || 0;
+  const n = Math.max(1, Math.floor(Number(count) || 1));
+  if (stock <= 0) return { ok: false, msg: '这一档本周已经招完了，等七天再来。' };
+  const price = priceFor(state, troopId);
+  const p = state.player;
+  const room = troopCap(state) - army.troopCount(p.troops || {});
+  if (room <= 0) return { ok: false, msg: '队伍满编（边陲额外编制 ' + BORDER_TROOP_CAP + ' 人已用尽）。' };
+  const finalN = Math.min(n, stock, Math.floor(p.gold / price), room);
+  if (finalN <= 0) {
+    return { ok: false, msg: p.gold < price ? '金钱不足，单价 ' + price + ' 金钱。' : '队伍装不下了。' };
+  }
+  p.gold -= price * finalN;
+  p.troops[troopId] = (p.troops[troopId] || 0) + finalN;
+  b.pool[troopId] = stock - finalN;
+  b.total = totalOf(b.pool);
+  return {
+    ok: true,
+    count: finalN,
+    cost: price * finalN,
+    msg: '招募 ' + TROOPS[troopId].name + ' × ' + finalN + '，花费 ' + price * finalN + ' 金钱',
+  };
+}
+
+/** 边陲粮草：5 金一个单位，不设货架上限，也不拿普通粮车上限卡人。 */
+function buyFood(state, count) {
+  if (!unlocked(state)) return { ok: false, msg: '镇民还没让你进门。' };
+  const n = Math.max(1, Math.floor(Number(count) || 1));
+  const cost = n * FOOD_PRICE;
+  const p = state.player;
+  if (p.gold < cost) {
+    return { ok: false, msg: '金钱不够：' + n + ' 单位粮草要 ' + cost + ' 金钱。' };
+  }
+  p.gold -= cost;
+  p.food += n;
+  return { ok: true, count: n, cost: cost, msg: '买入 ' + n + ' 单位粮草，花费 ' + cost + ' 金钱' };
+}
+
+function monthlyGrant(state) {
+  if (!state || !state.player) return { gold: 0, food: 0 };
+  state.player.gold += GOLD_MONTH;
+  state.player.food += FOOD_MONTH;
+  return { gold: GOLD_MONTH, food: FOOD_MONTH };
+}
+
+function isLoyalLord(state, lord) {
+  if (!lord) return false;
+  if (lord.exPlayer || lord.hero || lord.arcLoyal) return true;
+  if (state.arc && Array.isArray(state.arc.loyalLords) && state.arc.loyalLords.indexOf(lord.id) >= 0) return true;
+  return false;
+}
+
+function isStationed(lord) {
+  return !!(lord && lord.borderStation);
+}
+
+function complaintFor(state, lord, b) {
+  if (!lord) return '';
+  const box = b || getBorder(state);
+  if (box && box.complaints[lord.id]) return box.complaints[lord.id];
+  const used = {};
+  if (box) {
+    Object.keys(box.complaints).forEach(function (id) { used[box.complaints[id]] = true; });
+  }
+  let sum = 0;
+  const s = String(lord.id || lord.name || '');
+  for (let i = 0; i < s.length; i++) sum = (sum * 31 + s.charCodeAt(i)) % 100000;
+  let line = '';
+  for (let i = 0; i < COMPLAINTS.length; i++) {
+    const cand = COMPLAINTS[(sum + i) % COMPLAINTS.length];
+    if (!used[cand]) { line = cand; break; }
+  }
+  if (!line) line = COMPLAINTS[sum % COMPLAINTS.length] + '（' + (lord.name || '旧部') + '）';
+  if (box) box.complaints[lord.id] = line;
+  return line;
+}
+
+function clearLordMotion(lord, edge) {
+  lord.x = edge.x;
+  lord.y = edge.y;
+  lord.inCity = edge.id;
+  lord.home = edge.id;
+  lord.resting = true;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleeTargetId = null;
+  lord.fleeFrom = null;
+  lord.fleePath = null;
+  lord.order = null;
+  lord.defending = null;
+  lord.wander = null;
+  lord.patrolPath = null;
+  lord.routePath = null;
+  lord.orderPath = null;
+  lord.engagedWith = null;
+  lord.engagedSinceH = null;
+  lord.stepFrom = null;
+  lord.stepTo = null;
+  lord.stepProgress = 0;
+  lord.enteringSiteId = null;
+  lord.cityEnterAtH = null;
+}
+
+/** 打散的旧部：立刻从大地图消失，进镇上的驿站等玩家来领。 */
+function sendToStation(state, lord) {
+  const b = getBorder(state);
+  const edge = edgeSite(state);
+  if (!b || !edge || !lord) return false;
+  lord.faction = 'player';
+  lord.arcLoyal = true;
+  lord.exPlayer = true;
+  lord.alive = true;
+  lord.dead = false;
+  lord.retired = false;
+  lord.prisoner = null;
+  lord.scattered = false;
+  lord.scatterUntilH = 0;
+  lord.respawnDay = 0;
+  lord.scatterHidden = true;
+  lord.scatterRecovering = false;
+  lord.scatterCityId = edge.id;
+  lord.borderStation = true;
+  lord.arcNoRecruit = false;
+  lord.arcNoCapture = false;
+  lord.arcEnemy = false;
+  lord.troops = {};
+  clearLordMotion(lord, edge);
+  if (b.station.indexOf(lord.id) < 0) b.station.push(lord.id);
+  complaintFor(state, lord, b);
+  return true;
+}
+
+function stationLords(state) {
+  const b = getBorder(state);
+  if (!b) return [];
+  const out = [];
+  b.station.slice().forEach(function (id) {
+    const lord = (state.lords || []).filter(function (l) { return l.id === id; })[0];
+    if (!lord || !lord.borderStation) return;
+    out.push({
+      lord: lord,
+      name: lord.name,
+      title: lord.title || '旧部',
+      complaint: complaintFor(state, lord, b),
+    });
+  });
+  return out;
+}
+
+function starterTroops(lord) {
+  const base = lord.defTroops || {};
+  const want = Math.max(12, Math.round(army.troopCount(base) * 0.35));
+  const out = {};
+  let left = want;
+  Object.keys(base).forEach(function (id) {
+    if (left <= 0) return;
+    const n = Math.min(base[id] || 0, left);
+    if (n > 0) { out[id] = n; left -= n; }
+  });
+  if (!Object.keys(out).length) out.militia = 12;
+  return out;
+}
+
+/** 免费把驿站旧部重新收进队伍：人归你，带一份刚聚起的乡勇。 */
+function recruitStationLord(state, lordId) {
+  if (!unlocked(state)) return { ok: false, msg: '镇民还没让你进门。' };
+  const b = getBorder(state);
+  const edge = edgeSite(state);
+  if (!b || !edge) return { ok: false, msg: '驿站还没开。' };
+  const lord = (state.lords || []).filter(function (l) { return l.id === lordId; })[0];
+  if (!lord || !lord.borderStation) return { ok: false, msg: '驿站里没有这个人。' };
+  b.station = b.station.filter(function (id) { return id !== lordId; });
+  lord.borderStation = false;
+  lord.scatterHidden = false;
+  lord.scatterRecovering = false;
+  lord.scattered = false;
+  lord.respawnDay = 0;
+  lord.inCity = null;
+  lord.resting = false;
+  lord.faction = 'player';
+  lord.exPlayer = true;
+  lord.arcLoyal = true;
+  lord.alive = true;
+  lord.dead = false;
+  lord.troops = starterTroops(lord);
+  lord.home = edge.id;
+  lord.x = edge.x;
+  lord.y = edge.y;
+  lord.morale = Math.max(lord.morale || 60, 70);
+  clearLordMotion(lord, { id: edge.id, x: edge.x, y: edge.y });
+  lord.inCity = null;
+  lord.resting = false;
+  lord.patrolPath = null;
+  const line = complaintFor(state, lord, b);
+  return {
+    ok: true,
+    lordId: lord.id,
+    complaint: line,
+    msg: lord.name + '回到队中（免费）。他说：“' + line + '”',
+  };
+}
+
+module.exports = {
+  EDGE_ID,
+  GOLD_MONTH,
+  FOOD_MONTH,
+  FOOD_PRICE,
+  WEEK_DAYS,
+  BORDER_TROOP_CAP,
+  RECRUIT_TIERS,
+  unlocked,
+  edgeSite,
+  getBorder,
+  refresh,
+  poolInfo,
+  troopCap,
+  priceFor,
+  recruit,
+  buyFood,
+  monthlyGrant,
+  isLoyalLord,
+  isStationed,
+  sendToStation,
+  stationLords,
+  recruitStationLord,
+  complaintFor,
+};
+
+  };
+
+  /* js/data/bios.js */
+  __defs[21] = function (module, exports, __require) {
 /**
  * 领主生平：按史实写，一人三四句，讲清来处、功业、下场。
  * 史书只留一行的人（吕旷、吕翔之类），就照实写"记载极少"，不硬编。
@@ -12693,6 +13099,7 @@ const trade = __require(13);
 const heroes = __require(14);
 const war = __require(15);
 const story = __require(18);
+const border = __require(20);
 const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
@@ -12703,7 +13110,7 @@ const { TROOPS } = __require(10);
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
-const { LORD_BIOS } = __require(20);
+const { LORD_BIOS } = __require(21);
 const { LORD_POWER_BY_ID, MARSHAL_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL, roleInfoFor, commandCapFor } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
@@ -12842,6 +13249,8 @@ function applyPlayerCountry(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.title !== '你的家臣') return;
     lord.faction = 'player';
+    // 从主角队伍里出去的家臣，永远不列入叛军名册。
+    lord.exPlayer = true;
   });
 }
 
@@ -13314,7 +13723,7 @@ function fiefTaxTick(state) {
   if (state.fiefTaxDay === state.clock.day) return 0;
   state.fiefTaxDay = state.clock.day;
   const sites = state.world.sites.filter(function (s) {
-    return s.playerOwned && s.selfFief && s.type !== 'camp';
+    return s.playerOwned && s.selfFief && s.type !== 'camp' && !s.specialEdge;
   });
   if (!sites.length) return 0;
   const total = sites.reduce(function (sum, s) { return sum + fiefTaxFor(s); }, 0);
@@ -13361,6 +13770,9 @@ function lordFromDef(state, def) {
     scatterCityId: null,
     scatterRecovering: false,
     scatterHidden: false,
+    exPlayer: false,
+    arcLoyal: false,
+    borderStation: false,
   };
 }
 
@@ -13564,6 +13976,8 @@ function allowedTiers(state) {
   const stage = (state.campaign && state.campaign.stage) || 0;
   const out = [];
   Object.keys(BANDIT_TIERS).forEach(function (id) {
+    // “赤色叛军”在全国背叛前不落地；否则史册和地图会提前出现叛军名号。
+    if (id === 'hong' && !(state.arc && state.arc.phase !== 'retreat')) return;
     if (stage >= (BANDIT_UNLOCK_STAGE[id] || 0)) out.push(id);
   });
   if (!out.length) out.push('qing');
@@ -13991,7 +14405,8 @@ function playerSpeed(state) {
 }
 
 function capacity(state) {
-  return army.troopCapacity(state.player.renown);
+  // 边陲小镇复国阶段要给旧部与义军留出 1000 人的落脚空间；平时仍按声望。
+  return border.troopCap(state);
 }
 
 function currentPos(state) {
@@ -14089,6 +14504,10 @@ function startRest(state, site) {
   stopMoving(state);
   state.player.atSiteId = site.id;
   state.player.resting = site.id;
+  if (site.specialEdge) {
+    pushLog(state, '你在' + site.name + '的客栈里歇下。镇口的猎户替你望风，粮吃得慢一半。');
+    return { ok: true, msg: '在' + site.name + '歇下：粮耗减半，镇民替你望风' };
+  }
   if (site.type === 'village') {
     pushLog(state, '你在' + site.name + '的柴房里歇下。粮吃得慢一半，可村里藏不住人，追兵会摸进来。');
     return { ok: true, msg: '在' + site.name + '歇下：粮耗减半；村里藏不住人，追兵仍会摸进来' };
@@ -14145,7 +14564,7 @@ function isSafeResting(state) {
   const p = state && state.player;
   if (!p || !p.resting) return false;
   const site = siteById(state.world, p.resting);
-  return !!site && site.type !== 'village';
+  return !!site && (site.type !== 'village' || !!site.specialEdge);
 }
 
 /* ---------------------------------------------------------------- 粮草预警 */
@@ -14406,6 +14825,7 @@ function dailyTick(state) {
   if (state.lords.some(function (l) { return l.faction === 'player' && l.alive; })) {
     Object.keys(FACTIONS).forEach(function (id) {
       if (id === 'player' || id === 'bandit') return;
+      if (id === 'rebel' && !state.arc) return;
       if ((state.factionState[id] || {}).dead) return;
       if ((state.relations[id] || 0) <= -25 && !war.atWar(state, 'player', id)) {
         war.declare(state, 'player', id, true);
@@ -15481,6 +15901,11 @@ function scatteredLordTick(state) {
   const day = state.clock.day;
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner || !lord.scattered) return;
+    // 玩家旧部不在叛军城里复活，也不等三天：打散后直接回边陲小镇驿站。
+    if (state.arc && state.arc.phase !== 'done' && border.isLoyalLord(state, lord)) {
+      border.sendToStation(state, lord);
+      return;
+    }
     if (day < (lord.respawnDay || 999999)) return;
     const target = fastestRecoveryCity(state, lord);
     if (!target || !target.site) return; // 本方已经没有可募兵的城，等换旗/灭国逻辑处理
@@ -15510,6 +15935,8 @@ function scatteredLordTick(state) {
 function lordRecruitTick(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner) return;
+    // 驿站旧部在等玩家来领，不算“驻城募兵”。
+    if (lord.borderStation) return;
     // 打散的队伍由 scatteredLordTick 统一送回最快的城，三天后从零招募；
     // 在别处等待期间不能靠“就近友城”提前补兵。逃窜（≥1 兵）不在此列。
     if (lord.scattered) return;
@@ -15673,6 +16100,8 @@ function patrolRouteFor(state, lord) {
  *  这里的“路线”指绕城巡逻的一串短路径点，不是领主跨城的主路线。 */
 function patrolRouteCount(site) {
   if (!site) return 5;
+  // 叛军每城固定五条巡视路线，大城也不再各自拉到九条。
+  if (site.ownerFaction === 'rebel') return 5;
   // 新野是刘备唯一的新城，城不大但四面都要巡；给十条远近相交的路线，
   // 让守将既能贴着城根绕，也能走到外围的远点，不被固定一条线。
   if (site.id === 'xinye') return 10;
@@ -15777,7 +16206,8 @@ function xinyePatrolRoutes(state, site, usable) {
 /** 每座城生成 5/9 条互不相同的短巡逻路线（每条 3 个谷口/城外落脚点）。
  *  同一座城的不同路线会轮换，领主不会每次都绕同一圈。 */
 function patrolRoutesForSite(state, site) {
-  const key = (site.id || (site.x + ',' + site.y));
+  // 城头换旗会改变路线条数（叛军城固定 5 条），缓存键必须带上旗色。
+  const key = (site.id || (site.x + ',' + site.y)) + ':' + (site.ownerFaction || '') + ':' + (site.garrisonBase || 0);
   state._patrolRoutes = state._patrolRoutes || {};
   const cached = state._patrolRoutes[key];
   if (cached && cached.w === state.world.w && cached.h === state.world.h) return cached.routes;
@@ -15822,7 +16252,7 @@ function patrolRoutesForSite(state, site) {
   }
 
   const count = patrolRouteCount(site);
-  if (site.id === 'xinye') {
+  if (site.id === 'xinye' && site.ownerFaction !== 'rebel') {
     const routes = xinyePatrolRoutes(state, site, usable);
     state._patrolRoutes[key] = { w: state.world.w, h: state.world.h, routes: routes };
     return routes;
@@ -16584,6 +17014,16 @@ function moveLords(state, slot) {
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
     if (lord.fieldBattleId) return;
+    // 驿站旧部在边陲小镇等玩家来领，不参与大地图巡逻/募兵/追击。
+    if (lord.borderStation) {
+      const edge = border.edgeSite(state);
+      if (edge) {
+        lord.inCity = edge.id;
+        lord.x = edge.x;
+        lord.y = edge.y;
+      }
+      return;
+    }
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
     // 非玩家单位误入边陲小镇十格：不让他继续走，直接送回本城。
@@ -18198,6 +18638,14 @@ function peaceTerms(state, faction) {
   if (!state || !faction || !FACTIONS[faction]) return { ok: false, msg: '没有这个势力' };
   if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了，没人能签下这份文书' };
   if (!war.atWar(state, 'player', faction)) return { ok: false, msg: '你和他们没有开战' };
+  if (faction === 'rebel') {
+    return {
+      ok: false,
+      forever: true,
+      rebel: true,
+      msg: '叛军没有议和桌：他们连使者都不见，只能打到一方彻底倒下。',
+    };
+  }
   if (state.noPeaceForever && state.noPeaceForever[faction]) {
     return {
       ok: false,
@@ -19009,6 +19457,7 @@ function promoteHero(state, heroId, siteId) {
     resting: false,
     hero: true,
     independent: true,
+    exPlayer: true,
   };
   site.lordId = lord.id;
   state.lords.push(lord);
@@ -19362,6 +19811,7 @@ function pickFactionFor(state, lord, from) {
     (lord && siteById(state.world, lord.home)) || { x: 0, y: 0 };
   const list = Object.keys(FACTIONS).filter(function (id) {
     if (id === 'bandit' || id === from || !FACTIONS[id]) return false;
+    if (id === 'rebel' && !state.arc) return false;
     if ((state.factionState[id] || {}).dead) return false;
     if (id === 'player') {
       return state.player.faction === 'player' &&
@@ -19394,7 +19844,10 @@ function moveLordToFaction(state, lord, target) {
     return da - db;
   });
   const city = cities[0];
+  // 只要在主角队伍里待过，哪怕后来投了别家，全国背叛时也不列叛军。
+  const wasPlayer = lord.faction === 'player' || !!lord.exPlayer;
   lord.faction = target;
+  if (target === 'player' || wasPlayer) lord.exPlayer = true;
   if (city) {
     lord.home = city.id;
     // 旧旗的封地收回；新投的城如果还没封主，就由他接
@@ -19632,6 +20085,7 @@ function recruitHiddenLord(state, siteId) {
   lord.hidden = null;
   lord.alive = true;
   lord.faction = target;
+  if (target === 'player') lord.exPlayer = true;
   lord.dead = false;
   lord.retired = false;
   const home = state.world.sites.filter(function (s) { return s.ownerFaction === target && s.type !== 'camp'; })[0]
@@ -19835,6 +20289,28 @@ function allMajorSitesOwned(state) {
   });
 }
 
+/** 全国只剩下哪一面旗；还没统一或旗色不唯一时返回 null。 */
+function unifiedOwnerFaction(state) {
+  const major = majorSites(state);
+  if (!major.length) return null;
+  let owner = null;
+  for (let i = 0; i < major.length; i++) {
+    const f = major[i].playerOwned ? 'player' : (major[i].ownerFaction || null);
+    if (!f) return null;
+    if (owner === null) owner = f;
+    else if (owner !== f) return null;
+  }
+  return owner;
+}
+
+/** 统一的那面旗里有没有玩家：自立算自己，臣子看 p.faction 是否同一家。 */
+function unificationIncludesPlayer(state, faction) {
+  const p = state.player;
+  if (!p || !faction) return false;
+  if (faction === 'player') return true;
+  return p.faction === faction;
+}
+
 /** 第一次统一：不结束游戏，先让人站在城头看三十天 */
 function edgeTownSite(state) {
   return siteById(state.world, (state.world.edgeTown && state.world.edgeTown.id) || 'edge_town');
@@ -19887,6 +20363,9 @@ function nearestRebelCity(state, from) {
 /** 统一瞬间：全国背叛，兄弟断后，玩家带残部逃往边陲小镇 */
 function startUnification(state) {
   if (state.arc) return false;
+  // 底层入口也认“全国统一且这面旗里有玩家”，避免任何旧入口绕过正常校验。
+  const unified = unifiedOwnerFaction(state);
+  if (!unified || !unificationIncludesPlayer(state, unified)) return false;
   const p = state.player;
   const day = state.clock.day;
   const formerFaction = p.faction;
@@ -19935,11 +20414,17 @@ function startUnification(state) {
   });
   edge.ownerFaction = 'player';
   edge.playerOwned = true;
-  edge.selfFief = true;
+  // 边陲小镇只走“每月 1000 金 + 400 粮”，不再叠加每日商税与封地旬税。
+  edge.selfFief = false;
+  edge.specialEdge = true;
   edge.garrison = Math.max(24, edge.garrison || 24);
   edge.banner = p.country && p.country.name ? p.country.name : '旗';
   edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
   state.world.factionGrid = null;
+
+  state.noPeaceForever = state.noPeaceForever || {};
+  // 叛军不是诸侯：没有议和桌，只能打到一方彻底倒下。
+  state.noPeaceForever.rebel = true;
 
   Object.keys(FACTIONS).forEach(function (id) {
     if (id === 'rebel' || id === 'player') return;
@@ -19955,9 +20440,13 @@ function startUnification(state) {
   const rebels = [];
   state.lords.forEach(function (l) {
     if (!l || !l.alive || l.dead || l.retired) return;
-    const fromYourCamp = !!l.hero || l.faction === 'player';
+    // 从主角队伍里出去的人，不论现在挂在哪家旗下面，统一时都不会变成叛军。
+    const fromYourCamp = !!(l.hero || l.exPlayer || l.faction === 'player' || l.title === '你的家臣');
     if (fromYourCamp) {
       l.faction = 'player';
+      l.exPlayer = true;
+      l.arcLoyal = true;
+      l.borderStation = false;
       l.arcEnemy = false;
       l.arcNoRecruit = false;
       l.arcNoCapture = false;
@@ -19975,6 +20464,7 @@ function startUnification(state) {
       loyal.push(l);
     } else {
       l.faction = 'rebel';
+      l.arcLoyal = false;
       l.arcEnemy = true;
       l.arcNoRecruit = true;
       l.arcNoCapture = true;
@@ -20003,6 +20493,7 @@ function startUnification(state) {
     state.arc.lostBrothers.push(l.name);
   }
   state.arc.loyalLords = loyal.filter(function (l) { return l.alive; }).map(function (l) { return l.id; });
+  border.getBorder(state);
   const troopLoss = shavePlayerTroops(state, 1 / 3);
 
   // 玩家从旧都城（或当前位置）出发，路线自动指向边陲小镇。
@@ -20041,6 +20532,8 @@ function startUnification(state) {
 /** 兼容旧流程：灾变入口现在直接触发统一背叛。 */
 function triggerDisaster(state) {
   if (state.arc) return false;
+  const unified = unifiedOwnerFaction(state);
+  if (unified && !unificationIncludesPlayer(state, unified)) return false;
   return startUnification(state);
 }
 
@@ -20075,12 +20568,15 @@ function checkVictory(state) {
     if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
   }
-  // 荆州最终阶段拖满两年：共主已被强制推举，直接进入全国背叛。
+  // 荆州最终阶段拖满两年：共主已被强制推举，只有共主旗里包含玩家才进入全国背叛。
   if (state.story && state.story.endgame && state.story.endgame.forcedWinner) {
-    startUnification(state);
+    // 若玩家后来又把最后几座城打回来，以真实城头旗色为准，不被旧的“强制共主”卡死。
+    const winner = unifiedOwnerFaction(state) || state.story.endgame.forcedWinner;
+    if (unificationIncludesPlayer(state, winner)) startUnification(state);
     return;
   }
-  if (allMajorSitesOwned(state)) startUnification(state);
+  const winner = unifiedOwnerFaction(state);
+  if (winner && unificationIncludesPlayer(state, winner)) startUnification(state);
 }
 
 /** 每天检查：撤退到边陲小镇、每月补给、复国后再统一 */
@@ -20144,15 +20640,24 @@ function arcTick(state) {
       arc.phase = 'reconquest';
       arc.arrivalDay = state.clock.day;
       arc.lastGrantDay = state.clock.day;
+      const bb = border.getBorder(state);
+      if (bb) {
+        // 七天招募从真正落脚小镇这天算，不在撤退路上提前走表。
+        bb.day0 = state.clock.day;
+        bb.week = -1;
+        bb.pool = null;
+        border.refresh(state);
+      }
       state.flags.edgeRetreat = false;
       state.flags.edgeArrived = true;
-      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、2000 粮草，从今天开始算。');
+      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、400 粮草，从今天开始算。');
       state.events.push({
         type: 'arc', phase: 'edge',
         title: '边陲小镇',
         lines: [
           '雾散开一线，小镇的灯火在雾里亮着。',
-          '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
+          '这里每月送来 1000 金币、400 粮草；其余诸侯的人马不敢靠近小镇十格。',
+          '镇上的义军每周能凑出 1000 人，粮草 5 金一单位，驿站里还留着你的旧部。',
           '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
         ],
       });
@@ -20161,12 +20666,12 @@ function arcTick(state) {
   }
 
   if (arc.phase === 'reconquest') {
-    // 每月补给：固定 1000 金币、2000 粮草。
+    border.refresh(state);
+    // 每月补给：固定 1000 金币、400 粮草；其余攻占城市按普通税赋另算。
     if (state.clock.day - (arc.lastGrantDay || arc.arrivalDay || state.clock.day) >= 30) {
       arc.lastGrantDay = state.clock.day;
-      p.gold += 1000;
-      p.food += 2000;
-      pushLog(state, '【边陲小镇】本月补给 1000 金币、2000 粮草已到。');
+      const grant = border.monthlyGrant(state);
+      pushLog(state, '【边陲小镇】本月补给 ' + grant.gold + ' 金币、' + grant.food + ' 粮草已到。');
     }
     if (allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
@@ -20391,6 +20896,10 @@ function deserialize(json) {
   // 新开局由 ROADS 铺好；旧档在这里补一次，重复铺也不会改坏已有桥/山口。
   layRoads(state.world, [['chenliu', 'xiaopei']]);
   state.world.factionGrid = null;
+  // 旧档可能已经刷出了“赤色叛军”匪团；全国背叛没开始前，它们不能出现在地图/史册。
+  if (!state.arc) {
+    state.parties = (state.parties || []).filter(function (q) { return q.banditTier !== 'hong'; });
+  }
   state.player.country = state.player.country || null;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
@@ -20728,6 +21237,9 @@ function deserialize(json) {
     if (l.scattered === undefined) l.scattered = false;
     if (l.scatterUntilH === undefined) l.scatterUntilH = 0;
     if (l.scatterHomeId === undefined) l.scatterHomeId = null;
+    if (l.exPlayer === undefined) l.exPlayer = !!(l.hero || l.title === '你的家臣');
+    if (l.arcLoyal === undefined) l.arcLoyal = false;
+    if (l.borderStation === undefined) l.borderStation = false;
     if (l.scattered && !l.respawnDay) l.respawnDay = state.clock.day + 3;
     if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
@@ -20953,6 +21465,8 @@ module.exports = {
   decideEnding,
   majorSites,
   allMajorSitesOwned,
+  unifiedOwnerFaction,
+  unificationIncludesPlayer,
   startUnification,
   triggerDisaster,
   triggerArcFinale,
@@ -20991,7 +21505,7 @@ module.exports = {
   };
 
   /* js/core/audio.js */
-  __defs[21] = function (module, exports, __require) {
+  __defs[22] = function (module, exports, __require) {
 /**
  * 程序化场景音乐：不加载任何音频文件，全部用 WebAudio 现场合成。
  *
@@ -21661,7 +22175,7 @@ module.exports = {
   };
 
   /* js/scenes/title.js */
-  __defs[22] = function (module, exports, __require) {
+  __defs[23] = function (module, exports, __require) {
 /**
  * 标题：征战汉末
  */
@@ -22029,7 +22543,7 @@ module.exports.SAVE_KEY = SAVE_KEY;
   };
 
   /* js/core/territory.js */
-  __defs[24] = function (module, exports, __require) {
+  __defs[25] = function (module, exports, __require) {
 /**
  * 势力领土网格：天下大势与大地图共用。
  *
@@ -22100,7 +22614,7 @@ module.exports = {
   };
 
   /* js/scenes/flows.js */
-  __defs[25] = function (module, exports, __require) {
+  __defs[26] = function (module, exports, __require) {
 /**
  * 场景流转：把 state.events 翻成场景切换
  * map / town 都会调用，保证事件不丢。
@@ -22117,7 +22631,8 @@ function process(app) {
     const ev = st.events.shift();
 
     if (ev.type === 'enter-site') {
-      app.push('town', { siteId: ev.siteId });
+      const site = siteById(st.world, ev.siteId);
+      app.push(site && site.specialEdge ? 'border' : 'town', { siteId: ev.siteId });
       return;
     }
     if (ev.type === 'player-siege') {
@@ -22255,7 +22770,7 @@ module.exports = { process, tryCampaign };
   };
 
   /* js/scenes/map.js */
-  __defs[23] = function (module, exports, __require) {
+  __defs[24] = function (module, exports, __require) {
 /**
  * 大地图场景：三国全图、区域风景、玩家骑马立绘、城池名牌、行军
  */
@@ -22266,10 +22781,10 @@ const { UI_COLORS } = pixel;
 const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt, bridgeHasWater } = __require(8);
-const territory = __require(24);
+const territory = __require(25);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = __require(5);
 const { lookFor } = __require(12);
-const flows = __require(25);
+const flows = __require(26);
 
 const TILE = 64;
 // 缩放后的格宽：TS = TILE × 缩放档位，render 时按当前档位刷新
@@ -22712,7 +23227,7 @@ const MapScene = {
             const siege = stateLib.startSiege(st, site);
             if (!siege) {
               st.player.atSiteId = site.id;
-              app.push('town', { siteId: site.id });
+              app.push(site.specialEdge ? 'border' : 'town', { siteId: site.id });
               return;
             }
             app.push('battle', { mode: 'siege' });
@@ -22721,7 +23236,7 @@ const MapScene = {
           }
         } else {
           st.player.atSiteId = site.id;
-          app.push('town', { siteId: site.id });
+          app.push(site.specialEdge ? 'border' : 'town', { siteId: site.id });
         }
         return;
       }
@@ -23742,7 +24257,8 @@ function drawSites(ctx, app, cam, box, w) {
       return;
     }
 
-    const sprite = assets.site[site.type] || assets.site.village;
+    // 边陲小镇虽然沿用村庄的格子尺寸，但用城镇图标，进镇也不再走村庄页。
+    const sprite = site.specialEdge ? assets.site.town : (assets.site[site.type] || assets.site.village);
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
     const fw = 19 * uiScale;
@@ -23789,7 +24305,7 @@ function drawSites(ctx, app, cam, box, w) {
     }
 
     // 名牌
-    const isTown = site.type === 'town';
+    const isTown = site.type === 'town' || !!site.specialEdge;
     const isCastle = site.type === 'castle';
     const size = (isCapital ? 27 : isTown ? 22 : isCastle ? 19 : 16) * Math.min(1.85, uiScale);
     const label = site.name;
@@ -24779,7 +25295,7 @@ module.exports = MapScene;
   };
 
   /* js/scenes/atlas.js */
-  __defs[26] = function (module, exports, __require) {
+  __defs[27] = function (module, exports, __require) {
 /**
  * 天下大势：可缩放的势力总图
  * 任何缩放级别都保留城与关隘的名字；放大时铺上各势力领土色、描州界。
@@ -24788,7 +25304,7 @@ module.exports = MapScene;
 const { REGIONS, FACTIONS, CAPITAL_IDS } = __require(5);
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const territory = __require(24);
+const territory = __require(25);
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
@@ -25097,6 +25613,7 @@ const AtlasScene = {
     text(ctx, warLine, px + 14, py + 56, { size: 12, color: sieges.length ? '#e0a050' : '#8a8070' });
 
     const ids = Object.keys(FACTIONS).filter(function (id) {
+      if (id === 'rebel' && !st.arc) return false;
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
     // 旗色不再单列成图例：每行名字前的色条就是这家势力的旗色。
@@ -25204,7 +25721,7 @@ module.exports = AtlasScene;
   };
 
   /* js/render/scenery.js */
-  __defs[28] = function (module, exports, __require) {
+  __defs[29] = function (module, exports, __require) {
 /**
  * 场景背景：不引入外部图片，用 Canvas 画出“像照片一样”的场所剪影。
  * 城是街市、村是田埂、扎营是帐篷、比武是彩棚、牢房是铁栏。
@@ -25610,7 +26127,7 @@ module.exports = { drawBackdrop };
   };
 
   /* js/core/tourney.js */
-  __defs[29] = function (module, exports, __require) {
+  __defs[30] = function (module, exports, __require) {
 /**
  * 军机棋盘：城池里的六局军情博弈。
  *
@@ -26264,7 +26781,7 @@ module.exports = {
   };
 
   /* js/scenes/town.js */
-  __defs[27] = function (module, exports, __require) {
+  __defs[28] = function (module, exports, __require) {
 /**
  * 城池 / 村庄 / 匪巢界面
  * 布局：顶部城名 → 自己状态条（金/粮/兵/望/简/士气）→ 大按钮菜单 → 子页
@@ -26274,13 +26791,13 @@ module.exports = {
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const pixel = __require(3);
-const scenery = __require(28);
+const scenery = __require(29);
 const stateLib = __require(7);
 const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
 const army = __require(9);
-const tourney = __require(29);
+const tourney = __require(30);
 const { siteById, regionDef } = __require(8);
 const { TROOPS } = __require(10);
 
@@ -26293,7 +26810,7 @@ function siteSeed(id) {
 }
 const { FACTIONS, EQUIPMENT, STRATEGIC_SITES } = __require(5);
 const { VILLAGE_FOOD } = __require(12);
-const flows = __require(25);
+const flows = __require(26);
 
 const PAD = 16;
 
@@ -27636,8 +28153,379 @@ module.exports = TownScene;
 
   };
 
+  /* js/scenes/border.js */
+  __defs[31] = function (module, exports, __require) {
+/**
+ * 边陲小镇专用界面。
+ *
+ * 这不是村庄页的复用：叛军未起时只给一段“镇民警惕、屠夫磨刀”的赶人文案；
+ * 叛军起来后才是复国落脚地——每周 1000 义军、5 金/单位粮草、驿站旧部。
+ */
+
+const { text, panel, bar, wrap } = __require(6);
+const { UI_COLORS } = __require(3);
+const { drawBackdrop } = __require(29);
+const stateLib = __require(7);
+const border = __require(20);
+const army = __require(9);
+const { siteById } = __require(8);
+const { TROOPS } = __require(10);
+
+const PAD = 16;
+
+function siteOf(app) {
+  const st = app.state;
+  const id = (app.top() && app.top().params && app.top().params.siteId) || border.EDGE_ID;
+  return siteById(st.world, id) || border.edgeSite(st);
+}
+
+function header(app, title, sub, hint) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  ctx.fillStyle = '#171310';
+  ctx.fillRect(0, 0, w, 148);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(0, 0, 7, 148);
+  text(ctx, title || '边陲小镇', PAD, 20, { size: 42, color: '#f0c060' });
+  text(ctx, sub || '', PAD + 4, 78, { size: 18, color: '#a2947a' });
+  if (hint) text(ctx, hint, PAD + 4, 108, { size: 15, color: '#8a8070' });
+}
+
+function statusBar(app, y) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const st = app.state;
+  const p = st.player;
+  const info = border.poolInfo(st);
+  const count = army.troopCount(p.troops || {});
+  const cap = stateLib.capacity(st);
+  const cells = [
+    { k: '金钱', v: p.gold, c: '#f0c060' },
+    { k: '粮草', v: p.food, c: '#c8b478' },
+    { k: '兵力', v: count + ' / ' + cap, c: count >= cap ? '#d06a4a' : '#8fb0d8' },
+    { k: '本周义军', v: info.total + ' / 1000', c: '#c98f6a' },
+    { k: '旧部驿站', v: border.stationLords(st).length + ' 人', c: '#b98fd8' },
+    { k: '士气', v: p.morale, c: p.morale < 40 ? '#d06a4a' : '#8fbf7a' },
+  ];
+  ctx.fillStyle = '#1d1711';
+  ctx.fillRect(0, y, w, 96);
+  const cw = (w - PAD * 2) / cells.length;
+  cells.forEach(function (it, i) {
+    const x = PAD + i * cw;
+    text(ctx, it.k, x, y + 10, { size: 13, color: '#8a8070' });
+    text(ctx, String(it.v), x, y + 38, { size: 16, color: it.c });
+  });
+  bar(ctx, PAD, y + 74, w - PAD * 2, 8, p.morale / 100,
+    p.morale < 40 ? UI_COLORS.danger : UI_COLORS.good);
+  return y + 106;
+}
+
+function menuItem(app, y, label, sub, right, onTap, opts) {
+  const ctx = app.runtime.ctx;
+  const w = app.runtime.width;
+  const o = opts || {};
+  const h = o.h || 104;
+  app.ui.button(ctx, PAD, y, w - PAD * 2, h, '', {
+    id: o.id || label,
+    fill: o.fill || '#33271b',
+    disabled: !!o.disabled,
+    onTap: onTap,
+  });
+  text(ctx, label, PAD + 24, y + 20, {
+    size: 28, color: o.disabled ? '#6a6355' : '#efe3c6',
+  });
+  if (sub) text(ctx, sub, PAD + 24, y + 60, {
+    size: 17, color: o.disabled ? '#5c5648' : '#a2947a',
+  });
+  if (right) text(ctx, right, w - PAD - 22, y + 32, {
+    size: 20, align: 'right', color: o.disabled ? '#5c5648' : '#f0c060',
+  });
+  return y + h + 14;
+}
+
+const BorderScene = {
+  enter(app, params) {
+    this.view = (params && params.view) || 'menu';
+    this.page = 0;
+  },
+
+  renderLocked(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    drawBackdrop(ctx, 'city', w, h, 31);
+    ctx.fillStyle = 'rgba(9,8,7,0.66)';
+    ctx.fillRect(0, 0, w, h);
+
+    const bx = 34;
+    const by = Math.max(80, h * 0.22);
+    const bw = w - bx * 2;
+    const bh = Math.min(560, h - by - 80);
+    panel(ctx, bx, by, bw, bh, { fill: '#171310' });
+    text(ctx, '边陲小镇', bx + 24, by + 24, { size: 40, color: '#f0c060' });
+    text(ctx, '镇口 · 雾未散', bx + 26, by + 78, { size: 17, color: '#8a8070' });
+
+    const lines = [
+      '你刚走进镇口，街边的说话声就停了。',
+      '周围的人非常警惕地看着你，手都按在刀柄上；',
+      '肉铺的屠夫把刀在磨石上来回蹭了两下，眼睛没离开你的脖子。',
+      '「这里不欢迎外人。」有人低声说。你被赶了出去。',
+    ];
+    let y = by + 122;
+    lines.forEach(function (line) {
+      const ls = wrap(ctx, line, bw - 52, 20, 'bold');
+      ls.forEach(function (s) {
+        text(ctx, s, bx + 26, y, { size: 20, color: '#c9bda2' });
+        y += 31;
+      });
+      y += 6;
+    });
+
+    const btnY = by + bh - 86;
+    app.ui.button(ctx, bx + 28, btnY, bw - 56, 64, '离开这里', {
+      id: 'border_leave_locked', size: 26, fill: '#3a2418',
+      onTap: function () {
+        app.state.player.atSiteId = null;
+        app.showToast('你被镇民赶出了小镇。', 2.4);
+        app.pop();
+      },
+    });
+  },
+
+  renderMenu(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const p = st.player;
+    const site = siteOf(app);
+    const info = border.poolInfo(st);
+    const station = border.stationLords(st);
+    drawBackdrop(ctx, 'city', w, h, 17);
+    ctx.fillStyle = 'rgba(10,8,6,0.58)';
+    ctx.fillRect(0, 0, w, h);
+    header(app, '边陲小镇', '复国落脚地 · 每月 1000 金 / 400 粮 · 其他城池另算', '镇口的猎户认得你的旗。');
+    let y = statusBar(app, 148);
+
+    y = menuItem(app, y, '招募义军',
+      'T1 到 T5 · 每周 1000 人，七天整池刷新',
+      info.total + ' / 1000', function () { app.top().scene.view = 'recruit'; },
+      { id: 'border_recruit' });
+    y = menuItem(app, y, '购买粮草',
+      '固定 5 金 / 单位 · 不设货架上架，不卡普通粮车上限',
+      '现有 ' + p.food, function () { app.top().scene.view = 'food'; },
+      { id: 'border_food' });
+    y = menuItem(app, y, '驿站 · 旧部',
+      station.length ? '打散的旧部在这里等领 · 免费归队' : '还没有旧部回来',
+      station.length + ' 人', function () { app.top().scene.view = 'station'; },
+      { id: 'border_station', disabled: !station.length });
+    y = menuItem(app, y, p.resting === site.id ? '结束歇息' : '在镇中歇息',
+      p.resting === site.id ? '收拾行装，准备出镇' : '粮耗减半 · 镇民替你望风',
+      p.resting === site.id ? '歇息中' : '免费', function () {
+        if (p.resting === site.id) {
+          stateLib.stopRest(st);
+          app.restView = null;
+          app.showToast('收拾行装，准备出镇。', 2);
+          return;
+        }
+        const r = stateLib.startRest(st, site);
+        app.showToast(r.msg, 2.6);
+        if (r.ok) {
+          app.restView = site.id;
+          app.pop();
+        }
+      }, { id: 'border_rest' });
+    y = menuItem(app, y, '离开小镇',
+      '回到大地图；镇外的叛军还在等你',
+      '→', function () { app.pop(); }, { id: 'border_leave', fill: '#2b2018' });
+
+    const footY = Math.min(h - 40, y + 2);
+    text(ctx, '边陲小镇没有议和桌；叛军只认刀兵。', PAD, footY, {
+      size: 15, color: '#8a8070',
+    });
+  },
+
+  renderRecruit(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const info = border.poolInfo(st);
+    drawBackdrop(ctx, 'city', w, h, 19);
+    ctx.fillStyle = 'rgba(10,8,6,0.64)';
+    ctx.fillRect(0, 0, w, h);
+    header(app, '招募义军', '本周池 ' + info.total + ' / 1000 · 第 ' + info.nextRefreshDay + ' 天刷新');
+    text(ctx, '队伍 ' + army.troopCount(st.player.troops || {}) + ' / ' + stateLib.capacity(st) +
+      ' · T5 边陲也招，不问声望', PAD, 112, { size: 15, color: '#8a8070' });
+
+    const startY = 164;
+    const rowH = 102;
+    border.RECRUIT_TIERS.forEach(function (row, i) {
+      const y = startY + i * (rowH + 8);
+      const t = TROOPS[row.troop] || {};
+      const stock = (info.pool && info.pool[row.troop]) || 0;
+      const price = border.priceFor(st, row.troop);
+      panel(ctx, PAD, y, w - PAD * 2, rowH, { fill: i % 2 ? '#211a13' : '#251d15' });
+      text(ctx, 'T' + row.tier + ' · ' + (t.name || row.troop), PAD + 18, y + 14, {
+        size: 22, color: '#efe3c6',
+      });
+      text(ctx, '本周剩 ' + stock + ' · ' + price + ' 金 / 人', PAD + 18, y + 48, {
+        size: 16, color: stock ? '#a2947a' : '#6a6050',
+      });
+      text(ctx, '编制 ' + row.count + ' 人', PAD + 18, y + 73, {
+        size: 14, color: '#6f6552',
+      });
+      const bx = w - PAD - 232;
+      [10, 50, 100].forEach(function (n, k) {
+        const bw = 68;
+        const x = bx + k * 76;
+        app.ui.button(ctx, x, y + 22, bw, 58, '招' + n, {
+          id: 'border_rec_' + row.troop + '_' + n,
+          size: 18,
+          fill: stock > 0 ? '#3a2b1b' : '#24201a',
+          disabled: stock <= 0,
+          onTap: function () {
+            const r = border.recruit(st, row.troop, n);
+            app.showToast(r.msg, 2.2);
+          },
+        });
+      });
+    });
+
+    app.ui.button(ctx, PAD, h - 84, 150, 60, '← 返回', {
+      id: 'border_rec_back', size: 22, fill: '#241c14',
+      onTap: function () { app.top().scene.view = 'menu'; },
+    });
+  },
+
+  renderFood(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    const p = st.player;
+    drawBackdrop(ctx, 'city', w, h, 23);
+    ctx.fillStyle = 'rgba(10,8,6,0.64)';
+    ctx.fillRect(0, 0, w, h);
+    header(app, '粮草 · 5 金 / 单位', '不设货架上限 · 买多少给多少');
+    panel(ctx, PAD, 164, w - PAD * 2, 220, { fill: '#201a14' });
+    text(ctx, '现有粮草', PAD + 22, 184, { size: 17, color: '#8a8070' });
+    text(ctx, String(p.food), PAD + 22, 214, { size: 40, color: '#c8b478' });
+    text(ctx, '现有金钱', PAD + 22, 278, { size: 17, color: '#8a8070' });
+    text(ctx, String(p.gold), PAD + 22, 308, { size: 30, color: '#f0c060' });
+    text(ctx, '边陲粮车不按普通粮车上限截断；' + border.FOOD_PRICE + ' 金一个单位。',
+      PAD + 22, 354, { size: 15, color: '#a2947a' });
+
+    const amounts = [10, 100, 1000, Math.max(1, Math.floor(p.gold / border.FOOD_PRICE))];
+    const labels = ['买 10', '买 100', '买 1000', '买光金钱'];
+    const bw = (w - PAD * 2 - 24) / 4;
+    amounts.forEach(function (n, i) {
+      const x = PAD + i * (bw + 8);
+      app.ui.button(ctx, x, 448, bw, 72, labels[i], {
+        id: 'border_food_' + i,
+        size: 17,
+        fill: p.gold >= n * border.FOOD_PRICE ? '#3a2b1b' : '#241f18',
+        disabled: p.gold < n * border.FOOD_PRICE,
+        onTap: function () {
+          const r = border.buyFood(st, n);
+          app.showToast(r.msg, 2.2);
+        },
+      });
+      text(ctx, '−' + n * border.FOOD_PRICE + ' 金', x, 530, {
+        size: 14, color: '#8a8070',
+      });
+    });
+
+    text(ctx, '每月补给 1000 金 / 400 粮；攻占的其他城池按普通税赋另算。',
+      PAD, 610, { size: 16, color: '#a2947a' });
+    app.ui.button(ctx, PAD, h - 84, 150, 60, '← 返回', {
+      id: 'border_food_back', size: 22, fill: '#241c14',
+      onTap: function () { app.top().scene.view = 'menu'; },
+    });
+  },
+
+  renderStation(app) {
+    const ctx = app.runtime.ctx;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
+    const st = app.state;
+    drawBackdrop(ctx, 'city', w, h, 27);
+    ctx.fillStyle = 'rgba(10,8,6,0.66)';
+    ctx.fillRect(0, 0, w, h);
+    const list = border.stationLords(st);
+    header(app, '驿站 · 旧部', '打散的旧部会自己回镇 · 免费重新入队');
+    text(ctx, '在驿站的旧部：' + list.length + ' 人', PAD, 112, {
+      size: 17, color: '#a2947a',
+    });
+
+    if (!list.length) {
+      panel(ctx, PAD, 174, w - PAD * 2, 170, { fill: '#201a14' });
+      text(ctx, '驿站里没有旧部。', PAD + 22, 202, { size: 24, color: '#efe3c6' });
+      text(ctx, '从你队伍里出去的领主不会变成叛军；他们被打散后会回到这里。',
+        PAD + 22, 248, { size: 17, color: '#a2947a' });
+    } else {
+      const pageSize = 4;
+      const maxPage = Math.max(0, Math.ceil(list.length / pageSize) - 1);
+      this.page = Math.max(0, Math.min(maxPage, this.page || 0));
+      const page = list.slice(this.page * pageSize, this.page * pageSize + pageSize);
+      page.forEach(function (item, i) {
+        const y = 164 + i * 174;
+        panel(ctx, PAD, y, w - PAD * 2, 160, { fill: i % 2 ? '#211a13' : '#251d15' });
+        text(ctx, item.name, PAD + 20, y + 14, { size: 24, color: '#efe3c6' });
+        text(ctx, item.title + ' · 免费归队', PAD + 20, y + 48, {
+          size: 15, color: '#c9a05a',
+        });
+        const lines = wrap(ctx, '“' + item.complaint + '”', w - PAD * 2 - 196, 16, 'bold');
+        lines.slice(0, 2).forEach(function (line, k) {
+          text(ctx, line, PAD + 20, y + 76 + k * 24, { size: 16, color: '#a2947a' });
+        });
+        app.ui.button(ctx, w - PAD - 164, y + 52, 136, 56, '免费招募', {
+          id: 'border_station_recruit_' + item.lord.id,
+          size: 18,
+          fill: '#3a2b1b',
+          onTap: function () {
+            const r = border.recruitStationLord(st, item.lord.id);
+            app.showToast(r.msg, 3.6);
+          },
+        });
+      });
+      if (list.length > pageSize) {
+        app.ui.button(ctx, PAD, h - 84, 120, 58, '上一页', {
+          id: 'border_station_prev', size: 18, fill: '#241c14',
+          disabled: this.page <= 0,
+          onTap: function () { const s = app.top().scene; s.page = Math.max(0, s.page - 1); },
+        });
+        app.ui.button(ctx, PAD + 132, h - 84, 120, 58, '下一页', {
+          id: 'border_station_next', size: 18, fill: '#241c14',
+          disabled: this.page >= maxPage,
+          onTap: function () { const s = app.top().scene; s.page = Math.min(maxPage, s.page + 1); },
+        });
+      }
+    }
+
+    app.ui.button(ctx, w - PAD - 150, h - 84, 150, 60, '← 返回', {
+      id: 'border_station_back', size: 22, fill: '#241c14',
+      onTap: function () { app.top().scene.view = 'menu'; },
+    });
+  },
+
+  render(app) {
+    const st = app.state;
+    if (!st) { app.replace('title'); return; }
+    if (!border.unlocked(st)) return this.renderLocked(app);
+    if (this.view === 'recruit') return this.renderRecruit(app);
+    if (this.view === 'food') return this.renderFood(app);
+    if (this.view === 'station') return this.renderStation(app);
+    return this.renderMenu(app);
+  },
+};
+
+module.exports = BorderScene;
+
+  };
+
   /* js/scenes/founding.js */
-  __defs[30] = function (module, exports, __require) {
+  __defs[32] = function (module, exports, __require) {
 /**
  * 立国页：打下第一座城后选一个字的国号，再选旗色。
  * 扎营里的“国号与旗色”也复用这一页，只改两个字。
@@ -27921,7 +28809,7 @@ module.exports = FoundingScene;
   };
 
   /* js/scenes/fief.js */
-  __defs[31] = function (module, exports, __require) {
+  __defs[33] = function (module, exports, __require) {
 /**
  * 封地页：把打下来的城、关隘、村庄封给任意领主。
  *
@@ -27933,7 +28821,7 @@ module.exports = FoundingScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(29);
 const army = __require(9);
 const heroes = __require(14);
 const { siteById, regionDef } = __require(8);
@@ -28309,7 +29197,7 @@ module.exports = FiefScene;
   };
 
   /* js/scenes/govern.js */
-  __defs[32] = function (module, exports, __require) {
+  __defs[34] = function (module, exports, __require) {
 /**
  * 处理政务：一张案上同时管封地、外交。
  * 从自己的城/村菜单进来；封地分配复用原 fief 页，外交在这里谈。
@@ -28317,7 +29205,7 @@ module.exports = FiefScene;
 
 const { text, panel, bar } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(29);
 const { FACTIONS } = __require(5);
 const { siteById } = __require(8);
 
@@ -28425,6 +29313,7 @@ const GovernScene = {
       PAD, 82, { size: 16, color: '#8a8070' });
 
     const ids = Object.keys(FACTIONS).filter(function (id) {
+      if (id === 'rebel' && !st.arc) return false;
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
     const y0 = 140;
@@ -28467,10 +29356,12 @@ const GovernScene = {
         w - PAD - 20, y + 22, { size: 18, align: 'right', color: atWar ? '#d06a4a' : fs.dead ? '#6a6050' : '#8fbf7a' });
       const terms = atWar ? stateLib.peaceTerms(st, id) : null;
       const declareCheck = (!atWar && !fs.dead) ? stateLib.canPlayerDeclareFaction(st, id) : null;
-      const foot = terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
-        : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
-          : declareCheck && !declareCheck.ok ? declareCheck.msg
-            : '邻国 · 可递战书';
+      const foot = terms && terms.rebel ? '叛军不议和'
+        : terms && terms.forever ? '永世不议和'
+          : terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
+            : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
+              : declareCheck && !declareCheck.ok ? declareCheck.msg
+                : '邻国 · 可递战书';
       text(ctx, foot, PAD + 20, y + 84, {
         size: 15, color: declareCheck && !declareCheck.ok && !atWar ? '#c9a05a' : '#8a8070',
       });
@@ -28523,7 +29414,10 @@ const GovernScene = {
     text(ctx, atWar ? '你们正在交战。' : fs.dead ? '这个势力已经灭了。' : '你们暂时相安无事。', PAD + 18, 234, {
       size: 20, color: atWar ? '#d06a4a' : '#c9bda2',
     });
-    if (terms && terms.forever) {
+    if (terms && terms.rebel) {
+      text(ctx, '叛军没有议和桌：他们不会见使者，只能打到一方彻底倒下。',
+        PAD + 18, 278, { size: 17, color: '#d06a4a' });
+    } else if (terms && terms.forever) {
       text(ctx, '你斩了他们的君主：这一家与你永世不议和，文书递进去也会被烧掉。',
         PAD + 18, 278, { size: 17, color: '#d06a4a' });
     } else if (killDay) {
@@ -28550,7 +29444,8 @@ const GovernScene = {
     let y = 414;
     if (atWar) {
       app.ui.button(ctx, PAD, y, w - PAD * 2, 92,
-        terms && terms.ok ? '议和 · 支付 ' + terms.cost + ' 金钱' : '议和（暂不可）', {
+        terms && terms.rebel ? '叛军不议和'
+          : terms && terms.ok ? '议和 · 支付 ' + terms.cost + ' 金钱' : '议和（暂不可）', {
           id: 'gov_peace', size: 25, fill: '#26372a',
           disabled: !(terms && terms.ok) || st.player.gold < terms.cost,
           onTap: function () {
@@ -28627,7 +29522,7 @@ module.exports = GovernScene;
   };
 
   /* js/scenes/shop.js */
-  __defs[33] = function (module, exports, __require) {
+  __defs[35] = function (module, exports, __require) {
 /**
  * 局内商店：看一段军情广告，领取金钱、粮草或天机简。
  * 每个现实自然日刷新，三种奖励各自 10 次，互不占用；过本地零点自动重置。
@@ -28779,7 +29674,7 @@ module.exports = ShopScene;
   };
 
   /* js/scenes/battle.js */
-  __defs[34] = function (module, exports, __require) {
+  __defs[36] = function (module, exports, __require) {
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
  * 战中可落一笔天机简（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）
@@ -28789,11 +29684,11 @@ const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
-const audio = __require(21);
+const audio = __require(22);
 const { TROOPS } = __require(10);
 const { TACTICS, TACTIC_LIST } = __require(16);
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = __require(5);
-const { drawBackdrop } = __require(28);
+const { drawBackdrop } = __require(29);
 
 /** 打完/撤出后一路退回地图，不在城门口再被弹一次 */
 function backToMap(app) {
@@ -29343,7 +30238,7 @@ module.exports = BattleScene;
   };
 
   /* js/scenes/contact.js */
-  __defs[35] = function (module, exports, __require) {
+  __defs[37] = function (module, exports, __require) {
 /**
  * 遭遇页：撞上匪团先看清对面是谁，再决定打还是走。
  * 不再一点碰上就推进战斗画面。
@@ -29467,7 +30362,7 @@ module.exports = ContactScene;
   };
 
   /* js/scenes/army.js */
-  __defs[36] = function (module, exports, __require) {
+  __defs[38] = function (module, exports, __require) {
 /**
  * 队伍页：兵力构成、遣返士兵、随行英雄（点进去能说话）
  * 内容是长列表，可上下拖
@@ -29758,7 +30653,7 @@ module.exports = ArmyScene;
   };
 
   /* js/scenes/hero.js */
-  __defs[37] = function (module, exports, __require) {
+  __defs[39] = function (module, exports, __require) {
 /**
  * 英雄对话页：从队伍页点名字进来，能聊两句，也能请他离开。
  */
@@ -29964,7 +30859,7 @@ module.exports = HeroScene;
   };
 
   /* js/scenes/prison.js */
-  __defs[38] = function (module, exports, __require) {
+  __defs[40] = function (module, exports, __require) {
 /**
  * 牢房：营后捆着的领主，收赎金或者白放换人情。
  * 也列出天下各处牢里关着的人（只读）。
@@ -29972,7 +30867,7 @@ module.exports = HeroScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(29);
 const { FACTIONS } = __require(5);
 const { lookFor } = __require(12);
 
@@ -30190,7 +31085,7 @@ module.exports = PrisonScene;
   };
 
   /* js/scenes/tourney.js */
-  __defs[39] = function (module, exports, __require) {
+  __defs[41] = function (module, exports, __require) {
 /**
  * 军机棋盘：城池里的六局军情博弈。
  * 每局报名 40 金钱，胜者 200；每七天只摆十局。
@@ -30198,11 +31093,11 @@ module.exports = PrisonScene;
  */
 
 const { text, wrap, panel } = __require(6);
-const board = __require(29);
+const board = __require(30);
 const { siteById } = __require(8);
 const { lookFor } = __require(12);
 const { FACTIONS } = __require(5);
-const scenery = __require(28);
+const scenery = __require(29);
 
 const CARD_GAP = 12;
 // 整个场景按 390 宽的设计稿排；渲染时整体缩放到真实画布，热区同步放大。
@@ -31210,7 +32105,7 @@ module.exports = TourneyScene;
   };
 
   /* js/scenes/journal.js */
-  __defs[40] = function (module, exports, __require) {
+  __defs[42] = function (module, exports, __require) {
 /**
  * 史册：主线进度 + 全部记事 + 统计。
  * 近十二天的事一条不落；再往前，只留改旗、围城、斩将这类大事。
@@ -31448,7 +32343,7 @@ module.exports = JournalScene;
   };
 
   /* js/scenes/camp.js */
-  __defs[41] = function (module, exports, __require) {
+  __defs[43] = function (module, exports, __require) {
 /**
  * 扎营：军令与天下事都在这里。
  * 天下大势、玩法说明从底栏收进来；另添"在这里待一会儿"和"招降俘虏"。
@@ -31457,11 +32352,11 @@ module.exports = JournalScene;
 const { text, panel, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(29);
 const { siteById } = __require(8);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const flows = __require(25);
+const flows = __require(26);
 
 const PAD = 16;
 
@@ -31880,7 +32775,7 @@ module.exports = CampScene;
   };
 
   /* js/scenes/help.js */
-  __defs[42] = function (module, exports, __require) {
+  __defs[44] = function (module, exports, __require) {
 /**
  * 玩法：分类页（基础 / 战役 / 势力 / 兵种 / 结局）
  * 内容超出屏幕时可上下拖动。
@@ -31890,7 +32785,7 @@ const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
-const audio = __require(21);
+const audio = __require(22);
 const rank = __require(17);
 const { FACTIONS, CAMPAIGN, ENDINGS } = __require(5);
 const { TROOPS } = __require(10);
@@ -31969,7 +32864,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '你的名字会随声望改：溃兵之首 → 一方游侠 → 小有威名 → 郡国校尉 → 一方诸侯 → 天下名将。' });
     ops.push({ t: 'h1', s: '地图缩放' });
     ops.push({ t: 'p', s: '地图右上角有 ＋ / － 两档：远望、常规、近看。拉远能看全境的路与旗，近看能看清每一队人的兵力数字。视野始终跟着你和你的队伍。' });
-    ops.push({ t: 'p', s: '地图上的每一支队伍都是一幅小画：领主是骑手带两名步卒和一面旗，匪团按档位不同（青巾是破衣步卒，黄巾四人一队，乱军有骑，叛军两骑三卒）。' });
+    ops.push({ t: 'p', s: '地图上的每一支队伍都是一幅小画：领主是骑手带两名步卒和一面旗，匪团按档位不同（青巾是破衣步卒，黄巾四人一队，乱军有骑，赤色兵乱两骑三卒）。' });
     ops.push({ t: 'h1', s: '扎营与等待' });
     ops.push({ t: 'p', s: '地图底栏收成四项：队伍 / 史册 / 扎营 / 菜单。天下大势、玩法说明都收进扎营，不再占底栏。' });
     ops.push({ t: 'p', s: '「在这里待一会儿」可等 2 时辰、半日、一日、三日；你不拔营，天下照走——诸侯会行军、集结、围城。' });
@@ -32055,10 +32950,11 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'factions') {
-    ops.push({ t: 'h1', s: '十路势力' });
+    ops.push({ t: 'h1', s: '列国势力' });
     ops.push({ t: 'p', s: '关系 -25 以下即开战。开战后领主会主动追杀，城池也不能进。' });
     Object.keys(FACTIONS).forEach(function (id) {
       if (id === 'bandit' || id === 'player') return;
+      if (id === 'rebel' && !(st && st.arc)) return;
       const f = FACTIONS[id];
       const rel = st ? stateLib.relationOf(st, id) : 0;
       ops.push({ t: 'faction', f, rel, sworn: st && st.player.faction === id });
@@ -32306,7 +33202,7 @@ module.exports = HelpScene;
   };
 
   /* js/scenes/chapter.js */
-  __defs[43] = function (module, exports, __require) {
+  __defs[45] = function (module, exports, __require) {
 /**
  * 章节提示：浮在地图中央的一张卡片，让玩家看见"现在该干什么"
  * 3.6 秒后自动收起，也可以点一下直接收
@@ -32426,7 +33322,7 @@ module.exports = ChapterScene;
   };
 
   /* js/data/news_art.js */
-  __defs[45] = function (module, exports, __require) {
+  __defs[47] = function (module, exports, __require) {
 /**
  * 宣战 / 议和全屏背景：内置 JPEG，不依赖网络和小游戏下载域名。
  * 两图为画面素材，界面文字由 NewsScene 居中叠加。
@@ -32439,7 +33335,7 @@ module.exports = { war: WAR, peace: PEACE };
   };
 
   /* js/data/history_art.js */
-  __defs[46] = function (module, exports, __require) {
+  __defs[48] = function (module, exports, __require) {
 /**
  * 史实文书配图：六张手绘场景，按事件标题关键词挑图，缺图时退回 war/peace。
  * 每张 640×426 JPEG，控制包体。
@@ -32465,7 +33361,7 @@ module.exports = HISTORY_ART;
   };
 
   /* js/scenes/news.js */
-  __defs[44] = function (module, exports, __require) {
+  __defs[46] = function (module, exports, __require) {
 /**
  * 天下通报：国亡、君主下落、两国宣战/议和这类大事，全屏弹一张榜文。
  * 宣战/议和现在用内置战场、使团图片做底，文案整体居中。
@@ -32474,8 +33370,8 @@ module.exports = HISTORY_ART;
 const { text, wrap, panel } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const NEWS_ART = __require(45);
-const HISTORY_ART = __require(46);
+const NEWS_ART = __require(47);
+const HISTORY_ART = __require(48);
 
 const ART = Object.assign({}, NEWS_ART, HISTORY_ART);
 
@@ -32713,7 +33609,7 @@ module.exports = NewsScene;
   };
 
   /* js/scenes/arc.js */
-  __defs[47] = function (module, exports, __require) {
+  __defs[49] = function (module, exports, __require) {
 /**
  * 长夜篇：第一次统一后的庆祝、三十天大旱、流亡边陲、再统一与尾声。
  * 这一页只负责把大事讲清楚；真正的倒计时和天下局势在大地图左上角。
@@ -32721,7 +33617,7 @@ module.exports = NewsScene;
 
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
-const { drawBackdrop } = __require(28);
+const { drawBackdrop } = __require(29);
 const { STORY } = __require(19);
 
 const ArcScene = {
@@ -32790,7 +33686,7 @@ const ArcScene = {
             }
             : {
               title: STORY.unification.edgeTitle || '边陲小镇',
-              sub: '每月 1000 金币 · 2000 粮草',
+              sub: '每月 1000 金币 · 400 粮草',
               lines: STORY.unification.edgeLines || [],
               btn: '从边陲小镇反攻',
             };
@@ -32863,7 +33759,7 @@ module.exports = ArcScene;
   };
 
   /* js/scenes/chase.js */
-  __defs[48] = function (module, exports, __require) {
+  __defs[50] = function (module, exports, __require) {
 /**
  * 被追上：处于战争状态的人贴到你身上，就没有"自选撤离"了。
  * 三条路：给钱买路（一天内不追）/ 坦然开战 / 留人断后（折兵换他停几个时辰）。
@@ -33116,7 +34012,7 @@ module.exports = ChaseScene;
   };
 
   /* js/scenes/ending.js */
-  __defs[49] = function (module, exports, __require) {
+  __defs[51] = function (module, exports, __require) {
 /**
  * 结局页
  */
@@ -33200,7 +34096,7 @@ module.exports = EndingScene;
   };
 
   /* js/scenes/lord.js */
-  __defs[50] = function (module, exports, __require) {
+  __defs[52] = function (module, exports, __require) {
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
  * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
@@ -33436,7 +34332,7 @@ module.exports = LordScene;
   };
 
   /* js/scenes/revive.js */
-  __defs[51] = function (module, exports, __require) {
+  __defs[53] = function (module, exports, __require) {
 /**
  * 复活提示：全灭之后回到一天前，用一段文字说明这是第几次
  * （次数只在这个界面上出现，别处不提示）
@@ -33529,7 +34425,7 @@ module.exports = ReviveScene;
   };
 
   /* js/scenes/saves.js */
-  __defs[53] = function (module, exports, __require) {
+  __defs[55] = function (module, exports, __require) {
 /**
  * 存档槽：九个位置
  * mode = 'load' 读档 / 'save' 存到某个槽
@@ -33710,16 +34606,16 @@ module.exports.slotKey = slotKey;
   };
 
   /* js/scenes/menu.js */
-  __defs[52] = function (module, exports, __require) {
+  __defs[54] = function (module, exports, __require) {
 /**
  * 系统菜单：九个存档槽 / 最近存档 / 退回战前 / 回标题
  */
 
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(21);
+const audio = __require(22);
 const { formatClock } = __require(8);
-const savesLib = __require(53);
+const savesLib = __require(55);
 
 const AUTO_KEY = 'bw_save_v4';
 const AUTO_1 = 'bw_save_v4_a1';
@@ -33886,7 +34782,7 @@ const { createRuntime } = __require(2);
 const pixel = __require(3);
 const { UI, text, wrap, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(21);
+const audio = __require(22);
 
 // 存档槽：最新 / 上一份 / 上上一份，外加开打前的快照
 const AUTO_KEY = 'bw_save_v4';
@@ -33902,33 +34798,34 @@ class App {
     this.stack = [];
     this.state = null;
     this.scenes = {
-      title: __require(22),
-      map: __require(23),
-      atlas: __require(26),
-      town: __require(27),
-      founding: __require(30),
-      fief: __require(31),
-      govern: __require(32),
-      shop: __require(33),
-      battle: __require(34),
-      contact: __require(35),
-      army: __require(36),
-      hero: __require(37),
-      prison: __require(38),
-      tourney: __require(39),
-      journal: __require(40),
-      camp: __require(41),
-      help: __require(42),
+      title: __require(23),
+      map: __require(24),
+      atlas: __require(27),
+      town: __require(28),
+      border: __require(31),
+      founding: __require(32),
+      fief: __require(33),
+      govern: __require(34),
+      shop: __require(35),
+      battle: __require(36),
+      contact: __require(37),
+      army: __require(38),
+      hero: __require(39),
+      prison: __require(40),
+      tourney: __require(41),
+      journal: __require(42),
+      camp: __require(43),
+      help: __require(44),
       nested: null,
-      chapter: __require(43),
-      news: __require(44),
-      arc: __require(47),
-      chase: __require(48),
-      ending: __require(49),
-      lord: __require(50),
-      revive: __require(51),
-      menu: __require(52),
-      saves: __require(53),
+      chapter: __require(45),
+      news: __require(46),
+      arc: __require(49),
+      chase: __require(50),
+      ending: __require(51),
+      lord: __require(52),
+      revive: __require(53),
+      menu: __require(54),
+      saves: __require(55),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;
@@ -34013,6 +34910,7 @@ class App {
       help: 'field',
       atlas: 'field',
       town: 'town',
+      border: 'town',
       fief: 'town',
       govern: 'town',
       shop: 'town',

@@ -315,6 +315,7 @@ const AtlasScene = {
     text(ctx, warLine, px + 14, py + 56, { size: 12, color: sieges.length ? '#e0a050' : '#8a8070' });
 
     const ids = Object.keys(FACTIONS).filter(function (id) {
+      if (id === 'rebel' && !st.arc) return false;
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
     // 旗色不再单列成图例：每行名字前的色条就是这家势力的旗色。

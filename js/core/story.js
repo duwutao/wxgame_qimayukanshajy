@@ -1742,10 +1742,13 @@ function forceEndgameUnification(state) {
   eg.forced = true;
   eg.forcedWinner = winner;
   eg.forcedDay = state.clock.day;
+  const playerInWinner = winner === 'player' || state.player.faction === winner;
   pushStoryEvent(state, STORY.unification ? STORY.unification.forceTitle || '天下易主' : '天下易主', [
     '荆州十轮打了两年，最后一座城仍悬而未决。',
     '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
-    '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。',
+    playerInWinner
+      ? '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。'
+      : '旧旗一夜之间换了颜色；这一面旗里没有你的位置，天下不会因你而起背叛。',
   ], { tag: '终局', art: 'war', auto: 9 });
   logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
   refreshHeadline(state);

@@ -454,7 +454,7 @@ const MapScene = {
             const siege = stateLib.startSiege(st, site);
             if (!siege) {
               st.player.atSiteId = site.id;
-              app.push('town', { siteId: site.id });
+              app.push(site.specialEdge ? 'border' : 'town', { siteId: site.id });
               return;
             }
             app.push('battle', { mode: 'siege' });
@@ -463,7 +463,7 @@ const MapScene = {
           }
         } else {
           st.player.atSiteId = site.id;
-          app.push('town', { siteId: site.id });
+          app.push(site.specialEdge ? 'border' : 'town', { siteId: site.id });
         }
         return;
       }
@@ -1484,7 +1484,8 @@ function drawSites(ctx, app, cam, box, w) {
       return;
     }
 
-    const sprite = assets.site[site.type] || assets.site.village;
+    // 边陲小镇虽然沿用村庄的格子尺寸，但用城镇图标，进镇也不再走村庄页。
+    const sprite = site.specialEdge ? assets.site.town : (assets.site[site.type] || assets.site.village);
     ctx.drawImage(sprite, sx + 4, sy + 4, TS - 8, TS - 8);
 
     const fw = 19 * uiScale;
@@ -1531,7 +1532,7 @@ function drawSites(ctx, app, cam, box, w) {
     }
 
     // 名牌
-    const isTown = site.type === 'town';
+    const isTown = site.type === 'town' || !!site.specialEdge;
     const isCastle = site.type === 'castle';
     const size = (isCapital ? 27 : isTown ? 22 : isCastle ? 19 : 16) * Math.min(1.85, uiScale);
     const label = site.name;

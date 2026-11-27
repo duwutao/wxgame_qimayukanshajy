@@ -1235,6 +1235,61 @@ smoke('任务卡：折叠、主支线与定位', function () {
   ok('点支线会定位到酒馆任务目标', app.mapQuestFocus === 'q_side_card', String(app.mapQuestFocus));
 });
 
+/* ---------------------------------------------------------------- 边陲小镇 */
+
+smoke('边陲小镇锁镇与复国界面', function () {
+  const stateLib = require(R + '/core/state.js');
+  const st0 = stateLib.createGame({ seed: 4242 });
+  app.state = st0;
+  app.replace('map');
+  app.push('border', { siteId: 'edge_town' });
+  app.top().scene.render(app);
+  let ids = app.ui.items.map(function (b) { return b.id; });
+  ok('锁镇只留“离开这里”一个按钮', ids.length === 1 && ids[0] === 'border_leave_locked', ids.join(','));
+  ok('锁镇不显示招募/粮草/驿站', ids.indexOf('border_recruit') === -1 && ids.indexOf('border_food') === -1);
+
+  const st = stateLib.createGame({ seed: 4243 });
+  st.world.sites.forEach(function (s) {
+    if (s.type === 'town' || s.type === 'castle') { s.ownerFaction = 'player'; s.playerOwned = true; }
+  });
+  stateLib.startUnification(st);
+  st.player.x = st.world.edgeTown.x;
+  st.player.y = st.world.edgeTown.y;
+  st.player.atSiteId = 'edge_town';
+  stateLib.arcTick(st);
+  app.state = st;
+  app.replace('map');
+  app.push('border', { siteId: 'edge_town' });
+  app.top().scene.render(app);
+  ids = app.ui.items.map(function (b) { return b.id; });
+  ok('解锁后菜单有招募/粮草/驿站/歇息', ['border_recruit', 'border_food', 'border_station', 'border_rest']
+    .every(function (id) { return ids.indexOf(id) >= 0; }), ids.join(','));
+
+  app.top().scene.view = 'recruit';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ids = app.ui.items.map(function (b) { return b.id; });
+  ok('招募页有 T1~T5 五档', ['militia', 'spear', 'cav', 'heavy', 'jinjun'].every(function (t) {
+    return ids.indexOf('border_rec_' + t + '_10') >= 0;
+  }), ids.join(','));
+
+  app.top().scene.view = 'food';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ids = app.ui.items.map(function (b) { return b.id; });
+  ok('粮草页有固定 5 金购买入口', ids.indexOf('border_food_2') >= 0, ids.join(','));
+
+  const lord = st.lords.filter(function (l) { return l.faction !== 'player'; })[0];
+  lord.exPlayer = true;
+  require(R + '/core/border.js').sendToStation(st, lord);
+  app.top().scene.view = 'station';
+  app.ui.begin();
+  app.top().scene.render(app);
+  ids = app.ui.items.map(function (b) { return b.id; });
+  ok('驿站页有免费招募按钮', ids.some(function (id) { return id.indexOf('border_station_recruit_') === 0; }),
+    ids.join(','));
+});
+
 /* ---------------------------------------------------------------- 存档 */
 
 smoke('存档写入与读取', function () {

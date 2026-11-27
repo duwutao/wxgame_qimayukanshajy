@@ -406,6 +406,8 @@ function declare(state, a, b, quiet, ignoreNeighbor) {
 }
 
 function makePeace(state, a, b, quiet) {
+  // 叛军没有议和桌：不是“这次不谈”，而是整场复国战都不允许停火。
+  if (a === 'rebel' || b === 'rebel') return false;
   // 斩了君主就是不死不休：这对玩家与那一家永远没有议和这一页
   const forever = state.noPeaceForever || {};
   if ((a === 'player' && forever[b]) || (b === 'player' && forever[a])) return false;
@@ -499,7 +501,10 @@ function diplomacyTick(state) {
   // 一天最多合成一条军情，降低连续弹窗
   if (state.lastDiplomacyDay === state.clock.day) return;
   const rng = state.rng;
-  const ids = Object.keys(FACTIONS).filter(function (id) { return id !== 'bandit' && id !== 'player'; });
+  const ids = Object.keys(FACTIONS).filter(function (id) {
+    if (id === 'rebel' && !state.arc) return false;
+    return id !== 'bandit' && id !== 'player';
+  });
   const warPairs = [];
   const peacePairs = [];
 
@@ -554,6 +559,7 @@ function peaceOfferTick(state) {
   });
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];
+    if (id === 'rebel') continue;
     if (!atWar(state, 'player', id)) continue;
     if ((state.factionState[id] || {}).dead) continue;
     if (state.noPeaceForever && state.noPeaceForever[id]) continue;
@@ -1937,7 +1943,9 @@ function recruitLord(state, lordId) {
   lord.prisoner = null;
   lord.dead = false;
   lord.alive = true;
+  const wasPlayer = lord.faction === 'player' || !!lord.exPlayer;
   lord.faction = target;
+  if (target === 'player' || wasPlayer) lord.exPlayer = true;
   lord.chasing = false;
   lord.resting = false;
   lord.order = null;
@@ -3099,6 +3107,7 @@ function strategyTick(state) {
   ensureHanSuiMieMaWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
+    if (faction === 'rebel' && !state.arc) return;
     if ((state.factionState[faction] || {}).dead) {
       const cp = state.warCampaigns[faction];
       if (cp) {

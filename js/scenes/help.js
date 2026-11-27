@@ -86,7 +86,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '你的名字会随声望改：溃兵之首 → 一方游侠 → 小有威名 → 郡国校尉 → 一方诸侯 → 天下名将。' });
     ops.push({ t: 'h1', s: '地图缩放' });
     ops.push({ t: 'p', s: '地图右上角有 ＋ / － 两档：远望、常规、近看。拉远能看全境的路与旗，近看能看清每一队人的兵力数字。视野始终跟着你和你的队伍。' });
-    ops.push({ t: 'p', s: '地图上的每一支队伍都是一幅小画：领主是骑手带两名步卒和一面旗，匪团按档位不同（青巾是破衣步卒，黄巾四人一队，乱军有骑，叛军两骑三卒）。' });
+    ops.push({ t: 'p', s: '地图上的每一支队伍都是一幅小画：领主是骑手带两名步卒和一面旗，匪团按档位不同（青巾是破衣步卒，黄巾四人一队，乱军有骑，赤色兵乱两骑三卒）。' });
     ops.push({ t: 'h1', s: '扎营与等待' });
     ops.push({ t: 'p', s: '地图底栏收成四项：队伍 / 史册 / 扎营 / 菜单。天下大势、玩法说明都收进扎营，不再占底栏。' });
     ops.push({ t: 'p', s: '「在这里待一会儿」可等 2 时辰、半日、一日、三日；你不拔营，天下照走——诸侯会行军、集结、围城。' });
@@ -172,10 +172,11 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'factions') {
-    ops.push({ t: 'h1', s: '十路势力' });
+    ops.push({ t: 'h1', s: '列国势力' });
     ops.push({ t: 'p', s: '关系 -25 以下即开战。开战后领主会主动追杀，城池也不能进。' });
     Object.keys(FACTIONS).forEach(function (id) {
       if (id === 'bandit' || id === 'player') return;
+      if (id === 'rebel' && !(st && st.arc)) return;
       const f = FACTIONS[id];
       const rel = st ? stateLib.relationOf(st, id) : 0;
       ops.push({ t: 'faction', f, rel, sworn: st && st.player.faction === id });

@@ -28,6 +28,7 @@ const trade = require('./trade.js');
 const heroes = require('./heroes.js');
 const war = require('./war.js');
 const story = require('./story.js');
+const border = require('./border.js');
 const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
@@ -177,6 +178,8 @@ function applyPlayerCountry(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.title !== '你的家臣') return;
     lord.faction = 'player';
+    // 从主角队伍里出去的家臣，永远不列入叛军名册。
+    lord.exPlayer = true;
   });
 }
 
@@ -649,7 +652,7 @@ function fiefTaxTick(state) {
   if (state.fiefTaxDay === state.clock.day) return 0;
   state.fiefTaxDay = state.clock.day;
   const sites = state.world.sites.filter(function (s) {
-    return s.playerOwned && s.selfFief && s.type !== 'camp';
+    return s.playerOwned && s.selfFief && s.type !== 'camp' && !s.specialEdge;
   });
   if (!sites.length) return 0;
   const total = sites.reduce(function (sum, s) { return sum + fiefTaxFor(s); }, 0);
@@ -696,6 +699,9 @@ function lordFromDef(state, def) {
     scatterCityId: null,
     scatterRecovering: false,
     scatterHidden: false,
+    exPlayer: false,
+    arcLoyal: false,
+    borderStation: false,
   };
 }
 
@@ -899,6 +905,8 @@ function allowedTiers(state) {
   const stage = (state.campaign && state.campaign.stage) || 0;
   const out = [];
   Object.keys(BANDIT_TIERS).forEach(function (id) {
+    // “赤色叛军”在全国背叛前不落地；否则史册和地图会提前出现叛军名号。
+    if (id === 'hong' && !(state.arc && state.arc.phase !== 'retreat')) return;
     if (stage >= (BANDIT_UNLOCK_STAGE[id] || 0)) out.push(id);
   });
   if (!out.length) out.push('qing');
@@ -1326,7 +1334,8 @@ function playerSpeed(state) {
 }
 
 function capacity(state) {
-  return army.troopCapacity(state.player.renown);
+  // 边陲小镇复国阶段要给旧部与义军留出 1000 人的落脚空间；平时仍按声望。
+  return border.troopCap(state);
 }
 
 function currentPos(state) {
@@ -1424,6 +1433,10 @@ function startRest(state, site) {
   stopMoving(state);
   state.player.atSiteId = site.id;
   state.player.resting = site.id;
+  if (site.specialEdge) {
+    pushLog(state, '你在' + site.name + '的客栈里歇下。镇口的猎户替你望风，粮吃得慢一半。');
+    return { ok: true, msg: '在' + site.name + '歇下：粮耗减半，镇民替你望风' };
+  }
   if (site.type === 'village') {
     pushLog(state, '你在' + site.name + '的柴房里歇下。粮吃得慢一半，可村里藏不住人，追兵会摸进来。');
     return { ok: true, msg: '在' + site.name + '歇下：粮耗减半；村里藏不住人，追兵仍会摸进来' };
@@ -1480,7 +1493,7 @@ function isSafeResting(state) {
   const p = state && state.player;
   if (!p || !p.resting) return false;
   const site = siteById(state.world, p.resting);
-  return !!site && site.type !== 'village';
+  return !!site && (site.type !== 'village' || !!site.specialEdge);
 }
 
 /* ---------------------------------------------------------------- 粮草预警 */
@@ -1741,6 +1754,7 @@ function dailyTick(state) {
   if (state.lords.some(function (l) { return l.faction === 'player' && l.alive; })) {
     Object.keys(FACTIONS).forEach(function (id) {
       if (id === 'player' || id === 'bandit') return;
+      if (id === 'rebel' && !state.arc) return;
       if ((state.factionState[id] || {}).dead) return;
       if ((state.relations[id] || 0) <= -25 && !war.atWar(state, 'player', id)) {
         war.declare(state, 'player', id, true);
@@ -2816,6 +2830,11 @@ function scatteredLordTick(state) {
   const day = state.clock.day;
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner || !lord.scattered) return;
+    // 玩家旧部不在叛军城里复活，也不等三天：打散后直接回边陲小镇驿站。
+    if (state.arc && state.arc.phase !== 'done' && border.isLoyalLord(state, lord)) {
+      border.sendToStation(state, lord);
+      return;
+    }
     if (day < (lord.respawnDay || 999999)) return;
     const target = fastestRecoveryCity(state, lord);
     if (!target || !target.site) return; // 本方已经没有可募兵的城，等换旗/灭国逻辑处理
@@ -2845,6 +2864,8 @@ function scatteredLordTick(state) {
 function lordRecruitTick(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner) return;
+    // 驿站旧部在等玩家来领，不算“驻城募兵”。
+    if (lord.borderStation) return;
     // 打散的队伍由 scatteredLordTick 统一送回最快的城，三天后从零招募；
     // 在别处等待期间不能靠“就近友城”提前补兵。逃窜（≥1 兵）不在此列。
     if (lord.scattered) return;
@@ -3008,6 +3029,8 @@ function patrolRouteFor(state, lord) {
  *  这里的“路线”指绕城巡逻的一串短路径点，不是领主跨城的主路线。 */
 function patrolRouteCount(site) {
   if (!site) return 5;
+  // 叛军每城固定五条巡视路线，大城也不再各自拉到九条。
+  if (site.ownerFaction === 'rebel') return 5;
   // 新野是刘备唯一的新城，城不大但四面都要巡；给十条远近相交的路线，
   // 让守将既能贴着城根绕，也能走到外围的远点，不被固定一条线。
   if (site.id === 'xinye') return 10;
@@ -3112,7 +3135,8 @@ function xinyePatrolRoutes(state, site, usable) {
 /** 每座城生成 5/9 条互不相同的短巡逻路线（每条 3 个谷口/城外落脚点）。
  *  同一座城的不同路线会轮换，领主不会每次都绕同一圈。 */
 function patrolRoutesForSite(state, site) {
-  const key = (site.id || (site.x + ',' + site.y));
+  // 城头换旗会改变路线条数（叛军城固定 5 条），缓存键必须带上旗色。
+  const key = (site.id || (site.x + ',' + site.y)) + ':' + (site.ownerFaction || '') + ':' + (site.garrisonBase || 0);
   state._patrolRoutes = state._patrolRoutes || {};
   const cached = state._patrolRoutes[key];
   if (cached && cached.w === state.world.w && cached.h === state.world.h) return cached.routes;
@@ -3157,7 +3181,7 @@ function patrolRoutesForSite(state, site) {
   }
 
   const count = patrolRouteCount(site);
-  if (site.id === 'xinye') {
+  if (site.id === 'xinye' && site.ownerFaction !== 'rebel') {
     const routes = xinyePatrolRoutes(state, site, usable);
     state._patrolRoutes[key] = { w: state.world.w, h: state.world.h, routes: routes };
     return routes;
@@ -3919,6 +3943,16 @@ function moveLords(state, slot) {
   state.lords.forEach(function (lord) {
     if (!lord.alive) return;
     if (lord.fieldBattleId) return;
+    // 驿站旧部在边陲小镇等玩家来领，不参与大地图巡逻/募兵/追击。
+    if (lord.borderStation) {
+      const edge = border.edgeSite(state);
+      if (edge) {
+        lord.inCity = edge.id;
+        lord.x = edge.x;
+        lord.y = edge.y;
+      }
+      return;
+    }
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
     // 非玩家单位误入边陲小镇十格：不让他继续走，直接送回本城。
@@ -5533,6 +5567,14 @@ function peaceTerms(state, faction) {
   if (!state || !faction || !FACTIONS[faction]) return { ok: false, msg: '没有这个势力' };
   if ((state.factionState[faction] || {}).dead) return { ok: false, msg: '这个势力已经亡了，没人能签下这份文书' };
   if (!war.atWar(state, 'player', faction)) return { ok: false, msg: '你和他们没有开战' };
+  if (faction === 'rebel') {
+    return {
+      ok: false,
+      forever: true,
+      rebel: true,
+      msg: '叛军没有议和桌：他们连使者都不见，只能打到一方彻底倒下。',
+    };
+  }
   if (state.noPeaceForever && state.noPeaceForever[faction]) {
     return {
       ok: false,
@@ -6344,6 +6386,7 @@ function promoteHero(state, heroId, siteId) {
     resting: false,
     hero: true,
     independent: true,
+    exPlayer: true,
   };
   site.lordId = lord.id;
   state.lords.push(lord);
@@ -6697,6 +6740,7 @@ function pickFactionFor(state, lord, from) {
     (lord && siteById(state.world, lord.home)) || { x: 0, y: 0 };
   const list = Object.keys(FACTIONS).filter(function (id) {
     if (id === 'bandit' || id === from || !FACTIONS[id]) return false;
+    if (id === 'rebel' && !state.arc) return false;
     if ((state.factionState[id] || {}).dead) return false;
     if (id === 'player') {
       return state.player.faction === 'player' &&
@@ -6729,7 +6773,10 @@ function moveLordToFaction(state, lord, target) {
     return da - db;
   });
   const city = cities[0];
+  // 只要在主角队伍里待过，哪怕后来投了别家，全国背叛时也不列叛军。
+  const wasPlayer = lord.faction === 'player' || !!lord.exPlayer;
   lord.faction = target;
+  if (target === 'player' || wasPlayer) lord.exPlayer = true;
   if (city) {
     lord.home = city.id;
     // 旧旗的封地收回；新投的城如果还没封主，就由他接
@@ -6967,6 +7014,7 @@ function recruitHiddenLord(state, siteId) {
   lord.hidden = null;
   lord.alive = true;
   lord.faction = target;
+  if (target === 'player') lord.exPlayer = true;
   lord.dead = false;
   lord.retired = false;
   const home = state.world.sites.filter(function (s) { return s.ownerFaction === target && s.type !== 'camp'; })[0]
@@ -7170,6 +7218,28 @@ function allMajorSitesOwned(state) {
   });
 }
 
+/** 全国只剩下哪一面旗；还没统一或旗色不唯一时返回 null。 */
+function unifiedOwnerFaction(state) {
+  const major = majorSites(state);
+  if (!major.length) return null;
+  let owner = null;
+  for (let i = 0; i < major.length; i++) {
+    const f = major[i].playerOwned ? 'player' : (major[i].ownerFaction || null);
+    if (!f) return null;
+    if (owner === null) owner = f;
+    else if (owner !== f) return null;
+  }
+  return owner;
+}
+
+/** 统一的那面旗里有没有玩家：自立算自己，臣子看 p.faction 是否同一家。 */
+function unificationIncludesPlayer(state, faction) {
+  const p = state.player;
+  if (!p || !faction) return false;
+  if (faction === 'player') return true;
+  return p.faction === faction;
+}
+
 /** 第一次统一：不结束游戏，先让人站在城头看三十天 */
 function edgeTownSite(state) {
   return siteById(state.world, (state.world.edgeTown && state.world.edgeTown.id) || 'edge_town');
@@ -7222,6 +7292,9 @@ function nearestRebelCity(state, from) {
 /** 统一瞬间：全国背叛，兄弟断后，玩家带残部逃往边陲小镇 */
 function startUnification(state) {
   if (state.arc) return false;
+  // 底层入口也认“全国统一且这面旗里有玩家”，避免任何旧入口绕过正常校验。
+  const unified = unifiedOwnerFaction(state);
+  if (!unified || !unificationIncludesPlayer(state, unified)) return false;
   const p = state.player;
   const day = state.clock.day;
   const formerFaction = p.faction;
@@ -7270,11 +7343,17 @@ function startUnification(state) {
   });
   edge.ownerFaction = 'player';
   edge.playerOwned = true;
-  edge.selfFief = true;
+  // 边陲小镇只走“每月 1000 金 + 400 粮”，不再叠加每日商税与封地旬税。
+  edge.selfFief = false;
+  edge.specialEdge = true;
   edge.garrison = Math.max(24, edge.garrison || 24);
   edge.banner = p.country && p.country.name ? p.country.name : '旗';
   edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
   state.world.factionGrid = null;
+
+  state.noPeaceForever = state.noPeaceForever || {};
+  // 叛军不是诸侯：没有议和桌，只能打到一方彻底倒下。
+  state.noPeaceForever.rebel = true;
 
   Object.keys(FACTIONS).forEach(function (id) {
     if (id === 'rebel' || id === 'player') return;
@@ -7290,9 +7369,13 @@ function startUnification(state) {
   const rebels = [];
   state.lords.forEach(function (l) {
     if (!l || !l.alive || l.dead || l.retired) return;
-    const fromYourCamp = !!l.hero || l.faction === 'player';
+    // 从主角队伍里出去的人，不论现在挂在哪家旗下面，统一时都不会变成叛军。
+    const fromYourCamp = !!(l.hero || l.exPlayer || l.faction === 'player' || l.title === '你的家臣');
     if (fromYourCamp) {
       l.faction = 'player';
+      l.exPlayer = true;
+      l.arcLoyal = true;
+      l.borderStation = false;
       l.arcEnemy = false;
       l.arcNoRecruit = false;
       l.arcNoCapture = false;
@@ -7310,6 +7393,7 @@ function startUnification(state) {
       loyal.push(l);
     } else {
       l.faction = 'rebel';
+      l.arcLoyal = false;
       l.arcEnemy = true;
       l.arcNoRecruit = true;
       l.arcNoCapture = true;
@@ -7338,6 +7422,7 @@ function startUnification(state) {
     state.arc.lostBrothers.push(l.name);
   }
   state.arc.loyalLords = loyal.filter(function (l) { return l.alive; }).map(function (l) { return l.id; });
+  border.getBorder(state);
   const troopLoss = shavePlayerTroops(state, 1 / 3);
 
   // 玩家从旧都城（或当前位置）出发，路线自动指向边陲小镇。
@@ -7376,6 +7461,8 @@ function startUnification(state) {
 /** 兼容旧流程：灾变入口现在直接触发统一背叛。 */
 function triggerDisaster(state) {
   if (state.arc) return false;
+  const unified = unifiedOwnerFaction(state);
+  if (unified && !unificationIncludesPlayer(state, unified)) return false;
   return startUnification(state);
 }
 
@@ -7410,12 +7497,15 @@ function checkVictory(state) {
     if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
   }
-  // 荆州最终阶段拖满两年：共主已被强制推举，直接进入全国背叛。
+  // 荆州最终阶段拖满两年：共主已被强制推举，只有共主旗里包含玩家才进入全国背叛。
   if (state.story && state.story.endgame && state.story.endgame.forcedWinner) {
-    startUnification(state);
+    // 若玩家后来又把最后几座城打回来，以真实城头旗色为准，不被旧的“强制共主”卡死。
+    const winner = unifiedOwnerFaction(state) || state.story.endgame.forcedWinner;
+    if (unificationIncludesPlayer(state, winner)) startUnification(state);
     return;
   }
-  if (allMajorSitesOwned(state)) startUnification(state);
+  const winner = unifiedOwnerFaction(state);
+  if (winner && unificationIncludesPlayer(state, winner)) startUnification(state);
 }
 
 /** 每天检查：撤退到边陲小镇、每月补给、复国后再统一 */
@@ -7479,15 +7569,24 @@ function arcTick(state) {
       arc.phase = 'reconquest';
       arc.arrivalDay = state.clock.day;
       arc.lastGrantDay = state.clock.day;
+      const bb = border.getBorder(state);
+      if (bb) {
+        // 七天招募从真正落脚小镇这天算，不在撤退路上提前走表。
+        bb.day0 = state.clock.day;
+        bb.week = -1;
+        bb.pool = null;
+        border.refresh(state);
+      }
       state.flags.edgeRetreat = false;
       state.flags.edgeArrived = true;
-      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、2000 粮草，从今天开始算。');
+      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、400 粮草，从今天开始算。');
       state.events.push({
         type: 'arc', phase: 'edge',
         title: '边陲小镇',
         lines: [
           '雾散开一线，小镇的灯火在雾里亮着。',
-          '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
+          '这里每月送来 1000 金币、400 粮草；其余诸侯的人马不敢靠近小镇十格。',
+          '镇上的义军每周能凑出 1000 人，粮草 5 金一单位，驿站里还留着你的旧部。',
           '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
         ],
       });
@@ -7496,12 +7595,12 @@ function arcTick(state) {
   }
 
   if (arc.phase === 'reconquest') {
-    // 每月补给：固定 1000 金币、2000 粮草。
+    border.refresh(state);
+    // 每月补给：固定 1000 金币、400 粮草；其余攻占城市按普通税赋另算。
     if (state.clock.day - (arc.lastGrantDay || arc.arrivalDay || state.clock.day) >= 30) {
       arc.lastGrantDay = state.clock.day;
-      p.gold += 1000;
-      p.food += 2000;
-      pushLog(state, '【边陲小镇】本月补给 1000 金币、2000 粮草已到。');
+      const grant = border.monthlyGrant(state);
+      pushLog(state, '【边陲小镇】本月补给 ' + grant.gold + ' 金币、' + grant.food + ' 粮草已到。');
     }
     if (allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
@@ -7726,6 +7825,10 @@ function deserialize(json) {
   // 新开局由 ROADS 铺好；旧档在这里补一次，重复铺也不会改坏已有桥/山口。
   layRoads(state.world, [['chenliu', 'xiaopei']]);
   state.world.factionGrid = null;
+  // 旧档可能已经刷出了“赤色叛军”匪团；全国背叛没开始前，它们不能出现在地图/史册。
+  if (!state.arc) {
+    state.parties = (state.parties || []).filter(function (q) { return q.banditTier !== 'hong'; });
+  }
   state.player.country = state.player.country || null;
   state.player.foodWarned = !!state.player.foodWarned;
   state.player.foodWarnDay = state.player.foodWarnDay || 0;
@@ -8063,6 +8166,9 @@ function deserialize(json) {
     if (l.scattered === undefined) l.scattered = false;
     if (l.scatterUntilH === undefined) l.scatterUntilH = 0;
     if (l.scatterHomeId === undefined) l.scatterHomeId = null;
+    if (l.exPlayer === undefined) l.exPlayer = !!(l.hero || l.title === '你的家臣');
+    if (l.arcLoyal === undefined) l.arcLoyal = false;
+    if (l.borderStation === undefined) l.borderStation = false;
     if (l.scattered && !l.respawnDay) l.respawnDay = state.clock.day + 3;
     if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
@@ -8288,6 +8394,8 @@ module.exports = {
   decideEnding,
   majorSites,
   allMajorSitesOwned,
+  unifiedOwnerFaction,
+  unificationIncludesPlayer,
   startUnification,
   triggerDisaster,
   triggerArcFinale,

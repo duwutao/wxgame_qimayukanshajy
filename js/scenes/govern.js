@@ -113,6 +113,7 @@ const GovernScene = {
       PAD, 82, { size: 16, color: '#8a8070' });
 
     const ids = Object.keys(FACTIONS).filter(function (id) {
+      if (id === 'rebel' && !st.arc) return false;
       return id !== 'bandit' && id !== (st.player.faction || 'player');
     });
     const y0 = 140;
@@ -155,10 +156,12 @@ const GovernScene = {
         w - PAD - 20, y + 22, { size: 18, align: 'right', color: atWar ? '#d06a4a' : fs.dead ? '#6a6050' : '#8fbf7a' });
       const terms = atWar ? stateLib.peaceTerms(st, id) : null;
       const declareCheck = (!atWar && !fs.dead) ? stateLib.canPlayerDeclareFaction(st, id) : null;
-      const foot = terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
-        : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
-          : declareCheck && !declareCheck.ok ? declareCheck.msg
-            : '邻国 · 可递战书';
+      const foot = terms && terms.rebel ? '叛军不议和'
+        : terms && terms.forever ? '永世不议和'
+          : terms && terms.ok ? '议和 ' + terms.cost + ' 金钱'
+            : terms && terms.waitDays ? '血债未消 · 等 ' + terms.waitDays + ' 天'
+              : declareCheck && !declareCheck.ok ? declareCheck.msg
+                : '邻国 · 可递战书';
       text(ctx, foot, PAD + 20, y + 84, {
         size: 15, color: declareCheck && !declareCheck.ok && !atWar ? '#c9a05a' : '#8a8070',
       });
@@ -211,7 +214,10 @@ const GovernScene = {
     text(ctx, atWar ? '你们正在交战。' : fs.dead ? '这个势力已经灭了。' : '你们暂时相安无事。', PAD + 18, 234, {
       size: 20, color: atWar ? '#d06a4a' : '#c9bda2',
     });
-    if (terms && terms.forever) {
+    if (terms && terms.rebel) {
+      text(ctx, '叛军没有议和桌：他们不会见使者，只能打到一方彻底倒下。',
+        PAD + 18, 278, { size: 17, color: '#d06a4a' });
+    } else if (terms && terms.forever) {
       text(ctx, '你斩了他们的君主：这一家与你永世不议和，文书递进去也会被烧掉。',
         PAD + 18, 278, { size: 17, color: '#d06a4a' });
     } else if (killDay) {
@@ -238,7 +244,8 @@ const GovernScene = {
     let y = 414;
     if (atWar) {
       app.ui.button(ctx, PAD, y, w - PAD * 2, 92,
-        terms && terms.ok ? '议和 · 支付 ' + terms.cost + ' 金钱' : '议和（暂不可）', {
+        terms && terms.rebel ? '叛军不议和'
+          : terms && terms.ok ? '议和 · 支付 ' + terms.cost + ' 金钱' : '议和（暂不可）', {
           id: 'gov_peace', size: 25, fill: '#26372a',
           disabled: !(terms && terms.ok) || st.player.gold < terms.cost,
           onTap: function () {

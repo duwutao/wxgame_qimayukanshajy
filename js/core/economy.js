@@ -221,6 +221,8 @@ function dailyIncome(state) {
   let income = 0;
   state.world.sites.forEach(function (site) {
     if (!site.playerOwned) return;
+    // 边陲小镇只按“每月 1000 金 + 400 粮”结算，不再叠每日商税。
+    if (site.specialEdge) return;
     if (site.type === 'town') income += 26;
     else if (site.type === 'castle') income += 16;
     else income += 9;

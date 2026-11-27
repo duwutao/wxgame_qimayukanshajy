@@ -14,7 +14,8 @@ function process(app) {
     const ev = st.events.shift();
 
     if (ev.type === 'enter-site') {
-      app.push('town', { siteId: ev.siteId });
+      const site = siteById(st.world, ev.siteId);
+      app.push(site && site.specialEdge ? 'border' : 'town', { siteId: ev.siteId });
       return;
     }
     if (ev.type === 'player-siege') {

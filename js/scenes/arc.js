@@ -74,7 +74,7 @@ const ArcScene = {
             }
             : {
               title: STORY.unification.edgeTitle || '边陲小镇',
-              sub: '每月 1000 金币 · 2000 粮草',
+              sub: '每月 1000 金币 · 400 粮草',
               lines: STORY.unification.edgeLines || [],
               btn: '从边陲小镇反攻',
             };
