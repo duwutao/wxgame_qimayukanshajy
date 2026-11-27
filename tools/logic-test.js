@@ -16,7 +16,7 @@ const trade = require(R + '/core/trade.js');
 const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
-const { TROOPS } = require(R + '/data/troops.js');
+const { TROOPS, factionTroopIds } = require(R + '/data/troops.js');
 const { FACTIONS, FACTION_COMBAT, FACTION_ROSTER_MUL, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN, FREE_CITY_IDS } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
@@ -229,7 +229,8 @@ ok('买粮扣钱加粮', st.player.gold === goldBefore - 10 * economy.foodPrice(
   st.player.gold + '/' + st.player.food);
 
 const troopBefore = armyLib.troopCount(st.player.troops);
-const rec = economy.recruit(st, chenliu, 'militia', 3);
+const chenliuRecruitId = (chenliu.recruitList && chenliu.recruitList[0]) || 'militia';
+const rec = economy.recruit(st, chenliu, chenliuRecruitId, 3);
 ok('招兵接口可用', rec.ok || rec.msg.indexOf('金钱') >= 0 || rec.msg.indexOf('满编') >= 0, rec.msg);
 
 const eqBefore = st.player.equip.blade;
@@ -356,22 +357,27 @@ ok('城里歇下才算安全休整', stateLib.isSafeResting(ruleState) === true)
 const lordForRecruit = ruleState.lords.filter(function (l) { return l.faction !== 'bandit'; })[0];
 const lordSite = ruleState.world.sites.filter(function (s) { return s.ownerFaction === lordForRecruit.faction && s.type === 'town'; })[0];
 if (lordSite) {
-  lordSite.lordRecruits = { militia: 3 };
+  const lordT1 = factionTroopIds(lordForRecruit.faction)[0] || 'militia';
+  lordSite.lordRecruits = {};
+  lordSite.lordRecruits[lordT1] = 3;
   lordSite.recruits = lordSite.recruits || {};
-  lordSite.recruits.militia = 7;
+  lordSite.recruits[lordT1] = 7;
   lordForRecruit.troops = {};
-  lordForRecruit.defTroops = { militia: 10 };
-  const beforePlayerPool = lordSite.recruits.militia;
+  lordForRecruit.defTroops = {};
+  lordForRecruit.defTroops[lordT1] = 10;
+  const beforePlayerPool = lordSite.recruits[lordT1];
   const got = stateLib.recruitLordFromSite(ruleState, lordForRecruit, lordSite, 3);
-  ok('领主能在城镇招兵', got === 3 && (lordForRecruit.troops.militia || 0) === 3, 'got=' + got);
-  ok('领主招兵不扣玩家招募池', lordSite.recruits.militia === beforePlayerPool, 'pool=' + lordSite.recruits.militia);
+  ok('领主能在城镇招兵', got === 3 && (lordForRecruit.troops[lordT1] || 0) === 3, 'got=' + got);
+  ok('领主招兵不扣玩家招募池', lordSite.recruits[lordT1] === beforePlayerPool, 'pool=' + lordSite.recruits[lordT1]);
 
   // 低兵领主走到城门口，应当真的进城（而不是停在城下一直站着）
   lordForRecruit.inCity = null;
   lordForRecruit.home = lordSite.id;
   lordForRecruit.order = null;
-  lordForRecruit.troops = { militia: 1 };
-  lordForRecruit.defTroops = { militia: 10 };
+  lordForRecruit.troops = {};
+  lordForRecruit.troops[lordT1] = 1;
+  lordForRecruit.defTroops = {};
+  lordForRecruit.defTroops[lordT1] = 10;
   lordForRecruit.x = lordSite.x + 1;
   lordForRecruit.y = lordSite.y;
   lordForRecruit.moveTick = 1;
@@ -2300,23 +2306,29 @@ group('l 版：入城 · 招兵 · 俘虏 · 交困 · 外交 · 任务');
   g.parties = [];
   const lord = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
   const city = g.world.sites.filter(function (s) { return s.ownerFaction === 'wei' && s.type === 'town'; })[0];
-  city.lordRecruits = { militia: 30 };
+  const weiT1 = factionTroopIds('wei')[0] || 'militia';
+  city.lordRecruits = {};
+  city.lordRecruits[weiT1] = 30;
   lord.inCity = null;
   lord.prisoner = null;
-  lord.troops = { militia: 2 };
-  lord.defTroops = { militia: 100 };
+  lord.troops = {};
+  lord.troops[weiT1] = 2;
+  lord.defTroops = {};
+  lord.defTroops[weiT1] = 100;
   lord.x = city.x + 1; lord.y = city.y;
   stateLib.lordRecruitTick(g);
-  const cityGain = (lord.troops.militia || 0) - 2;
+  const cityGain = (lord.troops[weiT1] || 0) - 2;
   ok('领主在城下等候也能招兵', cityGain > 0, 'gain=' + cityGain);
 
   const village = g.world.sites.filter(function (s) { return s.type === 'village'; })[0];
   village.ownerFaction = 'wei';
-  village.lordRecruits = { militia: 30 };
+  village.lordRecruits = {};
+  village.lordRecruits[weiT1] = 30;
   lord.x = village.x + 1; lord.y = village.y;
-  lord.troops = { militia: 2 };
+  lord.troops = {};
+  lord.troops[weiT1] = 2;
   stateLib.lordRecruitTick(g);
-  ok('领主在村庄附近也能招兵', (lord.troops.militia || 0) > 2, 'militia=' + lord.troops.militia);
+  ok('领主在村庄附近也能招兵', (lord.troops[weiT1] || 0) > 2, 'troops=' + JSON.stringify(lord.troops));
 }
 {
   // 低兵领主不再去集结/围城，先回城补人
@@ -4650,7 +4662,7 @@ group('n51 四阶精锐只跟名将与国君');
   const total = zl ? Object.values(zl.troops).reduce(function (a, b) { return a + b; }, 0) : 0;
   if (zl) stateLib.moveLordToFaction(g, zl, 'wei');
   ok('张辽归魏后换成亲卫且总兵力不丢',
-    !!zl && zl.faction === 'wei' && (zl.troops.guard || 0) > 0 &&
+    !!zl && zl.faction === 'wei' && (zl.troops.wei_t4 || 0) > 0 &&
     Object.values(zl.troops).reduce(function (a, b) { return a + b; }, 0) === total,
     zl ? JSON.stringify(zl.troops) : 'none');
 }
@@ -4766,6 +4778,64 @@ group('n53 军师开局天雷');
   ok('换一个战场可再次触发', other.remainB() === 800, String(other.remainB()));
 }
 
+
+
+group('n59 各国兵源 · T5 解锁');
+{
+  const troopLib = require(R + '/data/troops.js');
+  const badFactionLists = [];
+  Object.keys(troopLib.FACTION_TROOPS).forEach(function (f) {
+    const city = st.world.sites.filter(function (x) {
+      return x.ownerFaction === f && (x.type === 'town' || x.type === 'castle');
+    })[0];
+    if (!city) return;
+    const expected = troopLib.factionTroopIds(f, city.type);
+    const wrong = city.recruitList.some(function (id) {
+      return !TROOPS[id] || TROOPS[id].faction !== f;
+    });
+    if (wrong || city.recruitList.length !== expected.length) badFactionLists.push(f);
+  });
+  ok('各国城关只出本国兵源', badFactionLists.length === 0, badFactionLists.join(','));
+
+  const villages = st.world.sites.filter(function (x) { return x.type === 'village' && x.ownerFaction; });
+  const badVillage = villages.filter(function (v) {
+    return (v.recruitList || []).some(function (id) { return !TROOPS[id] || Number(TROOPS[id].tier) !== 1; });
+  });
+  ok('村庄只出 T1 兵源', badVillage.length === 0, badVillage.map(function (v) { return v.id; }).join(','));
+
+  const guarded = st.world.sites.filter(function (x) {
+    return x.ownerFaction === 'wei' && x.type === 'town';
+  })[0];
+  ok('未加入魏国时 T5 锁定', !!guarded && troopLib.troopAccess(st, guarded, 'wei_t5').ok === false);
+  st.player.renown = 9999;
+  const joined = stateLib.joinFaction(st, guarded);
+  ok('加入魏国后 T5 解锁', joined.ok && troopLib.t5UnlockedForPlayer(st, 'wei'));
+
+  const fallen = stateLib.createGame({ seed: 2026112759 });
+  const playerSite = fallen.world.sites.filter(function (x) { return x.type === 'town'; })[0];
+  playerSite.playerOwned = true;
+  playerSite.ownerFaction = 'player';
+  playerSite.faction = 'player';
+  fallen.player.faction = 'player';
+  fallen.player.country = { name: '测', color: '#d9a441' };
+  troopLib.syncSiteRecruitList(playerSite, 'biao', fallen);
+  fallen.factionState.wei = fallen.factionState.wei || {};
+  fallen.factionState.wei.lastConqueror = 'player';
+  stateLib.fallFaction(fallen, 'wei', { silent: true });
+  ok('亲手灭魏后玩家城出现魏 T5', fallen.player.t5Unlocked.wei === true &&
+    playerSite.recruitList.indexOf('wei_t5') >= 0,
+    playerSite.recruitList.join(','));
+
+  const t5Lords = st.lords.filter(function (l) {
+    return l.faction && ['wei', 'shu', 'wu'].indexOf(l.faction) >= 0 &&
+      Object.keys(l.troops || {}).some(function (id) { return TROOPS[id] && TROOPS[id].t5; });
+  });
+  const illegalT5 = t5Lords.filter(function (l) {
+    return !(l.rank === 'king' || stateLib.lordIsRuler(st, l) || Number(l.generalRank) <= 20);
+  });
+  ok('T5 只给魏蜀吴君主与武力榜前 20', illegalT5.length === 0,
+    illegalT5.map(function (l) { return l.name; }).join(','));
+}
 
 group('n54 旧档主线字段兼容');
 {

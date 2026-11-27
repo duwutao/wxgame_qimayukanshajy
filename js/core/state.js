@@ -37,6 +37,20 @@ const {
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
+  FACTION_TROOPS,
+  FACTION_RECRUIT_SETS,
+  FACTION_SLOTS,
+  factionTroopIds,
+  factionT5Id,
+  factionLabel,
+  t5UnlockedForPlayer,
+  troopAccess,
+  stockCapFor,
+  effectiveSiteFaction,
+  syncSiteRecruitList,
+  convertRosterToFaction,
+} = require('../data/troops.js');
+const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 const { LORD_BIOS } = require('../data/bios.js');
@@ -160,6 +174,20 @@ function syncPlayerFaction(country) {
   }
 }
 
+/** 按“谁在管这块地”重铺兵源：玩家城看玩家所属/本地文化，NPC 城看当前旗。 */
+function refreshSiteRosters(state, playerOnly, force) {
+  if (!state || !state.world) return;
+  state.world.sites.forEach(function (site) {
+    if (playerOnly && !site.playerOwned) return;
+    const f = effectiveSiteFaction(state, site);
+    // 同一面旗下不重复重建，避免每日刷新把玩家/测试刚改过的兵源牌冲掉。
+    // 灭国解锁 T5 这类“同旗但要加新兵源”的场景，调用方显式传 force。
+    if (!force && site.recruitFaction === (f || null) &&
+        Array.isArray(site.recruitList) && site.recruitList.length) return;
+    syncSiteRecruitList(site, f, state);
+  });
+}
+
 /** 把国号/旗色铺到所有已占领城与麾下领主：地图、城头、旗块都跟着换 */
 function applyPlayerCountry(state) {
   const p = state && state.player;
@@ -173,6 +201,7 @@ function applyPlayerCountry(state) {
     site.faction = 'player';
     site.color = p.country.color;
     site.banner = p.country.name;
+    syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
   });
   // 玩家封出去的家臣，不论当年挂的是谁的旗，自立后都改挂你的国号
   state.lords.forEach(function (lord) {
@@ -283,7 +312,7 @@ function createGame(opts) {
     for (let i = 0; i < site.id.length; i++) h = (h * 31 + site.id.charCodeAt(i)) % 9973;
     site.recruits = {};
     (site.recruitList || []).forEach(function (id) {
-      site.recruits[id] = rng.int(1, site.recruitCap || 4);
+      site.recruits[id] = rng.int(1, stockCapFor(site, id));
     });
     // 村市口粮是“村里现有的那点东西”，不是无限货架：每样最多 1-5 份。
     // 用稳定散列，不额外消耗世界随机数，保证同一种子的开局与旧版一致。
@@ -299,7 +328,8 @@ function createGame(opts) {
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
       const lcap = economy.LORD_RECRUIT_CAP[site.type] || 0;
       (site.recruitList || []).forEach(function (id, i) {
-        site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
+        const cap = stockCapFor(site, id);
+        site.lordRecruits[id] = Math.min(cap, (h + i * 7) % (lcap + 1));
       });
     }
   });
@@ -318,6 +348,8 @@ function createGame(opts) {
     morale: 58,
     renown: 0,
     faction: null,
+    // n59：亲手灭掉的魏蜀吴，T5 会记在这里；加入该国时则直接看 faction。
+    t5Unlocked: {},
     // 自立后的国号与旗色：打下第一座城才会立，固定一字
     country: null,
     banner: false,
@@ -678,14 +710,14 @@ function lordFromDef(state, def) {
     level: lordLevelForRank(LORD_RANK[def.id] || 'general'),
     x: spot.x,
     y: spot.y,
-    troops: deepCopy(def.soldiers),
+    troops: convertRosterToFaction(deepCopy(def.soldiers), def.faction),
     morale: def.morale,
     baseMorale: def.morale,
     sight: def.sight,
     chasing: false,
     alive: true,
     respawnDay: 0,
-    defTroops: deepCopy(def.soldiers),
+    defTroops: convertRosterToFaction(deepCopy(def.soldiers), def.faction),
     strategistOnly: !!def.strategistOnly,
     wander: null,
     dead: false,
@@ -794,6 +826,7 @@ function spawnLords(state) {
   applyLordRoles(state);
   applyLordTier4Rule(state);
   applyLordPowerRoster(state);
+  applyLordT5Rule(state);
   applyFactionRosterCap(state);
   if (state.flags) {
     state.flags.lordTier4V1 = true;
@@ -1651,6 +1684,7 @@ function resolveMaSurrender(state) {
     s.banner = fac.banner;
     s.lordId = null;
     s.selfFief = false;
+    syncSiteRecruitList(s, 'hansui', state);
   });
   const yielded = sites.filter(function (s) { return s !== keep; })
     .map(function (s) { return s.name; }).join('、');
@@ -1661,6 +1695,8 @@ function resolveMaSurrender(state) {
 
 function dailyTick(state) {
   state.stats.days += 1;
+  // 剧情/国战换旗后每天校正一次兵源牌，防止旧旗的招募池留在城头。
+  refreshSiteRosters(state, false);
   const p = state.player;
   const hb = heroes.heroBonus(state);
   // 口粮两天结算一次：一天一扣太狠，粮草根本养不起队伍
@@ -2562,7 +2598,14 @@ function refillLord(lord, n) {
 function recruitLordFromSite(state, lord, site, quota) {
   if (!lord || !site || !lord.defTroops) return 0;
   const pool = site.lordRecruits || {};
-  const list = site.recruitList || [];
+  // 客将在友军城里休整时，城里挂的是友军兵源牌；领主仍按本国编制补兵，
+  // 不能因为“城里没有我国兵”就永远补不满。玩家招募不受影响。
+  const list = (site.recruitList || []).slice();
+  factionTroopIds(lord.faction).forEach(function (id) {
+    if (list.indexOf(id) < 0) list.push(id);
+    // 客城没有本国兵源库存时，至少给 1 个名额，别让客将永远补不满。
+    if (!pool[id] && (lord.defTroops[id] || 0) > (lord.troops[id] || 0)) pool[id] = 1;
+  });
   let left = Math.max(0, Math.round(quota));
   const cap = lordTroopCap(lord);
   left = Math.min(left, Math.max(0, cap - army.troopCount(lord.troops || {})));
@@ -4731,27 +4774,42 @@ function startLordBattle(state, lord) {
 function garrisonTroops(site) {
   const total = Math.max(8, site.garrison);
   const f = site.ownerFaction;
-  const set = {
-    wei: { militia: 0.35, spear: 0.35, crossbow: 0.2, guard: 0.1 },
-    shu: { militia: 0.35, spear: 0.3, archer: 0.25, baier: 0.1 },
-    wu: { militia: 0.35, archer: 0.35, boat: 0.2, huochuan: 0.1 },
-    yuan: { militia: 0.4, spear: 0.35, cav: 0.2, heavy: 0.05 },
-    lv: { militia: 0.3, spear: 0.4, cav: 0.25, tiefu: 0.05 },
-    biao: { militia: 0.4, spear: 0.35, archer: 0.2, cav: 0.05 },
-    zhang: { militia: 0.4, spear: 0.3, archer: 0.25, wudang: 0.05 },
-    xianbei: { militia: 0.2, qishe: 0.4, xianbei: 0.3, tengri: 0.1 },
-    ma: { militia: 0.25, spear: 0.35, qishe: 0.25, tiefu: 0.15 },
-    han: { militia: 0.35, spear: 0.35, crossbow: 0.2, jinjun: 0.1 },
-    bandit: { bandit: 0.6, raider: 0.3, raider_cav: 0.1 },
-  };
   if (f === 'bandit') {
+    let mix = { bandit: 0.55, raider: 0.35, raider_cav: 0.1 };
     const tier = BANDIT_TIERS[site.banditTier];
     const rank = tier ? tier.rank : 1;
-    if (rank >= 4) set.bandit = { bandit: 0.35, raider: 0.35, raider_cav: 0.3 };
-    else if (rank >= 3) set.bandit = { bandit: 0.45, raider: 0.35, raider_cav: 0.2 };
-    else if (rank >= 2) set.bandit = { bandit: 0.55, raider: 0.35, raider_cav: 0.1 };
+    if (rank >= 4) mix = { bandit: 0.35, raider: 0.35, raider_cav: 0.3 };
+    else if (rank >= 3) mix = { bandit: 0.45, raider: 0.35, raider_cav: 0.2 };
+    const troops = {};
+    Object.keys(mix).forEach(function (id) {
+      const n = Math.round(total * mix[id]);
+      if (n > 0) troops[id] = n;
+    });
+    return troops;
   }
-  const map = set[f] || { militia: 0.4, spear: 0.3, archer: 0.2, cav: 0.1 };
+  const slots = FACTION_SLOTS[f];
+  if (slots) {
+    // 各国守军按同一套编制比例：T1 35%、T2 30%、T3 25%、T4 10%。
+    // 没有某一档（例如刘表没有 T3 步战档）就把权重均摊给现有档位。
+    const weights = { t1: 0.35, t2: 0.3, t3a: 0.2, t3b: 0.1, t4: 0.05 };
+    let sum = 0;
+    Object.keys(weights).forEach(function (slot) { if (slots[slot]) sum += weights[slot]; });
+    const troops = {};
+    Object.keys(weights).forEach(function (slot) {
+      if (!slots[slot] || sum <= 0) return;
+      const n = Math.round(total * (weights[slot] / sum));
+      if (n > 0) troops[slots[slot]] = n;
+    });
+    // 四舍五入可能少一两个人，补到 T1，避免守军总数比 garrison 少太多。
+    let got = 0;
+    Object.keys(troops).forEach(function (id) { got += troops[id]; });
+    if (got < total && slots.t1) troops[slots.t1] = (troops[slots.t1] || 0) + (total - got);
+    return troops;
+  }
+  // 无旗、玩家自立、叛军等没有本国兵种表：沿用旧的通用守军。
+  const map = f === 'player'
+    ? { militia: 0.35, spear: 0.3, archer: 0.2, cav: 0.15 }
+    : { militia: 0.4, spear: 0.3, archer: 0.2, cav: 0.1 };
   const troops = {};
   Object.keys(map).forEach(function (id) {
     const n = Math.round(total * map[id]);
@@ -5305,6 +5363,7 @@ function takeSite(state, site) {
     war.onSiteTaken(state, site, oldFaction);
     war.notifyCapture(state, site, oldFaction, 'player');
     applyPlayerCountry(state);
+    syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
     pushLog(state, '你拿下了' + site.name + '。从今天起，这里归你。');
     checkVictory(state);
     advanceCampaign(state);
@@ -5501,6 +5560,7 @@ function joinFaction(state, site) {
     return { ok: false, msg: '声望不足 ' + req + '，' + site.name + '的守将不见你' };
   }
   p.faction = f;
+  p.troops = convertRosterToFaction(p.troops || {}, f, { preserveT5: true });
   state.flags.sworn = true;
   changeRelation(state, f, 80);
   Object.keys(state.relations).forEach(function (id) {
@@ -5508,6 +5568,7 @@ function joinFaction(state, site) {
     changeRelation(state, id, -18);
   });
   p.morale = Math.min(100, p.morale + 12);
+  refreshSiteRosters(state, true);
   pushLog(state, '你在' + site.name + '接下' + FACTIONS[f].name + '的印绶。从此你的敌人，也是别人的敌人。');
   return { ok: true, msg: '你现在是' + FACTIONS[f].full + '的人了' };
 }
@@ -5843,15 +5904,20 @@ function lordRecruitMul(lord) {
 
 /** 各势力四阶兵的“门面兵种”：名将榜领主与君主至少带一队。 */
 const LORD_T4_BY_FACTION = {
-  wei: 'guard', shu: 'baier', wu: 'danyang', yuan: 'heavy',
-  lv: 'tiefu', ma: 'tiefu', xianbei: 'tengri',
-  zhang: 'guard', zhanglu: 'guard', nanman: 'guard', shanyue: 'danyang',
-  yuanshu: 'guard', biao: 'guard', gongsun: 'guard', hansui: 'guard', han: 'guard',
+  wei: 'wei_t4', shu: 'shu_t4', wu: 'wu_t4', yuan: 'yuan_t4',
+  lv: 'lv_t4', ma: 'ma_t4', xianbei: 'xianbei_t4',
+  zhang: 'zhang_t4', zhanglu: 'zhanglu_t4', nanman: 'nanman_t4',
+  shanyue: 'shanyue_t4', yuanshu: 'yuanshu_t4', biao: 'biao_t4',
+  gongsun: 'gongsun_t4', hansui: 'hansui_t4', han: 'han_t4',
+  player: 'guard', rebel: 'guard',
 };
 const LORD_T4_FALLBACK = 'guard';
 const LORD_T4_RATIO = 0.05;
 const LORD_T4_MIN = 4;
 const LORD_T4_MAX = 8;
+const LORD_T5_RATIO = 0.02;
+const LORD_T5_MIN = 1;
+const LORD_T5_MAX = 6;
 
 function lordTier4Unit(faction) {
   return LORD_T4_BY_FACTION[faction] || LORD_T4_FALLBACK;
@@ -5940,6 +6006,136 @@ function applyLordTier4Rule(state) {
     if (!lord || lord.dead) return;
     normalizeLordTier4(lord);
   });
+}
+
+/* ------------------------------------------------------------ T5 超级兵 */
+
+/** 只有魏蜀吴有 T5；君主与武力榜前 20 的将领才配带。 */
+function lordT5Unit(faction) {
+  return factionT5Id(faction);
+}
+
+function lordKeepsT5(state, lord) {
+  if (!lord || !lord.faction) return false;
+  if (!lordT5Unit(lord.faction)) return false;
+  if (lordIsRuler(state, lord)) return true;
+  const rank = Number(lord.generalRank);
+  return rank > 0 && rank <= 20;
+}
+
+function stripT5(roster) {
+  if (!roster) return 0;
+  let count = 0;
+  Object.keys(roster).forEach(function (id) {
+    const t = TROOPS[id];
+    if (t && t.t5) {
+      count += roster[id] || 0;
+      delete roster[id];
+    }
+  });
+  return count;
+}
+
+/** 不够格的 T5 不凭空蒸发，折回本国 T4，保证总兵力不变。 */
+function foldT5IntoT4(roster, faction, count) {
+  if (!roster || count <= 0) return;
+  const t4 = lordTier4Unit(faction);
+  if (!t4 || !TROOPS[t4]) return;
+  roster[t4] = (roster[t4] || 0) + count;
+}
+
+function injectT5(roster, unit) {
+  if (!roster || !unit) return false;
+  if (Object.keys(roster).some(function (id) { return id === unit; })) return false;
+  const total = army.troopCount(roster);
+  if (total <= 0) return false;
+  const add = Math.max(LORD_T5_MIN, Math.min(LORD_T5_MAX, Math.round(total * LORD_T5_RATIO)));
+  let donor = null;
+  Object.keys(roster).forEach(function (id) {
+    const t = TROOPS[id];
+    if (t && (t.t5 || Number(t.tier) >= 4)) return;
+    if (!donor || (roster[id] || 0) > (roster[donor] || 0)) donor = id;
+  });
+  let put = add;
+  if (donor) {
+    const take = Math.min(put, Math.max(0, (roster[donor] || 0) - 1));
+    roster[donor] -= take;
+    if (roster[donor] <= 0) delete roster[donor];
+    put = take;
+  }
+  if (put > 0) roster[unit] = (roster[unit] || 0) + put;
+  return put > 0;
+}
+
+/** 单个领主的 T5 归一：T5 只留在魏蜀吴的君主/武力榜前 20 手里。 */
+function normalizeLordT5(state, lord) {
+  if (!lord || !lord.faction) return;
+  const unit = lordT5Unit(lord.faction);
+  const keep = lordKeepsT5(state, lord);
+  [lord.defTroops, lord.troops].forEach(function (roster) {
+    if (!roster) return;
+    const count = stripT5(roster);
+    if (count > 0) {
+      if (keep && unit) {
+        const keepCount = Math.min(LORD_T5_MAX, count);
+        roster[unit] = (roster[unit] || 0) + keepCount;
+        foldT5IntoT4(roster, lord.faction, count - keepCount);
+      } else {
+        foldT5IntoT4(roster, lord.faction, count);
+      }
+    }
+    if (keep && unit) injectT5(roster, unit);
+  });
+}
+
+function applyLordT5Rule(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.dead) return;
+    normalizeLordT5(state, lord);
+  });
+}
+
+/**
+ * 读旧档 / 换旗后把领主编制换成当前国家兵种。
+ * 已在目标国编制内的兵原样保留；异国兵按角色折成同档。
+ */
+function migrateLordFactionTroops(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.faction) return;
+    if (lord.defTroops) {
+      lord.defTroops = convertRosterToFaction(lord.defTroops, lord.faction);
+    }
+    if (lord.troops) {
+      lord.troops = convertRosterToFaction(lord.troops, lord.faction, { preserveT5: true });
+    }
+  });
+}
+
+/** 读档/开局统一入口：旧档先折兵种，再按身份校正 T5。 */
+function migrateFactionTroops(state) {
+  if (!state) return;
+  migrateLordFactionTroops(state);
+  const p = state.player;
+  if (p && p.faction && p.faction !== 'player' && FACTION_TROOPS[p.faction]) {
+    p.troops = convertRosterToFaction(p.troops || {}, p.faction, { preserveT5: true });
+  }
+  applyLordT5Rule(state);
+  if (!state.player) return;
+  state.player.t5Unlocked = state.player.t5Unlocked || {};
+  // 旧档里已经亡国的魏蜀吴，如果最后一座城是玩家打下的，补记 T5 解锁。
+  Object.keys(state.factionState || {}).forEach(function (id) {
+    const fs = state.factionState[id];
+    if (fs && fs.dead && fs.lastConqueror === 'player') state.player.t5Unlocked[id] = true;
+  });
+  // 旧档据点没有 originFaction：先补文化来源，再按当前管辖势力重铺兵源。
+  if (state.world && Array.isArray(state.world.sites)) {
+    state.world.sites.forEach(function (site) {
+      if (!site.originFaction) site.originFaction = site.faction || site.ownerFaction || null;
+      syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
+    });
+  }
 }
 
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
@@ -6357,7 +6553,8 @@ function promoteHero(state, heroId, siteId) {
   }
 
   // 目标编制按等级走，封地封多大就带多少；刚出镇只带一半，之后在封地补满
-  const full = lordRosterForLevel(lv, lordCapForLevel(lv));
+  const lordFaction = p.faction && FACTIONS[p.faction] ? p.faction : 'player';
+  const full = convertRosterToFaction(lordRosterForLevel(lv, lordCapForLevel(lv)), lordFaction);
   const troops = {};
   Object.keys(full).forEach(function (tid) {
     const n = Math.max(0, Math.round(full[tid] * 0.55));
@@ -6367,7 +6564,7 @@ function promoteHero(state, heroId, siteId) {
     id: id,
     name: heroName,
     title: '你的家臣',
-    faction: p.faction && FACTIONS[p.faction] ? p.faction : 'player',
+    faction: lordFaction,
     home: site.id,
     level: lv,
     x: site.x,
@@ -6805,8 +7002,12 @@ function moveLordToFaction(state, lord, target) {
     ? takeSomeTroops(lord.troops, left)
     : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
+  // 换旗后整套编制换成本国兵：旧国骑兵/弩兵按角色折成新国同档。
+  lord.defTroops = convertRosterToFaction(lord.defTroops || {}, target);
+  lord.troops = convertRosterToFaction(lord.troops || {}, target, { preserveT5: true });
   // 换旗后四阶精锐也要换门面：张辽、张郃归魏后带亲卫，榜外降将不再保留旧国精锐。
   normalizeLordTier4(lord);
+  normalizeLordT5(state, lord);
 }
 
 /** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
@@ -6850,6 +7051,12 @@ function fallFaction(state, id, opts) {
     return l.faction === id && l.alive && l !== ruler && !l.factionStateFixed;
   });
   const conqueror = fs.lastConqueror;
+  // 玩家亲手打掉最后一城：永久解锁该国 T5；此后自己的城可以招这国降卒。
+  if (conqueror === 'player') {
+    state.player.t5Unlocked = state.player.t5Unlocked || {};
+    state.player.t5Unlocked[id] = true;
+    fs.t5ConqueredByPlayer = true;
+  }
   const conquerorAlive = !!(conqueror && (conqueror === 'player'
     ? state.player.faction === 'player' && state.world.sites.some(function (s) { return s.playerOwned; })
     : factionAlive(state, conqueror)));
@@ -6905,6 +7112,8 @@ function fallFaction(state, id, opts) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  // 灭国解锁 T5 后要强制重铺玩家城兵源，不能因为“旗没变”被跳过。
+  refreshSiteRosters(state, true, true);
   war.dropFactionWars(state, id);
   if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
@@ -7351,6 +7560,7 @@ function startUnification(state) {
   edge.garrison = Math.max(24, edge.garrison || 24);
   edge.banner = p.country && p.country.name ? p.country.name : '旗';
   edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
+  refreshSiteRosters(state, false);
   state.world.factionGrid = null;
 
   state.noPeaceForever = state.noPeaceForever || {};
@@ -7897,6 +8107,7 @@ function deserialize(json) {
     oldShouchun.faction = 'yuanshu';
     oldShouchun.banner = FACTIONS.yuanshu.banner;
     oldShouchun.color = FACTIONS.yuanshu.color;
+    syncSiteRecruitList(oldShouchun, 'yuanshu', state);
   }
 
   // n41：汉中北面的武都、上洛改为自由城。只迁移一次，避免刘璋日后
@@ -7938,9 +8149,7 @@ function deserialize(json) {
     site.faction = move.to;
     site.banner = faction.banner;
     site.color = faction.color;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
 
   // n43 老档：襄平归公孙瓒；官渡/白马换位；汉廷诸将收回长安—潼关一线。
@@ -7962,9 +8171,7 @@ function deserialize(json) {
     site.banner = faction.banner;
     site.color = faction.color;
     site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
   // n44 老档：泰山关由吕布改归袁绍，夷陵由刘表改归孙权；只迁移旧主，保留玩家战果。
   const N44_OWNER_MOVES = [
@@ -7982,9 +8189,7 @@ function deserialize(json) {
     site.banner = faction.banner;
     site.color = faction.color;
     site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
   // n45：开局叛军没有城，不能被七天灭国逻辑误判；旧档如果已经弹出过
   // “叛军 亡了”，在读档时把这面旗恢复，统一背叛后才有叛军可打。
@@ -8190,6 +8395,8 @@ function deserialize(json) {
   // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
   applyLordRoles(state);
   state.flags.lordRolesV1 = true;
+  // n59：旧档里的旧兵种统一折成当前国家兵种；T5 再按君主/武力榜资格校正。
+  migrateFactionTroops(state);
   // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
   if (!state.flags.lordTier4V1) {
     applyLordTier4Rule(state);
@@ -8201,6 +8408,7 @@ function deserialize(json) {
     state.flags.lordWeiCapV1 = true;
   }
   ensureWorldFeatures(state.world);
+  refreshSiteRosters(state, false);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
   sanitizeLordOrders(state);
@@ -8211,6 +8419,7 @@ function deserialize(json) {
   // 国君可能已经换代：按最终 rulerId 再算一次三类身份，并把新帅才的满编编制补到上限。
   applyLordRoles(state);
   applyLordPowerRoster(state);
+  applyLordT5Rule(state);
   applyFactionRosterCap(state);
   state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
@@ -8374,6 +8583,10 @@ module.exports = {
   lordIsRuler,
   applyLordRoles,
   applyLordTier4Rule,
+  applyLordT5Rule,
+  normalizeLordT5,
+  migrateFactionTroops,
+  refreshSiteRosters,
   applyLordPowerRoster,
   useHistory,
   adShiInfo,

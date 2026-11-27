@@ -16,6 +16,7 @@ const army = require('../core/army.js');
 const tourney = require('../core/tourney.js');
 const { siteById, regionDef } = require('../core/world.js');
 const { TROOPS } = require('../data/troops.js');
+const { troopAccess } = require('../data/troops.js');
 
 /** 每个据点一个稳定的背景种子，同类型城镇也能有不同街景 */
 function siteSeed(id) {
@@ -392,10 +393,14 @@ function renderRecruit(app, site) {
   });
 
   let list = site.recruitList || [];
-  // 村庄只出最低一档的壮丁；池子空了就是空了，村里的壮丁就这些
+  // 村庄只出本地最低一档；城/关按当前管辖势力出完整兵源牌。
   if (site.type === 'village') {
-    list = ['militia'];
+    list = list.filter(function (id) { return TROOPS[id] && Number(TROOPS[id].tier) === 1; });
   }
+  // 六人以内用原来的大行；七个以上（含灭国降卒 T5）压成紧凑行，保证返回键不越屏。
+  const compact = list.length > 6;
+  const rowH = compact ? 88 : 104;
+  const step = compact ? 96 : 116;
   let y = 340;
 
   if (!list.length) {
@@ -407,31 +412,37 @@ function renderRecruit(app, site) {
     if (!t) return;
     const stock = site.recruits[id] || 0;
     const price = economy.recruitPrice(site, id);
-    const locked = t.renownReq && p.renown < t.renownReq;
+    const gate = troopAccess(st, site, id);
+    const locked = !gate.ok;
 
-    panel(ctx, PAD, y, w - PAD * 2, 104, { fill: '#241c14' });
-    text(ctx, t.name, PAD + 18, y + 14, { size: 26, color: locked ? '#7a7160' : '#efe3c6' });
-    text(ctx, '攻 ' + t.atk + ' / 防 ' + t.def + ' / 粮 ' + t.food, PAD + 150, y + 20, { size: 16, color: '#a2947a' });
-    text(ctx, locked ? '需声望 ' + t.renownReq : '余 ' + stock + ' 人', PAD + 18, y + 58, {
-      size: 17, color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
+    panel(ctx, PAD, y, w - PAD * 2, rowH, { fill: '#241c14' });
+    text(ctx, t.name, PAD + 18, y + (compact ? 10 : 14), {
+      size: compact ? 24 : 26, color: locked ? '#7a7160' : '#efe3c6',
     });
-    text(ctx, price + '金钱/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
+    text(ctx, '攻 ' + t.atk + ' / 防 ' + t.def + ' / 粮 ' + t.food, PAD + 214, y + (compact ? 13 : 20), {
+      size: 16, color: '#a2947a',
+    });
+    text(ctx, locked ? gate.msg : '余 ' + stock + ' 人', PAD + 18, y + (compact ? 48 : 58), {
+      size: locked ? 16 : 17,
+      color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
+    });
+    text(ctx, price + '金钱/人', PAD + 214, y + (compact ? 48 : 58), { size: 18, color: '#f0c060' });
 
     if (!locked && stock > 0) {
-      app.ui.button(ctx, w - PAD - 190, y + 22, 86, 58, '招 1', {
+      app.ui.button(ctx, w - PAD - 190, y + (compact ? 14 : 22), 86, compact ? 52 : 58, '招 1', {
         id: 'r1_' + id, size: 22, onTap: function () {
           const r = economy.recruit(st, site, id, 1);
           app.showToast(r.msg, 2.2);
         },
       });
-      app.ui.button(ctx, w - PAD - 96, y + 22, 86, 58, '招 5', {
+      app.ui.button(ctx, w - PAD - 96, y + (compact ? 14 : 22), 86, compact ? 52 : 58, '招 5', {
         id: 'r5_' + id, size: 22, disabled: stock < 5, onTap: function () {
           const r = economy.recruit(st, site, id, 5);
           app.showToast(r.msg, 2.2);
         },
       });
     }
-    y += 116;
+    y += step;
   });
 
   backButton(app, y + 4);
@@ -1173,8 +1184,11 @@ function siteInfo(app, site) {
   }
 
   const names = (site.recruitList || []).map(function (id) { return TROOPS[id] ? TROOPS[id].name : id; });
+  const sourceLine = names.length > 2
+    ? names.slice(0, 2).join(' · ') + ' 等 ' + names.length + ' 种'
+    : (names.join(' · ') || '无可招募');
   text(ctx, '此地兵源', PAD + 22, y + 104, { size: 17, color: '#8a8070' });
-  text(ctx, names.join(' · ') || '无可招募', PAD + 22, y + 132, { size: 20, color: '#c9bda2' });
+  text(ctx, sourceLine, PAD + 22, y + 132, { size: 20, color: '#c9bda2' });
 
   ctx.fillStyle = 'rgba(240,192,96,0.25)';
   ctx.fillRect(PAD + 20, y + 170, bw - 40, 1);

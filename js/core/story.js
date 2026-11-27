@@ -14,6 +14,7 @@ const { LORD_POWER_BY_ID } = require('../data/lord-rank.js');
 const { siteById } = require('./world.js');
 const army = require('./army.js');
 const war = require('./war.js');
+const { syncSiteRecruitList } = require('../data/troops.js');
 
 let logFn = function () {};
 
@@ -1081,6 +1082,7 @@ function setStorySiteOwner(state, site, faction) {
   const base = Number(site.garrisonBase) || Number(site.garrison) || 40;
   site.garrison = Math.max(28, Math.round(base * 0.45));
   site.garrisonBase = site.garrison;
+  syncSiteRecruitList(site, faction, state);
   recordCapture(state, site, old, faction);
   return old;
 }
@@ -1738,6 +1740,7 @@ function forceEndgameUnification(state) {
     s.ownerFaction = winner;
     s.faction = winner;
     s.playerOwned = false;
+    syncSiteRecruitList(s, winner, state);
   });
   eg.forced = true;
   eg.forcedWinner = winner;

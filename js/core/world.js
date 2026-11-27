@@ -23,6 +23,7 @@ const {
   BANDIT_EXCLUDE_ZONES,
   FACTIONS,
 } = require('../data/china.js');
+const { factionTroopIds } = require('../data/troops.js');
 
 /**
  * 设计稿 40x48 → 实图 64x77。所有静态坐标统一乘这个系数，
@@ -163,6 +164,7 @@ function siteFromRow(world, row) {
     type: def.type,
     region: regionAt(world, def.x, def.y),
     faction: def.faction,
+    originFaction: def.faction || null,
     ownerFaction: def.faction,
     x: def.x,
     y: def.y,
@@ -170,7 +172,10 @@ function siteFromRow(world, row) {
     priceBase: def.priceBase,
     garrisonBase: def.garrison,
     garrison: def.garrison,
-    recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
+    recruitFaction: def.faction || null,
+    recruitList: (factionTroopIds(def.faction, def.type).length
+      ? factionTroopIds(def.faction, def.type)
+      : (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice()),
     recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
     recruits: {},
     priceIndex: 1,

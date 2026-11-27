@@ -3340,6 +3340,579 @@ module.exports = { UI, text, wrap, measure, panel, bar, font, FONT_STACK };
 
   };
 
+  /* js/data/troops.js */
+  __defs[9] = function (module, exports, __require) {
+/**
+ * 兵种表（三国）
+ * atk/def/hp 用于战斗模拟；food 为每人每日口粮；tier 决定伤亡顺序（低阶先倒）。
+ * 特殊标记：
+ *   cav 骑兵 / ranged 远程 / spear 长矛（克骑）
+ *   pierce 破甲（弩） / fire 火攻 / lock 士气锁死（不溃） / hill 山地不减速
+ */
+
+const TROOPS = {
+  militia: {
+    id: 'militia', name: '民兵', tier: 1, atk: 6, def: 6, hp: 24, food: 1, recruit: 12,
+    desc: '临时征来的农人，给根木棍就上阵。便宜，也容易死。',
+  },
+  spear: {
+    id: 'spear', name: '枪盾兵', tier: 2, atk: 9, def: 11, hp: 26, food: 1, recruit: 30, spear: true,
+    desc: '结阵顶住骑兵的中坚。长矛如林，马不敢冲。',
+  },
+  archer: {
+    id: 'archer', name: '弓手', tier: 2, atk: 12, def: 5, hp: 20, food: 1, recruit: 34, ranged: true,
+    desc: '开战先射三轮。近战很脆，别让人贴脸。',
+  },
+  crossbow: {
+    id: 'crossbow', name: '弩手', tier: 3, atk: 14, def: 4, hp: 20, food: 1, recruit: 46, ranged: true, pierce: true,
+    desc: '上弦慢，但能破甲。对付重骑与亲卫特别好用。',
+  },
+  cav: {
+    id: 'cav', name: '轻骑', tier: 3, atk: 15, def: 8, hp: 30, food: 3, recruit: 64, cav: true,
+    desc: '冲锋与包抄的核心。人吃马嚼，口粮三倍。',
+  },
+  qishe: {
+    id: 'qishe', name: '骑射', tier: 3, atk: 13, def: 7, hp: 28, food: 3, recruit: 70, cav: true, ranged: true,
+    desc: '边地打法：不贴身，绕着射。打不死你，也追不上他。',
+  },
+  heavy: {
+    id: 'heavy', name: '重骑', tier: 4, atk: 18, def: 13, hp: 36, food: 3, recruit: 118, cav: true,
+    desc: '人马皆披甲。正面撞阵，步兵阵线会裂。',
+  },
+  guard: {
+    id: 'guard', name: '亲卫', tier: 4, atk: 17, def: 15, hp: 38, food: 1, recruit: 128, renownReq: 100,
+    desc: '主公身边的死士。需声望 100 才招得到。',
+  },
+  baier: {
+    id: 'baier', name: '白毦兵', tier: 4, atk: 16, def: 14, hp: 40, food: 1, recruit: 136, renownReq: 150, lock: true,
+    desc: '白毦为饰，士气锁死，不溃不散。刘备手下最后一张牌。',
+  },
+  wudang: {
+    id: 'wudang', name: '无当飞军', tier: 4, atk: 15, def: 12, hp: 34, food: 1, recruit: 132, renownReq: 150, hill: true, ranged: true,
+    desc: '南中劲卒，山地如平地。翻山越岭不减速。',
+  },
+  danyang: {
+    id: 'danyang', name: '丹阳兵', tier: 4, atk: 16, def: 13, hp: 36, food: 1, recruit: 142, renownReq: 160,
+    desc: '天下精兵出丹阳。江东的底子，靠他们撑。',
+  },
+  boat: {
+    id: 'boat', name: '轻舟兵', tier: 2, atk: 10, def: 8, hp: 24, food: 2, recruit: 54,
+    desc: '水上的兵。上岸打不如在水上打。',
+  },
+  huochuan: {
+    id: 'huochuan', name: '火船手', tier: 3, atk: 13, def: 8, hp: 26, food: 2, recruit: 86, fire: true, renownReq: 120,
+    desc: '驾火船冲阵，点火不伤己。赤壁那一夜就是他们。',
+  },
+  xianbei: {
+    id: 'xianbei', name: '鲜卑游骑', tier: 3, atk: 16, def: 7, hp: 28, food: 3, recruit: 76, cav: true, ranged: true,
+    desc: '塞外的骑射手。来去如风，抢完就走。',
+  },
+  tengri: {
+    id: 'tengri', name: '腾格里卫', tier: 4, atk: 19, def: 12, hp: 34, food: 3, recruit: 168, cav: true, renownReq: 200,
+    desc: '鲜卑单于的亲骑。马力最盛，冲阵最狠。',
+  },
+  tiefu: {
+    id: 'tiefu', name: '西凉重步', tier: 4, atk: 20, def: 14, hp: 36, food: 3, recruit: 176, cav: false, renownReq: 180,
+    desc: '凉州重甲步卒，持长刀大盾。走得慢，正面极硬。',
+  },
+  jinjun: {
+    id: 'jinjun', name: '禁军', tier: 5, atk: 22, def: 18, hp: 44, food: 2, recruit: 240, renownReq: 300,
+    desc: '汉家禁军，最后一支还听诏书的兵。',
+  },
+  huangjin: {
+    id: 'huangjin', name: '黄巾', tier: 1, atk: 7, def: 5, hp: 22, food: 1, recruit: 0,
+    desc: '头裹黄巾的流民军。人多，甲少。',
+  },
+  bandit: {
+    id: 'bandit', name: '山贼', tier: 1, atk: 8, def: 6, hp: 24, food: 1, recruit: 0,
+    desc: '山里的散兵。人少打不过，人多很麻烦。',
+  },
+  raider: {
+    id: 'raider', name: '贼首', tier: 3, atk: 13, def: 10, hp: 32, food: 1, recruit: 0,
+    desc: '寨里的头目，身上有抢来的好甲。',
+  },
+  raider_cav: {
+    id: 'raider_cav', name: '马贼', tier: 3, atk: 14, def: 8, hp: 28, food: 1, recruit: 0, cav: true,
+    desc: '骑马的匪。跑得比追兵快。',
+  },
+};
+
+/* ---------------------------------------------------------------- 各国兵种
+ *
+ * n59：每个势力一套自己的 T1-T4（魏蜀吴另有 T5），
+ * 招募严格按“当前管辖势力”出牌；旧的基础兵种继续留给匪团、叛军、
+ * 无旗玩家与边陲小镇使用，避免旧档和特殊玩法断链。
+ */
+
+const FACTION_ROLE_STATS = {
+  t1_inf: { atk: 6, def: 6, hp: 24, food: 1, recruit: 12 },
+  t1_cav: { atk: 7, def: 6, hp: 24, food: 2, recruit: 18, cav: true },
+  t1_naval: { atk: 6, def: 6, hp: 24, food: 2, recruit: 16, naval: true },
+  t2_inf: { atk: 9, def: 11, hp: 26, food: 1, recruit: 30 },
+  t2_ranged: { atk: 12, def: 5, hp: 20, food: 1, recruit: 34, ranged: true },
+  t2_cav: { atk: 13, def: 7, hp: 28, food: 3, recruit: 56, cav: true },
+  t2_naval: { atk: 10, def: 8, hp: 24, food: 2, recruit: 54, naval: true },
+  t3_inf: { atk: 14, def: 12, hp: 32, food: 1, recruit: 78 },
+  t3_guard: { atk: 15, def: 13, hp: 34, food: 1, recruit: 88 },
+  t3_ranged: { atk: 14, def: 4, hp: 20, food: 1, recruit: 46, ranged: true, pierce: true },
+  t3_cav: { atk: 15, def: 8, hp: 30, food: 3, recruit: 64, cav: true },
+  t3_cav_ranged: { atk: 13, def: 7, hp: 28, food: 3, recruit: 70, cav: true, ranged: true },
+  t3_naval: { atk: 13, def: 8, hp: 26, food: 2, recruit: 86, naval: true },
+  t4_cav: { atk: 18, def: 13, hp: 36, food: 3, recruit: 118, cav: true },
+  t4_heavy: { atk: 19, def: 14, hp: 38, food: 3, recruit: 132, cav: true },
+  t4_inf: { atk: 17, def: 15, hp: 38, food: 1, recruit: 128 },
+  t4_guard: { atk: 18, def: 16, hp: 40, food: 1, recruit: 150, renownReq: 120 },
+  t4_naval: { atk: 18, def: 14, hp: 40, food: 2, recruit: 150, naval: true },
+  t5_cav: { atk: 26, def: 21, hp: 58, food: 3, recruit: 360, cav: true },
+  t5_ranged: { atk: 29, def: 16, hp: 52, food: 2, recruit: 360, ranged: true, pierce: true },
+  t5_naval: { atk: 27, def: 21, hp: 60, food: 2, recruit: 360, naval: true },
+};
+
+const FACTION_DEFS = {
+  wei: {
+    label: '曹魏', t5: true,
+    units: [
+      ['t1', '郡国步卒', 't1_inf', '郡国征发的常备步卒，队列整齐，能顶住第一轮冲阵。'],
+      ['t2', '谯沛锐卒', 't2_inf', '曹操从谯沛带出的旧部，乡党为骨，进退不乱。'],
+      ['t3a', '虎豹轻骑', 't3_cav', '虎豹骑的轻装前哨，擅长长途奔袭与侧翼包抄。'],
+      ['t3b', '大黄劲弩卒', 't3_ranged', '列装大黄强弩的精锐弩兵，远程破甲能力突出。'],
+      ['t4', '陷阵重骑', 't4_heavy', '人马俱甲的重骑，正面撞阵时像一堵会动的墙。'],
+      ['t5', '虎豹禁骑', 't5_cav', '虎豹骑中的禁卫，只有魏主与武力榜最前列的猛将能统率。'],
+    ],
+  },
+  shu: {
+    label: '蜀汉', t5: true,
+    units: [
+      ['t1', '蜀地征卒', 't1_inf', '益州征来的乡卒，脚力好，能走山路。'],
+      ['t2', '巴渝弩卒', 't2_ranged', '巴渝山地征召的进阶弩兵，适配山地作战。'],
+      ['t3a', '无当飞军', 't3_inf', '南中劲卒，山地如平地，翻山越岭不减速。', { hill: true }],
+      ['t3b', '青羌劲弩手', 't3_ranged', '青羌部族组建的精锐弩兵，善走险地、射速迅猛。', { hill: true }],
+      ['t4', '白毦亲卫', 't4_guard', '白毦为饰，士气锁死，不溃不散。', { lock: true }],
+      ['t5', '元戎神弩营', 't5_ranged', '蜀汉倾国之力打造的元戎连弩营，箭雨能压住整片阵线。'],
+    ],
+  },
+  wu: {
+    label: '东吴', t5: true,
+    units: [
+      ['t1', '山越乡卒', 't1_inf', '山越寨子里征来的乡卒，丛林水网都能走。'],
+      ['t2', '山越健卒', 't2_inf', '山越族群选拔的进阶步兵，丛林水网作战娴熟。'],
+      ['t3a', '解烦卫', 't3_guard', '孙权帐下的禁军精锐，专门解围救急。'],
+      ['t3b', '濡须劲弩卒', 't3_ranged', '濡须防线部署的江防弩兵，水战陆战双适配。'],
+      ['t4', '锦帆斗舰军', 't4_naval', '锦帆斗舰上的水军死士，接舷之后比陆战还凶。'],
+      ['t5', '横江艨艟死士', 't5_naval', '横江拒敌的艨艟死士，船在人在，船沉人亡。', { lock: true }],
+    ],
+  },
+  lv: {
+    label: '吕布', t5: false,
+    units: [
+      ['t1', '并州骑卒', 't1_cav', '并州边地征来的骑卒，马术比步战熟。'],
+      ['t2', '九原轻骑', 't2_cav', '九原出身的进阶轻骑兵，弓马娴熟。'],
+      ['t3a', '陷阵营', 't3_guard', '高顺练出来的重装精锐步兵，攻城陷阵，无坚不摧。'],
+      ['t3b', '九原劲弩卒', 't3_ranged', '并州善射士卒组建，骑射步射皆精。'],
+      ['t4', '并州狼骑', 't4_cav', '吕布麾下最能冲的狼骑，来去如狼。'],
+    ],
+  },
+  yuan: {
+    label: '袁绍', t5: false,
+    units: [
+      ['t1', '河北乡卒', 't1_inf', '河北州县征来的乡卒，人多粮足，甲仗一般。'],
+      ['t2', '邺都弩卒', 't2_ranged', '邺城直辖的进阶弩兵，训练规范。'],
+      ['t3a', '大戟士', 't3_guard', '袁绍帐下的重装护卫步兵，长戟如林。'],
+      ['t3b', '黎阳劲弩营', 't3_ranged', '黎阳重镇驻防的精锐弩兵，阵列齐射威力强。'],
+      ['t4', '先登死士', 't4_inf', '攻城时第一个登上城头的死士，退后者斩。', { lock: true }],
+    ],
+  },
+  gongsun: {
+    label: '公孙瓒', t5: false,
+    units: [
+      ['t1', '幽州边卒', 't1_inf', '幽州边郡的戍卒，守边多年，能吃苦。'],
+      ['t2', '渔阳突骑', 't2_cav', '渔阳边郡的进阶轻骑兵，熟悉塞外作战。'],
+      ['t3a', '白马义从', 't3_cav_ranged', '白马白袍的骑射精锐，塞外闻名。'],
+      ['t3b', '右北平劲弩卒', 't3_ranged', '右北平边军下辖强弩部队，擅长守御关隘。'],
+      ['t4', '幽州突骑重营', 't4_heavy', '幽州突骑里的重装营，人马俱甲，专撞敌阵。'],
+    ],
+  },
+  han: {
+    label: '汉廷', t5: false,
+    units: [
+      ['t1', '京畿戍卒', 't1_inf', '京畿征来的戍卒，守宫门比打野战熟。'],
+      ['t2', '三辅锐卒', 't2_inf', '三辅地区选拔的进阶步兵，为中央军主力。'],
+      ['t3a', '羽林郎', 't3_guard', '羽林卫里的宫廷精锐侍卫，甲仗鲜亮。'],
+      ['t3b', '羽林劲弩手', 't3_ranged', '羽林卫下辖精锐弩兵，负责中枢远程护卫。'],
+      ['t4', '虎贲禁军', 't4_guard', '汉家虎贲，最后一支还听诏书的禁军。', { lock: true }],
+    ],
+  },
+  ma: {
+    label: '马腾', t5: false,
+    units: [
+      ['t1', '西凉征骑', 't1_cav', '西凉征来的骑卒，马比甲多。'],
+      ['t2', '陇西轻骑', 't2_cav', '陇西郡征召的进阶轻骑兵，熟悉羌地地形。'],
+      ['t3a', '西凉铁骑', 't3_cav', '西凉铁骑，正面冲阵的硬手。'],
+      ['t3b', '天水劲弩卒', 't3_ranged', '天水郡善射士卒组建，强弩破甲能力出众。'],
+      ['t4', '马家亲卫骑', 't4_cav', '马氏宗族亲卫，骑术与忠诚都靠得住。'],
+    ],
+  },
+  hansui: {
+    label: '韩遂', t5: false,
+    units: [
+      ['t1', '羌胡步卒', 't1_inf', '羌胡部落征来的步卒，能走荒漠。'],
+      ['t2', '湟中轻骑', 't2_cav', '湟中地区征召的进阶轻骑兵，擅长游击。'],
+      ['t3a', '湟中羌骑', 't3_cav', '湟中羌族精锐骑兵，来去飘忽。'],
+      ['t3b', '金城劲弩卒', 't3_ranged', '金城郡直辖的精锐弩兵，城守野战皆宜。'],
+      ['t4', '韩氏义从骑', 't4_cav', '韩氏宗族义从，骑战老练。'],
+    ],
+  },
+  nanman: {
+    label: '南蛮', t5: false,
+    units: [
+      ['t1', '蛮民猎手', 't1_inf', '山里打猎的蛮民，弩箭和陷阱比军阵熟。', { hill: true }],
+      ['t2', '藤盾锐卒', 't2_inf', '配备藤盾的进阶蛮族步兵，防御轻便。'],
+      ['t3a', '象兵辅卒', 't3_inf', '随战象推进的辅卒，借象威压阵。', { hp: 38 }],
+      ['t3b', '南蛮毒弩手', 't3_ranged', '装备淬毒竹弩，伏击与持续杀伤能力强。', { hill: true }],
+      ['t4', '南蛮战象营', 't4_inf', '披甲战象与驭手组成的重阵，正面极难撼动。', { hp: 52, def: 16 }],
+    ],
+  },
+  shanyue: {
+    label: '南越', t5: false,
+    units: [
+      ['t1', '越民舟卒', 't1_naval', '交州水寨里的越民舟卒，撑船比走路快。'],
+      ['t2', '交趾猎卒', 't2_inf', '交趾丛林猎人组成的进阶兵，擅长追踪。', { hill: true }],
+      ['t3a', '交趾舟师', 't3_naval', '内河舟师，熟悉交州水道。'],
+      ['t3b', '瘴林劲弩卒', 't3_ranged', '适配丛林伏击的淬毒弩兵，隐蔽性极强。', { hill: true }],
+      ['t4', '南越死士营', 't4_inf', '南越诸洞的死士，退无可退时最凶。', { lock: true }],
+    ],
+  },
+  biao: {
+    label: '刘表', t5: false,
+    units: [
+      ['t1', '荆襄乡卒', 't1_inf', '荆襄州县征来的乡卒，守土尚可。'],
+      ['t2', '江陵舟卒', 't2_naval', '江陵郡组建的进阶水军，熟悉长江水情。'],
+      ['t3a', '荆襄强弩兵', 't3_ranged', '荆州原有的陆战精锐弩兵。'],
+      ['t3b', '江汉舟弩手', 't3_ranged', '长江战船配属的水军弩兵，远程压制舰船。', { naval: true }],
+      ['t4', '襄阳禁军', 't4_guard', '襄阳城内的禁军，守城经验丰富。'],
+    ],
+  },
+  xianbei: {
+    label: '鲜卑', t5: false,
+    units: [
+      ['t1', '控弦骑卒', 't1_cav', '鲜卑部落的控弦骑卒，从小在马背上长大。'],
+      ['t2', '漠南突骑', 't2_cav', '漠南鲜卑部落的进阶轻骑兵，机动性极强。'],
+      ['t3a', '鲜卑铁骑', 't3_cav', '鲜卑重装骑兵，冲阵时马蹄声先到。'],
+      ['t3b', '草原骑弩士', 't3_cav_ranged', '擅长骑射游击的鲜卑弩骑兵，拉扯作战能力突出。'],
+      ['t4', '单于亲卫骑', 't4_cav', '单于帐下的亲卫骑，马力最盛。'],
+    ],
+  },
+  zhanglu: {
+    label: '张鲁', t5: false,
+    units: [
+      ['t1', '教民戍卒', 't1_inf', '五斗米教教民组成的戍卒，守山门很认真。'],
+      ['t2', '教团锐卒', 't2_inf', '教众组成的进阶步兵，忠诚度高。'],
+      ['t3a', '义舍锐士', 't3_guard', '义舍里养出来的教团精锐步兵。'],
+      ['t3b', '天师弩士', 't3_ranged', '天师道直辖的精锐弩兵，守城作战经验丰富。'],
+      ['t4', '天师亲卫营', 't4_guard', '张鲁身边的亲卫营，政教合一的最后底牌。'],
+    ],
+  },
+  // 附件没有列袁术、刘璋；这里按同一套层级补齐，避免这两家的城仍招旧兵。
+  yuanshu: {
+    label: '袁术', t5: false,
+    units: [
+      ['t1', '淮南乡卒', 't1_inf', '淮南州县征来的乡卒，兵多粮足，甲仗一般。'],
+      ['t2', '寿春弩卒', 't2_ranged', '寿春直辖的进阶弩兵，训练还算规范。'],
+      ['t3a', '仲氏宿卫', 't3_guard', '袁术称帝后编成的宿卫，旗号比战力响亮。'],
+      ['t3b', '淮南劲弩营', 't3_ranged', '淮南重镇驻防的精锐弩兵，齐射威势不小。'],
+      ['t4', '仲氏禁军', 't4_guard', '仲家朝廷的禁军，装备最好，士气看粮。'],
+    ],
+  },
+  zhang: {
+    label: '刘璋', t5: false,
+    units: [
+      ['t1', '益州乡卒', 't1_inf', '益州天府征来的乡卒，守城尚可。'],
+      ['t2', '东州锐卒', 't2_inf', '东州兵出身的进阶步兵，是刘璋手里最能打的一支。'],
+      ['t3a', '东州宿卫', 't3_guard', '东州旧部编成的宿卫，护着成都城门。'],
+      ['t3b', '益州强弩兵', 't3_ranged', '益州本地强弩兵，守险隘有一手。'],
+      ['t4', '成都禁军', 't4_guard', '成都城内的禁军，甲仗齐整，野战经验少。'],
+    ],
+  },
+};
+
+const FACTION_TROOPS = {};
+const FACTION_SLOTS = {};
+const FACTION_RECRUIT_SETS = {
+  player: ['militia', 'spear', 'archer', 'crossbow', 'cav', 'heavy'],
+  rebel: ['militia', 'spear', 'archer', 'cav'],
+  bandit: [],
+  none: ['militia', 'spear'],
+};
+
+Object.keys(FACTION_DEFS).forEach(function (faction) {
+  const def = FACTION_DEFS[faction];
+  const entry = { label: def.label, t5: null, units: [], slots: {} };
+  def.units.forEach(function (row) {
+    const slot = row[0];
+    const name = row[1];
+    const role = row[2];
+    const desc = row[3];
+    const extra = row[4] || {};
+    const id = faction + '_' + slot;
+    const unit = Object.assign({
+      id: id,
+      name: name,
+      tier: Number(role.charAt(1)),
+      faction: faction,
+      slot: slot,
+      desc: desc,
+    }, FACTION_ROLE_STATS[role], extra);
+    if (slot === 't5') {
+      unit.t5 = true;
+      entry.t5 = id;
+    }
+    TROOPS[id] = unit;
+    entry.units.push(unit);
+    entry.slots[slot] = id;
+  });
+  FACTION_TROOPS[faction] = entry;
+  FACTION_SLOTS[faction] = entry.slots;
+  FACTION_RECRUIT_SETS[faction] = entry.units.map(function (u) { return u.id; });
+});
+
+function factionTroopIds(faction, siteType) {
+  const entry = FACTION_TROOPS[faction];
+  let ids;
+  if (entry) ids = entry.units.map(function (u) { return u.id; });
+  else ids = (FACTION_RECRUIT_SETS[faction] || []).slice();
+  if (siteType === 'village') {
+    ids = ids.filter(function (id) { return TROOPS[id] && Number(TROOPS[id].tier) === 1; });
+  }
+  return ids;
+}
+
+function factionT5Id(faction) {
+  return FACTION_TROOPS[faction] ? FACTION_TROOPS[faction].t5 : null;
+}
+
+function factionLabel(faction) {
+  return FACTION_TROOPS[faction] ? FACTION_TROOPS[faction].label : (faction || '');
+}
+
+function t5FactionOf(troopId) {
+  const t = TROOPS[troopId];
+  return t && t.t5 ? t.faction : null;
+}
+
+/** 玩家是否已解锁某国 T5：加入该国，或亲手灭其国。 */
+function t5UnlockedForPlayer(state, faction) {
+  const p = state && state.player;
+  if (!p || !faction || !factionT5Id(faction)) return false;
+  if (p.faction === faction) return true;
+  return !!(p.t5Unlocked && p.t5Unlocked[faction]);
+}
+
+function troopAccess(state, site, troopId) {
+  const t = TROOPS[troopId];
+  if (!t) return { ok: false, msg: '没有这种兵' };
+  if (t.t5 && !t5UnlockedForPlayer(state, t.faction)) {
+    return {
+      ok: false,
+      code: 't5-locked',
+      msg: '需加入' + factionLabel(t.faction) + '，或灭其国',
+    };
+  }
+  if (t.renownReq && (!state || !state.player || state.player.renown < t.renownReq)) {
+    return { ok: false, code: 'renown', msg: '声望不足' + t.renownReq + '，招不到' + t.name };
+  }
+  return { ok: true };
+}
+
+function stockCapFor(site, troopId) {
+  const t = TROOPS[troopId];
+  if (t && t.t5) return 2;
+  return (site && site.recruitCap) || 4;
+}
+
+function seedStockFor(site, troopId) {
+  const cap = stockCapFor(site, troopId);
+  let h = 0;
+  const key = String((site && site.id) || '') + ':' + troopId;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) % 9973;
+  return 1 + h % cap;
+}
+
+function effectiveSiteFaction(state, site) {
+  if (!site) return null;
+  const owner = site.ownerFaction;
+  if (owner !== 'player') return owner;
+  const p = state && state.player;
+  if (p && p.faction && p.faction !== 'player' && FACTION_TROOPS[p.faction]) return p.faction;
+  // 自立/无旗玩家：沿用这块地方原本的兵源文化；没有文化才用通用兵。
+  if (site.originFaction && FACTION_TROOPS[site.originFaction]) return site.originFaction;
+  return 'player';
+}
+
+/**
+ * 按当前管辖势力重建据点的兵源牌。
+ * 城、关：T1-T5；村：只出 T1。
+ * 玩家已灭国的 T5 会作为“降卒”额外挂到玩家自己的城下。
+ */
+function syncSiteRecruitList(site, faction, state) {
+  if (!site) return [];
+  let ids = factionTroopIds(faction, site.type);
+  if (site.playerOwned && state && state.player) {
+    const p = state.player;
+    const unlocked = p.t5Unlocked || {};
+    Object.keys(unlocked).forEach(function (f) {
+      const id = factionT5Id(f);
+      if (id && ids.indexOf(id) < 0) ids.push(id);
+    });
+    if (p.faction && p.faction !== 'player') {
+      const ownT5 = factionT5Id(p.faction);
+      if (ownT5 && ids.indexOf(ownT5) < 0) ids.push(ownT5);
+    }
+  }
+  if (site.type === 'village') {
+    ids = ids.filter(function (id) { return TROOPS[id] && Number(TROOPS[id].tier) === 1; });
+  }
+  site.recruitList = ids;
+  site.recruitFaction = faction || null;
+  site.recruits = site.recruits || {};
+  site.lordRecruits = site.lordRecruits || {};
+  ids.forEach(function (id) {
+    if (site.recruits[id] === undefined) site.recruits[id] = seedStockFor(site, id);
+    if (site.lordRecruits[id] === undefined) site.lordRecruits[id] = 1;
+  });
+  return ids;
+}
+
+function isInfantryUnit(id) {
+  const t = TROOPS[id];
+  return !!(t && !t.cav && !t.ranged && !t.naval);
+}
+
+function isNavalUnit(id) {
+  const t = TROOPS[id];
+  return !!(t && t.naval);
+}
+
+/** 旧兵种 → 当前势力对应槽位；只按兵种角色找最接近的一档。 */
+function pickFactionSlot(oldId, slots) {
+  const t = TROOPS[oldId];
+  if (!t || !slots) return null;
+  if (t.faction && slots[t.slot] === oldId) return oldId;
+  const naval = !!t.naval;
+  const cav = !!t.cav;
+  const ranged = !!t.ranged;
+  const tier = Number(t.tier) || 1;
+  if (oldId === 'militia' || tier <= 1) return slots.t1 || slots.t3a || null;
+  if (oldId === 'spear') {
+    if (slots.t2 && isInfantryUnit(slots.t2)) return slots.t2;
+    if (slots.t3a && isInfantryUnit(slots.t3a)) return slots.t3a;
+    return slots.t1 || null;
+  }
+  if (oldId === 'archer') {
+    if (slots.t2 && TROOPS[slots.t2].ranged) return slots.t2;
+    if (slots.t3b) return slots.t3b;
+    if (slots.t3a) return slots.t3a;
+    return slots.t1 || null;
+  }
+  if (oldId === 'crossbow') return slots.t3b || slots.t3a || slots.t1 || null;
+  if (oldId === 'cav') {
+    if (slots.t3a && TROOPS[slots.t3a].cav) return slots.t3a;
+    if (slots.t2 && TROOPS[slots.t2].cav) return slots.t2;
+    if (slots.t4 && TROOPS[slots.t4].cav) return slots.t4;
+    return slots.t1 || null;
+  }
+  if (oldId === 'qishe') {
+    if (slots.t3a && TROOPS[slots.t3a].cav) return slots.t3a;
+    if (slots.t2 && TROOPS[slots.t2].cav) return slots.t2;
+    if (slots.t4 && TROOPS[slots.t4].cav) return slots.t4;
+    return slots.t3b || slots.t1 || null;
+  }
+  if (oldId === 'boat' || oldId === 'huochuan' || naval) {
+    if (slots.t3a && isNavalUnit(slots.t3a)) return slots.t3a;
+    if (slots.t4 && isNavalUnit(slots.t4)) return slots.t4;
+    if (slots.t2 && isNavalUnit(slots.t2)) return slots.t2;
+    return slots.t1 || null;
+  }
+  if (tier >= 4 || oldId === 'jinjun') return slots.t4 || slots.t3a || slots.t1 || null;
+  if (tier === 3) {
+    if (cav && slots.t3a) return slots.t3a;
+    if (ranged && slots.t3b) return slots.t3b;
+    if (!cav && !ranged && slots.t3a) return slots.t3a;
+    return slots.t3b || slots.t3a || slots.t1 || null;
+  }
+  if (tier === 2) {
+    if (cav && slots.t2 && TROOPS[slots.t2].cav) return slots.t2;
+    if (ranged && slots.t3b) return slots.t3b;
+    if (slots.t2) return slots.t2;
+  }
+  return slots.t1 || null;
+}
+
+/**
+ * 把任意旧编制折算成目标势力的兵种编制，总人数不变。
+ * preserveT5：玩家换旗时保留已经到手的 T5，不把它折成 T4。
+ */
+function convertRosterToFaction(roster, faction, opts) {
+  const slots = FACTION_SLOTS[faction];
+  if (!roster || !slots) return JSON.parse(JSON.stringify(roster || {}));
+  const preserveT5 = !!(opts && opts.preserveT5);
+  const out = {};
+  Object.keys(roster).forEach(function (id) {
+    const n = roster[id] || 0;
+    if (n <= 0) return;
+    let target = null;
+    const t = TROOPS[id];
+    if (t && t.t5) {
+      target = preserveT5 ? id : (slots.t4 || slots.t1);
+    } else if (t && t.faction === faction) {
+      target = id;
+    } else {
+      target = pickFactionSlot(id, slots);
+    }
+    if (!target) target = id;
+    out[target] = (out[target] || 0) + n;
+  });
+  return out;
+}
+
+const TROOP_IDS = Object.keys(TROOPS);
+
+/** 可招募的兵（不含匪类） */
+const RECRUITABLE = [
+  'militia', 'spear', 'archer', 'crossbow', 'cav', 'qishe', 'heavy',
+  'guard', 'baier', 'wudang', 'danyang', 'boat', 'huochuan', 'xianbei',
+  'tengri', 'tiefu', 'jinjun',
+].concat(Object.keys(FACTION_TROOPS).reduce(function (list, f) {
+  return list.concat(FACTION_TROOPS[f].units.map(function (u) { return u.id; }));
+}, []));
+
+function troopOf(id) {
+  return TROOPS[id] || null;
+}
+
+module.exports = {
+  TROOPS,
+  TROOP_IDS,
+  RECRUITABLE,
+  troopOf,
+  FACTION_TROOPS,
+  FACTION_SLOTS,
+  FACTION_RECRUIT_SETS,
+  factionTroopIds,
+  factionT5Id,
+  factionLabel,
+  t5FactionOf,
+  t5UnlockedForPlayer,
+  troopAccess,
+  stockCapFor,
+  seedStockFor,
+  effectiveSiteFaction,
+  syncSiteRecruitList,
+  convertRosterToFaction,
+};
+
+
+  };
+
   /* js/core/world.js */
   __defs[8] = function (module, exports, __require) {
 /**
@@ -3367,6 +3940,7 @@ const {
   BANDIT_EXCLUDE_ZONES,
   FACTIONS,
 } = __require(5);
+const { factionTroopIds } = __require(9);
 
 /**
  * 设计稿 40x48 → 实图 64x77。所有静态坐标统一乘这个系数，
@@ -3507,6 +4081,7 @@ function siteFromRow(world, row) {
     type: def.type,
     region: regionAt(world, def.x, def.y),
     faction: def.faction,
+    originFaction: def.faction || null,
     ownerFaction: def.faction,
     x: def.x,
     y: def.y,
@@ -3514,7 +4089,10 @@ function siteFromRow(world, row) {
     priceBase: def.priceBase,
     garrisonBase: def.garrison,
     garrison: def.garrison,
-    recruitList: (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice(),
+    recruitFaction: def.faction || null,
+    recruitList: (factionTroopIds(def.faction, def.type).length
+      ? factionTroopIds(def.faction, def.type)
+      : (RECRUIT_SETS[def.troopSet] || RECRUIT_SETS.none).slice()),
     recruitCap: def.type === 'town' ? 18 : def.type === 'castle' ? 12 : def.type === 'village' ? 5 : 0,
     recruits: {},
     priceIndex: 1,
@@ -4115,128 +4693,13 @@ module.exports = {
 
   };
 
-  /* js/data/troops.js */
-  __defs[10] = function (module, exports, __require) {
-/**
- * 兵种表（三国）
- * atk/def/hp 用于战斗模拟；food 为每人每日口粮；tier 决定伤亡顺序（低阶先倒）。
- * 特殊标记：
- *   cav 骑兵 / ranged 远程 / spear 长矛（克骑）
- *   pierce 破甲（弩） / fire 火攻 / lock 士气锁死（不溃） / hill 山地不减速
- */
-
-const TROOPS = {
-  militia: {
-    id: 'militia', name: '民兵', tier: 1, atk: 6, def: 6, hp: 24, food: 1, recruit: 12,
-    desc: '临时征来的农人，给根木棍就上阵。便宜，也容易死。',
-  },
-  spear: {
-    id: 'spear', name: '枪盾兵', tier: 2, atk: 9, def: 11, hp: 26, food: 1, recruit: 30, spear: true,
-    desc: '结阵顶住骑兵的中坚。长矛如林，马不敢冲。',
-  },
-  archer: {
-    id: 'archer', name: '弓手', tier: 2, atk: 12, def: 5, hp: 20, food: 1, recruit: 34, ranged: true,
-    desc: '开战先射三轮。近战很脆，别让人贴脸。',
-  },
-  crossbow: {
-    id: 'crossbow', name: '弩手', tier: 3, atk: 14, def: 4, hp: 20, food: 1, recruit: 46, ranged: true, pierce: true,
-    desc: '上弦慢，但能破甲。对付重骑与亲卫特别好用。',
-  },
-  cav: {
-    id: 'cav', name: '轻骑', tier: 3, atk: 15, def: 8, hp: 30, food: 3, recruit: 64, cav: true,
-    desc: '冲锋与包抄的核心。人吃马嚼，口粮三倍。',
-  },
-  qishe: {
-    id: 'qishe', name: '骑射', tier: 3, atk: 13, def: 7, hp: 28, food: 3, recruit: 70, cav: true, ranged: true,
-    desc: '边地打法：不贴身，绕着射。打不死你，也追不上他。',
-  },
-  heavy: {
-    id: 'heavy', name: '重骑', tier: 4, atk: 18, def: 13, hp: 36, food: 3, recruit: 118, cav: true,
-    desc: '人马皆披甲。正面撞阵，步兵阵线会裂。',
-  },
-  guard: {
-    id: 'guard', name: '亲卫', tier: 4, atk: 17, def: 15, hp: 38, food: 1, recruit: 128, renownReq: 100,
-    desc: '主公身边的死士。需声望 100 才招得到。',
-  },
-  baier: {
-    id: 'baier', name: '白毦兵', tier: 4, atk: 16, def: 14, hp: 40, food: 1, recruit: 136, renownReq: 150, lock: true,
-    desc: '白毦为饰，士气锁死，不溃不散。刘备手下最后一张牌。',
-  },
-  wudang: {
-    id: 'wudang', name: '无当飞军', tier: 4, atk: 15, def: 12, hp: 34, food: 1, recruit: 132, renownReq: 150, hill: true, ranged: true,
-    desc: '南中劲卒，山地如平地。翻山越岭不减速。',
-  },
-  danyang: {
-    id: 'danyang', name: '丹阳兵', tier: 4, atk: 16, def: 13, hp: 36, food: 1, recruit: 142, renownReq: 160,
-    desc: '天下精兵出丹阳。江东的底子，靠他们撑。',
-  },
-  boat: {
-    id: 'boat', name: '轻舟兵', tier: 2, atk: 10, def: 8, hp: 24, food: 2, recruit: 54,
-    desc: '水上的兵。上岸打不如在水上打。',
-  },
-  huochuan: {
-    id: 'huochuan', name: '火船手', tier: 3, atk: 13, def: 8, hp: 26, food: 2, recruit: 86, fire: true, renownReq: 120,
-    desc: '驾火船冲阵，点火不伤己。赤壁那一夜就是他们。',
-  },
-  xianbei: {
-    id: 'xianbei', name: '鲜卑游骑', tier: 3, atk: 16, def: 7, hp: 28, food: 3, recruit: 76, cav: true, ranged: true,
-    desc: '塞外的骑射手。来去如风，抢完就走。',
-  },
-  tengri: {
-    id: 'tengri', name: '腾格里卫', tier: 4, atk: 19, def: 12, hp: 34, food: 3, recruit: 168, cav: true, renownReq: 200,
-    desc: '鲜卑单于的亲骑。马力最盛，冲阵最狠。',
-  },
-  tiefu: {
-    id: 'tiefu', name: '西凉重步', tier: 4, atk: 20, def: 14, hp: 36, food: 3, recruit: 176, cav: false, renownReq: 180,
-    desc: '凉州重甲步卒，持长刀大盾。走得慢，正面极硬。',
-  },
-  jinjun: {
-    id: 'jinjun', name: '禁军', tier: 5, atk: 22, def: 18, hp: 44, food: 2, recruit: 240, renownReq: 300,
-    desc: '汉家禁军，最后一支还听诏书的兵。',
-  },
-  huangjin: {
-    id: 'huangjin', name: '黄巾', tier: 1, atk: 7, def: 5, hp: 22, food: 1, recruit: 0,
-    desc: '头裹黄巾的流民军。人多，甲少。',
-  },
-  bandit: {
-    id: 'bandit', name: '山贼', tier: 1, atk: 8, def: 6, hp: 24, food: 1, recruit: 0,
-    desc: '山里的散兵。人少打不过，人多很麻烦。',
-  },
-  raider: {
-    id: 'raider', name: '贼首', tier: 3, atk: 13, def: 10, hp: 32, food: 1, recruit: 0,
-    desc: '寨里的头目，身上有抢来的好甲。',
-  },
-  raider_cav: {
-    id: 'raider_cav', name: '马贼', tier: 3, atk: 14, def: 8, hp: 28, food: 1, recruit: 0, cav: true,
-    desc: '骑马的匪。跑得比追兵快。',
-  },
-};
-
-const TROOP_IDS = Object.keys(TROOPS);
-
-/** 可招募的兵（不含匪类） */
-const RECRUITABLE = [
-  'militia', 'spear', 'archer', 'crossbow', 'cav', 'qishe', 'heavy',
-  'guard', 'baier', 'wudang', 'danyang', 'boat', 'huochuan', 'xianbei',
-  'tengri', 'tiefu', 'jinjun',
-];
-
-function troopOf(id) {
-  return TROOPS[id] || null;
-}
-
-module.exports = { TROOPS, TROOP_IDS, RECRUITABLE, troopOf };
-
-
-  };
-
   /* js/core/army.js */
-  __defs[9] = function (module, exports, __require) {
+  __defs[10] = function (module, exports, __require) {
 /**
  * 队伍层：兵力统计、口粮、战力估算、伤亡分配
  */
 
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 
 function troopCount(troops) {
   let n = 0;
@@ -5021,10 +5484,11 @@ module.exports = {
  * 经济层：市场粮价、招募、装备升级、每日据点刷新
  */
 
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
+const { troopAccess, stockCapFor } = __require(9);
 const { VILLAGE_FOOD } = __require(12);
 const { EQUIPMENT } = __require(5);
-const { troopCount, troopCapacity, foodCap } = __require(9);
+const { troopCount, troopCapacity, foodCap } = __require(10);
 
 const FOOD_BASE = 5; // 基准粮价（金币 / 单位）
 
@@ -5059,12 +5523,16 @@ function recruitPrice(site, troopId) {
 function canRecruit(state, site, troopId) {
   const t = TROOPS[troopId];
   if (!t) return { ok: false, msg: '没有这种兵' };
-  if (site.faction === 'bandit') return { ok: false, msg: '匪巢不卖人' };
+  if (site.faction === 'bandit' || site.ownerFaction === 'bandit') {
+    return { ok: false, msg: '匪巢不卖人' };
+  }
+  if ((site.recruitList || []).indexOf(troopId) < 0) {
+    return { ok: false, msg: '这里不招这种兵' };
+  }
+  const gate = troopAccess(state, site, troopId);
+  if (!gate.ok) return gate;
   const pool = site.recruits[troopId] || 0;
   if (pool <= 0) return { ok: false, msg: '这一批已经招完了，等几天再来' };
-  if (t.renownReq && state.player.renown < t.renownReq) {
-    return { ok: false, msg: '声望不足' + t.renownReq + '，招不到' + t.name };
-  }
   return { ok: true };
 }
 
@@ -5189,14 +5657,15 @@ function dailyMarket(state, rng) {
     // 村庄壮丁是有限的一池人：招空就没了，不按天自动回填；城镇/关隘才持续募兵
     if (site.type !== 'village') {
       Object.keys(site.recruits).forEach(function (id) {
-        if (site.recruits[id] < (site.recruitCap || 0)) {
-          site.recruits[id] += rng.int(1, 3);
+        const cap = stockCapFor(site, id);
+        if (site.recruits[id] < cap) {
+          site.recruits[id] = Math.min(cap, site.recruits[id] + rng.int(1, 3));
         }
       });
-      // 补满招募池上限：募兵木牌天天有人来
+      // 补满招募池上限：募兵木牌天天有人来；T5 单城只压 2 人。
       (site.recruitList || []).forEach(function (id) {
-        if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
-        const cap = site.recruitCap || 4;
+        const cap = stockCapFor(site, id);
+        if (!site.recruits[id]) site.recruits[id] = rng.int(1, Math.min(3, cap));
         if (site.recruits[id] > cap) site.recruits[id] = cap;
       });
     }
@@ -5218,8 +5687,9 @@ function dailyMarket(state, rng) {
       const lcap = LORD_RECRUIT_CAP[site.type] || 0;
       // 领主兵源每日回填；比旧版三日一回、一次一人快得多。
       (site.recruitList || []).forEach(function (id) {
+        const cap = Math.min(lcap, stockCapFor(site, id));
         const have = site.lordRecruits[id] || 0;
-        if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + LORD_RECRUIT_REFILL);
+        if (have < cap) site.lordRecruits[id] = Math.min(cap, have + LORD_RECRUIT_REFILL);
       });
     }
 
@@ -5914,10 +6384,10 @@ module.exports = {
  * 天机简可改一次规则（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）。
  */
 
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 const { HISTORY_MARKS } = __require(5);
 const { forceCombatMul } = __require(17);
-const { troopCount, strength, distributeLosses } = __require(9);
+const { troopCount, strength, distributeLosses } = __require(10);
 
 const TACTICS = {
   assault: {
@@ -6583,8 +7053,9 @@ module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFa
  */
 
 const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES, FREE_CITY_IDS } = __require(5);
-const { TROOPS } = __require(10);
-const army = __require(9);
+const { TROOPS } = __require(9);
+const { syncSiteRecruitList, FACTION_SLOTS } = __require(9);
+const army = __require(10);
 const { Battle } = __require(16);
 
 const ESCAPE_BASE = 0.008;   // 第一天：0.8% + 1.4% ≈ 2.2%
@@ -9144,6 +9615,19 @@ function bindCaptureHook(fn) {
 }
 
 function notifyCapture(state, site, oldFaction, byFaction) {
+  // 最后一座城是谁打下的：写进势力状态，亡国时据此判断 T5 是否对玩家永久解锁。
+  // 不能只依赖剧情钩子，沙盘模式没有剧情对象时也要记。
+  if (oldFaction && byFaction && oldFaction !== byFaction && state && state.factionState) {
+    const left = (state.world.sites || []).some(function (s) {
+      return s.type !== 'camp' && s.ownerFaction === oldFaction;
+    });
+    if (!left) {
+      const fs = state.factionState[oldFaction] || (state.factionState[oldFaction] = {});
+      fs.lastConqueror = byFaction;
+      fs.lastCityId = site.id;
+      fs.lastLossDay = state.clock ? state.clock.day : 0;
+    }
+  }
   if (captureHook) captureHook(state, site, oldFaction, byFaction);
 }
 
@@ -9263,6 +9747,7 @@ function resolveSiege(state, cp, day) {
     site.garrisonBase = site.garrison;
     site.color = FACTIONS[cp.faction] ? FACTIONS[cp.faction].color : site.color;
     site.banner = FACTIONS[cp.faction] ? FACTIONS[cp.faction].banner : site.banner;
+    syncSiteRecruitList(site, cp.faction, state);
     onSiteTaken(state, site, oldOwner);
     state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
     cp.stage = 'hold';
@@ -9322,11 +9807,24 @@ function resolveSiege(state, cp, day) {
 function siegeGarrisonTroops(site) {
   const total = Math.max(0, Math.round(site && site.garrison || 0));
   if (total <= 0) return {};
+  const slots = FACTION_SLOTS[site.ownerFaction];
+  if (slots) {
+    const weights = { t1: 0.35, t2: 0.3, t3a: 0.2, t3b: 0.1, t4: 0.05 };
+    let sum = 0;
+    Object.keys(weights).forEach(function (slot) { if (slots[slot]) sum += weights[slot]; });
+    const out = {};
+    Object.keys(weights).forEach(function (slot) {
+      if (!slots[slot] || sum <= 0) return;
+      const n = Math.round(total * (weights[slot] / sum));
+      if (n > 0) out[slots[slot]] = n;
+    });
+    let got = 0;
+    Object.keys(out).forEach(function (id) { got += out[id]; });
+    if (got < total && slots.t1) out[slots.t1] = (out[slots.t1] || 0) + (total - got);
+    return out;
+  }
   let mix = { militia: 0.4, spear: 0.35, archer: 0.15, cav: 0.1 };
   if (site.ownerFaction === 'bandit') mix = { bandit: 0.55, raider: 0.3, raider_cav: 0.15 };
-  else if (site.ownerFaction === 'wei') mix = { militia: 0.35, spear: 0.35, crossbow: 0.2, guard: 0.1 };
-  else if (site.ownerFaction === 'shu') mix = { militia: 0.35, spear: 0.3, archer: 0.25, baier: 0.1 };
-  else if (site.ownerFaction === 'wu') mix = { militia: 0.35, archer: 0.35, boat: 0.2, huochuan: 0.1 };
   const out = {};
   Object.keys(mix).forEach(function (id) {
     const n = Math.round(total * mix[id]);
@@ -9602,6 +10100,7 @@ function captureSiegeSite(state, cp, site, day, battle) {
   site.siegeStatus = null;
   site.siegeFaction = null;
   site.siegeSinceH = null;
+  syncSiteRecruitList(site, cp.faction, state);
   onSiteTaken(state, site, oldOwner);
   notifyCapture(state, site, oldOwner, cp.faction);
   state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
@@ -10645,8 +11144,9 @@ const { STORY } = __require(19);
 const { FACTIONS, ROADS, FACTION_COMBAT } = __require(5);
 const { LORD_POWER_BY_ID } = __require(17);
 const { siteById } = __require(8);
-const army = __require(9);
+const army = __require(10);
 const war = __require(15);
+const { syncSiteRecruitList } = __require(9);
 
 let logFn = function () {};
 
@@ -11714,6 +12214,7 @@ function setStorySiteOwner(state, site, faction) {
   const base = Number(site.garrisonBase) || Number(site.garrison) || 40;
   site.garrison = Math.max(28, Math.round(base * 0.45));
   site.garrisonBase = site.garrison;
+  syncSiteRecruitList(site, faction, state);
   recordCapture(state, site, old, faction);
   return old;
 }
@@ -12371,6 +12872,7 @@ function forceEndgameUnification(state) {
     s.ownerFaction = winner;
     s.faction = winner;
     s.playerOwned = false;
+    syncSiteRecruitList(s, winner, state);
   });
   eg.forced = true;
   eg.forcedWinner = winner;
@@ -12576,9 +13078,9 @@ module.exports = {
  *  - 叛军未起时，镇民只认熟人，玩家进门就被赶出去。
  */
 
-const army = __require(9);
+const army = __require(10);
 const { siteById } = __require(8);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 
 const EDGE_ID = 'edge_town';
 const GOLD_MONTH = 1000;
@@ -13144,7 +13646,7 @@ const {
   regionAt,
   inBanditExclusion,
 } = __require(8);
-const army = __require(9);
+const army = __require(10);
 const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
@@ -13157,7 +13659,21 @@ const {
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
   CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS, FACTION_ROSTER_MUL,
 } = __require(5);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
+const {
+  FACTION_TROOPS,
+  FACTION_RECRUIT_SETS,
+  FACTION_SLOTS,
+  factionTroopIds,
+  factionT5Id,
+  factionLabel,
+  t5UnlockedForPlayer,
+  troopAccess,
+  stockCapFor,
+  effectiveSiteFaction,
+  syncSiteRecruitList,
+  convertRosterToFaction,
+} = __require(9);
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
@@ -13282,6 +13798,20 @@ function syncPlayerFaction(country) {
   }
 }
 
+/** 按“谁在管这块地”重铺兵源：玩家城看玩家所属/本地文化，NPC 城看当前旗。 */
+function refreshSiteRosters(state, playerOnly, force) {
+  if (!state || !state.world) return;
+  state.world.sites.forEach(function (site) {
+    if (playerOnly && !site.playerOwned) return;
+    const f = effectiveSiteFaction(state, site);
+    // 同一面旗下不重复重建，避免每日刷新把玩家/测试刚改过的兵源牌冲掉。
+    // 灭国解锁 T5 这类“同旗但要加新兵源”的场景，调用方显式传 force。
+    if (!force && site.recruitFaction === (f || null) &&
+        Array.isArray(site.recruitList) && site.recruitList.length) return;
+    syncSiteRecruitList(site, f, state);
+  });
+}
+
 /** 把国号/旗色铺到所有已占领城与麾下领主：地图、城头、旗块都跟着换 */
 function applyPlayerCountry(state) {
   const p = state && state.player;
@@ -13295,6 +13825,7 @@ function applyPlayerCountry(state) {
     site.faction = 'player';
     site.color = p.country.color;
     site.banner = p.country.name;
+    syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
   });
   // 玩家封出去的家臣，不论当年挂的是谁的旗，自立后都改挂你的国号
   state.lords.forEach(function (lord) {
@@ -13405,7 +13936,7 @@ function createGame(opts) {
     for (let i = 0; i < site.id.length; i++) h = (h * 31 + site.id.charCodeAt(i)) % 9973;
     site.recruits = {};
     (site.recruitList || []).forEach(function (id) {
-      site.recruits[id] = rng.int(1, site.recruitCap || 4);
+      site.recruits[id] = rng.int(1, stockCapFor(site, id));
     });
     // 村市口粮是“村里现有的那点东西”，不是无限货架：每样最多 1-5 份。
     // 用稳定散列，不额外消耗世界随机数，保证同一种子的开局与旧版一致。
@@ -13421,7 +13952,8 @@ function createGame(opts) {
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
       const lcap = economy.LORD_RECRUIT_CAP[site.type] || 0;
       (site.recruitList || []).forEach(function (id, i) {
-        site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
+        const cap = stockCapFor(site, id);
+        site.lordRecruits[id] = Math.min(cap, (h + i * 7) % (lcap + 1));
       });
     }
   });
@@ -13440,6 +13972,8 @@ function createGame(opts) {
     morale: 58,
     renown: 0,
     faction: null,
+    // n59：亲手灭掉的魏蜀吴，T5 会记在这里；加入该国时则直接看 faction。
+    t5Unlocked: {},
     // 自立后的国号与旗色：打下第一座城才会立，固定一字
     country: null,
     banner: false,
@@ -13800,14 +14334,14 @@ function lordFromDef(state, def) {
     level: lordLevelForRank(LORD_RANK[def.id] || 'general'),
     x: spot.x,
     y: spot.y,
-    troops: deepCopy(def.soldiers),
+    troops: convertRosterToFaction(deepCopy(def.soldiers), def.faction),
     morale: def.morale,
     baseMorale: def.morale,
     sight: def.sight,
     chasing: false,
     alive: true,
     respawnDay: 0,
-    defTroops: deepCopy(def.soldiers),
+    defTroops: convertRosterToFaction(deepCopy(def.soldiers), def.faction),
     strategistOnly: !!def.strategistOnly,
     wander: null,
     dead: false,
@@ -13916,6 +14450,7 @@ function spawnLords(state) {
   applyLordRoles(state);
   applyLordTier4Rule(state);
   applyLordPowerRoster(state);
+  applyLordT5Rule(state);
   applyFactionRosterCap(state);
   if (state.flags) {
     state.flags.lordTier4V1 = true;
@@ -14773,6 +15308,7 @@ function resolveMaSurrender(state) {
     s.banner = fac.banner;
     s.lordId = null;
     s.selfFief = false;
+    syncSiteRecruitList(s, 'hansui', state);
   });
   const yielded = sites.filter(function (s) { return s !== keep; })
     .map(function (s) { return s.name; }).join('、');
@@ -14783,6 +15319,8 @@ function resolveMaSurrender(state) {
 
 function dailyTick(state) {
   state.stats.days += 1;
+  // 剧情/国战换旗后每天校正一次兵源牌，防止旧旗的招募池留在城头。
+  refreshSiteRosters(state, false);
   const p = state.player;
   const hb = heroes.heroBonus(state);
   // 口粮两天结算一次：一天一扣太狠，粮草根本养不起队伍
@@ -15684,7 +16222,14 @@ function refillLord(lord, n) {
 function recruitLordFromSite(state, lord, site, quota) {
   if (!lord || !site || !lord.defTroops) return 0;
   const pool = site.lordRecruits || {};
-  const list = site.recruitList || [];
+  // 客将在友军城里休整时，城里挂的是友军兵源牌；领主仍按本国编制补兵，
+  // 不能因为“城里没有我国兵”就永远补不满。玩家招募不受影响。
+  const list = (site.recruitList || []).slice();
+  factionTroopIds(lord.faction).forEach(function (id) {
+    if (list.indexOf(id) < 0) list.push(id);
+    // 客城没有本国兵源库存时，至少给 1 个名额，别让客将永远补不满。
+    if (!pool[id] && (lord.defTroops[id] || 0) > (lord.troops[id] || 0)) pool[id] = 1;
+  });
   let left = Math.max(0, Math.round(quota));
   const cap = lordTroopCap(lord);
   left = Math.min(left, Math.max(0, cap - army.troopCount(lord.troops || {})));
@@ -17853,27 +18398,42 @@ function startLordBattle(state, lord) {
 function garrisonTroops(site) {
   const total = Math.max(8, site.garrison);
   const f = site.ownerFaction;
-  const set = {
-    wei: { militia: 0.35, spear: 0.35, crossbow: 0.2, guard: 0.1 },
-    shu: { militia: 0.35, spear: 0.3, archer: 0.25, baier: 0.1 },
-    wu: { militia: 0.35, archer: 0.35, boat: 0.2, huochuan: 0.1 },
-    yuan: { militia: 0.4, spear: 0.35, cav: 0.2, heavy: 0.05 },
-    lv: { militia: 0.3, spear: 0.4, cav: 0.25, tiefu: 0.05 },
-    biao: { militia: 0.4, spear: 0.35, archer: 0.2, cav: 0.05 },
-    zhang: { militia: 0.4, spear: 0.3, archer: 0.25, wudang: 0.05 },
-    xianbei: { militia: 0.2, qishe: 0.4, xianbei: 0.3, tengri: 0.1 },
-    ma: { militia: 0.25, spear: 0.35, qishe: 0.25, tiefu: 0.15 },
-    han: { militia: 0.35, spear: 0.35, crossbow: 0.2, jinjun: 0.1 },
-    bandit: { bandit: 0.6, raider: 0.3, raider_cav: 0.1 },
-  };
   if (f === 'bandit') {
+    let mix = { bandit: 0.55, raider: 0.35, raider_cav: 0.1 };
     const tier = BANDIT_TIERS[site.banditTier];
     const rank = tier ? tier.rank : 1;
-    if (rank >= 4) set.bandit = { bandit: 0.35, raider: 0.35, raider_cav: 0.3 };
-    else if (rank >= 3) set.bandit = { bandit: 0.45, raider: 0.35, raider_cav: 0.2 };
-    else if (rank >= 2) set.bandit = { bandit: 0.55, raider: 0.35, raider_cav: 0.1 };
+    if (rank >= 4) mix = { bandit: 0.35, raider: 0.35, raider_cav: 0.3 };
+    else if (rank >= 3) mix = { bandit: 0.45, raider: 0.35, raider_cav: 0.2 };
+    const troops = {};
+    Object.keys(mix).forEach(function (id) {
+      const n = Math.round(total * mix[id]);
+      if (n > 0) troops[id] = n;
+    });
+    return troops;
   }
-  const map = set[f] || { militia: 0.4, spear: 0.3, archer: 0.2, cav: 0.1 };
+  const slots = FACTION_SLOTS[f];
+  if (slots) {
+    // 各国守军按同一套编制比例：T1 35%、T2 30%、T3 25%、T4 10%。
+    // 没有某一档（例如刘表没有 T3 步战档）就把权重均摊给现有档位。
+    const weights = { t1: 0.35, t2: 0.3, t3a: 0.2, t3b: 0.1, t4: 0.05 };
+    let sum = 0;
+    Object.keys(weights).forEach(function (slot) { if (slots[slot]) sum += weights[slot]; });
+    const troops = {};
+    Object.keys(weights).forEach(function (slot) {
+      if (!slots[slot] || sum <= 0) return;
+      const n = Math.round(total * (weights[slot] / sum));
+      if (n > 0) troops[slots[slot]] = n;
+    });
+    // 四舍五入可能少一两个人，补到 T1，避免守军总数比 garrison 少太多。
+    let got = 0;
+    Object.keys(troops).forEach(function (id) { got += troops[id]; });
+    if (got < total && slots.t1) troops[slots.t1] = (troops[slots.t1] || 0) + (total - got);
+    return troops;
+  }
+  // 无旗、玩家自立、叛军等没有本国兵种表：沿用旧的通用守军。
+  const map = f === 'player'
+    ? { militia: 0.35, spear: 0.3, archer: 0.2, cav: 0.15 }
+    : { militia: 0.4, spear: 0.3, archer: 0.2, cav: 0.1 };
   const troops = {};
   Object.keys(map).forEach(function (id) {
     const n = Math.round(total * map[id]);
@@ -18427,6 +18987,7 @@ function takeSite(state, site) {
     war.onSiteTaken(state, site, oldFaction);
     war.notifyCapture(state, site, oldFaction, 'player');
     applyPlayerCountry(state);
+    syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
     pushLog(state, '你拿下了' + site.name + '。从今天起，这里归你。');
     checkVictory(state);
     advanceCampaign(state);
@@ -18623,6 +19184,7 @@ function joinFaction(state, site) {
     return { ok: false, msg: '声望不足 ' + req + '，' + site.name + '的守将不见你' };
   }
   p.faction = f;
+  p.troops = convertRosterToFaction(p.troops || {}, f, { preserveT5: true });
   state.flags.sworn = true;
   changeRelation(state, f, 80);
   Object.keys(state.relations).forEach(function (id) {
@@ -18630,6 +19192,7 @@ function joinFaction(state, site) {
     changeRelation(state, id, -18);
   });
   p.morale = Math.min(100, p.morale + 12);
+  refreshSiteRosters(state, true);
   pushLog(state, '你在' + site.name + '接下' + FACTIONS[f].name + '的印绶。从此你的敌人，也是别人的敌人。');
   return { ok: true, msg: '你现在是' + FACTIONS[f].full + '的人了' };
 }
@@ -18965,15 +19528,20 @@ function lordRecruitMul(lord) {
 
 /** 各势力四阶兵的“门面兵种”：名将榜领主与君主至少带一队。 */
 const LORD_T4_BY_FACTION = {
-  wei: 'guard', shu: 'baier', wu: 'danyang', yuan: 'heavy',
-  lv: 'tiefu', ma: 'tiefu', xianbei: 'tengri',
-  zhang: 'guard', zhanglu: 'guard', nanman: 'guard', shanyue: 'danyang',
-  yuanshu: 'guard', biao: 'guard', gongsun: 'guard', hansui: 'guard', han: 'guard',
+  wei: 'wei_t4', shu: 'shu_t4', wu: 'wu_t4', yuan: 'yuan_t4',
+  lv: 'lv_t4', ma: 'ma_t4', xianbei: 'xianbei_t4',
+  zhang: 'zhang_t4', zhanglu: 'zhanglu_t4', nanman: 'nanman_t4',
+  shanyue: 'shanyue_t4', yuanshu: 'yuanshu_t4', biao: 'biao_t4',
+  gongsun: 'gongsun_t4', hansui: 'hansui_t4', han: 'han_t4',
+  player: 'guard', rebel: 'guard',
 };
 const LORD_T4_FALLBACK = 'guard';
 const LORD_T4_RATIO = 0.05;
 const LORD_T4_MIN = 4;
 const LORD_T4_MAX = 8;
+const LORD_T5_RATIO = 0.02;
+const LORD_T5_MIN = 1;
+const LORD_T5_MAX = 6;
 
 function lordTier4Unit(faction) {
   return LORD_T4_BY_FACTION[faction] || LORD_T4_FALLBACK;
@@ -19062,6 +19630,136 @@ function applyLordTier4Rule(state) {
     if (!lord || lord.dead) return;
     normalizeLordTier4(lord);
   });
+}
+
+/* ------------------------------------------------------------ T5 超级兵 */
+
+/** 只有魏蜀吴有 T5；君主与武力榜前 20 的将领才配带。 */
+function lordT5Unit(faction) {
+  return factionT5Id(faction);
+}
+
+function lordKeepsT5(state, lord) {
+  if (!lord || !lord.faction) return false;
+  if (!lordT5Unit(lord.faction)) return false;
+  if (lordIsRuler(state, lord)) return true;
+  const rank = Number(lord.generalRank);
+  return rank > 0 && rank <= 20;
+}
+
+function stripT5(roster) {
+  if (!roster) return 0;
+  let count = 0;
+  Object.keys(roster).forEach(function (id) {
+    const t = TROOPS[id];
+    if (t && t.t5) {
+      count += roster[id] || 0;
+      delete roster[id];
+    }
+  });
+  return count;
+}
+
+/** 不够格的 T5 不凭空蒸发，折回本国 T4，保证总兵力不变。 */
+function foldT5IntoT4(roster, faction, count) {
+  if (!roster || count <= 0) return;
+  const t4 = lordTier4Unit(faction);
+  if (!t4 || !TROOPS[t4]) return;
+  roster[t4] = (roster[t4] || 0) + count;
+}
+
+function injectT5(roster, unit) {
+  if (!roster || !unit) return false;
+  if (Object.keys(roster).some(function (id) { return id === unit; })) return false;
+  const total = army.troopCount(roster);
+  if (total <= 0) return false;
+  const add = Math.max(LORD_T5_MIN, Math.min(LORD_T5_MAX, Math.round(total * LORD_T5_RATIO)));
+  let donor = null;
+  Object.keys(roster).forEach(function (id) {
+    const t = TROOPS[id];
+    if (t && (t.t5 || Number(t.tier) >= 4)) return;
+    if (!donor || (roster[id] || 0) > (roster[donor] || 0)) donor = id;
+  });
+  let put = add;
+  if (donor) {
+    const take = Math.min(put, Math.max(0, (roster[donor] || 0) - 1));
+    roster[donor] -= take;
+    if (roster[donor] <= 0) delete roster[donor];
+    put = take;
+  }
+  if (put > 0) roster[unit] = (roster[unit] || 0) + put;
+  return put > 0;
+}
+
+/** 单个领主的 T5 归一：T5 只留在魏蜀吴的君主/武力榜前 20 手里。 */
+function normalizeLordT5(state, lord) {
+  if (!lord || !lord.faction) return;
+  const unit = lordT5Unit(lord.faction);
+  const keep = lordKeepsT5(state, lord);
+  [lord.defTroops, lord.troops].forEach(function (roster) {
+    if (!roster) return;
+    const count = stripT5(roster);
+    if (count > 0) {
+      if (keep && unit) {
+        const keepCount = Math.min(LORD_T5_MAX, count);
+        roster[unit] = (roster[unit] || 0) + keepCount;
+        foldT5IntoT4(roster, lord.faction, count - keepCount);
+      } else {
+        foldT5IntoT4(roster, lord.faction, count);
+      }
+    }
+    if (keep && unit) injectT5(roster, unit);
+  });
+}
+
+function applyLordT5Rule(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.dead) return;
+    normalizeLordT5(state, lord);
+  });
+}
+
+/**
+ * 读旧档 / 换旗后把领主编制换成当前国家兵种。
+ * 已在目标国编制内的兵原样保留；异国兵按角色折成同档。
+ */
+function migrateLordFactionTroops(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.faction) return;
+    if (lord.defTroops) {
+      lord.defTroops = convertRosterToFaction(lord.defTroops, lord.faction);
+    }
+    if (lord.troops) {
+      lord.troops = convertRosterToFaction(lord.troops, lord.faction, { preserveT5: true });
+    }
+  });
+}
+
+/** 读档/开局统一入口：旧档先折兵种，再按身份校正 T5。 */
+function migrateFactionTroops(state) {
+  if (!state) return;
+  migrateLordFactionTroops(state);
+  const p = state.player;
+  if (p && p.faction && p.faction !== 'player' && FACTION_TROOPS[p.faction]) {
+    p.troops = convertRosterToFaction(p.troops || {}, p.faction, { preserveT5: true });
+  }
+  applyLordT5Rule(state);
+  if (!state.player) return;
+  state.player.t5Unlocked = state.player.t5Unlocked || {};
+  // 旧档里已经亡国的魏蜀吴，如果最后一座城是玩家打下的，补记 T5 解锁。
+  Object.keys(state.factionState || {}).forEach(function (id) {
+    const fs = state.factionState[id];
+    if (fs && fs.dead && fs.lastConqueror === 'player') state.player.t5Unlocked[id] = true;
+  });
+  // 旧档据点没有 originFaction：先补文化来源，再按当前管辖势力重铺兵源。
+  if (state.world && Array.isArray(state.world.sites)) {
+    state.world.sites.forEach(function (site) {
+      if (!site.originFaction) site.originFaction = site.faction || site.ownerFaction || null;
+      syncSiteRecruitList(site, effectiveSiteFaction(state, site), state);
+    });
+  }
 }
 
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
@@ -19479,7 +20177,8 @@ function promoteHero(state, heroId, siteId) {
   }
 
   // 目标编制按等级走，封地封多大就带多少；刚出镇只带一半，之后在封地补满
-  const full = lordRosterForLevel(lv, lordCapForLevel(lv));
+  const lordFaction = p.faction && FACTIONS[p.faction] ? p.faction : 'player';
+  const full = convertRosterToFaction(lordRosterForLevel(lv, lordCapForLevel(lv)), lordFaction);
   const troops = {};
   Object.keys(full).forEach(function (tid) {
     const n = Math.max(0, Math.round(full[tid] * 0.55));
@@ -19489,7 +20188,7 @@ function promoteHero(state, heroId, siteId) {
     id: id,
     name: heroName,
     title: '你的家臣',
-    faction: p.faction && FACTIONS[p.faction] ? p.faction : 'player',
+    faction: lordFaction,
     home: site.id,
     level: lv,
     x: site.x,
@@ -19927,8 +20626,12 @@ function moveLordToFaction(state, lord, target) {
     ? takeSomeTroops(lord.troops, left)
     : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
+  // 换旗后整套编制换成本国兵：旧国骑兵/弩兵按角色折成新国同档。
+  lord.defTroops = convertRosterToFaction(lord.defTroops || {}, target);
+  lord.troops = convertRosterToFaction(lord.troops || {}, target, { preserveT5: true });
   // 换旗后四阶精锐也要换门面：张辽、张郃归魏后带亲卫，榜外降将不再保留旧国精锐。
   normalizeLordTier4(lord);
+  normalizeLordT5(state, lord);
 }
 
 /** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
@@ -19972,6 +20675,12 @@ function fallFaction(state, id, opts) {
     return l.faction === id && l.alive && l !== ruler && !l.factionStateFixed;
   });
   const conqueror = fs.lastConqueror;
+  // 玩家亲手打掉最后一城：永久解锁该国 T5；此后自己的城可以招这国降卒。
+  if (conqueror === 'player') {
+    state.player.t5Unlocked = state.player.t5Unlocked || {};
+    state.player.t5Unlocked[id] = true;
+    fs.t5ConqueredByPlayer = true;
+  }
   const conquerorAlive = !!(conqueror && (conqueror === 'player'
     ? state.player.faction === 'player' && state.world.sites.some(function (s) { return s.playerOwned; })
     : factionAlive(state, conqueror)));
@@ -20027,6 +20736,8 @@ function fallFaction(state, id, opts) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  // 灭国解锁 T5 后要强制重铺玩家城兵源，不能因为“旗没变”被跳过。
+  refreshSiteRosters(state, true, true);
   war.dropFactionWars(state, id);
   if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
@@ -20473,6 +21184,7 @@ function startUnification(state) {
   edge.garrison = Math.max(24, edge.garrison || 24);
   edge.banner = p.country && p.country.name ? p.country.name : '旗';
   edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
+  refreshSiteRosters(state, false);
   state.world.factionGrid = null;
 
   state.noPeaceForever = state.noPeaceForever || {};
@@ -21019,6 +21731,7 @@ function deserialize(json) {
     oldShouchun.faction = 'yuanshu';
     oldShouchun.banner = FACTIONS.yuanshu.banner;
     oldShouchun.color = FACTIONS.yuanshu.color;
+    syncSiteRecruitList(oldShouchun, 'yuanshu', state);
   }
 
   // n41：汉中北面的武都、上洛改为自由城。只迁移一次，避免刘璋日后
@@ -21060,9 +21773,7 @@ function deserialize(json) {
     site.faction = move.to;
     site.banner = faction.banner;
     site.color = faction.color;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
 
   // n43 老档：襄平归公孙瓒；官渡/白马换位；汉廷诸将收回长安—潼关一线。
@@ -21084,9 +21795,7 @@ function deserialize(json) {
     site.banner = faction.banner;
     site.color = faction.color;
     site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
   // n44 老档：泰山关由吕布改归袁绍，夷陵由刘表改归孙权；只迁移旧主，保留玩家战果。
   const N44_OWNER_MOVES = [
@@ -21104,9 +21813,7 @@ function deserialize(json) {
     site.banner = faction.banner;
     site.color = faction.color;
     site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
+    syncSiteRecruitList(site, move.to, state);
   });
   // n45：开局叛军没有城，不能被七天灭国逻辑误判；旧档如果已经弹出过
   // “叛军 亡了”，在读档时把这面旗恢复，统一背叛后才有叛军可打。
@@ -21312,6 +22019,8 @@ function deserialize(json) {
   // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
   applyLordRoles(state);
   state.flags.lordRolesV1 = true;
+  // n59：旧档里的旧兵种统一折成当前国家兵种；T5 再按君主/武力榜资格校正。
+  migrateFactionTroops(state);
   // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
   if (!state.flags.lordTier4V1) {
     applyLordTier4Rule(state);
@@ -21323,6 +22032,7 @@ function deserialize(json) {
     state.flags.lordWeiCapV1 = true;
   }
   ensureWorldFeatures(state.world);
+  refreshSiteRosters(state, false);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
   sanitizeLordOrders(state);
@@ -21333,6 +22043,7 @@ function deserialize(json) {
   // 国君可能已经换代：按最终 rulerId 再算一次三类身份，并把新帅才的满编编制补到上限。
   applyLordRoles(state);
   applyLordPowerRoster(state);
+  applyLordT5Rule(state);
   applyFactionRosterCap(state);
   state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
@@ -21496,6 +22207,10 @@ module.exports = {
   lordIsRuler,
   applyLordRoles,
   applyLordTier4Rule,
+  applyLordT5Rule,
+  normalizeLordT5,
+  migrateFactionTroops,
+  refreshSiteRosters,
   applyLordPowerRoster,
   useHistory,
   adShiInfo,
@@ -22832,7 +23547,7 @@ const { text, panel, bar, wrap } = __require(6);
 const pixel = __require(3);
 const { UI_COLORS } = pixel;
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const { regionAt, regionDef, siteById, siteAt, terrainAt, bridgeHasWater } = __require(8);
 const territory = __require(25);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = __require(5);
@@ -26849,10 +27564,11 @@ const stateLib = __require(7);
 const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
-const army = __require(9);
+const army = __require(10);
 const tourney = __require(30);
 const { siteById, regionDef } = __require(8);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
+const { troopAccess } = __require(9);
 
 /** 每个据点一个稳定的背景种子，同类型城镇也能有不同街景 */
 function siteSeed(id) {
@@ -27229,10 +27945,14 @@ function renderRecruit(app, site) {
   });
 
   let list = site.recruitList || [];
-  // 村庄只出最低一档的壮丁；池子空了就是空了，村里的壮丁就这些
+  // 村庄只出本地最低一档；城/关按当前管辖势力出完整兵源牌。
   if (site.type === 'village') {
-    list = ['militia'];
+    list = list.filter(function (id) { return TROOPS[id] && Number(TROOPS[id].tier) === 1; });
   }
+  // 六人以内用原来的大行；七个以上（含灭国降卒 T5）压成紧凑行，保证返回键不越屏。
+  const compact = list.length > 6;
+  const rowH = compact ? 88 : 104;
+  const step = compact ? 96 : 116;
   let y = 340;
 
   if (!list.length) {
@@ -27244,31 +27964,37 @@ function renderRecruit(app, site) {
     if (!t) return;
     const stock = site.recruits[id] || 0;
     const price = economy.recruitPrice(site, id);
-    const locked = t.renownReq && p.renown < t.renownReq;
+    const gate = troopAccess(st, site, id);
+    const locked = !gate.ok;
 
-    panel(ctx, PAD, y, w - PAD * 2, 104, { fill: '#241c14' });
-    text(ctx, t.name, PAD + 18, y + 14, { size: 26, color: locked ? '#7a7160' : '#efe3c6' });
-    text(ctx, '攻 ' + t.atk + ' / 防 ' + t.def + ' / 粮 ' + t.food, PAD + 150, y + 20, { size: 16, color: '#a2947a' });
-    text(ctx, locked ? '需声望 ' + t.renownReq : '余 ' + stock + ' 人', PAD + 18, y + 58, {
-      size: 17, color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
+    panel(ctx, PAD, y, w - PAD * 2, rowH, { fill: '#241c14' });
+    text(ctx, t.name, PAD + 18, y + (compact ? 10 : 14), {
+      size: compact ? 24 : 26, color: locked ? '#7a7160' : '#efe3c6',
     });
-    text(ctx, price + '金钱/人', PAD + 150, y + 58, { size: 18, color: '#f0c060' });
+    text(ctx, '攻 ' + t.atk + ' / 防 ' + t.def + ' / 粮 ' + t.food, PAD + 214, y + (compact ? 13 : 20), {
+      size: 16, color: '#a2947a',
+    });
+    text(ctx, locked ? gate.msg : '余 ' + stock + ' 人', PAD + 18, y + (compact ? 48 : 58), {
+      size: locked ? 16 : 17,
+      color: locked ? '#b4463c' : stock > 0 ? '#8fbf7a' : '#7a7160',
+    });
+    text(ctx, price + '金钱/人', PAD + 214, y + (compact ? 48 : 58), { size: 18, color: '#f0c060' });
 
     if (!locked && stock > 0) {
-      app.ui.button(ctx, w - PAD - 190, y + 22, 86, 58, '招 1', {
+      app.ui.button(ctx, w - PAD - 190, y + (compact ? 14 : 22), 86, compact ? 52 : 58, '招 1', {
         id: 'r1_' + id, size: 22, onTap: function () {
           const r = economy.recruit(st, site, id, 1);
           app.showToast(r.msg, 2.2);
         },
       });
-      app.ui.button(ctx, w - PAD - 96, y + 22, 86, 58, '招 5', {
+      app.ui.button(ctx, w - PAD - 96, y + (compact ? 14 : 22), 86, compact ? 52 : 58, '招 5', {
         id: 'r5_' + id, size: 22, disabled: stock < 5, onTap: function () {
           const r = economy.recruit(st, site, id, 5);
           app.showToast(r.msg, 2.2);
         },
       });
     }
-    y += 116;
+    y += step;
   });
 
   backButton(app, y + 4);
@@ -28010,8 +28736,11 @@ function siteInfo(app, site) {
   }
 
   const names = (site.recruitList || []).map(function (id) { return TROOPS[id] ? TROOPS[id].name : id; });
+  const sourceLine = names.length > 2
+    ? names.slice(0, 2).join(' · ') + ' 等 ' + names.length + ' 种'
+    : (names.join(' · ') || '无可招募');
   text(ctx, '此地兵源', PAD + 22, y + 104, { size: 17, color: '#8a8070' });
-  text(ctx, names.join(' · ') || '无可招募', PAD + 22, y + 132, { size: 20, color: '#c9bda2' });
+  text(ctx, sourceLine, PAD + 22, y + 132, { size: 20, color: '#c9bda2' });
 
   ctx.fillStyle = 'rgba(240,192,96,0.25)';
   ctx.fillRect(PAD + 20, y + 170, bw - 40, 1);
@@ -28238,9 +28967,9 @@ const { UI_COLORS } = __require(3);
 const { drawBackdrop } = __require(29);
 const stateLib = __require(7);
 const border = __require(20);
-const army = __require(9);
+const army = __require(10);
 const { siteById } = __require(8);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 
 const PAD = 16;
 
@@ -28893,7 +29622,7 @@ module.exports = FoundingScene;
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
 const scenery = __require(29);
-const army = __require(9);
+const army = __require(10);
 const heroes = __require(14);
 const { siteById, regionDef } = __require(8);
 const { FACTIONS } = __require(5);
@@ -29754,9 +30483,9 @@ module.exports = ShopScene;
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const audio = __require(22);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 const { TACTICS, TACTIC_LIST } = __require(16);
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = __require(5);
 const { drawBackdrop } = __require(29);
@@ -30318,8 +31047,8 @@ module.exports = BattleScene;
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
-const { TROOPS } = __require(10);
+const army = __require(10);
+const { TROOPS } = __require(9);
 const { BANDIT_TIERS } = __require(12);
 
 function partyOf(app) {
@@ -30442,10 +31171,10 @@ module.exports = ContactScene;
 const { text, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const armyLib = __require(9);
+const armyLib = __require(10);
 const heroesLib = __require(14);
 const { HERO_MAX_LEVEL } = __require(12);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 const { EQUIPMENT } = __require(5);
 
 const TOP = 248;
@@ -32186,7 +32915,7 @@ module.exports = TourneyScene;
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const { CAMPAIGN } = __require(5);
 
 const TOP = 330;
@@ -32425,7 +33154,7 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const scenery = __require(29);
 const { siteById } = __require(8);
-const army = __require(9);
+const army = __require(10);
 const { FACTIONS } = __require(5);
 const flows = __require(26);
 
@@ -32855,11 +33584,11 @@ module.exports = CampScene;
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const audio = __require(22);
 const rank = __require(17);
 const { FACTIONS, CAMPAIGN, ENDINGS } = __require(5);
-const { TROOPS } = __require(10);
+const { TROOPS, FACTION_TROOPS } = __require(9);
 
 const TABS = [
   { id: 'basic', label: '基础' },
@@ -33071,14 +33800,29 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'troops') {
-    ops.push({ t: 'h1', s: '兵种' });
-    ops.push({ t: 'p', s: '攻/防/耐久决定硬碰硬的结果；粮是每人每天的口粮；价是招募底价，随城池浮动。' });
-    const sorted = Object.keys(TROOPS).sort(function (a, b) { return TROOPS[a].tier - TROOPS[b].tier; });
+    ops.push({ t: 'h1', s: '通用兵种' });
+    ops.push({ t: 'p', s: '攻/防/耐久决定硬碰硬的结果；粮是每人每天的口粮；价是招募底价，随城池浮动。匪团、叛军、无旗玩家与边陲小镇仍用这一套通用兵。' });
+    const sorted = Object.keys(TROOPS)
+      .filter(function (id) { return !TROOPS[id].faction; })
+      .sort(function (a, b) { return TROOPS[a].tier - TROOPS[b].tier; });
     sorted.forEach(function (id) {
       ops.push({ t: 'troop', t2: TROOPS[id] });
     });
     ops.push({ t: 'gap' });
-    ops.push({ t: 'p', s: '特殊：弩手破甲、火船手点火、白毦兵与禁军不溃、无当飞军山地不减速、枪盾结阵克骑。' });
+    ops.push({ t: 'h1', s: '各国兵源' });
+    ops.push({ t: 'p', s: '城、关、村只招当前管辖势力的兵：村只出 T1，城/关出完整 T1-T4；魏蜀吴另有 T5。换旗后兵源牌随城头一起换。' });
+    Object.keys(FACTION_TROOPS).forEach(function (f) {
+      const entry = FACTION_TROOPS[f];
+      ops.push({
+        t: 'p',
+        s: entry.label + '：' + entry.units.map(function (u) {
+          return 'T' + u.tier + ' ' + u.name;
+        }).join(' · '),
+      });
+    });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'p', s: 'T5 解锁：加入该国，或亲手灭掉该国。未解锁时城里有牌但不能招；灭国后本国的城会额外挂出这国 T5 降卒。T5 只给魏蜀吴的君主与武力榜前 20 名将统率。' });
+    ops.push({ t: 'p', s: '特殊：弩手破甲、白毦兵/禁军/死士不溃、无当飞军与山越兵山地不减速、枪盾结阵克骑。' });
     return ops;
   }
 
@@ -33794,7 +34538,7 @@ const ArcScene = {
 
     if (phase === 'finale') {
       const stats = '第 ' + st.clock.day + ' 天 · 胜 ' + st.stats.battlesWon + ' · 城 ' + st.stats.sitesTaken
-        + ' · 兵 ' + __require(9).troopCount(st.player.troops);
+        + ' · 兵 ' + __require(10).troopCount(st.player.troops);
       text(ctx, stats, w / 2, h - 188, { size: 15, align: 'center', color: '#8a8070' });
       app.ui.button(ctx, 40, h - 164, w - 80, 66, '留在这片大陆', {
         id: 'arc_stay', size: 24, fill: '#3a2b1b', onTap: function () {
@@ -33845,9 +34589,9 @@ module.exports = ArcScene;
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const { FACTIONS } = __require(5);
-const { TROOPS } = __require(10);
+const { TROOPS } = __require(9);
 const { lookFor } = __require(12);
 
 function unitOf(app) {
@@ -34097,7 +34841,7 @@ module.exports = ChaseScene;
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const armyLib = __require(9);
+const armyLib = __require(10);
 const { ENDINGS } = __require(5);
 
 const EndingScene = {
@@ -34182,7 +34926,7 @@ module.exports = EndingScene;
 const { text, panel, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const army = __require(9);
+const army = __require(10);
 const { FACTIONS } = __require(5);
 const rank = __require(17);
 const { lookFor } = __require(12);

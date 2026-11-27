@@ -3,6 +3,7 @@
  */
 
 const { TROOPS } = require('../data/troops.js');
+const { troopAccess, stockCapFor } = require('../data/troops.js');
 const { VILLAGE_FOOD } = require('../data/extra.js');
 const { EQUIPMENT } = require('../data/china.js');
 const { troopCount, troopCapacity, foodCap } = require('./army.js');
@@ -40,12 +41,16 @@ function recruitPrice(site, troopId) {
 function canRecruit(state, site, troopId) {
   const t = TROOPS[troopId];
   if (!t) return { ok: false, msg: '没有这种兵' };
-  if (site.faction === 'bandit') return { ok: false, msg: '匪巢不卖人' };
+  if (site.faction === 'bandit' || site.ownerFaction === 'bandit') {
+    return { ok: false, msg: '匪巢不卖人' };
+  }
+  if ((site.recruitList || []).indexOf(troopId) < 0) {
+    return { ok: false, msg: '这里不招这种兵' };
+  }
+  const gate = troopAccess(state, site, troopId);
+  if (!gate.ok) return gate;
   const pool = site.recruits[troopId] || 0;
   if (pool <= 0) return { ok: false, msg: '这一批已经招完了，等几天再来' };
-  if (t.renownReq && state.player.renown < t.renownReq) {
-    return { ok: false, msg: '声望不足' + t.renownReq + '，招不到' + t.name };
-  }
   return { ok: true };
 }
 
@@ -170,14 +175,15 @@ function dailyMarket(state, rng) {
     // 村庄壮丁是有限的一池人：招空就没了，不按天自动回填；城镇/关隘才持续募兵
     if (site.type !== 'village') {
       Object.keys(site.recruits).forEach(function (id) {
-        if (site.recruits[id] < (site.recruitCap || 0)) {
-          site.recruits[id] += rng.int(1, 3);
+        const cap = stockCapFor(site, id);
+        if (site.recruits[id] < cap) {
+          site.recruits[id] = Math.min(cap, site.recruits[id] + rng.int(1, 3));
         }
       });
-      // 补满招募池上限：募兵木牌天天有人来
+      // 补满招募池上限：募兵木牌天天有人来；T5 单城只压 2 人。
       (site.recruitList || []).forEach(function (id) {
-        if (!site.recruits[id]) site.recruits[id] = rng.int(1, 3);
-        const cap = site.recruitCap || 4;
+        const cap = stockCapFor(site, id);
+        if (!site.recruits[id]) site.recruits[id] = rng.int(1, Math.min(3, cap));
         if (site.recruits[id] > cap) site.recruits[id] = cap;
       });
     }
@@ -199,8 +205,9 @@ function dailyMarket(state, rng) {
       const lcap = LORD_RECRUIT_CAP[site.type] || 0;
       // 领主兵源每日回填；比旧版三日一回、一次一人快得多。
       (site.recruitList || []).forEach(function (id) {
+        const cap = Math.min(lcap, stockCapFor(site, id));
         const have = site.lordRecruits[id] || 0;
-        if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + LORD_RECRUIT_REFILL);
+        if (have < cap) site.lordRecruits[id] = Math.min(cap, have + LORD_RECRUIT_REFILL);
       });
     }
 

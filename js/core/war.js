@@ -10,6 +10,7 @@
 
 const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES, FREE_CITY_IDS } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
+const { syncSiteRecruitList, FACTION_SLOTS } = require('../data/troops.js');
 const army = require('./army.js');
 const { Battle } = require('./battle.js');
 
@@ -2570,6 +2571,19 @@ function bindCaptureHook(fn) {
 }
 
 function notifyCapture(state, site, oldFaction, byFaction) {
+  // 最后一座城是谁打下的：写进势力状态，亡国时据此判断 T5 是否对玩家永久解锁。
+  // 不能只依赖剧情钩子，沙盘模式没有剧情对象时也要记。
+  if (oldFaction && byFaction && oldFaction !== byFaction && state && state.factionState) {
+    const left = (state.world.sites || []).some(function (s) {
+      return s.type !== 'camp' && s.ownerFaction === oldFaction;
+    });
+    if (!left) {
+      const fs = state.factionState[oldFaction] || (state.factionState[oldFaction] = {});
+      fs.lastConqueror = byFaction;
+      fs.lastCityId = site.id;
+      fs.lastLossDay = state.clock ? state.clock.day : 0;
+    }
+  }
   if (captureHook) captureHook(state, site, oldFaction, byFaction);
 }
 
@@ -2689,6 +2703,7 @@ function resolveSiege(state, cp, day) {
     site.garrisonBase = site.garrison;
     site.color = FACTIONS[cp.faction] ? FACTIONS[cp.faction].color : site.color;
     site.banner = FACTIONS[cp.faction] ? FACTIONS[cp.faction].banner : site.banner;
+    syncSiteRecruitList(site, cp.faction, state);
     onSiteTaken(state, site, oldOwner);
     state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
     cp.stage = 'hold';
@@ -2748,11 +2763,24 @@ function resolveSiege(state, cp, day) {
 function siegeGarrisonTroops(site) {
   const total = Math.max(0, Math.round(site && site.garrison || 0));
   if (total <= 0) return {};
+  const slots = FACTION_SLOTS[site.ownerFaction];
+  if (slots) {
+    const weights = { t1: 0.35, t2: 0.3, t3a: 0.2, t3b: 0.1, t4: 0.05 };
+    let sum = 0;
+    Object.keys(weights).forEach(function (slot) { if (slots[slot]) sum += weights[slot]; });
+    const out = {};
+    Object.keys(weights).forEach(function (slot) {
+      if (!slots[slot] || sum <= 0) return;
+      const n = Math.round(total * (weights[slot] / sum));
+      if (n > 0) out[slots[slot]] = n;
+    });
+    let got = 0;
+    Object.keys(out).forEach(function (id) { got += out[id]; });
+    if (got < total && slots.t1) out[slots.t1] = (out[slots.t1] || 0) + (total - got);
+    return out;
+  }
   let mix = { militia: 0.4, spear: 0.35, archer: 0.15, cav: 0.1 };
   if (site.ownerFaction === 'bandit') mix = { bandit: 0.55, raider: 0.3, raider_cav: 0.15 };
-  else if (site.ownerFaction === 'wei') mix = { militia: 0.35, spear: 0.35, crossbow: 0.2, guard: 0.1 };
-  else if (site.ownerFaction === 'shu') mix = { militia: 0.35, spear: 0.3, archer: 0.25, baier: 0.1 };
-  else if (site.ownerFaction === 'wu') mix = { militia: 0.35, archer: 0.35, boat: 0.2, huochuan: 0.1 };
   const out = {};
   Object.keys(mix).forEach(function (id) {
     const n = Math.round(total * mix[id]);
@@ -3028,6 +3056,7 @@ function captureSiegeSite(state, cp, site, day, battle) {
   site.siegeStatus = null;
   site.siegeFaction = null;
   site.siegeSinceH = null;
+  syncSiteRecruitList(site, cp.faction, state);
   onSiteTaken(state, site, oldOwner);
   notifyCapture(state, site, oldOwner, cp.faction);
   state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;

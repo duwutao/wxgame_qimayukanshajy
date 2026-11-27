@@ -10,7 +10,7 @@ const army = require('../core/army.js');
 const audio = require('../core/audio.js');
 const rank = require('../data/lord-rank.js');
 const { FACTIONS, CAMPAIGN, ENDINGS } = require('../data/china.js');
-const { TROOPS } = require('../data/troops.js');
+const { TROOPS, FACTION_TROOPS } = require('../data/troops.js');
 
 const TABS = [
   { id: 'basic', label: '基础' },
@@ -222,14 +222,29 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'troops') {
-    ops.push({ t: 'h1', s: '兵种' });
-    ops.push({ t: 'p', s: '攻/防/耐久决定硬碰硬的结果；粮是每人每天的口粮；价是招募底价，随城池浮动。' });
-    const sorted = Object.keys(TROOPS).sort(function (a, b) { return TROOPS[a].tier - TROOPS[b].tier; });
+    ops.push({ t: 'h1', s: '通用兵种' });
+    ops.push({ t: 'p', s: '攻/防/耐久决定硬碰硬的结果；粮是每人每天的口粮；价是招募底价，随城池浮动。匪团、叛军、无旗玩家与边陲小镇仍用这一套通用兵。' });
+    const sorted = Object.keys(TROOPS)
+      .filter(function (id) { return !TROOPS[id].faction; })
+      .sort(function (a, b) { return TROOPS[a].tier - TROOPS[b].tier; });
     sorted.forEach(function (id) {
       ops.push({ t: 'troop', t2: TROOPS[id] });
     });
     ops.push({ t: 'gap' });
-    ops.push({ t: 'p', s: '特殊：弩手破甲、火船手点火、白毦兵与禁军不溃、无当飞军山地不减速、枪盾结阵克骑。' });
+    ops.push({ t: 'h1', s: '各国兵源' });
+    ops.push({ t: 'p', s: '城、关、村只招当前管辖势力的兵：村只出 T1，城/关出完整 T1-T4；魏蜀吴另有 T5。换旗后兵源牌随城头一起换。' });
+    Object.keys(FACTION_TROOPS).forEach(function (f) {
+      const entry = FACTION_TROOPS[f];
+      ops.push({
+        t: 'p',
+        s: entry.label + '：' + entry.units.map(function (u) {
+          return 'T' + u.tier + ' ' + u.name;
+        }).join(' · '),
+      });
+    });
+    ops.push({ t: 'gap' });
+    ops.push({ t: 'p', s: 'T5 解锁：加入该国，或亲手灭掉该国。未解锁时城里有牌但不能招；灭国后本国的城会额外挂出这国 T5 降卒。T5 只给魏蜀吴的君主与武力榜前 20 名将统率。' });
+    ops.push({ t: 'p', s: '特殊：弩手破甲、白毦兵/禁军/死士不溃、无当飞军与山越兵山地不减速、枪盾结阵克骑。' });
     return ops;
   }
 
