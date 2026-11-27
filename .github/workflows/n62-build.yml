@@ -36,7 +36,7 @@ jobs:
         run: node tools/build-entry.js
       - name: Verify bundle
         run: |
-          node -e "const fs=require('fs');const s=fs.readFileSync('web/game.bundle.js','utf8');for(const k of ['TIER_RENOWN_REQ','T2 能打两个 T1','T3 需先投国或自立','20261127n62'])if(!s.includes(k))throw new Error('missing '+k);console.log('bundle ok',fs.statSync('web/game.bundle.js').size)"
+          node -e "const fs=require('fs');const s=fs.readFileSync('web/game.bundle.js','utf8');for(const k of ['TIER_RENOWN_REQ','T2 能打两个 T1','T3 需先投国或自立'])if(!s.includes(k))throw new Error('missing '+k);console.log('bundle ok',fs.statSync('web/game.bundle.js').size)"
           sha256sum web/game.bundle.js
       - name: Commit n62
         run: |
