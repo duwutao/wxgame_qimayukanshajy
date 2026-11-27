@@ -702,6 +702,8 @@ function lordFromDef(state, def) {
 
 /** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
 function stageGuandu(state) {
+  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
+  if (state.story && state.story.guanduBattleStaged) return true;
   const guandu = siteById(state.world, 'guandu');
   if (!guandu) return false;
   ['wei', 'yuan'].forEach(function (faction, sideIndex) {
@@ -752,7 +754,10 @@ function stageGuandu(state) {
   // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
   if (state.fieldBattles && state.fieldBattles.some(function (bf) {
     return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  })) return true;
+  })) {
+    if (state.story) state.story.guanduBattleStaged = true;
+    return true;
+  }
   const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
   const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
   if (caocao && yuanshao && war.createFieldBattle) {
@@ -761,6 +766,7 @@ function stageGuandu(state) {
       { kind: 'lord', id: yuanshao.id },
       { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
   }
+  if (state.story) state.story.guanduBattleStaged = true;
   return true;
 }
 
@@ -1594,7 +1600,7 @@ function ensureMaChaoToShu(state) {
   // 马超已经不在凉军里，旧战役名单里的人要撤掉，免得他继续替马家攻城。
   if (state.warCampaigns && state.warCampaigns.ma) war.abortCampaign(state, 'ma');
   state.flags.machaoToShuDone = true;
-  pushLog(state, '马超带着西凉铁骑离开武威，南下投了刘备；凉州军心从此散了一半。', 'war');
+  pushLog(state, '马超带着西凉铁骑离开武威，南下而去；凉州军心从此散了一半。', 'war');
   return true;
 }
 
@@ -1637,8 +1643,6 @@ function resolveMaSurrender(state) {
     .map(function (s) { return s.name; }).join('、');
   state.flags.maSurrenderDone = true;
   state.flags.maSurrenderDay = 0;
-  pushLog(state, (yielded ? yielded + '开城，' : '') + keep.name +
-    '仍留马家旗；韩遂收兵，不灭马家。', 'war');
   return true;
 }
 
@@ -6838,6 +6842,9 @@ function fallFaction(state, id, opts) {
   if (conquerorAlive && givenToConqueror > 0) {
     lines.unshift('最后一座城是' + (conqueror === 'player' ? '你的旗' : (FACTIONS[conqueror].full || conqueror)) +
       '打下的，' + givenToConqueror + ' 名领主归入其帐下。');
+  }
+  if (id === 'ma') {
+    lines.unshift('马腾兵败，马超率西凉铁骑投了刘备。');
   }
   if (gone.length) {
     lines.push(gone.slice(0, 4).join('、') + '不肯降，解甲归乡里去了。');

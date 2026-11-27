@@ -149,7 +149,7 @@ const NewsScene = {
     let bodyH = 0;
     wrapped.forEach(function (ls) { bodyH += ls.length * lineGap; });
     bodyH += Math.max(0, lines.length - 1) * 6;
-    const actionH = v.mode === 'peace-offer' ? 112 : 82;
+    const actionH = v.mode === 'peace-offer' ? 112 : 104;
     const chHeight = Math.min(h - 64, bodyTop + bodyH + actionH);
     const cx = (w - cw) / 2;
     const cy = (h - chHeight) / 2;
@@ -203,22 +203,23 @@ const NewsScene = {
       text(ctx, v.skipAny
         ? '点屏幕任意处跳过 · ' + Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散'
         : (v.auto > 0 ? Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散' : '榜文贴在各城门口，来往的人都在看。'),
-        cx + cw / 2, cy + chHeight - 78, {
+        cx + cw / 2, cy + chHeight - 94, {
           size: 14, align: 'center', color: '#b7a58a',
         });
 
-      const bx = cx + 48;
-      const by = cy + chHeight - 54;
-      const bw = cw - 96;
+      const bx = cx + 40;
+      const bh = 60;
+      const by = cy + chHeight - bh - 14;
+      const bw = cw - 80;
       ctx.fillStyle = '#3a2c1e';
-      ctx.fillRect(bx, by, bw, 40);
+      ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = '#6b5540';
-      ctx.fillRect(bx, by, bw, 2);
+      ctx.fillRect(bx, by, bw, 3);
       text(ctx, v.skipAny
         ? '跳过（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）'
         : (v.auto > 0 ? '知道了（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）' : '知道了'),
-        cx + cw / 2, by + 9, { size: 20, align: 'center', color: '#f0c060' });
-      app.ui.rect('news_ok', bx, by, bw, 40, function () {
+        cx + cw / 2, by + 18, { size: 24, align: 'center', color: '#f0c060' });
+      app.ui.rect('news_ok', bx, by, bw, bh, function () {
         app.newsView = null;
         app.pop();
       });

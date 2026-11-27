@@ -136,6 +136,31 @@ group('n51 魏国史实节奏与袁绍昏君');
   story.resetCombat();
 }
 
+group('n55 官渡只报一次，曹袁不死不休');
+{
+  const st = game(2026112755);
+  st.story.phases.wei = { id: 'wei_north', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'wei_sworn', completed: 2, success: false, timedOut: false };
+  st.story.phases.yuan = { id: 'yuan_guandu', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'end', completed: 3, success: false, timedOut: false };
+  const guanduEvents = function () {
+    return (st.events || []).filter(function (e) { return e.title === '官渡之战'; }).length;
+  };
+  const before = guanduEvents();
+  story.startPhase(st, 'wei', { skipWait: true });
+  const first = guanduEvents();
+  story.startPhase(st, 'yuan', { skipWait: true });
+  const second = guanduEvents();
+  ok('官渡先由魏国发一次榜文', first === before + 1);
+  ok('袁绍进入同一阶段不再弹第二次官渡', second === first);
+  ok('官渡合战只开一场', (st.fieldBattles || []).filter(function (bf) {
+    return bf.context && bf.context.cause === 'guandu';
+  }).length === 1);
+  ok('曹袁官渡后不能议和', warLib.makePeace(st, 'wei', 'yuan', true) === false);
+  ok('官渡阶段没有两年逾期出口', story._private.phaseCfg('wei', 'wei_north').noTimeout === true &&
+    story._private.phaseCfg('yuan', 'yuan_guandu').noTimeout === true);
+}
+
 group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
 {
   const st = game(20261126031);

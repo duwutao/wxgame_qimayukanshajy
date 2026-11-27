@@ -32,7 +32,7 @@ const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'vict
 const AUDIO_FILES = {
   title: 'assets/audio/title_hanmo.mp3',
   field: 'assets/audio/field_xingjun.mp3',
-  town: 'assets/audio/town_shijing.mp3',
+  town: 'assets/audio/title_hanmo.mp3',
   battle: 'assets/audio/battle_zhangu.mp3',
   tense: 'assets/audio/tense_duizhi.mp3',
   sorrow: 'assets/audio/sorrow_guoshang.mp3',
@@ -41,7 +41,7 @@ const AUDIO_FILES = {
 const AUDIO_FILE_NAMES = {
   title: '汉末风起（实录）',
   field: '千里行军（实录）',
-  town: '市井烟火（实录）',
+  town: '汉末风起·城镇（实录）',
   battle: '战鼓催阵（实录）',
   tense: '两军对峙（实录）',
   sorrow: '国殇（实录）',
@@ -104,12 +104,12 @@ const TRACKS = [
     perc: 't...t...t...t...', percGain: 0.04,
   },
   {
-    id: 'town_shijing', mode: 'town', name: '市井', bpm: 88, bars: 8,
+    id: 'town_shijing', mode: 'town', name: '市井', bpm: 72, bars: 8,
     lead: 'pluck', melody: [4, 6, 4, 2, 4, -1, 6, 7, 6, 4, 2, 4, 6, 4, 2, 0,
       4, 6, 4, 2, 4, -1, 7, 6, 4, 2, 0, 2, 4, -1, -1, -1],
     bass: [0, 0, 3, 3, 4, 4, 0, 0], bassEvery: 8,
     pad: null, padEvery: 0,
-    perc: 't.t.t.t.t.t.t.t.', percGain: 0.035,
+    perc: '..t.....t.......', percGain: 0.02,
   },
   {
     id: 'town_chuiyan', mode: 'town', name: '炊烟', bpm: 72, bars: 8,

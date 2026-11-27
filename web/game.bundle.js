@@ -8773,10 +8773,8 @@ function ensureHanSuiMieMaWar(state, day) {
   const old = state.warCampaigns && state.warCampaigns.hansui;
   if (old) abortCampaign(state, 'hansui');
   mobilizeHanSuiMieMa(state);
-  const mc = state.lords.find(function (l) { return l.id === 'machao'; });
-  const chaoGone = !mc || mc.dead || mc.faction !== 'ma';
-  logFn(state, '韩遂在金城点兵，借口“马腾老病、凉州无主”，要把武威、居延一并吞下。' +
-    (chaoGone ? '马超已经投了蜀，西凉再无铁骑回援。' : '马超若还在西凉，这一仗就是他和马家的最后一战。'), 'war');
+  // 韩遂灭马属于边缘势力之间的争夺，不再写进史实榜文；
+  // 马腾覆灭时由 fallFaction 统一给出“马超投刘备”的第一行。
   return true;
 }
 
@@ -9882,9 +9880,10 @@ const STORY = {
     'xianbei', 'ma', 'hansui', 'nanman', 'shanyue', 'han',
   ],
 
-  // 开局就不死不休的两家：袁绍—公孙瓒、南蛮—南越；马腾—韩遂—汉廷三方也互不收兵。
+  // 官渡之后曹袁再不休战；其余开局死敌也互不收兵。
   noPeacePairs: [
     ['yuan', 'gongsun'],
+    ['yuan', 'wei'],
     ['nanman', 'shanyue'],
     ['nanman', 'zhang'],
     ['shanyue', 'biao'],
@@ -9980,11 +9979,12 @@ const STORY = {
         restDays: 3,
         next: 'shu_zhanglu',
         title: '收取西川',
-        casusBelli: '刘备自新野誓师，以“收取西川，作为问鼎天下的资本”为名，只向刘璋递了战书。',
+        casusBelli: '刘备据新野，先派庞统入蜀，以“共讨张鲁、察看西川道路”为名联络刘璋。第八日，庞统在剑阁驿道遭刘璋部将伏击，随从死伤；刘备以此为由，向刘璋递出战书。',
         warLines: [
-          '刘备自新野起兵，以“收取西川”为名，只向刘璋一家宣战。',
-          '蜀军先取剑阁，再经巴西直下成都；刘璋开关迎客，却把剑阁让成了前线。',
-          '诸葛亮在帐中说得明白：成都一入囊中，便以成都为大本营，才有与中原诸侯争锋的本钱。',
+          '刘备据新野，先派庞统入蜀，明为联络刘璋共讨张鲁，暗察西川山川道路。',
+          '第八日，庞统行至剑阁驿道，遭刘璋部将伏击，随从死伤，军师只身退回。',
+          '刘备大怒，以“刘璋纵兵袭击军师、坏两家之好”为名，向刘璋递出战书。',
+          '蜀军先取剑阁，再经巴西直下成都；诸葛亮在帐中说得明白：成都一入囊中，才有与中原诸侯争锋的本钱。',
         ],
         successLines: [
           '成都城头换旗，刘璋势力覆灭，西川诸郡归入刘备手中。',
@@ -10003,16 +10003,16 @@ const STORY = {
         restDays: 3,
         next: 'shu_nanman',
         title: '讨伐张鲁',
-        casusBelli: '西川既定，刘备以“汉中本属益州”为名，向张鲁递出战书，要取汉中、武都、上洛。',
+        casusBelli: '西川既定，刘备以“汉中乃西川门户，取汉中方可问鼎中原”为名，向张鲁递出战书，要取汉中、武都、上洛。',
         warLines: [
           '刘备命张飞、魏延出阳平关，马岱、黄忠自剑阁北上，兵锋直指汉中。',
           '张鲁据秦岭山口而守，五斗米道教众遍布山谷，汉中城头挂起“鲁”字旗。',
-          '汉中一破，秦岭以南尽归刘备，益州才真正连成一片。',
+          '汉中一破，秦岭以南尽归刘备，北望长安，才有问鼎中原的资格。',
         ],
         successLines: [
           '汉中、武都、上洛相继易手，张鲁降蜀，五斗米道教众归刘备约束。',
           '刘备在汉中设宴，以魏延督汉中，马岱守武都，益州北门自此稳固。',
-          '下一阶段：南征南蛮，收孟获丁壮，完成西南一统。',
+          '下一阶段：南征南蛮，先平边境之患，再收孟获丁壮。',
         ],
       },
       {
@@ -10026,9 +10026,9 @@ const STORY = {
         restDays: 30,
         next: 'shu_sworn',
         title: '南征南蛮',
-        casusBelli: '汉中已定，刘备转兵南方，要收南蛮诸部，完成西南一统，成为一方枭雄。',
+        casusBelli: '汉中已定，南蛮诸部屡犯朱提、越嶲边境，劫掠商旅、杀掠边民；刘备命诸葛亮南征，先平边患，再收丁壮。',
         warLines: [
-          '诸葛亮率马岱、魏延、张飞、黄忠诸将分路南征，兵锋直指朱提、建宁。',
+          '诸葛亮率马岱、魏延、张飞、黄忠诸将分路南征，兵锋直指朱提、建宁，先清边境寨堡。',
           '南蛮诸部善走山林，蜀军每下一城都要先修栈道。',
           '孟获若降，南中丁壮与象兵便能为蜀所用；若逃，则往他国去。',
         ],
@@ -10134,12 +10134,13 @@ const STORY = {
         noTimeout: true,
         restDays: 30,
         next: 'wei_sworn',
-        title: '官渡定河北',
-        casusBelli: '汉廷已灭，曹操休整一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
+        title: '官渡之战',
+        casusBelli: '汉廷已灭，曹操尽起中原兵马北上；袁绍也举河北之众南下，两军在官渡决战。此战之后，曹袁再不休战，直到一方灭亡。',
         warLines: [
-          '一个月后，曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
+          '曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
           '袁绍兵多粮足，颜良、文丑诸将皆在军中；曹操兵精，却要以少击众。',
           '袁绍临阵改令、不听田丰沮授之谏，河北军对碰只剩八成；曹操要趁这口气烧乌巢、断粮道。',
+          '两家在官渡列阵，谁也不接议和书；这一战不分生死不罢休。',
         ],
         successLines: [
           '官渡火起，袁绍大军溃散，曹操一路追到邺城，袁氏覆灭。',
@@ -10178,17 +10179,18 @@ const STORY = {
         waitDays: 0,
         restDays: 0,
         next: 'wei_jingzhou',
-        title: '赤壁败后',
-        casusBelli: '赤壁一把火把曹军烧回江北；曹操休整半个月，回头先收拾一直没归附的马腾、韩遂，稳住关中与凉州。',
+        title: '西凉边患',
+        casusBelli: '马腾、韩遂屡屡袭扰关中边境，劫掠粮道；曹操平定河北后，回头西进，要扫平西凉、安定关中。',
         warLines: [
-          '赤壁败后半个月，曹操命关中诸将西进，兵发武威、金城，要灭马腾、韩遂。',
+          '曹操命关中诸将西进，兵发武威、金城，要灭马腾、韩遂。',
           '凉州骑兵来去如风，曹军只能一城一城地推；马腾、韩遂互不救援，正好被分而破之。',
-          '曹操要在荆州再起兵之前，先把自己的后背彻底扫干净。',
+          '曹操要在南下荆州之前，先把自己的后背彻底扫干净。',
         ],
         successLines: [
           '马腾、韩遂相继败亡，凉州诸郡归入曹操手中。',
+          '马腾败亡时，马超已率西凉铁骑投了刘备。',
           '曹操在长安休整，关中、凉州连成一线，西顾之忧尽去。',
-          '他把目光转回荆州：赤壁的账，迟早要算。',
+          '他把目光转回荆州，南下的路已经打通。',
         ],
       },
       {
@@ -10270,7 +10272,7 @@ const STORY = {
         restDays: 30,
         next: 'wu_sworn',
         title: '南征南越',
-        casusBelli: '袁术已灭，孙权转兵南方，要收南越诸部，完成江东的第三阶段。',
+        casusBelli: '袁术已灭，南越诸部屡犯交州边境，劫掠商旅；孙权命贺齐、吕范南征，要收南越诸部，安定交州。',
         warLines: [
           '孙权命贺齐、吕范南征南越，兵锋直指南越王城。',
           '南越诸部据险而守，江东军每进一步都要先开山道。',
@@ -10397,17 +10399,19 @@ const STORY = {
         next: 'end',
         stageFlag: 'guandu',
         yuanPenalty: true,
-        title: '官渡决战',
-        casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。',
+        title: '官渡之战',
+        casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。此战之后，曹袁再不休战，直到一方灭亡。',
         warLines: [
           '曹操北上，袁绍也把河北大军全部压上，两军在官渡相遇。',
           '营寨连绵数十里，粮道只隔一条汴水。',
           '袁绍自恃兵多，不肯听田丰、沮授之谏，临阵改令，军心已散。',
           '曹操兵精粮足，以逸待劳；袁绍昏招迭出，这一战河北军的对碰只余八成。',
+          '两家在官渡列阵，谁也不接议和书；这一战不分生死不罢休。',
         ],
         successLines: [
-          '官渡一战，袁绍大军溃散，曹操一路追到邺城。',
-          '袁绍带着残部退回河北，从此再无力南下。',
+          '官渡一战，曹操粮尽退兵，袁绍趁势南下，许都易主。',
+          '曹氏覆灭，袁绍尽收中原；河北、中原连成一线。',
+          '袁绍在许都休整，下一步便是渡江收拾孙刘。',
         ],
       },
     ],
@@ -10772,12 +10776,10 @@ function announceOpening(state) {
     '曹操以“兖州旧怨”向吕布宣战，徐州、兖州边关同时点起烽火。',
     '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
     '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
-    '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
-    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
-    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
-    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
+    '刘备按兵新野，先派庞统入蜀，以“共讨张鲁”为名联络刘璋。',
+    '马腾割据西凉，汉中张鲁闭关自守，两家暂不与中原诸侯交锋。',
   ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
+  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；刘备派庞统入蜀，西凉马腾、汉中张鲁各守本土。', 'war');
 }
 
 function maybeOpeningEvent(state) {
@@ -10858,6 +10860,8 @@ function init(state, logger) {
     sandbox,
     openingPending: !!sandbox,
     guanduStarted: false,
+    guanduStoryShown: false,
+    guanduBattleStaged: false,
     kingdomsAllAtWar: false,
     unifiedFaction: null,
     targetRegion: {},
@@ -10968,6 +10972,15 @@ function resume(state, logger) {
   }
   if (!state.story.stage3Done) state.story.stage3Done = {};
   if (state.story.guanduStarted === undefined) state.story.guanduStarted = false;
+  if (state.story.guanduStoryShown === undefined) {
+    state.story.guanduStoryShown = !!state.story.guanduStarted;
+  }
+  if (state.story.guanduBattleStaged === undefined) {
+    state.story.guanduBattleStaged = !!state.story.guanduStarted ||
+      !!(state.fieldBattles || []).some(function (bf) {
+        return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+      });
+  }
   if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
   if (!state.story.targetRegion) state.story.targetRegion = {};
   applyYuanCombat(state, !!state.story.yuanWeak);
@@ -11229,6 +11242,8 @@ function startPhase(state, faction, opts) {
   if (!cfg) return false;
   const silent = !!(opts && opts.silent);
   const opening = !!(opts && opts.opening);
+  const guanduStage = isGuanduStage(cfg);
+  const firstGuanduEvent = guanduStage && !st.guanduStoryShown;
 
   const skipWait = !!(opts && opts.skipWait);
   // 开局第几天才递战书：到点前保持“等待”，不要提前把仗打起来。
@@ -11278,7 +11293,7 @@ function startPhase(state, faction, opts) {
   if (faction === 'shu' && cfg.id === 'shu_yizhou' && state.flags) {
     state.flags.liubeiYiWar = true;
   }
-  if (cfg.id === 'wei_north' || cfg.id === 'yuan_guandu') st.guanduStarted = true;
+  if (guanduStage) st.guanduStarted = true;
 
   war.abortCampaign(state, faction);
   if (cfg.yuanPenalty) applyYuanCombat(state, true);
@@ -11292,7 +11307,8 @@ function startPhase(state, faction, opts) {
     if (war.declare(state, faction, to, true, true)) declared.push(to);
   });
 
-  if (!silent && declared.length) {
+  // 官渡是同一场史实：只由先进入阶段的一方发一次榜文，另一方不再重复弹窗。
+  if (!silent && declared.length && (!guanduStage || firstGuanduEvent)) {
     const lines = (cfg.warLines || [cfg.casusBelli]).slice();
     const names = declared.map(factionName).join('、');
     lines.push('战书已下：' + factionName(faction) + '向' + names + '正式宣战。');
@@ -11302,9 +11318,11 @@ function startPhase(state, faction, opts) {
     logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
   }
   // 官渡开局：战书落下后再把曹袁两军补满、调到官渡列阵，并直接开一场合战。
-  if ((cfg.stage === 'guandu' || cfg.stageFlag === 'guandu') && state.storyHooks && state.storyHooks.stageGuandu) {
+  // stageGuandu 自身有一次性护栏，袁绍后进入阶段时不会把两军重新洗一遍。
+  if (guanduStage && state.storyHooks && state.storyHooks.stageGuandu) {
     state.storyHooks.stageGuandu(state);
   }
+  if (firstGuanduEvent) st.guanduStoryShown = true;
   // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
   if (declared.length && faction !== 'player' && faction !== 'bandit') {
     if (!state.warCampaigns || typeof state.warCampaigns !== 'object') state.warCampaigns = {};
@@ -11357,6 +11375,11 @@ function phasePeace(state, faction, cfg) {
   return done;
 }
 
+/** 官渡是曹袁的生死局：不设两年逾期，也不会在阶段结束时议和。 */
+function isGuanduStage(cfg) {
+  return !!(cfg && cfg.stageFlag === 'guandu');
+}
+
 function finishPhase(state, faction, ok) {
   const st = state.story;
   const p = st.phases[faction];
@@ -11365,6 +11388,8 @@ function finishPhase(state, faction, ok) {
   if (!cfg) { p.status = 'done'; return; }
 
   // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
+  // 官渡例外：曹袁必须打到一方灭亡，不能靠逾期收兵把剧情提前结束。
+  if (!ok && isGuanduStage(cfg)) return;
   if (!ok) {
     const deadline = STORY.phaseDeadlineDays || 720;
     if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
@@ -11547,8 +11572,9 @@ function tickPhase(state, faction) {
       finishPhase(state, faction, true);
       return;
     }
-    // 两年防卡死：无论是否 noTimeout，只要玩家把阶段拖满两年，就自动跳过。
-    if (state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
+    // 两年防卡死：官渡不适用，其余阶段照旧。
+    if (!isGuanduStage(cfg) &&
+        state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
       finishPhase(state, faction, false);
     }
     return;
@@ -11971,12 +11997,8 @@ function maybeEdgeWars(state) {
       }
     }
   }
-  pushStoryEvent(state, '边地烽烟', [
-    '魏、蜀、吴的第一阶段已告一段落，中原暂时收刀，边缘诸部却开始互相吞并。',
-    '鲜卑、西凉、韩遂、南蛮、南越各自只打与本土道路直接相邻的城池，不肯远征。',
-    '南蛮与南越仍在牂牁、交趾一线死战，谁递议和书都不接。',
-  ], { tag: '大势', art: 'war', auto: 8 });
-  logFn(state, '边缘诸部开始互相攻伐；南蛮与南越永不停战。', 'war');
+  // 边缘诸部仍按既有逻辑互相攻伐，但不再向玩家弹“边地烽烟”，
+  // 史实榜文只写魏、蜀、吴与袁绍这些主线势力。
   refreshHeadline(state);
 }
 
@@ -12418,8 +12440,6 @@ function refreshHeadline(state) {
   if (st.emperor && st.emperor.declared && factionAlive(state, 'yuanshu')) {
     parts.push('袁术：仲家称帝');
   }
-  const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
-  if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
   if (st.chibi && !st.chibi.done) {
     parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
@@ -13347,6 +13367,8 @@ function lordFromDef(state, def) {
 
 /** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
 function stageGuandu(state) {
+  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
+  if (state.story && state.story.guanduBattleStaged) return true;
   const guandu = siteById(state.world, 'guandu');
   if (!guandu) return false;
   ['wei', 'yuan'].forEach(function (faction, sideIndex) {
@@ -13397,7 +13419,10 @@ function stageGuandu(state) {
   // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
   if (state.fieldBattles && state.fieldBattles.some(function (bf) {
     return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  })) return true;
+  })) {
+    if (state.story) state.story.guanduBattleStaged = true;
+    return true;
+  }
   const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
   const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
   if (caocao && yuanshao && war.createFieldBattle) {
@@ -13406,6 +13431,7 @@ function stageGuandu(state) {
       { kind: 'lord', id: yuanshao.id },
       { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
   }
+  if (state.story) state.story.guanduBattleStaged = true;
   return true;
 }
 
@@ -14239,7 +14265,7 @@ function ensureMaChaoToShu(state) {
   // 马超已经不在凉军里，旧战役名单里的人要撤掉，免得他继续替马家攻城。
   if (state.warCampaigns && state.warCampaigns.ma) war.abortCampaign(state, 'ma');
   state.flags.machaoToShuDone = true;
-  pushLog(state, '马超带着西凉铁骑离开武威，南下投了刘备；凉州军心从此散了一半。', 'war');
+  pushLog(state, '马超带着西凉铁骑离开武威，南下而去；凉州军心从此散了一半。', 'war');
   return true;
 }
 
@@ -14282,8 +14308,6 @@ function resolveMaSurrender(state) {
     .map(function (s) { return s.name; }).join('、');
   state.flags.maSurrenderDone = true;
   state.flags.maSurrenderDay = 0;
-  pushLog(state, (yielded ? yielded + '开城，' : '') + keep.name +
-    '仍留马家旗；韩遂收兵，不灭马家。', 'war');
   return true;
 }
 
@@ -19484,6 +19508,9 @@ function fallFaction(state, id, opts) {
     lines.unshift('最后一座城是' + (conqueror === 'player' ? '你的旗' : (FACTIONS[conqueror].full || conqueror)) +
       '打下的，' + givenToConqueror + ' 名领主归入其帐下。');
   }
+  if (id === 'ma') {
+    lines.unshift('马腾兵败，马超率西凉铁骑投了刘备。');
+  }
   if (gone.length) {
     lines.push(gone.slice(0, 4).join('、') + '不肯降，解甲归乡里去了。');
   }
@@ -20999,7 +21026,7 @@ const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'vict
 const AUDIO_FILES = {
   title: 'assets/audio/title_hanmo.mp3',
   field: 'assets/audio/field_xingjun.mp3',
-  town: 'assets/audio/town_shijing.mp3',
+  town: 'assets/audio/title_hanmo.mp3',
   battle: 'assets/audio/battle_zhangu.mp3',
   tense: 'assets/audio/tense_duizhi.mp3',
   sorrow: 'assets/audio/sorrow_guoshang.mp3',
@@ -21008,7 +21035,7 @@ const AUDIO_FILES = {
 const AUDIO_FILE_NAMES = {
   title: '汉末风起（实录）',
   field: '千里行军（实录）',
-  town: '市井烟火（实录）',
+  town: '汉末风起·城镇（实录）',
   battle: '战鼓催阵（实录）',
   tense: '两军对峙（实录）',
   sorrow: '国殇（实录）',
@@ -21071,12 +21098,12 @@ const TRACKS = [
     perc: 't...t...t...t...', percGain: 0.04,
   },
   {
-    id: 'town_shijing', mode: 'town', name: '市井', bpm: 88, bars: 8,
+    id: 'town_shijing', mode: 'town', name: '市井', bpm: 72, bars: 8,
     lead: 'pluck', melody: [4, 6, 4, 2, 4, -1, 6, 7, 6, 4, 2, 4, 6, 4, 2, 0,
       4, 6, 4, 2, 4, -1, 7, 6, 4, 2, 0, 2, 4, -1, -1, -1],
     bass: [0, 0, 3, 3, 4, 4, 0, 0], bassEvery: 8,
     pad: null, padEvery: 0,
-    perc: 't.t.t.t.t.t.t.t.', percGain: 0.035,
+    perc: '..t.....t.......', percGain: 0.02,
   },
   {
     id: 'town_chuiyan', mode: 'town', name: '炊烟', bpm: 72, bars: 8,
@@ -31948,7 +31975,7 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '「在这里待一会儿」可等 2 时辰、半日、一日、三日；你不拔营，天下照走——诸侯会行军、集结、围城。' });
     ops.push({ t: 'p', s: '「招降俘虏」把牢里的领主收进旗下：没有旗必被拒；自立后城越多、声望越高，答应的机会越大；一方之主不会降。' });
     ops.push({ t: 'h1', s: '国战：谁跟谁翻脸' });
-    ops.push({ t: 'p', s: '十家势力之间本来就有仇：曹操与袁绍（官渡）、曹操与吕布（兖州）、孙权与刘表（孙坚之死）、马腾与韩遂（西凉内斗）、刘璋与刘备（益州）。' });
+    ops.push({ t: 'p', s: '十家势力之间本来就有仇：曹操与袁绍（官渡）、曹操与吕布（兖州）、孙权与刘表（孙坚之死）、刘璋与刘备（益州）。' });
     ops.push({ t: 'p', s: '宣战之后，双方所有领主互为敌人。大地图上他们撞见就厮杀，看见对方的旗会主动扑过去。' });
     ops.push({ t: 'p', s: '天下同时最多三场大战：各国会挑一座敌城，先在国内集结四到十二天，再开拔围城；守方领主收到烽火，最多四人驰援。' });
     ops.push({ t: 'p', s: '蜀国南征南蛮时会一次点起八路领主，诸将分道进山；其余战线仍按常规路数出征。' });
@@ -32590,7 +32617,7 @@ const NewsScene = {
     let bodyH = 0;
     wrapped.forEach(function (ls) { bodyH += ls.length * lineGap; });
     bodyH += Math.max(0, lines.length - 1) * 6;
-    const actionH = v.mode === 'peace-offer' ? 112 : 82;
+    const actionH = v.mode === 'peace-offer' ? 112 : 104;
     const chHeight = Math.min(h - 64, bodyTop + bodyH + actionH);
     const cx = (w - cw) / 2;
     const cy = (h - chHeight) / 2;
@@ -32644,22 +32671,23 @@ const NewsScene = {
       text(ctx, v.skipAny
         ? '点屏幕任意处跳过 · ' + Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散'
         : (v.auto > 0 ? Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散' : '榜文贴在各城门口，来往的人都在看。'),
-        cx + cw / 2, cy + chHeight - 78, {
+        cx + cw / 2, cy + chHeight - 94, {
           size: 14, align: 'center', color: '#b7a58a',
         });
 
-      const bx = cx + 48;
-      const by = cy + chHeight - 54;
-      const bw = cw - 96;
+      const bx = cx + 40;
+      const bh = 60;
+      const by = cy + chHeight - bh - 14;
+      const bw = cw - 80;
       ctx.fillStyle = '#3a2c1e';
-      ctx.fillRect(bx, by, bw, 40);
+      ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = '#6b5540';
-      ctx.fillRect(bx, by, bw, 2);
+      ctx.fillRect(bx, by, bw, 3);
       text(ctx, v.skipAny
         ? '跳过（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）'
         : (v.auto > 0 ? '知道了（' + Math.max(0, Math.ceil(v.auto - v.t)) + '）' : '知道了'),
-        cx + cw / 2, by + 9, { size: 20, align: 'center', color: '#f0c060' });
-      app.ui.rect('news_ok', bx, by, bw, 40, function () {
+        cx + cw / 2, by + 18, { size: 24, align: 'center', color: '#f0c060' });
+      app.ui.rect('news_ok', bx, by, bw, bh, function () {
         app.newsView = null;
         app.pop();
       });

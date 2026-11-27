@@ -2230,10 +2230,8 @@ function ensureHanSuiMieMaWar(state, day) {
   const old = state.warCampaigns && state.warCampaigns.hansui;
   if (old) abortCampaign(state, 'hansui');
   mobilizeHanSuiMieMa(state);
-  const mc = state.lords.find(function (l) { return l.id === 'machao'; });
-  const chaoGone = !mc || mc.dead || mc.faction !== 'ma';
-  logFn(state, '韩遂在金城点兵，借口“马腾老病、凉州无主”，要把武威、居延一并吞下。' +
-    (chaoGone ? '马超已经投了蜀，西凉再无铁骑回援。' : '马超若还在西凉，这一仗就是他和马家的最后一战。'), 'war');
+  // 韩遂灭马属于边缘势力之间的争夺，不再写进史实榜文；
+  // 马腾覆灭时由 fallFaction 统一给出“马超投刘备”的第一行。
   return true;
 }
 

@@ -206,12 +206,10 @@ function announceOpening(state) {
     '曹操以“兖州旧怨”向吕布宣战，徐州、兖州边关同时点起烽火。',
     '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
     '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
-    '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
-    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
-    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
-    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
+    '刘备按兵新野，先派庞统入蜀，以“共讨张鲁”为名联络刘璋。',
+    '马腾割据西凉，汉中张鲁闭关自守，两家暂不与中原诸侯交锋。',
   ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
+  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；刘备派庞统入蜀，西凉马腾、汉中张鲁各守本土。', 'war');
 }
 
 function maybeOpeningEvent(state) {
@@ -292,6 +290,8 @@ function init(state, logger) {
     sandbox,
     openingPending: !!sandbox,
     guanduStarted: false,
+    guanduStoryShown: false,
+    guanduBattleStaged: false,
     kingdomsAllAtWar: false,
     unifiedFaction: null,
     targetRegion: {},
@@ -402,6 +402,15 @@ function resume(state, logger) {
   }
   if (!state.story.stage3Done) state.story.stage3Done = {};
   if (state.story.guanduStarted === undefined) state.story.guanduStarted = false;
+  if (state.story.guanduStoryShown === undefined) {
+    state.story.guanduStoryShown = !!state.story.guanduStarted;
+  }
+  if (state.story.guanduBattleStaged === undefined) {
+    state.story.guanduBattleStaged = !!state.story.guanduStarted ||
+      !!(state.fieldBattles || []).some(function (bf) {
+        return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+      });
+  }
   if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
   if (!state.story.targetRegion) state.story.targetRegion = {};
   applyYuanCombat(state, !!state.story.yuanWeak);
@@ -663,6 +672,8 @@ function startPhase(state, faction, opts) {
   if (!cfg) return false;
   const silent = !!(opts && opts.silent);
   const opening = !!(opts && opts.opening);
+  const guanduStage = isGuanduStage(cfg);
+  const firstGuanduEvent = guanduStage && !st.guanduStoryShown;
 
   const skipWait = !!(opts && opts.skipWait);
   // 开局第几天才递战书：到点前保持“等待”，不要提前把仗打起来。
@@ -712,7 +723,7 @@ function startPhase(state, faction, opts) {
   if (faction === 'shu' && cfg.id === 'shu_yizhou' && state.flags) {
     state.flags.liubeiYiWar = true;
   }
-  if (cfg.id === 'wei_north' || cfg.id === 'yuan_guandu') st.guanduStarted = true;
+  if (guanduStage) st.guanduStarted = true;
 
   war.abortCampaign(state, faction);
   if (cfg.yuanPenalty) applyYuanCombat(state, true);
@@ -726,7 +737,8 @@ function startPhase(state, faction, opts) {
     if (war.declare(state, faction, to, true, true)) declared.push(to);
   });
 
-  if (!silent && declared.length) {
+  // 官渡是同一场史实：只由先进入阶段的一方发一次榜文，另一方不再重复弹窗。
+  if (!silent && declared.length && (!guanduStage || firstGuanduEvent)) {
     const lines = (cfg.warLines || [cfg.casusBelli]).slice();
     const names = declared.map(factionName).join('、');
     lines.push('战书已下：' + factionName(faction) + '向' + names + '正式宣战。');
@@ -736,9 +748,11 @@ function startPhase(state, faction, opts) {
     logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
   }
   // 官渡开局：战书落下后再把曹袁两军补满、调到官渡列阵，并直接开一场合战。
-  if ((cfg.stage === 'guandu' || cfg.stageFlag === 'guandu') && state.storyHooks && state.storyHooks.stageGuandu) {
+  // stageGuandu 自身有一次性护栏，袁绍后进入阶段时不会把两军重新洗一遍。
+  if (guanduStage && state.storyHooks && state.storyHooks.stageGuandu) {
     state.storyHooks.stageGuandu(state);
   }
+  if (firstGuanduEvent) st.guanduStoryShown = true;
   // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
   if (declared.length && faction !== 'player' && faction !== 'bandit') {
     if (!state.warCampaigns || typeof state.warCampaigns !== 'object') state.warCampaigns = {};
@@ -791,6 +805,11 @@ function phasePeace(state, faction, cfg) {
   return done;
 }
 
+/** 官渡是曹袁的生死局：不设两年逾期，也不会在阶段结束时议和。 */
+function isGuanduStage(cfg) {
+  return !!(cfg && cfg.stageFlag === 'guandu');
+}
+
 function finishPhase(state, faction, ok) {
   const st = state.story;
   const p = st.phases[faction];
@@ -799,6 +818,8 @@ function finishPhase(state, faction, ok) {
   if (!cfg) { p.status = 'done'; return; }
 
   // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
+  // 官渡例外：曹袁必须打到一方灭亡，不能靠逾期收兵把剧情提前结束。
+  if (!ok && isGuanduStage(cfg)) return;
   if (!ok) {
     const deadline = STORY.phaseDeadlineDays || 720;
     if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
@@ -981,8 +1002,9 @@ function tickPhase(state, faction) {
       finishPhase(state, faction, true);
       return;
     }
-    // 两年防卡死：无论是否 noTimeout，只要玩家把阶段拖满两年，就自动跳过。
-    if (state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
+    // 两年防卡死：官渡不适用，其余阶段照旧。
+    if (!isGuanduStage(cfg) &&
+        state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
       finishPhase(state, faction, false);
     }
     return;
@@ -1405,12 +1427,8 @@ function maybeEdgeWars(state) {
       }
     }
   }
-  pushStoryEvent(state, '边地烽烟', [
-    '魏、蜀、吴的第一阶段已告一段落，中原暂时收刀，边缘诸部却开始互相吞并。',
-    '鲜卑、西凉、韩遂、南蛮、南越各自只打与本土道路直接相邻的城池，不肯远征。',
-    '南蛮与南越仍在牂牁、交趾一线死战，谁递议和书都不接。',
-  ], { tag: '大势', art: 'war', auto: 8 });
-  logFn(state, '边缘诸部开始互相攻伐；南蛮与南越永不停战。', 'war');
+  // 边缘诸部仍按既有逻辑互相攻伐，但不再向玩家弹“边地烽烟”，
+  // 史实榜文只写魏、蜀、吴与袁绍这些主线势力。
   refreshHeadline(state);
 }
 
@@ -1852,8 +1870,6 @@ function refreshHeadline(state) {
   if (st.emperor && st.emperor.declared && factionAlive(state, 'yuanshu')) {
     parts.push('袁术：仲家称帝');
   }
-  const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
-  if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
   if (st.chibi && !st.chibi.done) {
     parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
