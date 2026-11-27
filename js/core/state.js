@@ -4669,6 +4669,10 @@ function greedyStep(state, unit, target, opts) {
 
 /* ---------------------------------------------------------------- 战斗 */
 
+function playerRuleBattleFaction(faction) {
+  return !!(faction && faction !== 'bandit' && faction !== 'player' && FACTIONS[faction]);
+}
+
 function playerSide(state) {
   const bonus = economy.equipmentBonus(state);
   const hb = heroes.heroBonus(state);
@@ -4683,6 +4687,7 @@ function playerSide(state) {
     atkPct: bonus.atkPct + hb.atkPct,
     defPct: bonus.defPct + hb.defPct,
     isPlayer: true,
+    t5Eligible: true,
   };
 }
 
@@ -4709,6 +4714,7 @@ function startPartyBattle(state, party) {
   player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
+    playerRules: playerRuleBattleFaction(party.faction),
     attacker: player,
     defender: {
       name: party.name,
@@ -4744,9 +4750,13 @@ function startLordBattle(state, lord) {
   // 兜底：单挑，保持旧行为
   player.edge = war.factionEdge(player.faction, lord.faction);
   player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
+  const lordRuler = !!(state.factionState && state.factionState[lord.faction] &&
+    state.factionState[lord.faction].rulerId === lord.id) ||
+    !!(FACTIONS[lord.faction] && FACTIONS[lord.faction].lord === lord.name);
   const battle = new Battle({
     rng: state.rng,
     state: state,
+    playerRules: playerRuleBattleFaction(lord.faction),
     // 同一场遭遇战反复进出不重复触发；隔一个时辰再撞上才算新战场。
     battleKey: 'lord:' + lord.id + ':' + state.clock.day + ':' + Math.floor(state.clock.hour),
     attacker: player,
@@ -4760,6 +4770,9 @@ function startLordBattle(state, lord) {
       edge: war.factionEdge(lord.faction, player.faction),
       forceValue: lord.forceValue,
       commandValue: lord.commandValue,
+      isRuler: lordRuler,
+      generalRank: lord.generalRank,
+      t5Eligible: lordRuler || typeof lord.generalRank !== 'number' || lord.generalRank <= 20,
       strategists: lord.strategistGrade ? [{
         id: lord.id, name: lord.name, grade: lord.strategistGrade,
         pct: lord.strategistPct || 0, cap: lord.strategistCap || 100,
@@ -4954,6 +4967,7 @@ function startSiege(state, site) {
   const gateEdge = war.strategicDefenseForSite(state, site);
   const battle = new Battle({
     rng: state.rng,
+    playerRules: playerRuleBattleFaction(site.ownerFaction),
     attacker: player,
     defender: {
       name: site.name + '守军',
@@ -5012,6 +5026,7 @@ function startCampaignBattle(state, id) {
   player.edge = war.factionEdge(player.faction, cfg.faction);
   const battle = new Battle({
     rng: state.rng,
+    playerRules: playerRuleBattleFaction(cfg.faction),
     attacker: player,
     defender: {
       name: cfg.name,

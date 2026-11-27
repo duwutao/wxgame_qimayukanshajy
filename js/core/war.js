@@ -1025,7 +1025,7 @@ function fieldUnitInfo(state, ref, override) {
       key: 'player', kind: 'player', id: 'player', name: p.name,
       faction: p.faction || null, relationFaction: p.faction || 'player',
       troops: copyTroops(p.troops), morale: p.morale, atkPct: 0, defPct: 0,
-      isPlayer: true, pos: p, count: army.troopCount(p.troops),
+      isPlayer: true, t5Eligible: true, pos: p, count: army.troopCount(p.troops),
     };
   }
   const unit = fieldUnitOfRef(state, ref);
@@ -1039,6 +1039,14 @@ function fieldUnitInfo(state, ref, override) {
       count: army.troopCount(unit.troops),
       forceValue: unit.forceValue,
       commandValue: unit.commandValue,
+      isRuler: !!(state.factionState && state.factionState[unit.faction] &&
+        state.factionState[unit.faction].rulerId === unit.id) ||
+        (FACTIONS[unit.faction] && FACTIONS[unit.faction].lord === unit.name),
+      generalRank: typeof unit.generalRank === 'number' ? unit.generalRank : null,
+      t5Eligible: !!(state.factionState && state.factionState[unit.faction] &&
+        state.factionState[unit.faction].rulerId === unit.id) ||
+        (FACTIONS[unit.faction] && FACTIONS[unit.faction].lord === unit.name) ||
+        !(typeof unit.generalRank === 'number') || unit.generalRank <= 20,
       strategists: unit.strategistGrade ? [{
         id: unit.id,
         name: unit.name,
@@ -1099,6 +1107,11 @@ function fieldFactionOf(info) {
   return info.relationFaction !== undefined ? info.relationFaction : (info.faction || null);
 }
 
+/** 玩家参战且对手是三国势力时才启用新阵法；NPC 互战走旧规则。 */
+function playerRuleBattleFaction(faction) {
+  return !!(faction && faction !== 'bandit' && faction !== 'player' && FACTIONS[faction]);
+}
+
 /** 严格按“对对方敌对、但不对自己敌对”的阵营规则归边 */
 function fieldSideFor(state, info, fa, fb) {
   const f = fieldFactionOf(info);
@@ -1155,6 +1168,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let gateWeight = 0;
   let forceValue = null;
   let commandValue = null;
+  let t5Eligible = false;
   const strategists = [];
   const strategistIds = {};
   const primary = infos[0];
@@ -1168,6 +1182,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     if (typeof info.commandValue === 'number' && (commandValue === null || info.commandValue > commandValue)) {
       commandValue = info.commandValue;
     }
+    if (info.t5Eligible !== false) t5Eligible = true;
     (info.strategists || []).forEach(function (s) {
       if (!s || !s.id || strategistIds[s.id]) return;
       strategistIds[s.id] = true;
@@ -1218,6 +1233,7 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     force: forceTotal,
     forceValue: forceValue,
     commandValue: commandValue,
+    t5Eligible: t5Eligible,
     strategists: strategists,
   };
 }
@@ -1291,6 +1307,7 @@ function createFieldBattle(state, aRef, bRef, opts) {
     rng: state.rng,
     state: state,
     battleKey: context.battleKey,
+    playerRules: playerInvolved && (playerRuleBattleFaction(fa) || playerRuleBattleFaction(fb)),
     attacker: aSide,
     defender: bSide,
     context: context,

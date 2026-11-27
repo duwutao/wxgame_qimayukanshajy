@@ -172,6 +172,12 @@ const BattleScene = {
     const logY = compact ? y2 + 92 : 590;
     if (bv.phase === 'fight') {
       text(ctx, '战报', 16, logY, { size: compact ? 17 : 20, color: '#a2947a' });
+      if (b.playerRules && b.formationLog && !compact) {
+        const fl = wrap(ctx, '开局 · ' + b.formationLog, w - 32, 13).slice(0, 2);
+        fl.forEach(function (line, i) {
+          text(ctx, line, 16, logY + 22 + i * 16, { size: 13, color: '#c9a76a' });
+        });
+      }
       const recent = b.log.slice(compact ? -2 : -4);
       recent.forEach(function (e, i) {
         const y = logY + (compact ? 26 : 34) + i * (compact ? 28 : 34);
@@ -185,6 +191,9 @@ const BattleScene = {
     const bottom = compact ? Math.max(y2 + 96, h - 232) : Math.max(778, h - 486);
     if (bv.phase === 'prep') {
       if (compact) {
+        if (b.playerRules) text(ctx, '敌方阵法 · ' + TACTICS[b.bTactic].name, 16, bottom - 54, {
+          size: 15, color: '#d07060',
+        });
         text(ctx, '选一个打法', 16, bottom - 30, { size: 18, color: '#a2947a' });
         // 矮屏：四个打法排一行，不占两行高
         const bw4 = (w - 32 - 24) / 4;
@@ -207,6 +216,8 @@ const BattleScene = {
         const row2 = actionY - 12 - tacH;
         const row1 = row2 - (tacH + 6);
         text(ctx, '选一个打法', 16, row1 - 66, { size: 18, color: '#a2947a' });
+        if (b.playerRules) text(ctx, '敌方阵法 · ' + TACTICS[b.bTactic].name + '　（双方同时公布）',
+          w - 16, row1 - 66, { size: 15, align: 'right', color: '#d07060' });
         const dline = wrap(ctx, TACTICS[bv.tactic].desc, w - 32, 15).slice(0, 1)[0] || '';
         text(ctx, dline, 16, row1 - 24, { size: 15, color: '#a2947a' });
         TACTIC_LIST.forEach(function (id, i) {
@@ -428,6 +439,13 @@ function renderResult(app, sum, w, h, y0Top) {
   if (sum.openingLog) {
     text(ctx, '军师技 · ' + sum.openingLog, 16, extraY, { size: 15, color: '#c9a0e0' });
     extraY += 24;
+  }
+  if (sum.formationLog) {
+    const fl = wrap(ctx, '开局 · ' + sum.formationLog, w - 32, 14).slice(0, 2);
+    fl.forEach(function (line, i) {
+      text(ctx, line, 16, extraY + i * 18, { size: 14, color: '#c9a76a' });
+    });
+    extraY += fl.length * 18 + 4;
   }
   if (sum.shiMark) {
     text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, extraY, { size: 17, color: '#c9a0e0' });

@@ -4837,6 +4837,141 @@ group('n59 各国兵源 · T5 解锁');
     illegalT5.map(function (l) { return l.name; }).join(','));
 }
 
+group('n60 玩家三国阵法 · T5 开局特效');
+{
+  const { TACTICS } = require(R + '/core/battle.js');
+  const { RNG: BattleRNG } = require(R + '/rng.js');
+  function ruleBattle(opts) {
+    return new Battle(Object.assign({
+      rng: new BattleRNG(20261127),
+      playerRules: true,
+      aTactic: 'assault',
+      bTactic: 'assault',
+    }, opts));
+  }
+  const t5Base = ruleBattle({
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 1, wei_t4: 5 }, isPlayer: true },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 20 }, morale: 60 },
+  });
+  t5Base.step();
+  ok('T5 本体开局按 2 个 T4 结算', t5Base.openingLossB === 2,
+    'loss=' + t5Base.openingLossB + ' log=' + t5Base.formationLog);
+  ok('T5 本体不依赖所选阵法', /T5 本体/.test(t5Base.formationLog), t5Base.formationLog);
+
+  const t5BaseFormation = ruleBattle({
+    aTactic: 'skirmish', bTactic: 'flank',
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 1 }, isPlayer: true },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 20 }, morale: 60 },
+  });
+  t5BaseFormation.step();
+  ok('T5 本体固定 2 个 T4，不被阵法倍率放大', t5BaseFormation.openingLossB === 2,
+    'loss=' + t5BaseFormation.openingLossB + ' log=' + t5BaseFormation.formationLog);
+
+  const weiAssault = ruleBattle({
+    aTactic: 'flank', bTactic: 'assault',
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 1, wei_t4: 5 }, isPlayer: true },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 20 }, morale: 60 },
+  });
+  const weiHold = ruleBattle({
+    aTactic: 'flank', bTactic: 'hold',
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 1, wei_t4: 5 }, isPlayer: true },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 20 }, morale: 60 },
+  });
+  weiAssault.step();
+  weiHold.step();
+  ok('魏 T5 选骑兵包围才有附加击杀', /虎豹禁骑/.test(weiAssault.formationLog), weiAssault.formationLog);
+  ok('魏 T5 对固守额外击杀更多', weiHold.openingLossB > weiAssault.openingLossB,
+    weiHold.openingLossB + ' vs ' + weiAssault.openingLossB);
+
+  const shuFlank = ruleBattle({
+    aTactic: 'skirmish', bTactic: 'flank',
+    attacker: { name: '蜀军', faction: 'shu', troops: { shu_t5: 1 }, isPlayer: true },
+    defender: { name: '魏军', faction: 'wei', troops: { wei_t4: 15, wei_t3a: 5 }, morale: 60 },
+  });
+  const shuNoFlank = ruleBattle({
+    aTactic: 'skirmish', bTactic: 'assault',
+    attacker: { name: '蜀军', faction: 'shu', troops: { shu_t5: 1 }, isPlayer: true },
+    defender: { name: '魏军', faction: 'wei', troops: { wei_t4: 15, wei_t3a: 5 }, morale: 60 },
+  });
+  shuFlank.step();
+  shuNoFlank.step();
+  ok('蜀 T5 选弓弩先射且敌选骑兵包围才追加', /元戎神弩营/.test(shuFlank.formationLog), shuFlank.formationLog);
+  ok('蜀 T5 对非骑兵包围不追加骑兵击杀', shuFlank.openingLossB > shuNoFlank.openingLossB,
+    shuFlank.openingLossB + ' vs ' + shuNoFlank.openingLossB);
+
+  const wuHold = ruleBattle({
+    aTactic: 'skirmish', bTactic: 'hold',
+    attacker: { name: '袁军', faction: 'yuan', troops: { yuan_t3b: 10 }, isPlayer: false },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 10 }, morale: 60 },
+  });
+  wuHold.step();
+  ok('无吴 T5 的固守也能挡首轮弓弩', wuHold.openingLossB === 0 && wuHold.openingBlockB > 0,
+    'loss=' + wuHold.openingLossB + ' block=' + wuHold.openingBlockB);
+
+  const wuT5 = ruleBattle({
+    aTactic: 'flank', bTactic: 'hold',
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t3a: 20 }, isPlayer: false },
+    defender: { name: '吴军', faction: 'wu', troops: { wu_t5: 1, wu_t4: 5 }, isPlayer: true },
+  });
+  const noWuT5 = ruleBattle({
+    aTactic: 'flank', bTactic: 'hold',
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t3a: 20 }, isPlayer: false },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 5 }, isPlayer: true },
+  });
+  ok('吴 T5 固守会削弱骑兵包围',
+    wuT5.formationAttackMul('a', TACTICS.flank, TACTICS.hold, 1) <
+    noWuT5.formationAttackMul('a', TACTICS.flank, TACTICS.hold, 1),
+    wuT5.formationAttackMul('a', TACTICS.flank, TACTICS.hold, 1) + ' vs ' +
+    noWuT5.formationAttackMul('a', TACTICS.flank, TACTICS.hold, 1));
+
+  const capBattle = ruleBattle({
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 10 }, isPlayer: true },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 10 }, morale: 60 },
+  });
+  capBattle.step();
+  ok('开局齐射伤亡不超过敌方一半', capBattle.openingLossB <= 5, String(capBattle.openingLossB));
+
+  const noT5Faction = ruleBattle({
+    attacker: { name: '袁军', faction: 'yuan', troops: { wei_t5: 1 }, isPlayer: false },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t1: 20 }, isPlayer: true },
+  });
+  ok('没有 T5 权限的势力不能出 T5', !Object.keys(noT5Faction.a.troops).some(function (id) {
+    return TROOPS[id] && TROOPS[id].t5;
+  }), JSON.stringify(noT5Faction.a.troops));
+
+  const ineligible = ruleBattle({
+    attacker: { name: '魏军', faction: 'wei', t5Eligible: false, troops: { wei_t5: 1 }, isPlayer: false },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t1: 20 }, isPlayer: true },
+  });
+  ok('非君主/前列武将不能带 T5 出战', !Object.keys(ineligible.a.troops).some(function (id) {
+    return TROOPS[id] && TROOPS[id].t5;
+  }), JSON.stringify(ineligible.a.troops));
+
+  const cavSide = ruleBattle({
+    attacker: { name: '骑', faction: 'wei', troops: { wei_t3a: 100 }, isPlayer: true },
+    defender: { name: '弓', faction: 'shu', troops: { shu_t3b: 100 }, morale: 60 },
+  });
+  const infSide = ruleBattle({
+    attacker: { name: '骑', faction: 'wei', troops: { wei_t3a: 100 }, isPlayer: true },
+    defender: { name: '步', faction: 'shu', troops: { shu_t1: 100 }, morale: 60 },
+  });
+  const stCav = armyLib.strength(cavSide.b.troops);
+  const stInf = armyLib.strength(infSide.b.troops);
+  const atkCav = cavSide.playerAttack('a', armyLib.strength(cavSide.a.troops), 1);
+  const atkInf = infSide.playerAttack('a', armyLib.strength(infSide.a.troops), 1);
+  ok('兵种循环：骑兵打弓兵 +20%', atkCav > atkInf * 1.19 && atkCav < atkInf * 1.21,
+    atkCav.toFixed(3) + ' vs ' + atkInf.toFixed(3));
+
+  const npcBattle = new Battle({
+    rng: new BattleRNG(20261127),
+    attacker: { name: '魏军', faction: 'wei', troops: { wei_t5: 1, wei_t4: 5 }, isPlayer: false },
+    defender: { name: '蜀军', faction: 'shu', troops: { shu_t4: 20 }, morale: 60 },
+  });
+  npcBattle.step();
+  ok('NPC 互战不触发玩家阵法', npcBattle.playerRules === false && !npcBattle.formationLog,
+    'rules=' + npcBattle.playerRules + ' log=' + npcBattle.formationLog);
+}
+
 group('n54 旧档主线字段兼容');
 {
   const st = stateLib.createGame({});
