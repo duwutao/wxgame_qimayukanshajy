@@ -809,9 +809,9 @@ const SITE_ROWS = [
   // ---- 塞北 / 幽燕 ----
   ['longcheng', '龙城', 'town', 'xianbei', 7, 3, 1.12, 120, 'xianbei', '鲜卑王庭。帐篷连成城，马比人多。'],
   ['tanhanshan', '弹汗山', 'castle', 'xianbei', 13, 5, 1.16, 100, 'xianbei', '轲比能的老营，山后有整片的马场。'],
-  ['juyan', '居延', 'town', 'ma', 5, 9, 1.08, 95, 'ma', '居延塞。弱水从城下绕过，往北是草原，往南是河西。马腾在这里放牧养马，与汉廷、韩遂都不接壤。'],
+  ['juyan', '居延', 'town', 'xianbei', 5, 9, 1.08, 95, 'xianbei', '居延塞。弱水从城下绕过，往北是草原，往南是河西。'],
   ['ji', '蓟', 'town', 'gongsun', 26, 4, 1.05, 110, 'gongsun', '幽州治所。公孙瓒的白马义从在城外列阵，旌旗一色皆白。'],
-  ['xiangping', '襄平', 'town', 'gongsun', 34, 4, 1.02, 90, 'gongsun', '辽东郡治，离中原很远，离塞外很近。公孙氏据城自守，城门上挂着白旗。'],
+  ['xiangping', '襄平', 'town', null, 34, 4, 1.02, 90, 'none', '辽东郡治，离中原很远，离塞外很近。如今城中无主，只有郡吏守着旧仓。'],
   ['beiping', '北平', 'castle', 'gongsun', 31, 7, 1.1, 85, 'gongsun', '右北平的边堡。公孙家的白马常从这里出塞。'],
   ['zhuo', '涿', 'village', 'gongsun', 27, 8, 0.74, 14, 'village', '桃园结义的地方。现在归了公孙瓒，村口插着一面白旗。'],
   ['fanyang', '范阳', 'town', 'gongsun', 27, 10, 1.05, 95, 'gongsun', '涿郡与邺城之间的驿城，北来粮车在这里换马，南来驿使在这里过夜。'],
@@ -832,14 +832,13 @@ const SITE_ROWS = [
   ['luoyang', '洛阳', 'town', 'wei', 20, 22, 1.12, 130, 'cao', '董卓烧过一次，如今又有人回来重新点灯。'],
   ['hulao', '虎牢关', 'castle', 'wei', 21, 20, 1.15, 90, 'cao', '洛阳东面的关口。三英战吕布，就在这下面。'],
   // ---- 凉州 ----
-  ['anding', '安定', 'town', 'han', 11, 18, 1.08, 95, 'han', '汉家西面的门户，卡在武威通往长安的驿道上，城头还挂着汉廷赤旗。'],
   ['wuwei', '武威', 'town', 'ma', 6, 17, 1.04, 100, 'ma', '凉州治所，马市开在城外，一天能换三百匹。'],
   ['xiping', '西平', 'town', 'hansui', 3, 17, 1.06, 90, 'hansui', '湟水谷地的粮城。韩遂的旗插在城头，羌汉商队都在这里歇脚。'],
   ['fuhan', '枹罕', 'castle', 'hansui', 2, 20, 1.14, 85, 'hansui', '河州旧垒。城墙夯了又夯，挡住过无数次羌骑。'],
   ['jincheng', '金城', 'town', 'hansui', 4, 22, 1.06, 85, 'hansui', '黄河边上的渡口城。韩遂与马腾在这里喝过酒，也在这里翻过脸。'],
-  ['tianshui', '天水', 'castle', 'hansui', 10, 22, 1.1, 95, 'hansui', '陇右的要冲，姜维的老家。如今城门上插着韩字旗，与长安只隔一条驿道。'],
+  ['tianshui', '天水', 'castle', 'ma', 10, 22, 1.1, 95, 'ma', '陇右的要冲，姜维的老家。'],
   ['longxi', '陇西村', 'village', 'ma', 8, 24, 0.72, 12, 'village', '黄土坡上的村子，家家有马，家家缺粮。'],
-  ['wudu', '武都', 'castle', 'zhanglu', 12, 27, 1.14, 75, 'zhanglu', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。张鲁的教众在此把守。'],
+  ['wudu', '武都', 'castle', 'zhang', 12, 27, 1.14, 75, 'zhang', '陇南的氐羌山城。往北是天水，往南是汉中，山道窄得只容一队人。'],
   // ---- 中原 ----
   ['chenliu', '陈留', 'town', 'wei', 25, 23, 1.03, 90, 'cao', '曹操起兵的地方。城外全是募兵的木牌。'],
   ['guandu', '官渡', 'castle', 'wei', 23, 21, 1.2, 100, 'cao', '黄河渡口。两军对峙的时候，这里连水都贵。'],
@@ -851,7 +850,6 @@ const SITE_ROWS = [
   ['xiapi', '下邳', 'town', 'lv', 31, 24, 1.1, 150, 'lv', '吕布守着这座城。泗水绕着城墙流，水能灌进来。'],
   ['xiaopei', '小沛', 'castle', 'lv', 29, 23, 1.12, 80, 'lv', '刘备借住过的地方，现在插着吕字旗。'],
   ['pengcheng', '彭城', 'village', 'lv', 30, 21, 0.78, 15, 'village', '徐州旧治的残垣，集市还开在墙根下。'],
-  ['taishanguan', '泰山关', 'castle', 'yuan', 29, 18, 1.16, 80, 'yuan', '青徐之间的山口关城。北接平原，南压彭城，如今袁绍的旗插在关楼上。'],
   ['xuzhou', '徐州', 'town', 'lv', 33, 21, 1.07, 120, 'lv', '泗水与沂水在这里交汇，城头插着吕字旗，商队仍从城门下过。'],
   ['guangling', '广陵', 'town', 'yuanshu', 32, 26, 1.06, 95, 'yuanshu', '淮南的盐粮码头，袁术的船队从这里北上。'],
   ['hefei', '合肥', 'castle', 'yuanshu', 31, 29, 1.12, 85, 'yuanshu', '合肥新城压在江淮之间，谁占住这里，谁就能卡住寿春的北门。'],
@@ -868,17 +866,17 @@ const SITE_ROWS = [
   ['xiakou', '夏口', 'castle', 'wu', 27, 36, 1.14, 90, 'wu', '汉水入江处。谁在这里扎营，谁就卡住了荆州。'],
   ['chaisang', '柴桑', 'town', 'wu', 28, 38, 1.06, 95, 'wu', '江东的水军基地，船比房子多。'],
   ['yushan', '玉山', 'town', 'wu', 32, 39, 1.04, 85, 'wu', '柴桑与会稽之间的山城，浙赣山道从城下过，往西还能转进夷陵。'],
-  ['chibi', '赤壁', 'castle', 'biao', 26, 38, 1.16, 70, 'biao', '江边的石壁。风从东南来，火能烧到对岸。'],
-  ['yiling', '夷陵', 'castle', 'wu', 24, 41, 1.12, 75, 'wu', '三峡的出口。孙权的水军在这里下寨，江陵与柴桑之间的水路都从这里转。'],
+  ['chibi', '赤壁', 'castle', null, 26, 38, 1.16, 70, 'none', '江边的石壁。风从东南来，火能烧到对岸。'],
+  ['yiling', '夷陵', 'castle', null, 24, 41, 1.12, 75, 'none', '三峡的出口。连营七百里，说的就是这一线。'],
   // ---- 益州 ----
-  ['hanzhong', '汉中', 'town', 'zhanglu', 16, 29, 1.04, 105, 'zhanglu', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
-  ['shangluo', '上洛', 'castle', 'zhanglu', 18, 26, 1.16, 80, 'zhanglu', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。张鲁的旗插在关楼上。'],
+  ['hanzhong', '汉中', 'town', 'zhang', 16, 29, 1.04, 105, 'zhang', '秦岭与巴山之间的粮仓，五斗米道的地盘。'],
+  ['shangluo', '上洛', 'castle', 'zhang', 18, 26, 1.16, 80, 'zhang', '商洛山中的关城。汉中往洛阳的驿道从这里穿过，山谷里常年有雾。'],
   ['jiange', '剑阁', 'castle', 'zhang', 16, 32, 1.18, 100, 'zhang', '一夫当关，万夫莫开。说的不是城，是那条路。'],
   ['chengdu', '成都', 'town', 'zhang', 11, 35, 1.07, 160, 'zhang', '益州治所。锦官城的织机声，隔一条街都听得见。'],
   ['jiangzhou', '江州', 'town', 'zhang', 14, 38, 1.05, 90, 'zhang', '巴郡的水码头，盐船从这里下行。'],
   ['zhuti', '朱提', 'castle', 'nanman', 12, 39, 1.12, 75, 'nanman', '南中的银矿与粮道。孟获的哨骑常在山口上点烟。'],
   ['jianning', '建宁', 'town', 'nanman', 14, 41, 1.08, 105, 'nanman', '南蛮王城。铜鼓一响，各部洞主就带着藤甲兵下山。'],
-  ['zangke', '牂牁', 'castle', 'nanman', 20, 44, 1.14, 80, 'nanman', '牂牁江边的山城。顺流而下可到交州，逆流而上就是巴郡。'],
+  ['zangke', '牂牁', 'castle', 'nanman', 18, 40, 1.14, 80, 'nanman', '牂牁江边的山城。顺流而下可到交州，逆流而上就是巴郡。'],
   ['yunnan', '云南', 'town', 'nanman', 10, 43, 1.06, 95, 'nanman', '彩云之南的坝子。稻田、盐井与象队都从这里出。'],
   ['yongchang', '永昌', 'castle', 'nanman', 8, 45, 1.16, 70, 'nanman', '西南极边的郡城。再往西就是身毒，商队带着琉璃与象牙回来。'],
   ['baxi', '巴西村', 'village', 'zhang', 13, 34, 0.73, 13, 'village', '山坳里的村子，出产賨人和好弓。'],
@@ -888,13 +886,11 @@ const SITE_ROWS = [
   ['kuaiji', '会稽', 'town', 'wu', 34, 40, 1.05, 110, 'wu', '东南的海盐与稻米，一半从这会稽出去。'],
   ['danyang', '丹阳村', 'village', 'wu', 31, 33, 0.76, 15, 'village', '出精兵的地方。山越与汉人混着住。'],
   // ---- 交州 ----
-  ['jiaozhi', '交趾', 'town', 'shanyue', 24, 46, 1.02, 70, 'shanyue', '最南边的郡城。中原的官来了先病三个月。'],
-  ['shanyue', '南越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的南越王城。铜鼓藏在洞里，山路比城墙更难走。'],
-  ['longbian', '龙编', 'town', 'shanyue', 25, 47, 1.0, 72, 'shanyue', '红河口的南越城。码头连着交趾，铜鼓与盐船都在这里靠岸。'],
-  ['changsha', '长沙', 'town', 'biao', 23, 42, 1.0, 88, 'biao', '湘水与浏水交汇的荆州城。谁握住长沙，谁就能把荆南的粮船扣在港里。'],
+  ['jiaozhi', '交趾', 'town', null, 24, 46, 1.02, 70, 'none', '最南边的郡城。中原的官来了先病三个月。'],
+  ['shanyue', '山越', 'town', 'shanyue', 21, 47, 1.02, 90, 'shanyue', '交趾西南的山越王城。铜鼓藏在洞里，山路比城墙更难走。'],
+  ['changsha', '长沙村', 'village', null, 23, 42, 0.74, 12, 'village', '湘水边的稻村，孙刘两家都来征过粮。'],
   ['wuling', '武陵', 'town', 'biao', 22, 44, 1.04, 80, 'biao', '荆南的山城，沅水从城下绕过，粮船南下都要在这里歇一夜。'],
-  ['guiyang', '桂阳村', 'village', 'biao', 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
-  ['edge_town', '边陲小镇', 'village', null, 2, 40, 0.7, 10, 'village', '地图西缘的一座无名小镇。一年四季被浓雾裹着，没人说得清镇里还住着谁。'],
+  ['guiyang', '桂阳村', 'village', null, 26, 44, 0.72, 11, 'village', '五岭以南的小村，出锡，也出土话。'],
   // ---- 匪巢 ----
   ['heishan', '黑山营', 'camp', 'bandit', 24, 16, 0, 45, 'bandit', '太行山里的黄巾余部，张燕带着几万人钻山沟。'],
   ['taishan', '泰山寇', 'camp', 'bandit', 32, 19, 0, 38, 'bandit', '泰山周边的山贼，专抢青徐之间的粮队。'],
@@ -918,7 +914,6 @@ const RECRUIT_SETS = {
   yuanshu: ['militia', 'spear', 'cav', 'guard'],
   biao: ['militia', 'spear', 'archer', 'cav'],
   zhang: ['militia', 'spear', 'archer', 'wudang'],
-  zhanglu: ['militia', 'spear', 'archer', 'wudang'],
   xianbei: ['militia', 'qishe', 'xianbei', 'tengri'],
   ma: ['militia', 'spear', 'qishe', 'tiefu'],
   hansui: ['militia', 'spear', 'cav', 'qishe'],
@@ -932,8 +927,8 @@ const RECRUIT_SETS = {
 
 /** 道路连线 */
 const ROADS = [
-  ['longcheng', 'tanhanshan'], ['juyan', 'wuwei'],
-  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['beiping', 'ji'], ['zhuo', 'beiping'],
+  ['longcheng', 'tanhanshan'], ['longcheng', 'juyan'], ['juyan', 'wuwei'],
+  ['tanhanshan', 'ji'], ['ji', 'zhuo'], ['zhuo', 'beiping'],
   ['beiping', 'xiangping'], ['nanpi', 'beiping'], ['nanpi', 'ye'], ['ye', 'shangdang'],
   ['zhuo', 'fanyang'], ['fanyang', 'ye'], ['ye', 'changshan'],
   ['shangdang', 'jinyang'], ['jinyang', 'yanmen'], ['yanmen', 'tanhanshan'], ['jinyang', 'puyang'],
@@ -941,47 +936,34 @@ const ROADS = [
   ['puyang', 'chenliu'], ['chenliu', 'guandu'], ['guandu', 'hulao'], ['hulao', 'luoyang'],
   ['baima', 'guandu'], ['baima', 'hulao'], ['liyang', 'ye'], ['liyang', 'baima'],
   ['luoyang', 'tongguan'], ['tongguan', 'changan'], ['changan', 'tianshui'], ['tianshui', 'longxi'],
-  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['jincheng', 'tianshui'], ['wuwei', 'xiping'], ['fuhan', 'jincheng'],
-  ['wuwei', 'anding'], ['anding', 'changan'],
+  ['longxi', 'jincheng'], ['jincheng', 'wuwei'], ['wuwei', 'xiping'], ['xiping', 'fuhan'], ['fuhan', 'jincheng'],
   ['wuwei', 'tianshui'], ['tianshui', 'wudu'], ['wudu', 'hanzhong'],
   ['hanzhong', 'jiange'],
   ['jiange', 'baxi'], ['baxi', 'chengdu'], ['chengdu', 'jiangzhou'], ['jiangzhou', 'yiling'],
   ['jiangzhou', 'zhuti'], ['zhuti', 'jianning'], ['jianning', 'yunnan'], ['yunnan', 'yongchang'],
   ['jianning', 'zangke'], ['zangke', 'jiaozhi'],
-  // 建宁—南中夷寨：南中部落与建宁互通，不再只靠南中—交趾一条远路。
-  ['jianning', 'nanzhong'],
   ['chenliu', 'xuchang'], ['xuchang', 'qiao'], ['xuchang', 'runan'], ['runan', 'wan'],
   // 陈留—小沛驿道：曹吕前线不能只隔着一片农田对望，有路才走得过去、攻得起来。
   ['chenliu', 'xiaopei'],
   ['wan', 'xinye'], ['xinye', 'xiangyang'], ['xinye', 'shangyong'], ['shangyong', 'xiangyang'], ['shangyong', 'jiange'], ['shangyong', 'jiangzhou'], ['xiangyang', 'jiangling'], ['jiangling', 'yiling'],
   ['yiling', 'chibi'], ['chibi', 'chaisang'], ['chaisang', 'xiakou'], ['xiakou', 'jiangling'],
-  // 荆襄—赤壁—夏口：襄阳南下赤壁，再沿江到夏口，荆州水陆连成一条。
-  ['xiangyang', 'chibi'], ['chibi', 'xiakou'],
   ['xuchang', 'shouchun'], ['shouchun', 'xiaopei'], ['shouchun', 'hefei'],
   ['shouchun', 'lujiang'], ['lujiang', 'liyang2'], ['lujiang', 'wan'], ['lujiang', 'xiakou'], ['liyang2', 'ruxu'], ['ruxu', 'jianye'],
   ['hefei', 'ruxu'], ['ruxu', 'danyang'],
   ['hefei', 'guangling'], ['guangling', 'xiapi'], ['guangling', 'xuzhou'],
-  ['xiaopei', 'xiapi'], ['xiaopei', 'pengcheng'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
-  ['pengcheng', 'xuzhou'],
-  ['pengcheng', 'taishanguan'], ['taishanguan', 'taishan'], ['puyang', 'taishanguan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
+  ['xiaopei', 'xiapi'], ['xiapi', 'pengcheng'], ['xiapi', 'xuzhou'],
+  ['pengcheng', 'taishan'], ['xiapi', 'danyang'], ['danyang', 'jianye'], ['jianye', 'wujun'],
   ['wujun', 'kuaiji'], ['jianye', 'chaisang'], ['chaisang', 'poyang'], ['poyang', 'changsha'],
   ['chaisang', 'yushan'], ['yushan', 'kuaiji'], ['yushan', 'yiling'],
   ['changsha', 'guiyang'], ['guiyang', 'jiaozhi'], ['changsha', 'yiling'], ['hanzhong', 'shangluo'], ['shangluo', 'luoyang'],
-  ['shanyue', 'wuling'],
   ['heishan', 'ye'], ['baibo', 'luoyang'], ['mizei', 'hanzhong'], ['nanzhong', 'jiaozhi'], ['jiaozhi', 'shanyue'],
-  ['taishanguan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
+  ['taishan', 'pingyuan'], ['beihai', 'pingyuan'], ['beihai', 'xuzhou'],
   ['wuling', 'changsha'], ['wuling', 'guiyang'],
-  // 牂牁—武陵：南中与荆南之间的一条山道，南蛮与刘表因此接壤。
-  ['zangke', 'wuling'],
-  // 南蛮—南越：两家从开局便沿山路互攻，永不停战。
-  ['zangke', 'shanyue'],
-  ['shanyue', 'longbian'], ['longbian', 'jiaozhi'],
   // 蜀道与关隘枢纽：让关键关口四面可走，也给刘备一条从新野入川的路。
   ['jiange', 'xinye'], ['jiange', 'xiangyang'],
   ['hulao', 'shangdang'], ['hulao', 'xuchang'],
   ['tongguan', 'shangdang'], ['tongguan', 'wan'],
-  // 新野—许昌不直连：刘备北上走汝南或绕宛城；官渡仍是黄河渡口。
-  ['runan', 'xinye'], ['wan', 'xiangyang'],
+  ['guandu', 'xinye'], ['wan', 'xiangyang'],
   ['hefei', 'jianye'], ['hefei', 'xuchang'],
   ['chaisang', 'jiangling'], ['chibi', 'jiangling'],
 ];
@@ -1004,12 +986,10 @@ const STRATEGIC_SITES = {
   shangdang: { id: 'shangdang', name: '上党',   radius: 8, defense: 1.5 },
   jiange:    { id: 'jiange',    name: '剑阁',   radius: 8, defense: 1.5 },
   guandu:    { id: 'guandu',    name: '官渡',   radius: 8, defense: 1.5 },
-  taishanguan: { id: 'taishanguan', name: '泰山关', radius: 8, defense: 1.5 },
   hanzhong:  { id: 'hanzhong',  name: '汉中',   radius: 8, defense: 1.5 },
   xiangyang: { id: 'xiangyang', name: '襄阳',   radius: 8, defense: 1.5 },
   hefei:     { id: 'hefei',     name: '合肥',   radius: 8, defense: 1.5 },
   chaisang:  { id: 'chaisang',  name: '柴桑',   radius: 8, defense: 1.5 },
-  changsha:  { id: 'changsha',  name: '长沙',   radius: 8, defense: 1.5 },
   chibi:     { id: 'chibi',     name: '赤壁',   radius: 8, defense: 1.5 },
   yiling:    { id: 'yiling',    name: '夷陵',   radius: 8, defense: 1.5 },
 };
@@ -1019,9 +999,6 @@ const CAPITAL_IDS = [
   'xuchang', 'chengdu', 'jianye', 'ye', 'xiapi', 'xiangyang', 'longcheng', 'wuwei', 'changan', 'luoyang',
   'shouchun', 'ji', 'jincheng', 'jianning', 'shanyue',
 ];
-
-/** 战略地图上不再保留无主要地：武都、上洛归张鲁，长沙归刘表。 */
-const FREE_CITY_IDS = [];
 
 /** 势力 */
 const FACTIONS = {
@@ -1057,14 +1034,6 @@ const FACTIONS = {
     id: 'zhang', name: '璋', full: '刘璋', color: '#8a8a52', banner: '璋',
     lord: '刘璋', desc: '益州天府，闭门自守。兵不少，将不多。',
   },
-  zhanglu: {
-    id: 'zhanglu', name: '鲁', full: '张鲁', color: '#b08a5a', banner: '鲁',
-    lord: '张鲁', desc: '五斗米道据汉中，北守秦岭，南望巴蜀。政教合一，山险为城。',
-  },
-  rebel: {
-    id: 'rebel', name: '叛', full: '叛军', color: '#6d2f2a', banner: '叛',
-    lord: '叛将', desc: '统一之后突然翻脸的全国旧臣。旗号杂乱，人数众多。',
-  },
   xianbei: {
     id: 'xianbei', name: '鲜卑', full: '轲比能', color: '#7a6a4a', banner: '鲜',
     lord: '轲比能', desc: '控弦十万，来去如风。不筑城，只抢城。',
@@ -1078,16 +1047,16 @@ const FACTIONS = {
     lord: '韩遂', desc: '金城起家，联结羌胡。与马腾同饮过酒，也同动过刀。',
   },
   gongsun: {
-    id: 'gongsun', name: '公孙', full: '公孙瓒', color: '#93a6b0', banner: '公',
-    lord: '公孙瓒', desc: '白马义从，公孙之主。赵云也曾在白马旗下听令。',
+    id: 'gongsun', name: '燕', full: '公孙瓒', color: '#93a6b0', banner: '燕',
+    lord: '公孙瓒', desc: '白马义从，幽燕之主。赵云也曾在白马旗下听令。',
   },
   nanman: {
     id: 'nanman', name: '蛮', full: '孟获', color: '#a8673d', banner: '蛮',
     lord: '孟获', desc: '南中诸部，藤甲铜鼓。山高林密，外人进来先迷路。',
   },
   shanyue: {
-    id: 'shanyue', name: '南越', full: '南越诸部', color: '#4f6f5f', banner: '越',
-    lord: '潘临', desc: '交州南部的越人诸洞。不守平川，只守山口，弩箭从林子里射出来。',
+    id: 'shanyue', name: '越', full: '山越诸部', color: '#4f6f5f', banner: '越',
+    lord: '潘临', desc: '交州山中的越人诸洞。不守平川，只守山口，弩箭从林子里射出来。',
   },
   han: {
     id: 'han', name: '汉', full: '汉廷', color: '#8f8f86', banner: '汉',
@@ -1111,21 +1080,9 @@ const FACTIONS = {
  * 但只对蜀、吴之外的国家有效；蜀、吴各自比普通势力强，互打仍按原兵数。
  */
 const FACTION_COMBAT = {
-  yuan: { power: 1, note: '袁绍军：官渡按正常士气与战力参战，不再受昏君惩罚' },
   wei: { power: 1.5, neutral: ['shu', 'wu'], note: '曹操军：对外 2 兵抵 3 兵，对蜀吴 1:1' },
   shu: { power: 1.5, neutral: ['wei', 'wu'], note: '刘备军：对外 2 兵抵 3 兵，对魏吴 1:1' },
   wu: { power: 1.5, neutral: ['wei', 'shu'], note: '孙权军：对外 2 兵抵 3 兵，对魏蜀 1:1' },
-  gongsun: { power: 0.5, note: '公孙瓒军：白马义从已老，两兵只当一兵用，给袁绍第一阶段让路' },
-  zhanglu: { power: 1.0, note: '张鲁军：汉中教众守山，不主动扩张' },
-};
-
-/**
- * 名将榜带兵上限的国别系数：只压“单体上限”，不改名次与招兵倍率。
- * 曹操麾下领主最多（魏 22 人，榜上 12 人），若人人按满额扩编，
- * 单国兵力会比蜀吴多出一大截；这里把魏国领主的满编统一下调 30%。
- */
-const FACTION_ROSTER_MUL = {
-  wei: 0.7,
 };
 
 /**
@@ -1185,17 +1142,6 @@ const SUCCESSION = {
     { id: 'yanghuai', name: '杨怀', title: '白水军督' },
     { id: 'gaopei', name: '高沛', title: '白水关守将' },
   ],
-  zhanglu: [
-    { id: 'zhangfu', name: '张富', title: '汉中督' },
-    { id: 'yangren', name: '杨任', title: '大将' },
-    { id: 'yang`ang', name: '杨昂', title: '部将' },
-    { id: 'yanpu', name: '阎圃', title: '谋主' },
-  ],
-
-
-
-
-
   xianbei: [
     { id: 'suli', name: '素利', title: '东部大人' },
     { id: 'mijia', name: '弥加', title: '部帅' },
@@ -1233,7 +1179,7 @@ const SUCCESSION = {
     { id: 'youtu', name: '尤突', title: '越帅' },
     { id: 'feizhan', name: '费栈', title: '丹阳越帅' },
     { id: 'pengqi', name: '彭绮', title: '鄱阳越帅' },
-    { id: 'pengshi', name: '彭式', title: '南越渠帅' },
+    { id: 'pengshi', name: '彭式', title: '山越渠帅' },
     { id: 'huangluan', name: '黄乱', title: '越中渠帅' },
   ],
   han: [
@@ -1274,15 +1220,9 @@ const LORDS = [
   { id: 'caimao', name: '蔡瑁', faction: 'biao', home: 'jiangling', soldiers: { militia: 40, archer: 30, boat: 20 }, morale: 72, sight: 6, title: '水军统领' },
   { id: 'liuzhang', name: '刘璋', faction: 'zhang', home: 'chengdu', soldiers: { militia: 80, spear: 60, archer: 35 }, morale: 74, sight: 6, title: '益州牧' },
   { id: 'zhangren', name: '张任', faction: 'zhang', home: 'jiange', soldiers: { militia: 40, spear: 45, archer: 25 }, morale: 84, sight: 7, title: '从事' },
-  { id: 'zhanglu', name: '张鲁', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 55, spear: 45, archer: 30, wudang: 8 }, morale: 82, sight: 6, title: '师君' },
-  { id: 'yangren', name: '杨任', faction: 'zhanglu', home: 'wudu', soldiers: { militia: 35, spear: 40, archer: 20 }, morale: 80, sight: 6, title: '大将' },
-  { id: 'yang`ang', name: '杨昂', faction: 'zhanglu', home: 'shangluo', soldiers: { militia: 30, spear: 35, archer: 20 }, morale: 78, sight: 6, title: '部将' },
-  { id: 'yanpu', name: '阎圃', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 25, spear: 20, archer: 15 }, morale: 74, sight: 5, title: '谋主' },
-  { id: 'zhangwei', name: '张卫', faction: 'zhanglu', home: 'hanzhong', soldiers: { militia: 35, spear: 30, archer: 20 }, morale: 78, sight: 6, title: '都尉' },
-  { id: 'yangbo', name: '杨柏', faction: 'zhanglu', home: 'wudu', soldiers: { militia: 28, spear: 28, archer: 18 }, morale: 76, sight: 5, title: '校尉' },
   { id: 'kebineng', name: '轲比能', faction: 'xianbei', home: 'longcheng', soldiers: { cav: 80, qishe: 40, xianbei: 30, tengri: 12 }, morale: 86, sight: 9, title: '鲜卑单于' },
   { id: 'mateng', name: '马腾', faction: 'ma', home: 'wuwei', soldiers: { militia: 30, spear: 50, qishe: 30, tiefu: 15 }, morale: 82, sight: 8, title: '征西将军' },
-  { id: 'machao', name: '马超', faction: 'ma', home: 'wuwei', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
+  { id: 'machao', name: '马超', faction: 'ma', home: 'tianshui', soldiers: { cav: 45, tiefu: 25, qishe: 20 }, morale: 90, sight: 9, title: '偏将军' },
   { id: 'huangfusong', name: '皇甫嵩', faction: 'han', home: 'changan', soldiers: { militia: 40, spear: 40, crossbow: 25, jinjun: 6 }, morale: 74, sight: 6, title: '车骑将军' },
   // ---- 魏：宗亲与五子 ----
   { id: 'caoren', name: '曹仁', faction: 'wei', home: 'puyang', soldiers: { spear: 45, crossbow: 25, cav: 20, guard: 8 }, morale: 86, sight: 7, title: '征南将军' },
@@ -1293,9 +1233,9 @@ const LORDS = [
   { id: 'litong', name: '李通', faction: 'wei', home: 'runan', soldiers: { militia: 35, spear: 25, cav: 15 }, morale: 78, sight: 6, title: '裨将军' },
   // ---- 蜀：荆益之间 ----
   { id: 'huangzhong', name: '黄忠', faction: 'shu', home: 'jiangling', soldiers: { archer: 40, spear: 30, militia: 20 }, morale: 90, sight: 7, title: '中郎将' },
-  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'shangyong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
+  { id: 'weiyan', name: '魏延', faction: 'shu', home: 'hanzhong', soldiers: { spear: 40, militia: 30, cav: 15 }, morale: 86, sight: 7, title: '牙门将军' },
   { id: 'chendao', name: '陈到', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 35, baier: 15, militia: 20 }, morale: 88, sight: 6, title: '白毦统领' },
-  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'shangyong', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
+  { id: 'liufeng', name: '刘封', faction: 'shu', home: 'baxi', soldiers: { militia: 35, spear: 25, cav: 12 }, morale: 80, sight: 6, title: '副军中郎将' },
   { id: 'mengda', name: '孟达', faction: 'shu', home: 'shangyong', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '宜都太守' },
   { id: 'mizhu', name: '糜竺', faction: 'shu', home: 'chengdu', soldiers: { militia: 30, spear: 20, archer: 15 }, morale: 72, sight: 5, title: '别从事' },
   // ---- 吴：四都督与老将 ----
@@ -1377,11 +1317,11 @@ const LORDS = [
   { id: 'yangfeng', name: '杨奉', faction: 'han', home: 'tongguan', soldiers: { militia: 30, cav: 15, spear: 15 }, morale: 70, sight: 6, title: '兴义将军' },
   { id: 'zhongji', name: '种辑', faction: 'han', home: 'changan', soldiers: { militia: 25, spear: 20, guard: 8 }, morale: 68, sight: 5, title: '越骑校尉' },
   // ---- 山越：交州诸洞 ----
-  { id: 'panlin', name: '潘临', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 40, spear: 25, archer: 25, danyang: 8 }, morale: 82, sight: 7, title: '南越帅' },
+  { id: 'panlin', name: '潘临', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 40, spear: 25, archer: 25, danyang: 8 }, morale: 82, sight: 7, title: '山越帅' },
   { id: 'youtu', name: '尤突', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 25 }, morale: 80, sight: 7, title: '越帅' },
   { id: 'feizhan', name: '费栈', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 20, danyang: 6 }, morale: 78, sight: 6, title: '丹阳越帅' },
   { id: 'pengqi', name: '彭绮', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 35, spear: 20, archer: 18 }, morale: 76, sight: 7, title: '鄱阳越帅' },
-  { id: 'pengshi', name: '彭式', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '南越渠帅' },
+  { id: 'pengshi', name: '彭式', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 25, archer: 15 }, morale: 74, sight: 6, title: '山越渠帅' },
   { id: 'huangluan', name: '黄乱', faction: 'shanyue', home: 'shanyue', soldiers: { militia: 30, spear: 20, archer: 15, danyang: 5 }, morale: 72, sight: 6, title: '越中渠帅' },
 
   // ---- 放大天下以后补的领主：魏蜀吴袁刘各添一队人 ----
@@ -1392,7 +1332,7 @@ const LORDS = [
   { id: 'dianwei', name: '典韦', faction: 'wei', home: 'xuchang', soldiers: { spear: 35, guard: 28, militia: 20 }, morale: 93, sight: 6, title: '都尉' },
   { id: 'lidian', name: '李典', faction: 'wei', home: 'qiao', soldiers: { militia: 35, spear: 30, archer: 15 }, morale: 78, sight: 6, title: '破虏将军' },
   // 蜀：荆州旧部与汉中守将
-  { id: 'madai', name: '马岱', faction: 'shu', home: 'shangyong', soldiers: { cav: 32, spear: 30, militia: 18 }, morale: 88, sight: 8, title: '平北将军' },
+  { id: 'madai', name: '马岱', faction: 'shu', home: 'hanzhong', soldiers: { cav: 32, spear: 30, militia: 18 }, morale: 88, sight: 8, title: '平北将军' },
   { id: 'guanping', name: '关平', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 28, cav: 15 }, morale: 90, sight: 7, title: '军前都督' },
   { id: 'liaohua', name: '廖化', faction: 'shu', home: 'xinye', soldiers: { militia: 35, spear: 25, archer: 12 }, morale: 82, sight: 6, title: '主簿' },
   { id: 'yanyan', name: '严颜', faction: 'shu', home: 'jiangzhou', soldiers: { spear: 38, militia: 25, archer: 16 }, morale: 86, sight: 7, title: '巴郡太守' },
@@ -1433,31 +1373,6 @@ const LORDS = [
   { id: 'quancong', name: '全琮', faction: 'wu', home: 'jianye', soldiers: { militia: 30, spear: 25, boat: 15 }, morale: 76, sight: 6, title: '绥南将军' },
   { id: 'panzhang', name: '潘璋', faction: 'wu', home: 'danyang', soldiers: { militia: 25, archer: 20, boat: 10 }, morale: 80, sight: 7, title: '偏将军' },
   { id: 'jiangqin', name: '蒋钦', faction: 'wu', home: 'chaisang', soldiers: { militia: 28, archer: 22, boat: 18 }, morale: 82, sight: 7, title: '讨越中郎将' },
-
-  // ---- 名将榜补录：原先名单里没有、按榜单补进来的领主 ----
-  { id: 'sunce', name: '孙策', faction: 'wu', home: 'wujun', soldiers: { cav: 35, spear: 30, danyang: 22, boat: 15 }, morale: 95, sight: 8, title: '讨逆将军' },
-  { id: 'zhangxiu', name: '张绣', faction: 'biao', home: 'wan', soldiers: { cav: 35, spear: 30, crossbow: 12, militia: 18 }, morale: 86, sight: 7, title: '建忠将军' },
-  { id: 'wenyang', name: '文鸯', faction: 'wei', home: 'qiao', soldiers: { cav: 40, spear: 28, militia: 15 }, morale: 92, sight: 8, title: '牙门将' },
-  { id: 'dengai', name: '邓艾', faction: 'wei', home: 'runan', soldiers: { spear: 35, crossbow: 28, cav: 22, militia: 15 }, morale: 88, sight: 9, title: '征西将军' },
-  { id: 'jiangwei', name: '姜维', faction: 'shu', home: 'shangyong', soldiers: { spear: 35, crossbow: 22, cav: 22, militia: 15 }, morale: 90, sight: 8, title: '奉义将军' },
-  { id: 'wangshuang', name: '王双', faction: 'wei', home: 'chenliu', soldiers: { cav: 35, spear: 30, militia: 18 }, morale: 84, sight: 7, title: '虎威将军' },
-  { id: 'caozhang', name: '曹彰', faction: 'wei', home: 'puyang', soldiers: { cav: 40, spear: 25, militia: 20 }, morale: 90, sight: 8, title: '任城王' },
-  { id: 'huaxiong', name: '华雄', faction: 'han', home: 'tongguan', soldiers: { cav: 35, spear: 38, militia: 20 }, morale: 86, sight: 7, title: '都督' },
-  { id: 'guanhai', name: '管亥', faction: 'yuan', home: 'beihai', soldiers: { militia: 40, spear: 30, huangjin: 10 }, morale: 82, sight: 6, title: '黄巾渠帅' },
-  { id: 'ehuang', name: '鄂焕', faction: 'nanman', home: 'jianning', soldiers: { spear: 35, militia: 25, wudang: 10 }, morale: 82, sight: 7, title: '越嶲夷帅' },
-  { id: 'liyan', name: '李严', faction: 'zhang', home: 'jiangzhou', soldiers: { spear: 35, crossbow: 25, militia: 20 }, morale: 84, sight: 7, title: '兴业将军' },
-  { id: 'wulan', name: '吴兰', faction: 'zhang', home: 'baxi', soldiers: { militia: 35, spear: 22, cav: 12 }, morale: 78, sight: 6, title: '裨将' },
-  { id: 'wuangou', name: '武安国', faction: 'yuan', home: 'beihai', soldiers: { spear: 35, militia: 25, guard: 8 }, morale: 80, sight: 6, title: '校尉' },
-  { id: 'xingdaorong', name: '邢道荣', faction: 'biao', home: 'wuling', soldiers: { spear: 30, militia: 28, cav: 10 }, morale: 76, sight: 6, title: '零陵上将' },
-  { id: 'zhangbao', name: '张苞', faction: 'shu', home: 'xinye', soldiers: { spear: 35, militia: 20, cav: 15 }, morale: 86, sight: 7, title: '牙门将' },
-
-  // ---- 历史军师名录补全：作为随军谋士存在，不按将帅满编扩军 ----
-  { id: 'xushu', name: '徐庶', faction: 'shu', home: 'xinye', soldiers: { militia: 18, spear: 14, crossbow: 10, guard: 3 }, morale: 82, sight: 7, title: '军师', strategistOnly: true },
-  { id: 'zhonghui', name: '钟会', faction: 'wei', home: 'luoyang', soldiers: { militia: 20, spear: 16, crossbow: 12, cav: 6 }, morale: 80, sight: 7, title: '镇西将军', strategistOnly: true },
-  { id: 'chengyu', name: '程昱', faction: 'wei', home: 'puyang', soldiers: { militia: 22, spear: 18, crossbow: 14 }, morale: 82, sight: 7, title: '东中郎将', strategistOnly: true },
-  { id: 'liru', name: '李儒', faction: 'lv', home: 'xiapi', soldiers: { militia: 16, spear: 12, crossbow: 10 }, morale: 74, sight: 7, title: '军师', strategistOnly: true },
-  { id: 'zhangzhao', name: '张昭', faction: 'wu', home: 'jianye', soldiers: { militia: 20, spear: 14, archer: 10 }, morale: 78, sight: 6, title: '长史', strategistOnly: true },
-  { id: 'zhanghong', name: '张纮', faction: 'wu', home: 'jianye', soldiers: { militia: 18, spear: 12, archer: 10 }, morale: 76, sight: 6, title: '长史', strategistOnly: true },
 ];
 
 /** 声望等级 */
@@ -1522,46 +1437,22 @@ const EQUIPMENT = {
 /** 天机简：能改一次战局的一句话；只有增益，没有反噬 */
 const HISTORY_MARKS = {
   wind: {
-    id: 'wind', name: '南风起', text: '你写下“南风起”，整片战场忽然换了风向。',
+    id: 'wind', name: '南风起', text: '你写下“南风起”，风真的转了向。',
     timing: 'battle', timingLabel: '战中生效',
-    tierBoost: 2, fireMul: 2.00,
-    desc: '本场我方攻防按高两阶结算：T1 打 T3、T2 打 T4、T3 打 T5、T4 可敌两个 T5；一人足以打四路同阶。火攻战再 +100%。',
+    atkMul: 2.80, fireMul: 2.00,
+    desc: '本场我方攻击 +180%，火攻类战斗额外 +100%；战中落笔也即时起风。',
   },
-  fireball: {
-    id: 'fireball', name: '天降火球', text: '你写下“天降火球”，天上坠下一团火。',
+  calm: {
+    id: 'calm', name: '风止', text: '你写下“风止”，风停了，火也停了。',
     timing: 'battle', timingLabel: '战中生效',
-    burnPct: 0.40, burnCap: 80,
-    desc: '立刻烧掉敌军四成兵力，单次最多 80 人；守城、野战、合战都能落。',
-  },
-  gale: {
-    id: 'gale', name: '风行', text: '你写下“风行”，全军化作一阵风散出战场。',
-    timing: 'battle', timingLabel: '战中生效',
-    escape: true, enemyLossPct: 0.10, pinHours: 8,
-    desc: '立刻脱离战场，我军不再折人；敌军当场损失一成兵力，并在原地停 8 小时。',
-  },
-  night: {
-    id: 'night', name: '夜袭', text: '你写下“夜袭”，敌营的火把一盏盏灭了。',
-    timing: 'battle', timingLabel: '战中生效',
-    enemyAtkMul: 0, rounds: 3,
-    desc: '敌军接下来 3 回合完全打不出伤害，我军可以白打三回合。',
-  },
-  defector: {
-    id: 'defector', name: '倒戈', text: '你写下“倒戈”，敌军阵中有人调转了枪头。',
-    timing: 'battle', timingLabel: '战中生效',
-    turnPct: 0.15, turnCap: 60,
-    desc: '敌军一成半的士兵当场倒向我军，单次最多 60 人；倒戈的人立刻参战。',
-  },
-  miasma: {
-    id: 'miasma', name: '瘴气', text: '你写下“瘴气”，林间的雾忽然浓得化不开。',
-    timing: 'battle', timingLabel: '战中生效',
-    attritionPct: 0.04, rounds: 5,
-    desc: '敌军每回合额外折损当前兵力的 4%，连折 5 回合，越拖越虚。',
+    enemyMul: 0.10, rounds: 3,
+    desc: '只压敌军攻势九成，持续 3 回合；战中落笔从下一回合算起，我方不受反噬。',
   },
   roll: {
-    id: 'roll', name: '回魂', text: '你写下“回魂”，阵亡者的名字从纸上走回队列。',
+    id: 'roll', name: '名册', text: '你写下阵亡者的名字，他们又站了起来。',
     timing: 'after', timingLabel: '战后生效',
-    backPct: 0.80,
-    desc: '战后本场阵亡的我方士兵复活八成；战中落笔也留到这场打完再结算。',
+    backPct: 1.00,
+    desc: '战后本场阵亡的我方士兵全部归队；战中落笔也留到这场打完再结算。',
   },
 };
 
@@ -1703,14 +1594,12 @@ module.exports = {
   MOUNTAINS,
   SITE_ROWS,
   CAPITAL_IDS,
-  FREE_CITY_IDS,
   RECRUIT_SETS,
   ROADS,
   BANDIT_EXCLUDE_ZONES,
   STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
-  FACTION_ROSTER_MUL,
   FACTION_RULERS,
   SUCCESSION,
   LORDS,
@@ -2342,238 +2231,6 @@ function makeFlagSprite(runtime, color) {
   return c;
 }
 
-/**
- * 各国君主：Q 版无双步将（64 x 80）
- * 与普通领主的三骑队伍完全分开：大头短身、单人步行、放大到近景仍是君主轮廓。
- * 势力色做胸甲与披风，兵器/头饰沿用该君主的 look，保留曹操、刘备、吕布等人的识别特征。
- */
-function makeMonarchSprite(runtime, color, look) {
-  const L = look || {};
-  const W = 64;
-  const H = 80;
-  const c = newCanvas(runtime, W, H);
-  const g = c.getContext('2d');
-  g.clearRect(0, 0, W, H);
-
-  const main = color || '#d9a441';
-  const mainHi = shade(main, 0.34);
-  const mainDk = shade(main, -0.34);
-  const cape = L.cape || mainDk;
-  const capeHi = shade(cape, 0.24);
-  const capeDk = shade(cape, -0.28);
-  const armor = '#e0b24a';
-  const armorHi = '#ffe6a0';
-  const armorDk = '#8f641c';
-  const red = '#b52b24';
-  const redHi = '#ef5a45';
-  const redDk = '#6f1713';
-  const steel = '#dbe6f2';
-  const steelHi = '#ffffff';
-  const steelDk = '#8996a8';
-  const jade = '#2f8f8a';
-  const jadeHi = '#7ce0d2';
-  const skin = '#f0c49a';
-  const skinDk = '#c68e66';
-  const hair = '#241a14';
-  const hairHi = '#4b3224';
-  const pants = '#2a2830';
-  const boot = '#5c3a25';
-  const bootDk = '#3a2416';
-  const big = !!L.big;
-
-  // 披风：君主背后拖出势力色的长披，和普通领主的土色骑队拉开
-  px(g, 24, 31, capeDk, 20, 28);
-  px(g, 20, 35, cape, 12, 23);
-  px(g, 16, 41, capeHi, 7, 13);
-  px(g, 21, 31, capeHi, 20, 3);
-  px(g, 14, 50, capeDk, 6, 8);
-  px(g, 18, 58, capeDk, 11, 5);
-
-  // 短腿与战靴：步将，不画马身、不画马腿
-  px(g, 24, 53, pants, 8, 14);
-  px(g, 34, 53, pants, 8, 14);
-  px(g, 23, 65, bootDk, 10, 7);
-  px(g, 34, 65, bootDk, 10, 7);
-  px(g, 23, 70, boot, 10, 5);
-  px(g, 34, 70, boot, 10, 5);
-  px(g, 24, 62, armor, 7, 4);
-  px(g, 34, 62, armor, 7, 4);
-  px(g, 25, 62, armorHi, 5, 1);
-  px(g, 35, 62, armorHi, 5, 1);
-  px(g, 26, 68, '#b58b55', 5, 1);
-  px(g, 36, 68, '#b58b55', 5, 1);
-
-  // 胸甲：势力色内衬 + 金甲外框 + 青玉护心
-  px(g, 22, 35, armorDk, 21, 20);
-  px(g, 23, 36, armor, 19, 16);
-  px(g, 24, 37, armorHi, 17, 3);
-  px(g, 25, 40, mainDk, 15, 8);
-  px(g, 27, 41, main, 11, 6);
-  px(g, 29, 43, mainHi, 7, 2);
-  px(g, 25, 46, red, 15, 4);
-  px(g, 26, 47, redHi, 13, 2);
-  px(g, 31, 45, jade, 5, 5);
-  px(g, 32, 46, jadeHi, 3, 3);
-  px(g, 24, 52, armorDk, 17, 4);
-  px(g, 26, 54, mainDk, 13, 3);
-
-  // 兽吞肩甲：big 的君主肩更宽，普通君主略收
-  const sw = big ? 14 : 12;
-  px(g, 14, 34, armorDk, sw, 10);
-  px(g, 15, 35, armor, sw - 1, 7);
-  px(g, 15, 35, armorHi, sw - 1, 2);
-  px(g, 12, 37, steelDk, 3, 4);
-  px(g, 43, 34, armorDk, sw, 10);
-  px(g, 44, 35, armor, sw - 1, 7);
-  px(g, 44, 35, armorHi, sw - 1, 2);
-  px(g, 44, 37, mainHi, sw - 3, 2);
-
-  // 左臂叉腰，右手持兵器
-  px(g, 18, 42, armor, 6, 10);
-  px(g, 17, 48, armorDk, 5, 3);
-  px(g, 17, 51, skin, 5, 5);
-
-  // 大头：颈、发、脸
-  px(g, 29, 30, skinDk, 8, 5);
-  px(g, 30, 31, skin, 6, 4);
-  px(g, 20, 6, hair, 26, 11);
-  px(g, 18, 10, hair, 4, 14);
-  px(g, 46, 10, hair, 3, 13);
-  px(g, 22, 4, hair, 20, 5);
-  px(g, 23, 11, skin, 20, 21);
-  px(g, 23, 10, skinDk, 20, 1);
-  px(g, 22, 28, skinDk, 22, 2);
-  px(g, 21, 8, hair, 24, 6);
-  px(g, 24, 13, hair, 8, 3);
-  px(g, 36, 12, hair, 7, 3);
-  px(g, 30, 10, hairHi, 8, 2);
-  px(g, 21, 14, armor, 24, 2);
-  px(g, 22, 14, armorHi, 22, 1);
-  px(g, 45, 15, main, 3, 3);
-
-  // 无双式大眼；君主比普通棋子更有表情
-  px(g, 27, 19, '#fff8ea', 6, 5);
-  px(g, 37, 19, '#fff8ea', 6, 5);
-  px(g, 29, 20, '#20140e', 3, 3);
-  px(g, 39, 20, '#20140e', 3, 3);
-  px(g, 30, 20, '#ffffff', 1, 1);
-  px(g, 40, 20, '#ffffff', 1, 1);
-  px(g, 26, 17, '#2a1a12', 7, 1);
-  px(g, 37, 17, '#2a1a12', 6, 1);
-  px(g, 33, 23, skinDk, 3, 2);
-  px(g, 32, 26, '#9c4438', 5, 1);
-  px(g, 34, 27, '#c47a62', 3, 1);
-  px(g, 21, 20, skin, 3, 5);
-  px(g, 45, 20, skin, 3, 5);
-
-  // 长髯君主：从下巴往下压，不遮住胸甲
-  if (L.beard) {
-    px(g, 30, 28, '#2c2018', 4, 4);
-    px(g, 31, 32, '#3a2a20', 2, 3);
-    px(g, 30, 28, '#5a4030', 1, 4);
-  }
-
-  // 头饰：crown 高冠 / plume 双翎 / horn 红缨盔 / band 头巾
-  const helm = L.helm || 'crown';
-  if (helm === 'crown') {
-    px(g, 24, 4, armorDk, 16, 6);
-    px(g, 24, 4, armor, 16, 4);
-    px(g, 24, 3, armorHi, 16, 1);
-    px(g, 26, 1, armor, 3, 3);
-    px(g, 31, 0, armorHi, 3, 3);
-    px(g, 36, 1, armor, 3, 3);
-    px(g, 30, 5, red, 4, 3);
-    px(g, 31, 5, redHi, 2, 1);
-  } else if (helm === 'plume') {
-    px(g, 24, 4, steelDk, 16, 4);
-    px(g, 24, 3, steel, 16, 2);
-    px(g, 26, 0, red, 2, 8);
-    px(g, 30, 0, redHi, 2, 7);
-    px(g, 38, 0, red, 2, 8);
-    px(g, 42, 1, redHi, 2, 7);
-    px(g, 31, 5, armor, 5, 2);
-  } else if (helm === 'horn') {
-    px(g, 23, 5, steelDk, 18, 5);
-    px(g, 23, 4, steel, 18, 3);
-    px(g, 20, 7, armor, 4, 3);
-    px(g, 18, 4, armorHi, 3, 5);
-    px(g, 40, 7, armor, 4, 3);
-    px(g, 43, 4, armorHi, 3, 5);
-    px(g, 29, 1, red, 6, 4);
-    px(g, 31, 0, redHi, 2, 2);
-  } else {
-    px(g, 21, 13, mainDk, 24, 3);
-    px(g, 22, 13, main, 22, 2);
-    px(g, 16, 6, hair, 6, 4);
-    px(g, 12, 9, hair, 6, 3);
-    px(g, 8, 12, hair, 5, 2);
-    px(g, 10, 14, hairHi, 3, 1);
-    px(g, 20, 5, hairHi, 4, 1);
-  }
-
-  // 兵器：按照 look.weapon 给君主不同的无双兵器，统一在右手侧
-  const weapon = L.weapon || 'jian';
-  if (weapon === 'ji') {
-    px(g, 51, 11, '#5a4028', 3, 59);
-    px(g, 52, 12, '#8a6440', 1, 56);
-    px(g, 44, 2, steelDk, 16, 2);
-    px(g, 41, 4, steel, 3, 8);
-    px(g, 42, 10, steelHi, 2, 3);
-    px(g, 46, 5, steel, 8, 4);
-    px(g, 54, 4, steelHi, 4, 2);
-    px(g, 56, 1, steel, 3, 6);
-    px(g, 57, 2, steelHi, 1, 4);
-    px(g, 47, 8, '#2a3440', 6, 1);
-    px(g, 49, 11, armor, 7, 3);
-    px(g, 50, 13, red, 5, 5);
-    px(g, 51, 17, redDk, 3, 4);
-  } else if (weapon === 'qiang') {
-    px(g, 51, 11, '#5a4028', 3, 59);
-    px(g, 52, 12, '#8a6440', 1, 56);
-    px(g, 50, 2, steelDk, 4, 12);
-    px(g, 51, 1, steel, 2, 10);
-    px(g, 51, 2, steelHi, 1, 5);
-    px(g, 49, 12, armor, 6, 3);
-    px(g, 48, 14, red, 4, 5);
-    px(g, 49, 18, redDk, 2, 3);
-  } else if (weapon === 'dao') {
-    px(g, 51, 12, '#5a4028', 3, 56);
-    px(g, 45, 8, steelDk, 10, 22);
-    px(g, 42, 12, steel, 6, 14);
-    px(g, 43, 13, steelHi, 3, 9);
-    px(g, 45, 7, steelDk, 8, 3);
-    px(g, 47, 9, steelHi, 6, 2);
-    px(g, 47, 28, armor, 8, 3);
-    px(g, 48, 31, red, 5, 4);
-    px(g, 49, 34, redDk, 3, 3);
-  } else if (weapon === 'gong') {
-    px(g, 49, 12, '#6a4a2c', 2, 22);
-    px(g, 48, 6, '#8a6a3a', 2, 8);
-    px(g, 55, 11, steelDk, 2, 36);
-    px(g, 53, 9, steel, 2, 6);
-    px(g, 53, 41, steel, 2, 6);
-    px(g, 49, 23, '#d8b24a', 6, 2);
-    px(g, 50, 22, '#f0d77a', 4, 1);
-    px(g, 46, 20, red, 3, 4);
-    px(g, 47, 23, redDk, 2, 2);
-  } else {
-    px(g, 50, 12, steelDk, 4, 44);
-    px(g, 51, 11, steel, 2, 44);
-    px(g, 51, 12, steelHi, 1, 38);
-    px(g, 47, 53, armor, 8, 3);
-    px(g, 49, 56, redDk, 4, 9);
-    px(g, 50, 57, '#8a6a3a', 2, 7);
-  }
-
-  // 握兵器的手：盖在杆/柄上，避免像浮空道具
-  px(g, 43, 43, armor, 7, 5);
-  px(g, 46, 45, armorDk, 8, 3);
-  px(g, 46, 48, skin, 7, 4);
-  px(g, 47, 49, skinDk, 5, 1);
-
-  return c;
-}
-
 let CACHE = null;
 
 /* ================================================================
@@ -2988,14 +2645,6 @@ function buildAssets(runtime) {
       if (!this.lordCache[key]) this.lordCache[key] = makeLordSprite(runtime, color, look);
       return this.lordCache[key];
     },
-    /** 君主单人 Q 版步战模型：独立缓存键，不能和普通领主队伍共用 */
-    monarchIconFor: function (color, look) {
-      const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
-      const key = (color || 'x') + '|' + lookKey;
-      if (!this.monarchCache) this.monarchCache = {};
-      if (!this.monarchCache[key]) this.monarchCache[key] = makeMonarchSprite(runtime, color, look);
-      return this.monarchCache[key];
-    },
     /** 领主队伍模型（骑马 + 两卒 + 旗） */
     partyIconFor: function (color, look) {
       const lookKey = typeof look === 'string' ? look : JSON.stringify(look || {});
@@ -3387,19 +3036,6 @@ function terrainAt(world, x, y) {
   return TERRAIN[world.tiles[idx(x, y)]] || TERRAIN.plain;
 }
 
-function edgeTownDistance(world, x, y) {
-  const e = world && world.edgeTown;
-  if (!e) return Infinity;
-  return Math.max(Math.abs(x - e.x), Math.abs(y - e.y));
-}
-
-function edgeTownBlocked(world, x, y, opts) {
-  const e = world && world.edgeTown;
-  if (!e) return false;
-  if (opts && opts.allowEdge) return false;
-  return edgeTownDistance(world, x, y) <= (e.radius || 10);
-}
-
 function isPassable(world, x, y) {
   const t = terrainAt(world, x, y);
   return !!(t && t.passable);
@@ -3711,27 +3347,6 @@ function layRoads(world, pairs) {
 }
 
 
-/** 拆除旧档里的旧连线：路面还原为原野，桥还原为河，山口还原为山。 */
-function clearRoads(world, pairs) {
-  world.bridges = world.bridges || [];
-  world.canyons = world.canyons || [];
-  (pairs || []).forEach(function (pair) {
-    const a = siteById(world, pair[0]);
-    const b = siteById(world, pair[1]);
-    if (!a || !b) return;
-    bresenham(a.x, a.y, b.x, b.y, function (x, y) {
-      if (!inBounds(x, y)) return;
-      if (siteAt(world, x, y)) return;
-      const t = world.tiles[idx(x, y)];
-      if (t === 'road') world.tiles[idx(x, y)] = 'plain';
-      else if (t === 'bridge') world.tiles[idx(x, y)] = 'river';
-      else if (t === 'pass') world.tiles[idx(x, y)] = 'mountain';
-      world.bridges = world.bridges.filter(function (m) { return m.x !== x || m.y !== y; });
-      world.canyons = world.canyons.filter(function (m) { return m.x !== x || m.y !== y; });
-    });
-  });
-}
-
 function createWorld(seed) {
   const rng = new RNG(seed);
   const world = {
@@ -3882,13 +3497,6 @@ function createWorld(seed) {
   SITE_ROWS.forEach(function (row) {
     world.sites.push(siteFromRow(world, row));
   });
-  // 边陲小镇从开局就存在，但被十格浓雾封着；复国阶段才开雾。
-  const edgeTown = siteById(world, 'edge_town');
-  if (edgeTown) {
-    edgeTown.fogSealed = true;
-    edgeTown.specialEdge = true;
-    world.edgeTown = { id: edgeTown.id, x: edgeTown.x, y: edgeTown.y, radius: 10, fogOpen: false };
-  }
 
   // 7. 道路
   layRoads(world, ROADS);
@@ -4082,7 +3690,7 @@ module.exports = {
   idx,
   inBounds,
   terrainAt,
-  isPassable, edgeTownDistance, edgeTownBlocked,
+  isPassable,
   regionAt,
   inBanditExclusion,
   regionDef,
@@ -4091,7 +3699,6 @@ module.exports = {
   createWorld,
   siteFromRow,
   layRoads,
-  clearRoads,
   ensureWorldFeatures,
   bridgeHasWater,
   findPath,
@@ -5164,10 +4771,6 @@ function growGarrison(site) {
   return inc;
 }
 
-/** 领主招兵池：城镇/关隘容量与每日回填；比旧版更快，避免大战后全图停摆。 */
-const LORD_RECRUIT_CAP = { town: 12, castle: 12, village: 6 };
-const LORD_RECRUIT_REFILL = 3;
-
 /** 每日：价格波动 + 招募池刷新 + 守军恢复 */
 function dailyMarket(state, rng) {
   state.world.sites.forEach(function (site) {
@@ -5204,12 +4807,13 @@ function dailyMarket(state, rng) {
     // 领主招兵池：按城/村错开日子补一点，跟玩家招募池分开，也不额外消耗事件随机数
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
       site.lordRecruits = site.lordRecruits || {};
-      const lcap = LORD_RECRUIT_CAP[site.type] || 0;
-      // 领主兵源每日回填；比旧版三日一回、一次一人快得多。
-      (site.recruitList || []).forEach(function (id) {
-        const have = site.lordRecruits[id] || 0;
-        if (have < lcap) site.lordRecruits[id] = Math.min(lcap, have + LORD_RECRUIT_REFILL);
-      });
+      const lcap = site.type === 'village' ? 2 : 4;
+      if (state.clock.day % 3 === (site.x + site.y) % 3) {
+        (site.recruitList || []).forEach(function (id) {
+          const have = site.lordRecruits[id] || 0;
+          if (have < lcap) site.lordRecruits[id] = have + 1;
+        });
+      }
     }
 
     // 城池守军按当前人数自然增长：越多越慢，战损后从低处重新长。
@@ -5253,8 +4857,6 @@ module.exports = {
   growGarrison,
   dailyMarket,
   dailyIncome,
-  LORD_RECRUIT_CAP,
-  LORD_RECRUIT_REFILL,
 };
 
   };
@@ -5593,317 +5195,16 @@ module.exports = {
 
   };
 
-  /* js/data/lord-rank.js */
-  __defs[17] = function (module, exports, __require) {
-/**
- * 名将榜：决定历史领主的带兵上限与招兵速度。
- *
- * 名次越靠前，带兵上限越高；招兵倍率按名次分段：
- * 1-3 = 2.0，4-9 = 1.8，10-19 = 1.6，20-29 = 1.4，30-39 = 1.2，40-50 = 1.1。
- * 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
- */
-
-const LORD_POWER_LIST = [
-  { rank: 1, id: 'lvbu', name: '吕布', score: 100 },
-  { rank: 2, id: 'zhaoyun', name: '赵云', score: 98 },
-  { rank: 3, id: 'dianwei', name: '典韦', score: 97 },
-  { rank: 4, id: 'guanyu', name: '关羽', score: 96 },
-  { rank: 5, id: 'machao', name: '马超', score: 96 },
-  { rank: 6, id: 'zhangfei', name: '张飞', score: 95 },
-  { rank: 7, id: 'huangzhong', name: '黄忠', score: 94 },
-  { rank: 8, id: 'xuchu', name: '许褚', score: 94 },
-  { rank: 9, id: 'sunce', name: '孙策', score: 92 },
-  { rank: 10, id: 'taishici', name: '太史慈', score: 92 },
-  { rank: 11, id: 'xiahou', name: '夏侯惇', score: 90 },
-  { rank: 12, id: 'xiahouyuan', name: '夏侯渊', score: 89 },
-  { rank: 13, id: 'zhangliao', name: '张辽', score: 89 },
-  { rank: 14, id: 'zhanghe', name: '张郃', score: 88 },
-  { rank: 15, id: 'xuhuang', name: '徐晃', score: 88 },
-  { rank: 16, id: 'pangde', name: '庞德', score: 88 },
-  { rank: 17, id: 'ganning', name: '甘宁', score: 87 },
-  { rank: 18, id: 'weiyan', name: '魏延', score: 87 },
-  { rank: 19, id: 'zhoutai', name: '周泰', score: 85 },
-  { rank: 20, id: 'zhangxiu', name: '张绣', score: 85 },
-  { rank: 21, id: 'yanliang', name: '颜良', score: 85 },
-  { rank: 22, id: 'wenchou', name: '文丑', score: 84 },
-  { rank: 23, id: 'wenyang', name: '文鸯', score: 93 },
-  { rank: 24, id: 'dengai', name: '邓艾', score: 83 },
-  { rank: 25, id: 'jiangwei', name: '姜维', score: 83 },
-  { rank: 26, id: 'wangshuang', name: '王双', score: 83 },
-  { rank: 27, id: 'gaolan', name: '高览', score: 82 },
-  { rank: 28, id: 'caozhang', name: '曹彰', score: 82 },
-  { rank: 29, id: 'zhangren', name: '张任', score: 81 },
-  { rank: 30, id: 'jiling', name: '纪灵', score: 80 },
-  { rank: 31, id: 'huaxiong', name: '华雄', score: 80 },
-  { rank: 32, id: 'guanhai', name: '管亥', score: 79 },
-  { rank: 33, id: 'caohong', name: '曹洪', score: 79 },
-  { rank: 34, id: 'yuejin', name: '乐进', score: 78 },
-  { rank: 35, id: 'lingtong', name: '凌统', score: 78 },
-  { rank: 36, id: 'yanyan', name: '严颜', score: 77 },
-  { rank: 37, id: 'madai', name: '马岱', score: 76 },
-  { rank: 38, id: 'ehuang', name: '鄂焕', score: 76 },
-  { rank: 39, id: 'handang', name: '韩当', score: 75 },
-  { rank: 40, id: 'panzhang', name: '潘璋', score: 74 },
-  { rank: 41, id: 'xusheng', name: '徐盛', score: 73 },
-  { rank: 42, id: 'dingfeng', name: '丁奉', score: 73 },
-  { rank: 43, id: 'liyan', name: '李严', score: 81 },
-  { rank: 44, id: 'lengbao', name: '冷苞', score: 77 },
-  { rank: 45, id: 'wulan', name: '吴兰', score: 75 },
-  { rank: 46, id: 'leitong', name: '雷铜', score: 74 },
-  { rank: 47, id: 'wuangou', name: '武安国', score: 73 },
-  { rank: 48, id: 'gongsunzan', name: '公孙瓒', score: 72 },
-  { rank: 49, id: 'xingdaorong', name: '邢道荣', score: 71 },
-  { rank: 50, id: 'zhangbao', name: '张苞', score: 71 },
-];
-
-function capForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  return 270 - Math.round((r - 1) * 2.2);
-}
-
-const DEFAULT_MONARCH_RECRUIT_MUL = 1.5;
-
-function recruitMulForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  if (r <= 3) return 2.0;
-  if (r <= 9) return 1.8;
-  if (r <= 19) return 1.6;
-  if (r <= 29) return 1.4;
-  if (r <= 39) return 1.2;
-  return 1.1;
-}
-
-const LORD_POWER_BY_ID = LORD_POWER_LIST.reduce(function (out, item) {
-  out[item.id] = {
-    rank: item.rank,
-    id: item.id,
-    name: item.name,
-    score: item.score,
-    cap: capForRank(item.rank),
-    recruitMul: recruitMulForRank(item.rank),
-  };
-  return out;
-}, {});
-
-/* ------------------------------------------------------- 将帅 / 武力 / 军师 */
-
-/**
- * 带兵指数的标幺值。150 人作为 1.0 基准：
- *  - 基准取 150，是为了让君主 1.5 在魏国 0.7 系数下仍落在 n52 的 158 人左右；
- *  - 武将 1.4 = 210 人，军师 / 君主 1.5 = 225 人，帅才按档位 225～255 人。
- */
-const COMMAND_BASE = 150;
-
-/** 帅才 20 人：第 1 名一档，2-5、6-10、11-15、16-20 各一档。 */
-const MARSHAL_TOP20 = [
-  { rank: 1, id: 'caocao', name: '曹操' },
-  { rank: 2, id: 'simayi', name: '司马懿' },
-  { rank: 3, id: 'zhouyu', name: '周瑜' },
-  { rank: 4, id: 'luxun', name: '陆逊' },
-  { rank: 5, id: 'dengai', name: '邓艾' },
-  { rank: 6, id: 'guanyu', name: '关羽' },
-  { rank: 7, id: 'zhangliao', name: '张辽' },
-  { rank: 8, id: 'lvmeng', name: '吕蒙' },
-  { rank: 9, id: 'zhugeliang', name: '诸葛亮' },
-  { rank: 10, id: 'zhangfei', name: '张飞' },
-  { rank: 11, id: 'zhanghe', name: '张郃' },
-  { rank: 12, id: 'xuhuang', name: '徐晃' },
-  { rank: 13, id: 'caoren', name: '曹仁' },
-  { rank: 14, id: 'ganning', name: '甘宁' },
-  { rank: 15, id: 'weiyan', name: '魏延' },
-  { rank: 16, id: 'huangzhong', name: '黄忠' },
-  { rank: 17, id: 'machao', name: '马超' },
-  { rank: 18, id: 'jiangwei', name: '姜维' },
-  { rank: 19, id: 'lvbu', name: '吕布' },
-  { rank: 20, id: 'taishici', name: '太史慈' },
-];
-
-/** 帅才档位：档数沿用旧榜的五档结构，但每档人数按 1 / 4 / 5 / 5 / 5 重排。 */
-const MARSHAL_COMMAND_TIERS = [
-  { tier: 1, from: 1, to: 1, command: 1.70 },
-  { tier: 2, from: 2, to: 5, command: 1.65 },
-  { tier: 3, from: 6, to: 10, command: 1.60 },
-  { tier: 4, from: 11, to: 15, command: 1.55 },
-  { tier: 5, from: 16, to: 20, command: 1.50 },
-];
-
-/** 武力榜前 50 的新战力值：按旧名次分七档，不再沿用旧的线性 cap。 */
-const GENERAL_FORCE_TIERS = [
-  { tier: 1, from: 1, to: 1, force: 4.0 },
-  { tier: 2, from: 2, to: 3, force: 3.5 },
-  { tier: 3, from: 4, to: 9, force: 3.0 },
-  { tier: 4, from: 10, to: 19, force: 2.6 },
-  { tier: 5, from: 20, to: 29, force: 2.5 },
-  { tier: 6, from: 30, to: 39, force: 1.8 },
-  { tier: 7, from: 40, to: 50, force: 1.5 },
-];
-
-/** 历史军师名录：S+ / S / A / B。开局天雷按档位杀敌，单次封顶 100。 */
-const STRATEGIST_GRADES = [
-  { grade: 'S+', pct: 0.50, cap: 100, ids: ['zhugeliang'] },
-  { grade: 'S', pct: 0.40, cap: 100, ids: ['simayi', 'guojia', 'zhouyu'] },
-  { grade: 'A', pct: 0.30, cap: 100, ids: ['jiaxu', 'pangtong', 'luxun', 'xunyu', 'xushu', 'dengai', 'zhonghui'] },
-  { grade: 'B', pct: 0.20, cap: 100, ids: ['chengyu', 'xunyou', 'fazheng', 'tianfeng', 'jushou', 'chengong', 'liru', 'zhangzhao', 'zhanghong'] },
-];
-
-/** 名录展示用；不在当前名册的军师也要能在帮助页看到。 */
-const STRATEGIST_NAMES = {
-  zhugeliang: '诸葛亮',
-  simayi: '司马懿',
-  guojia: '郭嘉',
-  zhouyu: '周瑜',
-  jiaxu: '贾诩',
-  pangtong: '庞统',
-  luxun: '陆逊',
-  xunyu: '荀彧',
-  xushu: '徐庶',
-  dengai: '邓艾',
-  zhonghui: '钟会',
-  chengyu: '程昱',
-  xunyou: '荀攸',
-  fazheng: '法正',
-  tianfeng: '田丰',
-  jushou: '沮授',
-  chengong: '陈宫',
-  liru: '李儒',
-  zhangzhao: '张昭',
-  zhanghong: '张纮',
-};
-
-const MARSHAL_BY_ID = MARSHAL_TOP20.reduce(function (out, item) {
-  const tier = MARSHAL_COMMAND_TIERS.filter(function (t) {
-    return item.rank >= t.from && item.rank <= t.to;
-  })[0] || MARSHAL_COMMAND_TIERS[MARSHAL_COMMAND_TIERS.length - 1];
-  out[item.id] = {
-    rank: item.rank,
-    id: item.id,
-    name: item.name,
-    tier: tier.tier,
-    command: tier.command,
-    force: 1.4,
-  };
-  return out;
-}, {});
-
-const STRATEGIST_BY_ID = STRATEGIST_GRADES.reduce(function (out, group) {
-  group.ids.forEach(function (id) {
-    out[id] = {
-      grade: group.grade,
-      pct: group.pct,
-      cap: group.cap,
-    };
-  });
-  return out;
-}, {});
-
-function generalForceForRank(rank) {
-  const r = Math.max(1, Math.min(50, Math.round(Number(rank) || 50)));
-  const tier = GENERAL_FORCE_TIERS.filter(function (t) {
-    return r >= t.from && r <= t.to;
-  })[0];
-  return tier ? tier.force : 1.5;
-}
-
-function marshalFor(id) {
-  return MARSHAL_BY_ID[id] || null;
-}
-
-function strategistFor(id) {
-  return STRATEGIST_BY_ID[id] || null;
-}
-
-/**
- * 单个领主的三种身份可以同时存在，但每一类只取最高值：
- *  - command：带兵指数（君主 1.5、军师 1.5、武将 1.4、帅才按档位 1.5～1.7）
- *  - force：杀敌指数（军师 0.9、帅才 1.4、武将按七档 1.5～4.0）
- *  - strategist：开局雷击档位，独立叠加，不参与 command/force 取最大。
- */
-function roleInfoFor(lord, opts) {
-  const id = lord && lord.id;
-  if (!id) return { command: null, force: null, strategist: null };
-  const isRuler = !!(opts && opts.isRuler);
-  const commands = [];
-  const forces = [];
-  if (isRuler) {
-    commands.push(1.5);
-    forces.push(1.5);
-  }
-  const general = LORD_POWER_BY_ID[id];
-  if (general) {
-    commands.push(1.4);
-    forces.push(generalForceForRank(general.rank));
-  }
-  const marshal = MARSHAL_BY_ID[id];
-  if (marshal) {
-    commands.push(marshal.command);
-    forces.push(marshal.force);
-  }
-  const strategist = STRATEGIST_BY_ID[id];
-  if (strategist) {
-    commands.push(1.5);
-    forces.push(0.9);
-  }
-  return {
-    command: commands.length ? Math.max.apply(null, commands) : null,
-    force: forces.length ? Math.max.apply(null, forces) : null,
-    strategist: strategist || null,
-    general: general || null,
-    marshal: marshal || null,
-    isRuler: isRuler,
-  };
-}
-
-function commandCapFor(command, factionMul) {
-  if (command === null || command === undefined) return null;
-  const mul = Number(factionMul) > 0 ? Number(factionMul) : 1;
-  return Math.max(40, Math.round(COMMAND_BASE * command * mul));
-}
-
-/**
- * 武力值上战场不是直接乘 4 倍，而是压成 (force / 1.5)^0.6：
- * 吕布 4.0 约 1.78 倍杀敌，榜尾 1.5 正好 1.0；避免单将无双把团战打穿。
- */
-function forceCombatMul(force) {
-  const n = Number(force);
-  if (!isFinite(n) || n <= 0) return 1;
-  return Math.pow(n / 1.5, 0.6);
-}
-
-module.exports = {
-  DEFAULT_MONARCH_RECRUIT_MUL,
-  LORD_POWER_LIST,
-  LORD_POWER_BY_ID,
-  capForRank,
-  recruitMulForRank,
-  COMMAND_BASE,
-  MARSHAL_TOP20,
-  MARSHAL_COMMAND_TIERS,
-  MARSHAL_BY_ID,
-  GENERAL_FORCE_TIERS,
-  STRATEGIST_GRADES,
-  STRATEGIST_NAMES,
-  STRATEGIST_BY_ID,
-  generalForceForRank,
-  marshalFor,
-  strategistFor,
-  roleInfoFor,
-  commandCapFor,
-  forceCombatMul,
-};
-
-  };
-
   /* js/core/battle.js */
   __defs[16] = function (module, exports, __require) {
 /**
  * 战斗层：回合制战术结算 + 天机简
  * 玩家选战术，回合自动推进，双方同时结算，低阶兵先倒。
- * 天机简可改一次规则（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）。
+ * 天机简可在战中写一笔，改一次规则（风向 / 风止 / 名册）。
  */
 
 const { TROOPS } = __require(10);
 const { HISTORY_MARKS } = __require(5);
-const { forceCombatMul } = __require(17);
 const { troopCount, strength, distributeLosses } = __require(9);
 
 const TACTICS = {
@@ -5931,12 +5232,6 @@ const MAX_ROUNDS = 12;
 
 function clamp(v, min, max) {
   return v < min ? min : v > max ? max : v;
-}
-
-function lossSum(losses) {
-  let n = 0;
-  Object.keys(losses || {}).forEach(function (id) { n += losses[id] || 0; });
-  return n;
 }
 
 function moraleFactor(morale) {
@@ -5981,12 +5276,6 @@ function makeSide(unit) {
     defPct: unit.defPct || 0,
     isPlayer: !!unit.isPlayer,
     edge: factionEdge,
-    killMul: typeof unit.killMul === 'number' && unit.killMul > 0 ? unit.killMul : 1,
-    // 武力值：杀敌指数的标幺值；战场曲线压平，避免单将 4 倍杀敌直接打穿团战。
-    forceValue: typeof unit.forceValue === 'number' ? unit.forceValue : null,
-    forceMul: forceCombatMul(unit.forceValue),
-    commandValue: typeof unit.commandValue === 'number' ? unit.commandValue : null,
-    strategists: Array.isArray(unit.strategists) ? unit.strategists.slice() : [],
     gateEdge: gateEdge,
     tierFactor: tierFactor(troops),
     combatEdge: factionEdge * tierFactor(troops),
@@ -6044,8 +5333,6 @@ class Battle {
     this.aTactic = opts.aTactic && TACTICS[opts.aTactic] ? opts.aTactic : 'assault';
     this.bTactic = opts.bTactic && TACTICS[opts.bTactic] ? opts.bTactic : 'assault';
     this.context = opts.context || {};
-    this.state = opts.state || null;
-    this.battleKey = opts.battleKey || this.context.battleKey || null;
     this.round = 0;
     this.roundsInBatch = 0;
     this.batch = 1;
@@ -6061,56 +5348,6 @@ class Battle {
     this.shiTiming = '';
     this.shiRounds = 0;
     this.shiName = '';
-    this.shiEffect = null;
-    this.galeEscape = false;
-    this.galePinHours = 0;
-    this.strategistReports = [];
-    this.openingLog = '';
-    this.applyStrategistOpening();
-  }
-
-  /**
-   * 历史军师开局天雷：按 S+ 50% / S 40% / A 30% / B 20% 杀敌，单人封顶 100。
-   * 同一场战斗不同军师可叠加；同一军师只触发一次；同一战场反复进出不再触发。
-   */
-  applyStrategistOpening() {
-    const state = this.state;
-    const key = this.battleKey || '';
-    const used = state ? (state.strategistUsed = state.strategistUsed || {}) : {};
-    const seen = {};
-    const lines = [];
-    const self = this;
-    ['a', 'b'].forEach(function (sideKey) {
-      const side = self[sideKey];
-      const foeKey = sideKey === 'a' ? 'b' : 'a';
-      const foe = self[foeKey];
-      (side.strategists || []).forEach(function (s) {
-        if (!s || !s.id || seen[s.id]) return;
-        seen[s.id] = true;
-        const mark = key + ':' + s.id;
-        if (key && used[mark]) {
-          self.strategistReports.push({
-            side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
-            pct: s.pct || 0, cap: s.cap || 100, killed: 0, skipped: true,
-          });
-          return;
-        }
-        const base = foe.initialCount || troopCount(foe.troops);
-        const want = Math.max(0, Math.min(s.cap || 100, Math.round(base * (s.pct || 0))));
-        const real = self.directLosses(foeKey, Math.min(want, troopCount(foe.troops)));
-        const killed = lossSum(real);
-        if (killed > 0 && key) used[mark] = true;
-        const report = {
-          side: sideKey, id: s.id, name: s.name || s.id, grade: s.grade || 'B',
-          pct: s.pct || 0, cap: s.cap || 100, killed: killed, skipped: false,
-        };
-        self.strategistReports.push(report);
-        if (killed > 0) {
-          lines.push((s.name || s.id) + '·' + (s.grade || 'B') + ' 天雷杀 ' + killed);
-        }
-      });
-    });
-    this.openingLog = lines.join('　');
   }
 
   tacticOf(side) {
@@ -6131,125 +5368,15 @@ class Battle {
     return troopCount(this.b.troops);
   }
 
-  sideOf(key) {
-    return key === 'b' ? this.b : this.a;
-  }
-
-  playerSideKey() {
-    if (this.a.isPlayer) return 'a';
-    if (this.b.isPlayer) return 'b';
-    return 'a';
-  }
-
-  foeSideKey() {
-    return this.playerSideKey() === 'a' ? 'b' : 'a';
-  }
-
-  sideRemain(key) {
-    return troopCount(this.sideOf(key).troops);
-  }
-
-  /** 把一次直接伤亡记进本方战损，供战果页统计 */
-  recordLosses(sideKey, losses) {
-    if (!losses || !Object.keys(losses).length) return;
-    const target = sideKey === 'a' ? this.lossesA : this.lossesB;
-    Object.keys(losses).forEach(function (id) {
-      target[id] = (target[id] || 0) + (losses[id] || 0);
-    });
-  }
-
-  /** 绕过回合结算，立刻从某一方扣人；返回实际伤亡明细 */
-  directLosses(sideKey, total) {
-    const side = this.sideOf(sideKey);
-    const n = Math.max(0, Math.round(total || 0));
-    if (!side || n <= 0) return {};
-    const real = distributeLosses(side.troops, n);
-    this.recordLosses(sideKey, real);
-    return real;
-  }
-
-  /** 倒戈：按低阶先走，把敌军一部分人直接拨到我方，并同步合战编队 */
-  transferFromFoe(pct, cap) {
-    const foeKey = this.foeSideKey();
-    const playerKey = this.playerSideKey();
-    const foe = this.sideOf(foeKey);
-    const player = this.sideOf(playerKey);
-    const total = troopCount(foe.troops);
-    if (total <= 0) return { count: 0, troops: {} };
-    const want = Math.max(0, Math.round(total * (pct || 0)));
-    const take = Math.min(cap || want || total, want);
-    if (take <= 0) return { count: 0, troops: {} };
-    const moved = {};
-    let left = take;
-    Object.keys(foe.troops || {})
-      .map(function (id) { return { id: id, tier: TROOPS[id] ? TROOPS[id].tier : 1, count: foe.troops[id] || 0 }; })
-      .sort(function (a, b) { return a.tier - b.tier; })
-      .forEach(function (item) {
-        if (left <= 0 || item.count <= 0) return;
-        const n = Math.min(item.count, left);
-        foe.troops[item.id] -= n;
-        if (foe.troops[item.id] <= 0) delete foe.troops[item.id];
-        moved[item.id] = (moved[item.id] || 0) + n;
-        left -= n;
-      });
-    const count = lossSum(moved);
-    if (count <= 0) return { count: 0, troops: {} };
-    Object.keys(moved).forEach(function (id) {
-      player.troops[id] = (player.troops[id] || 0) + moved[id];
-      player.initialTroops[id] = (player.initialTroops[id] || 0) + moved[id];
-    });
-    player.initialCount += count;
-    player.lastCount = troopCount(player.troops);
-    this.recordLosses(foeKey, moved);
-    const pc = (player.contingents || []).filter(function (c) { return c.isPlayer; })[0];
-    if (pc) {
-      pc.count = (pc.count || 0) + count;
-      pc.initialCount = (pc.initialCount || 0) + count;
-      Object.keys(moved).forEach(function (id) {
-        pc.snapshot[id] = (pc.snapshot[id] || 0) + moved[id];
-      });
-    }
-    return { count: count, troops: moved };
-  }
-
-  /** 直接伤害把敌军打空时按玩家胜负收场，避免玩家在 b 侧时把胜负判反 */
-  finishForPlayer(playerWin) {
-    const aWin = this.a.isPlayer ? !!playerWin : !playerWin;
-    this.finish(aWin ? 'win' : 'lose');
-  }
-
   /** 写一笔天机简 */
   applyShiMark(id) {
     const mark = HISTORY_MARKS[id];
     this.shiMark = id;
-    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'fireball' ? '天降火球' : id === 'gale' ? '风行' : '回魂');
+    this.shiName = mark ? mark.name : (id === 'wind' ? '南风起' : id === 'calm' ? '风止' : '名册');
+    // 南风起 / 风止是战中效果；名册只在战后结算阵亡者。
     this.shiTiming = mark ? mark.timing : (id === 'roll' ? 'after' : 'battle');
-    this.shiRounds = (mark && mark.rounds) || 0;
-    if (id === 'wind' || id === 'fireball') this.fireGround = true;
-
-    if (id === 'fireball') {
-      const foeKey = this.foeSideKey();
-      const before = this.sideRemain(foeKey);
-      const burn = Math.max(0, Math.min(mark.burnCap || 0, Math.round(before * (mark.burnPct || 0))));
-      const real = this.directLosses(foeKey, burn);
-      const amount = lossSum(real);
-      this.shiEffect = { kind: 'burn', amount: amount, cap: mark.burnCap || 0 };
-      if (amount > 0 && this.sideRemain(foeKey) <= 0) this.finishForPlayer(true);
-    } else if (id === 'gale') {
-      const foeKey = this.foeSideKey();
-      const before = this.sideRemain(foeKey);
-      const cut = Math.max(1, Math.round(before * (mark.enemyLossPct || 0)));
-      const real = this.directLosses(foeKey, cut);
-      const amount = lossSum(real);
-      this.galeEscape = true;
-      this.galePinHours = mark.pinHours || 8;
-      this.retreated = true;
-      this.shiEffect = { kind: 'gale', amount: amount, pinHours: this.galePinHours };
-      this.finish('retreat');
-    } else if (id === 'defector') {
-      const moved = this.transferFromFoe(mark.turnPct, mark.turnCap);
-      this.shiEffect = { kind: 'defect', amount: moved.count };
-    }
+    if (id === 'calm') this.shiRounds = (mark && mark.rounds) || 3;
+    if (id === 'wind') this.fireGround = true;
   }
 
   /** 推进一个回合 */
@@ -6278,9 +5405,6 @@ class Battle {
     defA *= this.a.defenseEdge || this.a.combatEdge || 1;
     atkB *= this.b.combatEdge || 1;
     defB *= this.b.defenseEdge || this.b.combatEdge || 1;
-    // 武力值：只放大本方每轮杀敌，不改变自身防御；无武力值的旧测试双方都按 1.0。
-    atkA *= this.a.forceMul || 1;
-    atkB *= this.b.forceMul || 1;
 
     // 弩破甲：忽略一部分敌方甲
     if (sa.pierceRatio > 0.12) defB *= 0.82;
@@ -6288,33 +5412,19 @@ class Battle {
 
     // 天机简效果：只利己，不反噬
     const shi = this.shiMark ? HISTORY_MARKS[this.shiMark] : null;
-    const playerKey = this.playerSideKey();
-    const foeKey = this.foeSideKey();
-    let nightFree = false;
     if (shi && this.shiMark === 'wind') {
-      // 南风起不是单纯加攻击：攻防一起按“高两阶”算，才能 T1 打 T3、T4 敌双 T5。
-      const boost = Math.pow(2, shi.tierBoost || 0);
-      if (playerKey === 'a') {
-        atkA *= boost;
-        defA *= boost;
-        if (this.fireGround) atkA *= shi.fireMul;
-      } else {
-        atkB *= boost;
-        defB *= boost;
-        if (this.fireGround) atkB *= shi.fireMul;
-      }
+      atkA *= shi.atkMul;
+      if (this.fireGround) atkA *= shi.fireMul;
     }
-    if (shi && this.shiMark === 'night' && this.shiRounds > 0) {
-      // 夜袭：敌军三回合完全打不出伤害，不是削一成那种看不出来的效果。
-      if (playerKey === 'a') atkB *= shi.enemyAtkMul;
-      else atkA *= shi.enemyAtkMul;
-      nightFree = true;
+    if (shi && this.shiMark === 'calm' && this.shiRounds > 0) {
+      // 风止只压敌军：玩家在 a 时削 b，玩家在 b 时削 a。自己的攻势不受影响。
+      if (this.a.isPlayer) atkB *= shi.enemyMul;
+      else if (this.b.isPlayer) atkA *= shi.enemyMul;
       this.shiRounds -= 1;
     }
 
     // 火攻战：带火船/火计的兵种威力翻倍的一部分
-    if (this.fireGround && playerKey === 'a' && sa.fireRatio > 0.05) atkA *= 1.15;
-    if (this.fireGround && playerKey === 'b' && sb.fireRatio > 0.05) atkB *= 1.15;
+    if (this.fireGround && sa.fireRatio > 0.05) atkA *= 1.15;
 
     // 弓弩首轮齐射
     let alphaStrike = 0;
@@ -6326,36 +5436,23 @@ class Battle {
     // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
     let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
-    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
-    // 杀敌增益：只放大对敌军的每轮杀伤；自己的伤亡仍由对方系数决定。
-    lossA = Math.max(1, Math.round(lossA * this.b.killMul));
-    lossB = Math.max(1, Math.round(lossB * this.a.killMul));
-    // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
-    if (nightFree && playerKey === 'a') lossA = 0;
-    if (nightFree && playerKey === 'b') lossB = 0;
+    const lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
 
     const realA = distributeLosses(this.a.troops, lossA);
     const realB = distributeLosses(this.b.troops, Math.max(1, lossB));
 
-    this.recordLosses('a', realA);
-    this.recordLosses('b', realB);
-
-    // 瘴气：每回合额外折损敌军当前兵力的一小块，连折数回合。
-    let miasmaReal = null;
-    if (shi && this.shiMark === 'miasma' && this.shiRounds > 0) {
-      const before = this.sideRemain(foeKey);
-      if (before > 0) {
-        const n = Math.max(1, Math.round(before * shi.attritionPct));
-        miasmaReal = this.directLosses(foeKey, n);
-        this.shiRounds -= 1;
-      }
-    }
-    const miasmaText = miasmaReal ? ' · 瘴气 ' + lossText({}, miasmaReal) : '';
+    const self = this;
+    Object.keys(realA).forEach(function (id) {
+      self.lossesA[id] = (self.lossesA[id] || 0) + realA[id];
+    });
+    Object.keys(realB).forEach(function (id) {
+      self.lossesB[id] = (self.lossesB[id] || 0) + realB[id];
+    });
 
     const entry = {
       round: this.round,
-      aLossText: lossText(this.a.troops, realA) + (foeKey === 'a' ? miasmaText : ''),
-      bLossText: lossText(this.b.troops, realB) + (foeKey === 'b' ? miasmaText : ''),
+      aLossText: lossText(this.a.troops, realA),
+      bLossText: lossText(this.b.troops, realB),
       remainA: this.remainA(),
       remainB: this.remainB(),
       alphaStrike,
@@ -6475,15 +5572,6 @@ class Battle {
     return Math.max(120, Math.round(base * kindMul * tierMul * (0.75 + this.rng.random() * 0.4)));
   }
 
-  shiNoteText() {
-    const e = this.shiEffect;
-    if (!e) return '';
-    if (e.kind === 'burn') return '天降火球烧掉 ' + e.amount + ' 人';
-    if (e.kind === 'gale') return '风行脱战，敌军 -' + e.amount + ' 人，原地停 ' + e.pinHours + ' 小时';
-    if (e.kind === 'defect') return '倒戈 ' + e.amount + ' 人，敌军调转枪头';
-    return '';
-  }
-
   summary() {
     return {
       result: this.result,
@@ -6501,12 +5589,6 @@ class Battle {
       shiMark: this.shiMark,
       shiName: this.shiName,
       shiTiming: this.shiTiming,
-      shiEffect: this.shiEffect,
-      shiNote: this.shiNoteText(),
-      strategistReports: this.strategistReports || [],
-      openingLog: this.openingLog || '',
-      galeEscape: !!this.galeEscape,
-      galePinHours: this.galePinHours,
       contingentsA: this.a.contingents || [],
       contingentsB: this.b.contingents || [],
     };
@@ -6528,8 +5610,6 @@ class Battle {
       lossesA: this.lossesA,
       lossesB: this.lossesB,
       loot: 0,
-      strategistReports: this.strategistReports || [],
-      openingLog: this.openingLog || '',
     };
   }
 }
@@ -6551,7 +5631,7 @@ module.exports = { Battle, TACTICS, TACTIC_LIST, moraleFactor, tierPower, tierFa
  *  - 逃脱概率起初几乎为零，关一天涨一点。
  */
 
-const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES, FREE_CITY_IDS } = __require(5);
+const { FACTIONS, FACTION_COMBAT, ROADS, STRATEGIC_SITES } = __require(5);
 const { TROOPS } = __require(10);
 const army = __require(9);
 const { Battle } = __require(16);
@@ -6565,16 +5645,10 @@ const DUEL_FLEE_GAP = 10;
 const MAX_WAR_PARTNERS = 99;
 // 刘备入川不是随机外交：天下开始动过几天，必然让刘璋与刘备翻脸。
 const LIUBEI_YI_WAR_DAY = 8;
-// 韩遂灭凉：马超归蜀这条线固定之后，由韩遂在凉州动手，不再等随机国战。
-const HANSUI_MIE_MA_DAY = 12;
 // 不再给开局设“曹袁三十天不能打”的停战罩；各国从第一天起就可以互相吞并。
 const OPENING_FORBIDDEN = {};
 const OPENING_DAYS = 0;
-// 南征南蛮是蜀国唯一一次“多路并进”的山地战：不再只凑 5 路，
-// 从成都、江州、朱提一线能点几路就点几路，最多八路。
-const SHU_NANMAN_MAX_LORDS = 8;
 let destroyPartyFn = null;
-let captureHook = null;
 
 function key(a, b) {
   return a < b ? a + '|' + b : b + '|' + a;
@@ -6613,23 +5687,6 @@ function roadAdjacent(a, b) {
   return !!(a && b && e[a] && e[a].indexOf(b) >= 0);
 }
 
-/** 据点之间的城道相邻：小国只打和本土直接连一道路的城，不向远处延伸。 */
-let SITE_EDGES = null;
-function siteRoadEdges() {
-  if (SITE_EDGES) return SITE_EDGES;
-  SITE_EDGES = {};
-  (ROADS || []).forEach(function (pair) {
-    if (!pair || !pair[0] || !pair[1]) return;
-    (SITE_EDGES[pair[0]] = SITE_EDGES[pair[0]] || []).push(pair[1]);
-    (SITE_EDGES[pair[1]] = SITE_EDGES[pair[1]] || []).push(pair[0]);
-  });
-  return SITE_EDGES;
-}
-function siteRoadAdjacent(a, b) {
-  const e = siteRoadEdges();
-  return !!(a && b && e[a] && e[a].indexOf(b) >= 0);
-}
-
 /** 两国有道路直接接壤，才算邻国；宣战只认这一条。 */
 function factionsAdjacent(state, a, b) {
   if (!a || !b || a === b) return false;
@@ -6660,46 +5717,11 @@ function canSiegeSiteFromFaction(state, faction, site) {
   if (targetFaction && targetFaction !== 'bandit' && !atWar(state, faction, targetFaction)) {
     return { ok: false, msg: '还没有和' + (FACTIONS[targetFaction] ? FACTIONS[targetFaction].full : targetFaction) + '开战' };
   }
-  // 敌方只剩村庄时不能再卡“道路必须接壤”：残部躲在边村，不打掉这最后一块
-  // 地盘，剧情阶段就永远判不了灭国。允许攻方摸到残村收尾。
-  if (targetFaction && targetFaction !== 'bandit' && site.type === 'village' &&
-      !ownedCities(state, targetFaction).length) {
-    return { ok: true, msg: '', linked: false, mopUp: true };
-  }
   const linked = own.some(function (o) { return roadAdjacent(o.id, site.id); });
   if (!linked) {
-    // 巴西是村，不算“城”，但刘备入川的成都路线正是剑阁—巴西—成都。
-    // 只对蜀军打成都放这一格：占住巴西村后，成都就不再被城网判定卡在门外。
-    const baxi = siteById(state, 'baxi');
-    const viaBaxi = faction === 'shu' && site.id === 'chengdu' &&
-      baxi && baxi.ownerFaction === 'shu' && !baxi.playerOwned &&
-      roadAdjacent(baxi.id, site.id);
-    if (!viaBaxi) {
-      return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
-    }
+    return { ok: false, msg: '只能攻打与本势力道路直接相连的敌城；先把中间那座城打下来' };
   }
   return { ok: true, msg: '', linked: true };
-}
-
-/** 剧情模式：玩家只能加入当前天下大势正在打的目标，不能凭空另开一桌。 */
-function storyWarTargetsPlayer(state, faction) {
-  const st = state && state.story;
-  if (!st || !st.mode) return true;
-  if (st.emperor && st.emperor.coalitionTarget === faction) return true;
-  const lists = st.targets || {};
-  return Object.keys(lists).some(function (f) {
-    return (lists[f] || []).indexOf(faction) >= 0;
-  });
-}
-
-function storyPlayerWarRestriction(state, faction) {
-  if (!state || !state.story || !state.story.mode) return null;
-  if (storyWarTargetsPlayer(state, faction)) return null;
-  return {
-    ok: false,
-    msg: '剧情模式只能顺着天下大势开战：当前没有哪一路战书指向' +
-      (FACTIONS[faction] ? FACTIONS[faction].full : faction) + '。',
-  };
 }
 
 /** 玩家现在能不能对某个势力递战书：必须是邻国；第一座城之前只能到城下宣战。 */
@@ -6716,8 +5738,6 @@ function canPlayerDeclareFaction(state, faction) {
   if (!factionsAdjacent(state, 'player', faction)) {
     return { ok: false, msg: '只能向道路接壤的邻国宣战，不能隔着别国递战书。' };
   }
-  const storyRestriction = storyPlayerWarRestriction(state, faction);
-  if (storyRestriction) return storyRestriction;
   if (!canOpenWar(state, 'player', faction)) {
     return { ok: false, msg: '你已经同时在打太多家了，先停一边再宣。' };
   }
@@ -6735,8 +5755,6 @@ function canPlayerDeclareSite(state, site) {
   if (!factionsAdjacent(state, 'player', faction)) {
     return { ok: false, msg: '只能向道路接壤的邻国宣战' };
   }
-  const storyRestriction = storyPlayerWarRestriction(state, faction);
-  if (storyRestriction) return storyRestriction;
   return { ok: true, msg: '' };
 }
 
@@ -6818,8 +5836,6 @@ function startDiplomacy(state) {
   if (!state || state.openingWarsDeclared) return 0;
   state.openingWarsDeclared = true;
   state.diplomacyStarted = true;
-  // 剧情模式的开局战书由 story.init 按阶段递出；这里不再撒通用随机战火。
-  if (state.story && state.story.mode) return 0;
   const pairs = [
     ['wei', 'lv'],
     ['wu', 'biao'],
@@ -6952,7 +5968,6 @@ function makePeace(state, a, b, quiet) {
   // 斩了君主就是不死不休：这对玩家与那一家永远没有议和这一页
   const forever = state.noPeaceForever || {};
   if ((a === 'player' && forever[b]) || (b === 'player' && forever[a])) return false;
-  if (state.story && state.story.noPeace && state.story.noPeace[key(a, b)]) return false;
   const m = state.factionWars || {};
   const k = key(a, b);
   if (!m[k]) {
@@ -7034,11 +6049,6 @@ function diplomacyTick(state) {
   const m = state.factionWars || init(state);
   if (!state.diplomacyStarted && Object.keys(m).length) state.diplomacyStarted = true;
   if (!state.diplomacyStarted) return;
-  // 剧情模式：战和只按战略阶段走，不再随机宣战/议和。
-  if (state.story && state.story.mode) {
-    state.lastDiplomacyDay = state.clock.day;
-    return;
-  }
   // 一天最多合成一条军情，降低连续弹窗
   if (state.lastDiplomacyDay === state.clock.day) return;
   const rng = state.rng;
@@ -7165,13 +6175,6 @@ function factionEdge(a, b) {
   return cfg.power || 1;
 }
 
-/** 荆州第十轮霸主的额外杀敌系数；只放大对敌杀伤，不改变自身防御。 */
-function factionKillMul(faction) {
-  const cfg = faction && FACTION_COMBAT[faction];
-  const value = cfg && Number(cfg.killMul);
-  return isFinite(value) && value > 0 ? value : 1;
-}
-
 function combatTroops(unit, foeFaction) {
   return weight(unit && unit.troops) * factionEdge(unit && unit.faction, foeFaction);
 }
@@ -7287,8 +6290,6 @@ function capture(state, loser, captorFaction, captorName) {
   loser.fleeing = false;
   loser.scattered = false;
   loser.scatterUntilH = 0;
-  loser.scatterHomeId = null;
-  loser.respawnDay = 0;
   loser.fleeTargetId = null;
   loser.fleePath = null;
   loser.order = null;
@@ -7332,10 +6333,6 @@ function freeLord(state, lord, why) {
   lord.prisoner = null;
   lord.scattered = false;
   lord.scatterUntilH = 0;
-  lord.scatterHomeId = null;
-  lord.scatterCityId = null;
-  lord.scatterRecovering = false;
-  lord.scatterHidden = false;
   lord.order = null;
   lord.defending = null;
   lord.chasing = false;
@@ -7366,9 +6363,8 @@ function clearEngagement(a, b) {
 
 /**
  * 兵被打光的领主：不是俘虏，也不是“还剩残兵的逃窜”，而是队伍被打散。
- * 打散后从大地图上立即消失，三天内不显示、不移动、不招募；
- * 三天后由 scatteredLordTick 悄悄送到募兵最快的城，从零开始重新招兵。
- * 这里只写状态，不改地图坐标。
+ * 需要回城收拢旧部，三天（72 个游戏时辰）内不能招募；三天后进城就能重新集结。
+ * 这里只写状态，不改坐标：moveLords 会因为兵少自动把他带回最近的友城。
  */
 function markLordScattered(state, lord, source) {
   if (!lord) return null;
@@ -7377,15 +6373,7 @@ function markLordScattered(state, lord, source) {
   lord.prisoner = null;
   lord.scattered = true;
   lord.scatterUntilH = Math.max(lord.scatterUntilH || 0, nowH + 72);
-  // 记下本土城只作档案/旧档兼容；真正的复活点由 scatteredLordTick 选募兵最快的城。
-  lord.scatterHomeId = lord.scatterHomeId || lord.home;
-  lord.respawnDay = Math.max(lord.respawnDay || 0, state.clock.day + 3);
   lord.scatterFrom = source || 'battle';
-  lord.scatterCityId = null;
-  lord.scatterRecovering = false;
-  // 全程不可见：地图模型、城池领主列表、战报都不再出现。
-  lord.scatterHidden = true;
-  lord.inCity = null;
   lord.fleeing = false;
   lord.fleeTargetId = null;
   lord.fleePath = null;
@@ -7405,7 +6393,8 @@ function markLordScattered(state, lord, source) {
   lord.orderDetourTarget = null;
   lord.patrolPath = null;
   lord.stuckEscape = null;
-  lord.nextMoveH = nowH;
+  // 不冻结移动：0 兵的领主会被 needRest 自动带回最近的友城，在路上等这三天。
+  lord.nextMoveH = Math.min(lord.nextMoveH || nowH, nowH);
   lord.resting = true;
   return lord;
 }
@@ -7422,14 +6411,15 @@ function clash(state, a, b) {
   const wb = weight(b.troops) * edgeB;
   if (wa <= 0 || wb <= 0) {
     // 已经有一方是空架子：不要再返回 null 让幽灵部队挂在原地。
-    // 还有兵的一方算胜者；零兵一方一律按“打散”处理，不进入逃逸/俘虏判定。
+    // 还有兵的一方算胜者；零兵一方能走就“打散”，走不了就按俘虏处理。
     const empty = wa <= 0 ? a : b;
     const other = wa <= 0 ? b : a;
     if (empty && !empty.prisoner && empty.faction !== 'bandit') {
       const emptyHasTroops = army.troopCount(empty.troops || {}) > 0;
       if (!emptyHasTroops) {
-        // 0 兵一律算打散，不看能不能离场；三天后回本土城收拢旧部。
-        markLordScattered(state, empty, other ? other.name : 'battle');
+        const mayLeave = lordMayLeaveField(state, empty, other);
+        if (mayLeave) markLordScattered(state, empty, other ? other.name : 'battle');
+        else capture(state, empty, other ? other.faction : 'bandit', other ? other.name : '乱军');
       }
     }
     clearEngagement(a, b);
@@ -7451,11 +6441,8 @@ function clash(state, a, b) {
 
   // 大规模交战：主力和主力正面压上，每轮掉 6%~24%。
   // 精锐国（魏蜀吴）按对拼倍率少掉人：曹操 2 兵能跟普通势力 3 兵对耗。
-  // 荆州第十轮霸主的 +50% 杀敌只加在“给敌军造成的损失”上。
-  const baseLossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
-  const baseLossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
-  const lossA = Math.max(1, Math.round(baseLossA * factionKillMul(b.faction)));
-  const lossB = Math.max(1, Math.round(baseLossB * factionKillMul(a.faction)));
+  const lossA = Math.max(1, Math.round(totalA * (0.06 + (1 - share) * 0.16) / Math.max(1, edgeA)));
+  const lossB = Math.max(1, Math.round(totalB * (0.06 + share * 0.16) / Math.max(1, edgeB)));
   army.distributeLosses(a.troops, lossA);
   army.distributeLosses(b.troops, lossB);
 
@@ -7482,12 +6469,21 @@ function clash(state, a, b) {
   // 乱世里保住人比保住脸重要：打散之后大概率还能跑，极少真被捆走。
   // 但守城、结阵、无城可退时这套豁免优先：不许逃，直接按被俘处理。
   const mayLeave = lordMayLeaveField(state, loser, winner);
-  // 0 兵 = 自动打散，不是逃逸，也不是俘虏；三天后在本土城复活。
-  // 只有还剩 1 名以上士兵，才进入下面的“带残兵逃逸/被俘”判定。
+  // 打空 = 被打散，不是“带残兵逃窜”。给三天收拢旧部的时间；守城军打空仍只可被俘。
   if (loserRemain <= 0) {
-    markLordScattered(state, loser, winner ? winner.name : 'battle');
-    // 打散全程对玩家不可见：不写战报，也不在附近提示“三天后重立”。
-    return { scattered: true };
+    if (loser.defending) {
+      capture(state, loser, winner.faction, winner.name);
+      if (near) logFn(state, loser.name + '被' + winner.name + '的部曲围住，当场捆了。', 'war');
+      return { capture: true };
+    }
+    if (mayLeave) {
+      markLordScattered(state, loser, winner ? winner.name : 'battle');
+      if (near) logFn(state, loser.name + '的部曲被打空，残旗四散，三天内无法重新集结。', 'war');
+      return { scattered: true };
+    }
+    capture(state, loser, winner.faction, winner.name);
+    if (near) logFn(state, loser.name + '被' + winner.name + '的部曲围住，当场捆了。', 'war');
+    return { capture: true };
   }
   const fleeRoll = rng.next() < 0.82;
   if (fleeRoll && mayLeave) {
@@ -7569,15 +6565,6 @@ function fieldUnitInfo(state, ref, override) {
       troops: copyTroops(unit.troops), morale: unit.morale,
       atkPct: 0.05, defPct: 0.05, isPlayer: false, pos: unit,
       count: army.troopCount(unit.troops),
-      forceValue: unit.forceValue,
-      commandValue: unit.commandValue,
-      strategists: unit.strategistGrade ? [{
-        id: unit.id,
-        name: unit.name,
-        grade: unit.strategistGrade,
-        pct: unit.strategistPct || 0,
-        cap: unit.strategistCap || 100,
-      }] : [],
     };
   }
   return {
@@ -7683,28 +6670,12 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
   let defWeight = 0;
   let forceTotal = 0;
   let edgeWeight = 0;
-  let killWeight = 0;
   let gateWeight = 0;
-  let forceValue = null;
-  let commandValue = null;
-  const strategists = [];
-  const strategistIds = {};
   const primary = infos[0];
   infos.forEach(function (info) {
     const group = copyTroops(info.troops);
     const n = army.troopCount(group);
     if (n <= 0) return;
-    if (typeof info.forceValue === 'number' && (forceValue === null || info.forceValue > forceValue)) {
-      forceValue = info.forceValue;
-    }
-    if (typeof info.commandValue === 'number' && (commandValue === null || info.commandValue > commandValue)) {
-      commandValue = info.commandValue;
-    }
-    (info.strategists || []).forEach(function (s) {
-      if (!s || !s.id || strategistIds[s.id]) return;
-      strategistIds[s.id] = true;
-      strategists.push(s);
-    });
     Object.keys(group).forEach(function (id) {
       sideTroops[id] = (sideTroops[id] || 0) + group[id];
     });
@@ -7716,7 +6687,6 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     const gate = strategicEdgeForInfo(state, info);
     forceTotal += force;
     edgeWeight += force * factionEdge(info.faction, foeFaction);
-    killWeight += force * factionKillMul(info.faction);
     gateWeight += force * gate;
     contingents.push({
       key: info.key || fieldRefKey({ kind: info.kind, id: info.id }),
@@ -7743,14 +6713,10 @@ function buildCoalitionSide(state, infos, foeFaction, opts) {
     defPct: countTotal ? defWeight / countTotal : 0,
     isPlayer: !!(opts && opts.isPlayer) || contingents.some(function (c) { return c.isPlayer; }),
     edge: forceTotal ? edgeWeight / forceTotal : 1,
-    killMul: forceTotal ? killWeight / forceTotal : 1,
     gateEdge: forceTotal ? gateWeight / forceTotal : 1,
     coalitionNames: names,
     contingents: contingents,
     force: forceTotal,
-    forceValue: forceValue,
-    commandValue: commandValue,
-    strategists: strategists,
   };
 }
 
@@ -7818,11 +6784,8 @@ function createFieldBattle(state, aRef, bRef, opts) {
   });
   const context = Object.assign({ kind: 'field' }, options.context || {});
   context.fieldBattleId = id;
-  context.battleKey = context.battleKey || ('field:' + id);
   const battle = new Battle({
     rng: state.rng,
-    state: state,
-    battleKey: context.battleKey,
     attacker: aSide,
     defender: bSide,
     context: context,
@@ -7889,17 +6852,14 @@ function syncFieldBattle(state, battlefield, options) {
     const foeFaction = sk === 'a' ? bf.primaryB.faction : bf.primaryA.faction;
     let force = 0;
     let edge = 0;
-    let kill = 0;
     let gate = 0;
     side.contingents.forEach(function (c) {
       const f = tierForce(c.snapshot);
       force += f;
       edge += f * factionEdge(c.faction, foeFaction);
-      kill += f * factionKillMul(c.faction);
       gate += f * strategicDefenseAt(state, c.gateFaction || c.faction, c.x, c.y);
     });
     side.edge = force > 0 ? edge / force : 1;
-    side.killMul = force > 0 ? kill / force : 1;
     side.gateEdge = force > 0 ? gate / force : 1;
     side.force = force;
     const currentCount = army.troopCount(side.troops);
@@ -8005,22 +6965,6 @@ function settleFieldBattle(state, battlefield, summary, options) {
     }
   });
 
-  // 风行：玩家借风脱阵，敌军被甩在原地八小时，地图上不许立刻追上来。
-  if (battle.galeEscape) {
-    const nowH = state.clock.day * 24 + state.clock.hour;
-    const playerSide = bf.playerSide || (battle.a.isPlayer ? 'a' : 'b');
-    const pinH = battle.galePinHours || 8;
-    bf.participants.forEach(function (p) {
-      if (p.side === playerSide) return;
-      const unit = unitForParticipant(state, p);
-      if (!unit) return;
-      unit.pauseUntil = Math.max(unit.pauseUntil || 0, nowH + pinH);
-      unit.fleeing = false;
-      unit.fleeTargetId = null;
-      unit.scuffle = Math.max(unit.scuffle || 0, pinH);
-    });
-  }
-
   // 玩家不在场：按胜负让败方溃逃或被俘；两败俱伤则各自收兵。
   if (!playerBattle) {
     const loserSide = winnerSide === null ? null : winnerSide === 'a' ? 'b' : 'a';
@@ -8041,9 +6985,18 @@ function settleFieldBattle(state, battlefield, summary, options) {
       }
       if (!unit.alive || unit.prisoner || unit.inCity) return;
       const mayLeave = lordMayLeaveField(state, unit, winnerUnit);
-      // 合战把兵打到 0：和野战一样自动打散，三天后回本土城复活；不是俘虏。
+      // 合战把兵打光且没有被围死：同样按“打散”处理，先回城收拢，三天内不能招募。
+      // 守城军打空仍只可被俘，不能变成可再招募的打散状态。
       if (army.troopCount(unit.troops || {}) <= 0) {
-        markLordScattered(state, unit, winnerUnit ? winnerUnit.name : 'field');
+        if (unit.defending && winnerSide !== null) {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        } else if (mayLeave || winnerSide === null) {
+          markLordScattered(state, unit, winnerUnit ? winnerUnit.name : 'field');
+        } else {
+          capture(state, unit, p.side === 'b' ? bf.primaryA.faction : bf.primaryB.faction,
+            p.side === 'b' ? bf.primaryA.name : bf.primaryB.name);
+        }
         return;
       }
       // 合战结算也必须服从“守城/结阵/无城可退不逃”的硬顶规则，
@@ -8182,7 +7135,7 @@ function fieldTick(state) {
   // 这一拍新开的战场则留到下一拍再打，避免“刚进战场就打完”。
   const processed = tickFieldBattles(state);
   const list = state.lords.filter(function (l) {
-    return l.alive && !l.inCity && !l.prisoner && !l.fieldBattleId && !l.scattered;
+    return l.alive && !l.inCity && !l.prisoner && !l.fieldBattleId;
   });
   const seen = {};
   let created = 0;
@@ -8300,9 +7253,6 @@ function playerDefeatsLord(state, lord) {
   lord.prisoner = null;
   lord.inCity = null;
   lord.respawnDay = 0;
-  lord.scattered = false;
-  lord.scatterUntilH = 0;
-  lord.scatterHomeId = null;
   if (home) {
     lord.x = home.x;
     lord.y = home.y;
@@ -8331,9 +7281,6 @@ function killLord(state, lord) {
   lord.prisoner = null;
   lord.inCity = null;
   lord.respawnDay = 0;
-  lord.scattered = false;
-  lord.scatterUntilH = 0;
-  lord.scatterHomeId = null;
   state.noPeace = state.noPeace || {};
   state.killRecords = state.killRecords || {};
   if (fac && FACTIONS[fac]) {
@@ -8568,8 +7515,7 @@ function ownedSites(state, faction, townsOnly) {
 
 function factionLords(state, faction) {
   return state.lords.filter(function (l) {
-    return l.alive && !l.dead && !l.prisoner && !l.hidden && !l.scatterHidden &&
-      l.faction === faction;
+    return l.alive && !l.dead && !l.prisoner && !l.hidden && l.faction === faction;
   });
 }
 
@@ -8606,25 +7552,6 @@ function giveOrder(lord, type, siteId, hold) {
 
 function pairBlocked(state, a, b, day) {
   return (state.siegeCooldown[key(a, b)] || 0) > day;
-}
-
-/**
- * 刘备入川的用兵主轴：剑阁 → 巴西 → 成都 → 江州。
- * 成都是“重心城市”，先取成都；成都一下，兵锋立刻转江州，
- * 不再绕去汉中，也不把江州留成最后一块飞地。
- */
-function liubeiYiFocusSite(state, own) {
-  if (!state || !state.flags || !state.flags.liubeiYiWar) return null;
-  if (!state.factionState || (state.factionState.shu || {}).dead) return null;
-  if (!atWar(state, 'shu', 'zhang')) return null;
-  const chain = ['jiange', 'baxi', 'chengdu', 'jiangzhou'];
-  for (let i = 0; i < chain.length; i += 1) {
-    const site = siteById(state, chain[i]);
-    if (!site || site.playerOwned || site.ownerFaction !== 'zhang') continue;
-    if (!canSiegeSiteFromFaction(state, 'shu', site).ok) continue;
-    return site;
-  }
-  return null;
 }
 
 /**
@@ -8679,146 +7606,12 @@ function ensureLiuBeiYiWar(state, day) {
   return true;
 }
 
-/**
- * 韩遂灭凉的用兵主轴：金城出兵 → 武威 → 居延 → 陇西村。
- * 龙城与居延的城道已经断开，居延只能从武威方向进；这条链保证韩遂不会
- * 因为居延变成飞地就卡在半路。
- */
-function hansuiMieMaFocusSite(state, own) {
-  if (!state || !state.flags || !state.flags.hanSuiMieMa) return null;
-  if (!state.factionState || (state.factionState.hansui || {}).dead) return null;
-  if ((state.factionState.ma || {}).dead) return null;
-  if (!atWar(state, 'hansui', 'ma')) return null;
-  const chain = ['wuwei', 'juyan', 'longxi'];
-  for (let i = 0; i < chain.length; i += 1) {
-    const site = siteById(state, chain[i]);
-    if (!site || site.playerOwned || site.ownerFaction !== 'ma') continue;
-    if (!canSiegeSiteFromFaction(state, 'hansui', site).ok) continue;
-    return site;
-  }
-  return null;
-}
-
-/**
- * 韩遂灭凉前的一次总动员：马超带走本部后，韩遂把金城、西平、天水的部曲
- * 重新点齐，并把武威、居延两城的守备按“马家军心已散”削掉一截。
- * 这是剧情战，不让它因为前面和汉廷的零星消耗打成一百天。
- */
-function mobilizeHanSuiMieMa(state) {
-  if (!state || !state.flags) return;
-  if (state.flags.hanSuiMieMaMobilized) return;
-  factionLords(state, 'hansui').forEach(function (l) {
-    if (!l || !l.alive || l.dead || l.prisoner) return;
-    const base = l.defTroops || {};
-    const cur = l.troops || {};
-    const full = {};
-    Object.keys(base).forEach(function (id) {
-      full[id] = Math.max(base[id] || 0, cur[id] || 0);
-    });
-    // 剧情总动员：金城、西平、天水的部曲全部点齐，再按一点五倍备足攻城粮道。
-    Object.keys(full).forEach(function (id) {
-      full[id] = Math.round(full[id] * 1.5);
-    });
-    l.troops = full;
-    l.morale = Math.max(l.morale || 0, 88);
-    l.pauseUntil = 0;
-    l.chasing = false;
-    l.hunting = false;
-    l.fleeing = false;
-    l.fleeTargetId = null;
-  });
-  ['wuwei', 'juyan'].forEach(function (id) {
-    const s = siteById(state, id);
-    if (!s || s.ownerFaction !== 'ma') return;
-    s.garrison = Math.max(58, Math.round((s.garrison || s.garrisonBase || 60) * 0.68));
-    s.garrisonBase = s.garrison;
-  });
-  // 马超一走，马家诸将各自守城，不再分兵反攻韩遂；这二十天只挨打不主动出击。
-  const nowH = state.clock.day * 24 + state.clock.hour;
-  factionLords(state, 'ma').forEach(function (l) {
-    if (!l || !l.alive || l.dead || l.prisoner) return;
-    l.pauseUntil = Math.max(l.pauseUntil || 0, nowH + 20 * 24);
-    l.chasing = false;
-    l.hunting = false;
-    l.order = null;
-    l.defending = null;
-  });
-  if (state.warCampaigns && state.warCampaigns.ma) abortCampaign(state, 'ma');
-  state.flags.maPassiveDuringMie = true;
-  state.flags.hanSuiMieMaMobilized = true;
-}
-
-/**
- * 韩遂灭凉：天下开始后第 12 天，若韩遂与马腾都还在，必然由韩遂点兵吞凉。
- * 这条线只做一件事——把“谁去灭马家”钉死，不再让随机国战分兵。
- */
-function ensureHanSuiMieMaWar(state, day) {
-  if (!state || !state.diplomacyStarted || !state.flags) return false;
-  if (state.flags.hanSuiMieMaDone) return false;
-  if (day < HANSUI_MIE_MA_DAY) return false;
-  const fstate = state.factionState || {};
-  if ((fstate.hansui || {}).dead || (fstate.ma || {}).dead) {
-    state.flags.hanSuiMieMaDone = true;
-    return false;
-  }
-  if (state.flags.hanSuiMieMa) return false;
-  if (atWar(state, 'hansui', 'ma')) {
-    state.flags.hanSuiMieMa = true;
-  } else if (canOpenWar(state, 'hansui', 'ma') && declare(state, 'hansui', 'ma', false)) {
-    state.flags.hanSuiMieMa = true;
-  } else {
-    return false;
-  }
-  // 旧的韩遂战役（可能指向汉廷/西平）先撤掉，下一拍战略会改走灭凉主轴。
-  const old = state.warCampaigns && state.warCampaigns.hansui;
-  if (old) abortCampaign(state, 'hansui');
-  mobilizeHanSuiMieMa(state);
-  const mc = state.lords.find(function (l) { return l.id === 'machao'; });
-  const chaoGone = !mc || mc.dead || mc.faction !== 'ma';
-  logFn(state, '韩遂在金城点兵，借口“马腾老病、凉州无主”，要把武威、居延一并吞下。' +
-    (chaoGone ? '马超已经投了蜀，西凉再无铁骑回援。' : '马超若还在西凉，这一仗就是他和马家的最后一战。'), 'war');
-  return true;
-}
-
 /** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
 function planCampaign(state, faction, day) {
-  const story = state.story;
-  const passive = !!(story && story.mode && story.passive && story.passive[faction]);
-  // 牵制战配置：南蛮只野战不围城；南越只取长沙以南。
-  const proxy = story && story.mode && story.proxyWars ? story.proxyWars[faction] : null;
-  // 官渡合战进行时，曹袁两军都被这场战役占住，不再另开围城战役。
-  const guanduField = (state.fieldBattles || []).some(function (bf) {
-    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  });
-  if (guanduField && (faction === 'wei' || faction === 'yuan')) return null;
-  // 马超走后，马家在二十天内只守不攻；韩遂灭凉这段不再被马家反包围打断。
-  if (faction === 'ma' && state.flags && state.flags.maPassiveDuringMie) return null;
-  // 剧情阶段先赶战略：已进入交战阶段的国家多带一路、少在集结城磨蹭，
-  // 让魏蜀吴的第一阶段能尽快打出结果，方便观察天下演绎。
-  const phaseWar = !!(story && story.mode && story.phases && story.phases[faction] &&
-    story.phases[faction].status === 'war');
   let foes = warPartners(state, faction).filter(function (id) {
     return FACTIONS[id] && id !== 'player' && id !== 'bandit' && !(state.factionState[id] || {}).dead;
   });
-  // 剧情阶段只打该打的敌人；休整阶段 targets 为空，就一门不出。
-  if (!passive && story && story.targets && story.targets[faction]) {
-    const allowed = story.targets[faction];
-    if (!allowed.length) return null;
-    foes = foes.filter(function (id) { return allowed.indexOf(id) >= 0; });
-  }
-  // 袁术称帝后的联合剿灭：魏吴优先打寿春，不许分兵去别处。
-  if (story && story.priority && story.priority[faction] &&
-      foes.indexOf(story.priority[faction]) >= 0) {
-    foes = [story.priority[faction]];
-  }
-  // 牵制战先咬指定的那一家：南蛮先打刘璋，南越先打刘表，别被旁边的世仇吸走。
-  if (proxy && proxy.target && foes.indexOf(proxy.target) >= 0) {
-    foes = [proxy.target];
-  }
-  // 蜀国打南蛮：史实里是诸葛亮统诸将分路南征，不是一路偏师慢慢啃。
-  // 这里只放宽本场战役的出征人数，后续仍按同一套集结、开拔、围城流程走。
-  const shuNanmanWar = faction === 'shu' && foes.indexOf('nanman') >= 0 &&
-    atWar(state, 'shu', 'nanman') && !(state.factionState.nanman || {}).dead;
+  if (!foes.length) return null;
   // 统一战争不再要求“至少两座城”：哪怕只剩一座城、一路兵，也要继续往外打。
   const own = ownedSites(state, faction, true);
   if (!own.length) return null;
@@ -8832,10 +7625,6 @@ function planCampaign(state, faction, day) {
       foes.indexOf('zhang') >= 0) {
     foes = ['zhang'];
   }
-  // 韩遂灭凉：这路兵只认马家，不跟汉廷、西平方向分兵。
-  if (faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) {
-    foes = foes.filter(function (id) { return id === 'ma'; });
-  }
 
   const lords = factionLords(state, faction).filter(function (l) {
     return army.troopCount(l.troops || {}) >= 1 && !l.defending;
@@ -8843,89 +7632,28 @@ function planCampaign(state, faction, day) {
   if (!lords.length) return null;
 
   let target = null;
-  // 入川主轴：剑阁首攻之后不绕汉中、江州，沿剑阁—巴西—成都一路压到成都城下。
-  if (faction === 'shu' && foes.indexOf('zhang') >= 0 &&
-      !pairBlocked(state, 'shu', 'zhang', day)) {
-    const focus = liubeiYiFocusSite(state, own);
-    if (focus) {
-      const near = nearestSiteOf(state, own, focus);
-      target = { site: focus, score: -1, distance: near.distance };
-    }
-  }
-  // 灭凉主轴：武威 → 居延 → 陇西村，按城道顺序推，不抢旁边的汉廷城。
-  if (faction === 'hansui' && foes.indexOf('ma') >= 0 &&
-      !pairBlocked(state, 'hansui', 'ma', day)) {
-    const focus = hansuiMieMaFocusSite(state, own);
-    if (focus) {
-      const near = nearestSiteOf(state, own, focus);
-      target = { site: focus, score: -1, distance: near.distance };
+  // 入川第一仗必须落在剑阁：上庸—江州的新路会把“最近敌城”算成江州，
+  // 但刘备入川的叙事和测试都以剑阁为首攻，这里直接锁首攻目标。
+  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
+      foes.indexOf('zhang') >= 0 && !pairBlocked(state, 'shu', 'zhang', day)) {
+    const jiange = ownedSites(state, 'zhang', true).filter(function (s) { return s.id === 'jiange'; })[0];
+    if (jiange && canSiegeSiteFromFaction(state, 'shu', jiange).ok) {
+      const near = nearestSiteOf(state, own, jiange);
+      target = { site: jiange, score: -1, distance: near.distance };
     }
   }
   if (!target) foes.forEach(function (enemy) {
     if (pairBlocked(state, faction, enemy, day)) return;
-    // 村庄也能被攻占：不再只列敌国的城/关，村口同样是可打的目标。
-    // 计分给村庄加一笔“优先打城”的惩罚，避免 AI 有城不打、专挑空地村庄。
-    const enemyTargets = ownedSites(state, enemy, false);
-    const edgeTown = state.world && state.world.edgeTown;
-    enemyTargets.forEach(function (s) {
-      // 任何有主目标都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
+    ownedSites(state, enemy, true).forEach(function (s) {
+      // 任何有主的城都能打：不再给主线都城、玩家起家城套“不能换旗”的罩子。
       if (!s.ownerFaction) return;
-      // NPC 不能进入边陲小镇十格，更不能把它当围城目标。
-      if (edgeTown && Math.max(Math.abs(s.x - edgeTown.x), Math.abs(s.y - edgeTown.y)) <= (edgeTown.radius || 10)) return;
-      // 复国阶段：叛军只追人，不主动攻主角已经打下的城。
-      if (faction === 'rebel' && state.arc && state.arc.phase === 'reconquest' && s.playerOwned) return;
-      // 南越只取长沙以南，不碰襄阳、江陵、夏口；其他敌人仍按正常规则。
-      if (proxy && proxy.target === enemy && proxy.siegeSites &&
-          proxy.siegeSites.indexOf(s.id) < 0) return;
       // 只打与本势力城网道路直接相连的敌城；第一座城由 canSiegeSiteFromFaction 放行。
       if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
-      // 边缘小国与袁术只骚扰与本土直接相邻的城，不向远处延伸。
-      if (passive && story) {
-        const retake = story.retake && story.retake[faction] ? story.retake[faction] : [];
-        const origins = (story.originCities && story.originCities[faction]) || [];
-        const anchors = origins.filter(function (id) {
-          const o = siteById(state, id);
-          return o && o.ownerFaction === faction;
-        });
-        const adjacent = anchors.some(function (id) { return siteRoadAdjacent(id, s.id); });
-        const proxyAllowed = proxy && proxy.target === enemy && proxy.siegeSites &&
-          proxy.siegeSites.indexOf(s.id) >= 0;
-        if (retake.indexOf(s.id) < 0 && !adjacent && !proxyAllowed) return;
-      }
-      // 荆州会战期间，三国只打荆州境内的城。
-      if (story && story.targetRegion && story.targetRegion[faction] &&
-          s.region !== story.targetRegion[faction]) return;
       const near = nearestSiteOf(state, own, s);
-      const villagePenalty = s.type === 'village' ? 45 : 0;
-      let score = near.distance * 0.6 + s.garrison * 0.35 + villagePenalty + state.rng.int(0, 18);
-      // 荆州会战：襄阳第一、新野第二、江陵第三；三镇之外先缓一缓。
-      if (story && story.jingzhou && story.jingzhou.active && story.jingzhouFocus) {
-        const focus = story.jingzhouFocus;
-        const rank = focus.indexOf(s.id);
-        if (rank >= 0) score -= (focus.length - rank) * 120;
-        else score += 90;
-      }
+      const score = near.distance * 0.6 + s.garrison * 0.35 + state.rng.int(0, 18);
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
-  // 汉中北面两座自由城：没有敌国战役时，任何能接上城道的势力都可以来争。
-  // 刘璋开局先盯刘备与南中，不抢这两座空城；过了开局窗口才按普通势力算。
-  // 韩遂在灭凉期间不捡自由城，免得把兵锋从武威、居延挪到汉中北面。
-  if (!target && faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) return null;
-  if (!target && FREE_CITY_IDS.length) {
-    FREE_CITY_IDS.forEach(function (id) {
-      // 刘备入川期间刘璋只守剑阁，不去捡汉中北面的空城；否则一旦剑阁换旗，
-      // 刘璋主力会被自由城吸走，刘备反而卡在巴西城下。
-      if (faction === 'zhang' &&
-          (day <= 30 || (state.flags && state.flags.liubeiYiWar))) return;
-      const s = siteById(state, id);
-      if (!s || s.playerOwned || s.ownerFaction) return;
-      if (!canSiegeSiteFromFaction(state, faction, s).ok) return;
-      const near = nearestSiteOf(state, own, s);
-      const score = near.distance * 0.6 + s.garrison * 0.35 + 18;
-      if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
-    });
-  }
   if (!target) return null;
 
   const nearestOwn = nearestSiteOf(state, own, target.site).site;
@@ -8936,49 +7664,14 @@ function planCampaign(state, faction, day) {
     const toTarget = siteDistance(s, target.site);
     if (toTarget < siteDistance(rally, target.site) - 3 && s.garrison >= 55) rally = s;
   });
-  // 巴西是村，不在 ownedCities 里。刘备占了巴西后要直下成都，
-  // 集结地就放在巴西，别让主力再退回剑阁白走半个月。
-  if (faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-      target.site.id === 'chengdu') {
-    const baxi = siteById(state, 'baxi');
-    if (baxi && baxi.ownerFaction === 'shu' && !baxi.playerOwned &&
-        siteRoadAdjacent('baxi', 'chengdu')) {
-      rally = baxi;
-    }
-  }
 
   let chosen = lords.slice().sort(function (a, b) {
     return siteDistance(a, rally) - siteDistance(b, rally);
-  });
-  // 第一阶段要尽快打出结果：优先挑满编/接近满编的领主人马，别让 5 个
-  // 刚补完一半的残兵去撞敌方都城；有余力时最多压上八路。
-  if (phaseWar) {
-    const ready = lords.filter(function (l) {
-      const full = army.troopCount(l.defTroops || {});
-      const now = army.troopCount(l.troops || {});
-      return full <= 0 || now >= Math.max(6, Math.ceil(full * 2 / 3));
-    });
-    if (ready.length) {
-      chosen = ready.slice().sort(function (a, b) {
-        return siteDistance(a, rally) - siteDistance(b, rally);
-      });
-    }
-  }
-  chosen = chosen.slice(0, Math.min(
-    shuNanmanWar ? SHU_NANMAN_MAX_LORDS : (phaseWar ? 8 : 5), chosen.length));
+  }).slice(0, Math.min(5, lords.length));
   // 刘备入川：主公必须亲自走这一趟，带的是本势力最硬的四路人马，不是按离城最近的凑数。
   if (faction === 'shu' && state.flags && state.flags.liubeiYiWar) {
     const leader = state.lords.filter(function (l) { return l.id === 'liubei' && l.alive && !l.prisoner; })[0];
     const rest = lords.filter(function (l) { return l.id !== 'liubei'; })
-      .slice().sort(function (a, b) {
-        return army.troopCount(b.troops || {}) - army.troopCount(a.troops || {});
-      }).slice(0, 4);
-    if (leader) chosen = [leader].concat(rest);
-  }
-  // 韩遂灭凉：韩遂本人挂帅，不把这件“灭马家”的事交给别的小领主。
-  if (faction === 'hansui' && state.flags && state.flags.hanSuiMieMa) {
-    const leader = state.lords.filter(function (l) { return l.id === 'hansui' && l.alive && !l.prisoner; })[0];
-    const rest = lords.filter(function (l) { return l.id !== 'hansui'; })
       .slice().sort(function (a, b) {
         return army.troopCount(b.troops || {}) - army.troopCount(a.troops || {});
       }).slice(0, 4);
@@ -8989,7 +7682,7 @@ function planCampaign(state, faction, day) {
   const avgDist = chosen.reduce(function (sum, l) {
     return sum + siteDistance(l, rally);
   }, 0) / chosen.length;
-  const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(phaseWar ? 4 : RALLY_DAYS_MAX,
+  const rallyDays = Math.max(RALLY_DAYS_MIN, Math.min(RALLY_DAYS_MAX,
     RALLY_DAYS_MIN + state.rng.int(0, 2) + Math.round(avgDist / 12)));
 
   const cp = {
@@ -9007,17 +7700,12 @@ function planCampaign(state, faction, day) {
     attackerIds: chosen.map(function (l) { return l.id; }),
     defenderIds: [],
     arrivedIds: [],
-    harass: !!(proxy && proxy.siege === false),
     done: false,
   };
   // 只有主帅先去集结城会合；其余人马留在各自封地继续巡逻，
   // 等开拔令下来再一起向目标城走，避免整国军队在城边杵成一片。
-  // 入川五路先在剑阁（或当前集结城）会合，再一起开拔。新增的姜维、马超
-  // 等领主封地可能在上庸、汉中方向，若只让主帅先走，他们会从山道另一侧
-  // 直接找巴西而卡在断开的路上。
-  const yiGather = !!(faction === 'shu' && state.flags && state.flags.liubeiYiWar);
   chosen.forEach(function (l, i) {
-    if (i === 0 || yiGather) {
+    if (i === 0) {
       giveOrder(l, 'rally', rally.id, true);
       l.order.since = day;
       l.order.campaign = faction;
@@ -9030,16 +7718,10 @@ function planCampaign(state, faction, day) {
     }
   });
   state.warCampaigns[faction] = cp;
-  if (shuNanmanWar) {
-    logFn(state,
-      '【蜀】点起 ' + chosen.length + ' 路南征军，诸将分道而进；' +
-      '主帅先往' + rally.name + '会合，兵锋直指' + target.site.name + '。', 'muster');
-  } else {
-    logFn(state,
-      '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
-      ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
-      target.site.name + '开拔。', 'muster');
-  }
+  logFn(state,
+    '【' + FACTIONS[faction].name + '】点起 ' + chosen.length +
+    ' 路人马，主帅先往' + rally.name + '会合，余部在封地巡行，听令即向' +
+    target.site.name + '开拔。', 'muster');
   return cp;
 }
 
@@ -9055,69 +7737,8 @@ function attackersOf(state, cp) {
 }
 
 
-/** 剧情换阶段/停战时，把旧战役的攻城令与行军令一起撤掉，免得军队继续往友军城下走。 */
-function abortCampaign(state, faction) {
-  if (!state || !state.warCampaigns) return false;
-  const cp = state.warCampaigns[faction];
-  if (!cp) return false;
-  attackersOf(state, cp).forEach(clearOrder);
-  (cp.defenderIds || []).forEach(function (id) {
-    const l = (state.lords || []).filter(function (x) { return x.id === id; })[0];
-    if (l) clearOrder(l);
-  });
-  const target = siteById(state, cp.targetId);
-  if (target && target.siegeFaction === faction) {
-    target.siegeStatus = null;
-    target.siegeFaction = null;
-    target.siegeSinceH = null;
-  }
-  cp.siegeBattle = null;
-  cp.done = true;
-  cp.stage = 'done';
-  delete state.warCampaigns[faction];
-  return true;
-}
-
-/** 三足鼎立后，AI 不能打下任何一家的最后一座城；玩家仍可亲手完成统一。 */
-function keepsMajorLastCity(state, site, attacker) {
-  if (!state || !site) return false;
-  if (attacker === 'player') return false;
-  // 第 10 轮荆州争霸进入 final：不再给三国套“最后一座城不灭”的罩子。
-  if (state.story && state.story.endgame && state.story.endgame.final) return false;
-  const owner = site.ownerFaction;
-  // 马腾、韩遂之间只分高下，不互相灭国：最后一座城沿用既有的“保城”判定。
-  const maHanPair = (owner === 'ma' && attacker === 'hansui') ||
-    (owner === 'hansui' && attacker === 'ma');
-  const majorLast = !!(state.story && state.story.mode &&
-    ['wei', 'shu', 'wu'].indexOf(owner) >= 0);
-  if (!maHanPair && !majorLast) return false;
-  const left = (state.world.sites || []).filter(function (s) {
-    return s.type !== 'camp' && s.ownerFaction === owner;
-  }).length;
-  return left <= 1;
-}
-
-/** 给 state 挂一个夺城记录钩子：谁打下最后一座城，谁就是灭国者。 */
-function bindCaptureHook(fn) {
-  captureHook = fn || null;
-}
-
-function notifyCapture(state, site, oldFaction, byFaction) {
-  if (captureHook) captureHook(state, site, oldFaction, byFaction);
-}
-
-/** 南蛮式牵制：到了城下只掠野、不围城，过几天就退回去。 */
-function beginRaid(state, cp, site, day) {
-  cp.stage = 'raid';
-  cp.raidUntil = day + 8 + state.rng.int(0, 4);
-  attackersOf(state, cp).forEach(clearOrder);
-  logFn(state, '【' + FACTIONS[cp.faction].name + '】的兵马压到' + site.name + '城下，只掠野不围城，城头守军不敢出。', 'war');
-  return true;
-}
-
 function startSiege(state, cp, site, day) {
   if (!site || site.ownerFaction !== cp.enemy) { cp.done = true; return false; }
-  if (cp.harass) return beginRaid(state, cp, site, day);
   if (!canSiegeSiteFromFaction(state, cp.faction, site).ok) {
     cp.done = true;
     logFn(state, '【' + FACTIONS[cp.faction].name + '】与' + site.name + '之间没有连上的城道，围城军停在半路。', 'siege');
@@ -9127,18 +7748,8 @@ function startSiege(state, cp, site, day) {
   cp.siegeStart = day;
   // 刘备入川第一仗：刘璋“开关迎客”，五路兵马按剧情一起压到剑阁城下，三日定城。
   // 之后的城仍按正常围城天数走，不能把整张图都变成速攻。
-  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-    (site.id === 'jiange' || site.id === 'baxi');
-  // 成都打了七十多天，守军按都城恢复涨到两百多；入川主线到城下时按刘璋军心已散，
-  // 把城内守备压到一百以内，让刘备的五路人马能真正打下这座大本营。
-  const chengduRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'chengdu';
-  if (chengduRush && site.garrison > 100) {
-    site.garrison = 100;
-    site.garrisonBase = Math.min(site.garrisonBase || 100, 100);
-  }
-  const maRush = cp.faction === 'hansui' && state.flags && state.flags.hanSuiMieMa &&
-    (site.id === 'wuwei' || site.id === 'juyan' || site.id === 'longxi');
-  cp.siegeUntil = maRush ? day + 2 : (historyRush || chengduRush) ? day + 3 : day + Math.max(SIEGE_MIN_DAYS,
+  const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar && site.id === 'jiange';
+  cp.siegeUntil = historyRush ? day + 3 : day + Math.max(SIEGE_MIN_DAYS,
     SIEGE_MIN_DAYS + state.rng.int(0, SIEGE_EXTRA_DAYS) +
     (site.garrison > 110 ? 1 : 0));
   const attackers = attackersOf(state, cp);
@@ -9164,12 +7775,9 @@ function startSiege(state, cp, site, day) {
     l.defending = site.id;
     l.order.campaign = cp.faction;
   });
-  const ownerFaction = site.ownerFaction;
-  const siegeLine = ownerFaction
-    ? '，营寨一圈圈扎到城下。守军闭门，烽火向' + ((FACTIONS[ownerFaction] || {}).name || ownerFaction) + '各地求援。'
-    : '，营寨一圈圈扎到城下。这是一座无主城，四周没有援旗。';
   logFn(state,
-    '【' + FACTIONS[cp.faction].name + '】的 ' + attackers.length + ' 路领主围住' + site.name + siegeLine,
+    '【' + FACTIONS[cp.faction].name + '】的 ' + attackers.length + ' 路领主围住' + site.name +
+    '，营寨一圈圈扎到城下。守军闭门，烽火向' + FACTIONS[site.ownerFaction].name + '各地求援。',
     'siege');
   return true;
 }
@@ -9195,7 +7803,6 @@ function resolveSiege(state, cp, day) {
   const gateEdge = strategicDefenseForSite(state, site);
   let attackPower = 0;
   attackers.forEach(function (l) { attackPower += weight(l.troops) * attackEdge; });
-  attackPower *= factionKillMul(cp.faction);
   let defendPower = site.garrison * 6.2 * defendEdge * gateEdge;
   cp.defenderIds.forEach(function (id) {
     const l = state.lords.filter(function (x) { return x.id === id; })[0];
@@ -9210,6 +7817,7 @@ function resolveSiege(state, cp, day) {
 
   if (attackPower > defendPower * 1.06) {
     const oldOwner = site.ownerFaction;
+    const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
     site.ownerFaction = cp.faction;
     site.faction = cp.faction;
     site.playerOwned = false;
@@ -9249,9 +7857,9 @@ function resolveSiege(state, cp, day) {
       const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
       if (home) { l.home = home.id; }
     });
-    logFn(state, captureLogText(site, oldOwner, cp.faction), 'siege');
-    markShuChengduBase(state, site, cp.faction);
-    markMaSurrenderClock(state, site, cp.faction, day);
+    logFn(state,
+      site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
+      '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
     return;
   }
 
@@ -9326,7 +7934,7 @@ function beginSiegeAssault(state, cp, site, day) {
   // 刘备入川的剑阁首攻是剧情战：五路人马已经奉令围城，哪怕有人被山道/守军
   // 挤在城郊外几格，也一起算进这次攻城，避免“一支先到、四支被堵在半路”。
   const historyRush = cp.faction === 'shu' && state.flags && state.flags.liubeiYiWar &&
-    (site.id === 'jiange' || site.id === 'baxi' || site.id === 'chengdu');
+    site.id === 'jiange';
   const attackers = attackersOf(state, cp).filter(function (l) {
     return (historyRush || siteDistance(l, site) <= 2) && army.troopCount(l.troops || {}) > 0;
   });
@@ -9364,9 +7972,6 @@ function beginSiegeAssault(state, cp, site, day) {
   });
   const battle = new Battle({
     rng: state.rng,
-    state: state,
-    // 同一场围城反复进出不重复触发军师雷击；下一次围城按新的 siegeStart 重新计。
-    battleKey: 'siege:' + site.id + ':' + (cp.siegeStart || day),
     attacker: aSide,
     defender: bSide,
     context: { kind: 'siege', siteId: site.id, siteName: site.name, npc: true },
@@ -9450,100 +8055,9 @@ function reinforceSiegeBattle(state, cp, site) {
 }
 
 /** 一场攻城战打赢：只在这里换旗，和野战结算一样有明确的胜负瞬间。 */
-/** 城头换旗的战报：无主城不写“从 null 手里”，也不硬编一个旧主。 */
-function captureLogText(site, oldOwner, faction) {
-  const byName = (FACTIONS[faction] || {}).full || faction;
-  if (!oldOwner) {
-    return site.name + '城头换旗，' + byName + '把这座无主城纳入旗下，守军残部退回山里。';
-  }
-  const oldName = (FACTIONS[oldOwner] || {}).full || oldOwner;
-  return site.name + '城头换了旗。' + byName + '从' + oldName + '手里夺下这座城，' +
-    oldName + '的残部退往野地。';
-}
-
-/** 武威一破，给马家最后三天的献城倒计时；居延、陇西随后一起换旗。 */
-function markMaSurrenderClock(state, site, byFaction, day) {
-  if (!state || !site || site.id !== 'wuwei') return false;
-  if ((byFaction || site.ownerFaction) !== 'hansui') return false;
-  if (!state.flags || !state.flags.hanSuiMieMa || state.flags.maSurrenderDay) return false;
-  state.flags.maSurrenderDay = day + 3;
-  logFn(state, '武威既破，马家在西凉再没有第二座能发号施令的城。居延、陇西的守将已经在暗里递降书。', 'war');
-  return true;
-}
-
-/**
- * 成都既下：刘备把治所迁到成都，成都成为蜀军大本营。
- * 这里只改君主的驻地与势力标记，不瞬移城外的军队；下次回城、补员、
- * 继任时都会以成都为根。
- */
-function markShuChengduBase(state, site, byFaction) {
-  if (!state || !site || site.id !== 'chengdu') return false;
-  if ((byFaction || site.ownerFaction) !== 'shu') return false;
-  if (site.playerOwned) return false;
-  const fs = state.factionState.shu = state.factionState.shu || {};
-  const first = fs.baseCity !== 'chengdu';
-  fs.baseCity = 'chengdu';
-  state.flags = state.flags || {};
-  state.flags.shuChengduBase = true;
-  state.flags.shuJiangzhouPush = true;
-  const lords = state.lords || [];
-  const ruler = (fs.rulerId && lords.filter(function (l) { return l.id === fs.rulerId; })[0])
-    || lords.filter(function (l) { return l.id === 'liubei'; })[0];
-  if (ruler && ruler.alive && !ruler.dead && !ruler.prisoner) ruler.home = 'chengdu';
-  if (first) {
-    logFn(state, '成都既下，刘备把治所迁到成都，以成都为蜀军大本营。', 'story');
-  }
-
-  // 成都一下，大部分原本在新野巡逻的蜀军改以成都为锚点：
-  // 先撤掉旧的三城路线，下一拍就会从成都出发，不再继续绕新野。
-  const fiefs = {};
-  (state.world.sites || []).forEach(function (s) {
-    if (s && s.lordId) fiefs[s.lordId] = true;
-  });
-  const eligible = lords.filter(function (l) {
-    return l && l.faction === 'shu' && l.alive && !l.dead && !l.prisoner && !fiefs[l.id];
-  });
-  const xinyeLords = eligible.filter(function (l) {
-    return l.patrolSiteId === 'xinye' || !l.patrolSiteId;
-  });
-  const need = Math.max(1, Math.ceil(eligible.length * 0.7));
-  const chosen = (xinyeLords.length >= need ? xinyeLords : eligible).slice(0, need);
-  chosen.forEach(function (l) {
-    l.patrolSiteId = 'chengdu';
-    l.patrolRouteIds = null;
-    l.patrolIdx = 0;
-    l.patrolVisitSeq = 0;
-    l.patrolLoop = null;
-    l.patrolLoopSite = null;
-    l.patrolLoopIdx = 0;
-    l.wander = null;
-    l.patrolPath = null;
-    l.home = 'chengdu';
-    l.resting = false;
-    l.defending = null;
-    // 该参战的参战：撤掉旧的闲逛/守城军令，让战略层重新把兵锋指向江州。
-    if (l.order && !l.order.hold) l.order = null;
-  });
-  return true;
-}
-
 function captureSiegeSite(state, cp, site, day, battle) {
   const oldOwner = site.ownerFaction;
-  // 三国循环里 NPC 不能互相灭国：最后一座城由剧本保下来。
-  if (keepsMajorLastCity(state, site, cp.faction)) {
-    cp.done = true;
-    cp.stage = 'done';
-    cp.siegeBattle = null;
-    site.siegeStatus = null;
-    site.siegeFaction = null;
-    site.siegeSinceH = null;
-    state.siegeCooldown[key(cp.faction, oldOwner)] = day + 45;
-    const maHanPair = (oldOwner === 'ma' && cp.faction === 'hansui') ||
-      (oldOwner === 'hansui' && cp.faction === 'ma');
-    logFn(state, site.name + '城破在即，' + FACTIONS[cp.faction].full +
-      '却忽然收兵：' + (maHanPair ? '马腾韩遂只争城池，不灭其国。' : '三足未定，谁也不肯让一家就此灭国。'), 'siege');
-    return false;
-  }
+  const oldName = FACTIONS[oldOwner] ? FACTIONS[oldOwner].full : oldOwner;
   site.ownerFaction = cp.faction;
   site.faction = cp.faction;
   site.playerOwned = false;
@@ -9561,7 +8075,6 @@ function captureSiegeSite(state, cp, site, day, battle) {
   site.siegeFaction = null;
   site.siegeSinceH = null;
   onSiteTaken(state, site, oldOwner);
-  notifyCapture(state, site, oldOwner, cp.faction);
   state.siegeCooldown[key(cp.faction, oldOwner)] = day + SIEGE_COOLDOWN;
   cp.stage = 'hold';
   cp.holdUntil = day + HOLD_DAYS;
@@ -9591,9 +8104,9 @@ function captureSiegeSite(state, cp, site, day, battle) {
     const home = nearestSiteOf(state, ownedSites(state, l.faction, true), site).site;
     if (home) l.home = home.id;
   });
-  logFn(state, captureLogText(site, oldOwner, cp.faction), 'siege');
-  markShuChengduBase(state, site, cp.faction);
-  markMaSurrenderClock(state, site, cp.faction, day);
+  logFn(state,
+    site.name + '城头换了旗。' + FACTIONS[cp.faction].full + '从' + oldName +
+    '手里夺下这座城，' + (oldName || '旧主') + '的残部退往野地。', 'siege');
 }
 
 /** 攻城战打崩：攻方溃退，守军惨胜；伤亡已经逐回合写回，不再追加一刀。 */
@@ -9641,7 +8154,6 @@ function strategyTick(state) {
   initAI(state);
   const day = state.clock.day;
   ensureLiuBeiYiWar(state, day);
-  ensureHanSuiMieMaWar(state, day);
   Object.keys(FACTIONS).forEach(function (faction) {
     if (faction === 'player' || faction === 'bandit') return;
     if ((state.factionState[faction] || {}).dead) {
@@ -9704,15 +8216,6 @@ function strategyTick(state) {
     }
 
     if (cp.stage === 'march') {
-      // 低兵领主会在 moveLords 里先回城补兵，军令被清掉；这里每天重新
-      // 把开拔令发回去，补到 2/3 就继续走，避免整路大军在集结城站到
-      // 26 天 march 超时。
-      attackers.forEach(function (l) {
-        if (!l.order || l.order.type !== 'march' || l.order.siteId !== cp.targetId) {
-          giveOrder(l, 'march', cp.targetId, false);
-          l.order.campaign = faction;
-        }
-      });
       if (day - cp.marchStart > 26) {
         cp.done = true;
         logFn(state, '【' + FACTIONS[faction].name + '】去' + target.name + '的路太长，粮尽退兵。', 'siege');
@@ -9720,15 +8223,6 @@ function strategyTick(state) {
       }
       const near = attackers.some(function (l) { return siteDistance(l, target) <= 1; });
       if (near) startSiege(state, cp, target, day);
-      return;
-    }
-
-    if (cp.stage === 'raid') {
-      if (day >= cp.raidUntil) {
-        cp.done = true;
-        attackersOf(state, cp).forEach(clearOrder);
-        logFn(state, '【' + FACTIONS[faction].name + '】掠完野，收兵回山。', 'war');
-      }
       return;
     }
 
@@ -9803,7 +8297,7 @@ function nearestFoe(state, lord, range) {
   let best = null;
   let bestD = r + 1;
   state.lords.forEach(function (o) {
-    if (o === lord || !o.alive || !o.troops || o.inCity || o.scattered) return;
+    if (o === lord || !o.alive || !o.troops || o.inCity) return;
     if (o.faction === lord.faction) return;
     if (o.faction === 'bandit' || lord.faction === 'bandit') return;
     if (!atWar(state, lord.faction, o.faction)) return;
@@ -9831,16 +8325,13 @@ module.exports = {
   markLordScattered,
   killLord, recruitLord, recruitChance, playerStanding,
   ransom, release, listPrisoners, summaryLines, warPartners, bindLogger, bindPassable, weight,
-  factionEdge, factionKillMul, combatTroops,
+  factionEdge, combatTroops,
   ownedCities, factionsAdjacent, canSiegeSiteFromFaction,
   canPlayerDeclareFaction, canPlayerDeclareSite,
   strategicDefenseAt, strategicDefenseForSite,
   nearestFoe,
-  strategyTick, siegeTick, abortCampaign, bindCaptureHook, notifyCapture,
-  markShuChengduBase,
-  planCampaign,
+  strategyTick, siegeTick,
   ensureLiuBeiYiWar, LIUBEI_YI_WAR_DAY,
-  ensureHanSuiMieMaWar, HANSUI_MIE_MA_DAY,
   bindFleeGuard, bindPartyDestroyer, bindMovement,
   ESCAPE_BASE, ESCAPE_STEP,
   tierPower, tierForce, FIELD_BATTLE_RADIUS, FIELD_BATTLE_LIMIT,
@@ -9853,2633 +8344,8 @@ module.exports = {
 
   };
 
-  /* js/data/story.js */
-  __defs[19] = function (module, exports, __require) {
-/**
- * 汉末战略：各国按历史走势分阶段用兵，不再随机开战。
- *
- * 这里只放配置与文案，状态机在 core/story.js。
- * 边缘小国不是完全不打仗：它们只打与本土相邻的城，做出骚扰内陆的样子，
- * 不向远处延伸；募兵速度减半，所以更容易被灭。
- */
-
-const STORY = {
-  label: '汉末战略',
-  yearDays: 360,
-  // “天下棋局”开局军情不在第一天弹出，留到第三天再报。
-  openingEventDay: 3,
-  // 剧情阶段不设超时：目标未达成，就不允许进入下一阶段。
-  mandatoryAll: true,
-
-  // 主动经营天下的大国；其余势力都是边缘/守成势力
-  majors: ['wei', 'shu', 'wu'],
-  kingdoms: ['wei', 'shu', 'wu'],
-  duelFactions: ['yuan', 'gongsun'],
-  // 这五家一旦战略目标被第三国占城或堵住城道，就自动向卡位者宣战。
-  blockerMajors: ['wei', 'shu', 'wu', 'yuan', 'gongsun'],
-  passiveFactions: [
-    'lv', 'yuanshu', 'biao', 'zhang', 'zhanglu',
-    'xianbei', 'ma', 'hansui', 'nanman', 'shanyue', 'han',
-  ],
-
-  // 开局就不死不休的两家：袁绍—公孙瓒、南蛮—南越；马腾—韩遂—汉廷三方也互不收兵。
-  noPeacePairs: [
-    ['yuan', 'gongsun'],
-    ['nanman', 'shanyue'],
-    ['nanman', 'zhang'],
-    ['shanyue', 'biao'],
-    ['ma', 'hansui'],
-    ['ma', 'han'],
-    ['hansui', 'han'],
-  ],
-  // 凉州—关中的三方混战：开局即互相宣战，只在各自本土一城范围内争夺。
-  tripleWar: ['ma', 'hansui', 'han'],
-  // 牵制战：南蛮只下山打刘璋的野战领主，不围城；南越沿新开的武陵道北上，
-  // 只取长沙以南的武陵/长沙/桂阳，不碰襄阳、江陵、夏口。
-  proxyWars: {
-    nanman: { target: 'zhang', mode: 'harass', siege: false },
-    shanyue: { target: 'biao', mode: 'south', siegeSites: ['wuling', 'changsha', 'guiyang'] },
-  },
-
-  // 边缘部落：等大国第一阶段结束后再互相攻伐，只打与本土道路直接相邻的领土。
-  edgeFactions: ['xianbei', 'ma', 'hansui', 'nanman', 'shanyue'],
-  edgeWarDay: 90,
-
-  // 荆州三点：襄阳第一、新野第二、江陵第三，三镇尽归一家即最终争霸之位。
-  jingzhouSites: ['xiangyang', 'xinye', 'jiangling'],
-  // 三家都完成第三阶段后，先休整一个月，再聚战荆州。
-  jingzhouUnlockRestDays: 30,
-  // 每一轮荆州争霸：占领方休整一个月，联盟两国同时多点开战。
-  jingzhouCycleRestDays: 30,
-  // 第 10 次循环不再休战，强势方与弱势联盟不死不休。
-  jingzhouMaxCycles: 10,
-  // 占领荆州三镇的国家，全国募兵效率 +20%。
-  jingzhouStrongRecruitMul: 1.2,
-  // 第十轮荆州霸主（曹操不算）在基础募兵 +20% 之外，再获得 +50% 杀敌。
-  jingzhouKillMul: 1.5,
-  // 袁术称帝：曹、孙两国完成第一阶段后三天触发。
-  emperorDelayDays: 3,
-  emperorAttackers: ['wei', 'wu'],
-  emperorTargets: ['yuanshu'],
-  // 官渡袁绍背负“昏君”惩罚：对碰系数 0.8（战力 -20%），不再像旧版那样只剩三成。
-  yuanWeakPower: 0.8,
-
-  // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴袁各补新人。
-  // 乱世三国不读取这些配置，仍用完整 LORDS 名单。
-  lordCuts: {
-    lv: ['chengong', 'houcheng', 'weixu'],
-    biao: ['zhangyun', 'wangwei', 'liupan', 'huangshe'],
-    zhang: ['liugui', 'gaopei'],
-  },
-  lordAdds: [
-    { id: 'caozhen', name: '曹真', faction: 'wei', home: 'chenliu', title: '镇西将军', soldiers: { militia: 35, spear: 30, cav: 20, guard: 8 }, morale: 84, sight: 7 },
-    { id: 'caoxiu', name: '曹休', faction: 'wei', home: 'qiao', title: '征东将军', soldiers: { militia: 30, spear: 25, cav: 25 }, morale: 82, sight: 7 },
-    { id: 'xunyou', name: '荀攸', faction: 'wei', home: 'xuchang', title: '军师', soldiers: { militia: 20, spear: 18, crossbow: 18, guard: 5 }, morale: 80, sight: 7 },
-    { id: 'wuban', name: '吴班', faction: 'shu', home: 'xinye', title: '牙门将', soldiers: { militia: 32, spear: 28, archer: 16 }, morale: 80, sight: 6 },
-    { id: 'huojun', name: '霍峻', faction: 'shu', home: 'shangyong', title: '中郎将', soldiers: { spear: 35, militia: 25, archer: 18 }, morale: 86, sight: 7 },
-    { id: 'masu', name: '马谡', faction: 'shu', home: 'xinye', title: '参军', soldiers: { militia: 22, spear: 18, crossbow: 15 }, morale: 74, sight: 6 },
-    { id: 'huanggai', name: '黄盖', faction: 'wu', home: 'wujun', title: '丹阳都尉', soldiers: { militia: 30, archer: 28, boat: 22 }, morale: 86, sight: 6 },
-    { id: 'zhuran', name: '朱然', faction: 'wu', home: 'jianye', title: '偏将军', soldiers: { militia: 28, spear: 25, boat: 18 }, morale: 82, sight: 6 },
-    { id: 'sunshao', name: '孙韶', faction: 'wu', home: 'kuaiji', title: '广陵太守', soldiers: { militia: 30, archer: 22, cav: 15 }, morale: 80, sight: 7 },
-    { id: 'quyi', name: '麴义', faction: 'yuan', home: 'pingyuan', title: '都督', soldiers: { militia: 35, spear: 45, crossbow: 20 }, morale: 82, sight: 7 },
-    { id: 'tianfeng', name: '田丰', faction: 'yuan', home: 'ye', title: '别驾', soldiers: { militia: 22, spear: 20, archer: 15 }, morale: 76, sight: 7 },
-    { id: 'jushou', name: '沮授', faction: 'yuan', home: 'ye', title: '监军', soldiers: { militia: 25, spear: 22, crossbow: 18 }, morale: 78, sight: 7 },
-  ],
-
-  // 阶段时长与休整
-  phaseTimeout: 360,
-  // 防卡死：玩家可能故意阻挠某一阶段；两年没完成就自动进入下一阶段。
-  phaseDeadlineDays: 720,
-  restDays: 120,
-  bleedDays: 150,
-  weakCityFloor: 4,
-  weakCityRatio: 0.42,
-
-  /**
-   * 阶段表：
-   *  - targets：本阶段要宣战、要打的势力
-   *  - objective：destroy（灭掉全部目标）/ capture（占住全部城）
-   *               / captureOrDestroy（占住全部城，或灭掉目标）
-   *  - next：默认下一阶段；successNext / timeoutNext 可分支
-   *  - notBeforeDay：开局第几天才递战书
-   *  - waitBleed：等袁绍、公孙瓒先杀到两败俱伤
-   *  - parallel：进入本阶段时额外保留的战线
-   */
-  phases: {
-    // 蜀：刘璋 → 张鲁 → 南蛮 → 待天下大势 → 荆州
-    shu: [
-      {
-        id: 'shu_yizhou',
-        label: '收取西川',
-        short: '收取西川',
-        stage: 1,
-        targets: ['zhang'],
-        objective: { type: 'destroy', factions: ['zhang'] },
-        noTimeout: true,
-        notBeforeDay: 8,
-        restDays: 3,
-        next: 'shu_zhanglu',
-        title: '收取西川',
-        casusBelli: '刘备自新野誓师，以“收取西川，作为问鼎天下的资本”为名，只向刘璋递了战书。',
-        warLines: [
-          '刘备自新野起兵，以“收取西川”为名，只向刘璋一家宣战。',
-          '蜀军先取剑阁，再经巴西直下成都；刘璋开关迎客，却把剑阁让成了前线。',
-          '诸葛亮在帐中说得明白：成都一入囊中，便以成都为大本营，才有与中原诸侯争锋的本钱。',
-        ],
-        successLines: [
-          '成都城头换旗，刘璋势力覆灭，西川诸郡归入刘备手中。',
-          '刘备把治所迁到成都，以成都为蜀军大本营，汉中、成都开仓赈济。',
-          '三日后，兵锋北指汉中：张鲁盘踞秦岭，是西川门户，也是刘备统一西南的第一道关。',
-        ],
-      },
-      {
-        id: 'shu_zhanglu',
-        label: '讨伐张鲁',
-        short: '讨伐张鲁',
-        stage: 2,
-        targets: ['zhanglu'],
-        objective: { type: 'destroy', factions: ['zhanglu'] },
-        noTimeout: true,
-        restDays: 3,
-        next: 'shu_nanman',
-        title: '讨伐张鲁',
-        casusBelli: '西川既定，刘备以“汉中本属益州”为名，向张鲁递出战书，要取汉中、武都、上洛。',
-        warLines: [
-          '刘备命张飞、魏延出阳平关，马岱、黄忠自剑阁北上，兵锋直指汉中。',
-          '张鲁据秦岭山口而守，五斗米道教众遍布山谷，汉中城头挂起“鲁”字旗。',
-          '汉中一破，秦岭以南尽归刘备，益州才真正连成一片。',
-        ],
-        successLines: [
-          '汉中、武都、上洛相继易手，张鲁降蜀，五斗米道教众归刘备约束。',
-          '刘备在汉中设宴，以魏延督汉中，马岱守武都，益州北门自此稳固。',
-          '下一阶段：南征南蛮，收孟获丁壮，完成西南一统。',
-        ],
-      },
-      {
-        id: 'shu_nanman',
-        label: '南征南蛮',
-        short: '南征南蛮',
-        stage: 3,
-        targets: ['nanman'],
-        objective: { type: 'destroy', factions: ['nanman'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'shu_sworn',
-        title: '南征南蛮',
-        casusBelli: '汉中已定，刘备转兵南方，要收南蛮诸部，完成西南一统，成为一方枭雄。',
-        warLines: [
-          '诸葛亮率马岱、魏延、张飞、黄忠诸将分路南征，兵锋直指朱提、建宁。',
-          '南蛮诸部善走山林，蜀军每下一城都要先修栈道。',
-          '孟获若降，南中丁壮与象兵便能为蜀所用；若逃，则往他国去。',
-        ],
-        successLines: [
-          '南蛮王城陷落，孟获以下诸部大半归蜀，小部分残部逃往邻国。',
-          '刘备命诸葛亮在南中置庲降都督，安抚夷汉，征发丁壮。',
-          '西南已定，刘备成为一方枭雄；下一步，只看荆州那三座城。',
-        ],
-      },
-      {
-        id: 'shu_sworn',
-        label: '会盟荆州',
-        short: '会盟荆州',
-        stage: 4,
-        targets: [],
-        waitAllMajorsStage3: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'shu_jingzhou',
-        title: '西南已定',
-        casusBelli: '刘备已统一西南，只等曹操、孙权也完成各自战略，三家再会猎荆州。',
-        waitLines: [
-          '成都的粮仓堆满新谷，汉中的栈道也修到了长安方向。',
-          '刘备按兵不动，只派斥候北上关中、东下荆州，等曹孙两家也走到最后一步。',
-          '天下大势，即将在三家会盟荆州时翻开新的一页。',
-        ],
-      },
-      {
-        id: 'shu_jingzhou',
-        label: '荆州争霸',
-        short: '荆州争霸',
-        stage: 5,
-        targets: [],
-        waitJingzhou: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'end',
-        title: '荆州争霸',
-        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
-        waitLines: [
-          '襄阳、新野、江陵三镇的探马一日三报，蜀军按剑待发。',
-          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
-        ],
-      },
-    ],
-
-    // 魏：吕布 → 汉廷 → 马腾韩遂 → 官渡/河北 → 待天下大势 → 荆州
-    wei: [
-      {
-        id: 'wei_lv',
-        label: '灭吕布',
-        short: '灭吕布',
-        stage: 1,
-        targets: ['lv'],
-        objective: { type: 'destroy', factions: ['lv'] },
-        noTimeout: true,
-        restDays: 3,
-        next: 'wei_han',
-        title: '兖州旧怨',
-        casusBelli: '曹操与吕布争兖州多年，这一次要先把徐州拿下，收吕布麾下的并州骑兵。',
-        warLines: [
-          '曹操亲率兖州兵马东进，以“徐州旧怨”为名，向吕布宣战。',
-          '夏侯惇、曹仁分屯彭城、小沛，先断吕布的粮道。',
-          '吕布若败，张辽、高顺等并州旧部便可为曹操所用。',
-        ],
-        successLines: [
-          '下邳城破，吕布授首，其麾下并州骑兵大半归入曹操帐下。',
-          '曹操下令休整，徐州、兖州连成一片。',
-          '三日后，兵锋西指长安：汉廷空有其名，曹操要挟天子以令诸侯。',
-        ],
-      },
-      {
-        id: 'wei_han',
-        label: '灭汉廷',
-        short: '灭汉廷',
-        stage: 2,
-        targets: ['han'],
-        objective: { type: 'destroy', factions: ['han'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'wei_north',
-        title: '汉廷覆灭',
-        casusBelli: '曹操要入关中彻底灭亡汉廷；汉室残旗一倒，中原与关中方能连成一片，再回头与袁绍争河北。',
-        warLines: [
-          '曹操以“汉室失道”为名西进，兵锋直指长安、潼关、安定。',
-          '汉廷诸将据关而守；曹军先取潼关，再下长安，要把汉室残部连根拔起。',
-          '汉廷一灭，曹操收关中户籍与百官，转身便盯上了河北袁绍。',
-        ],
-        successLines: [
-          '长安、潼关、安定相继易手；汉廷最后一座城头也降下汉旗，汉室覆灭。',
-          '曹操收汉廷百官与关中户籍，天子诏书从此再无人可奉。',
-          '曹操下令休养生息一个月：西凉马腾、韩遂暂且不碰，先把中原粮草与兵甲备足，准备北上官渡。',
-        ],
-      },
-      {
-        id: 'wei_north',
-        label: '官渡定河北',
-        short: '官渡定河北',
-        stage: 3,
-        stageFlag: 'guandu',
-        targets: ['yuan', 'gongsun', 'xianbei'],
-        objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'wei_sworn',
-        title: '官渡定河北',
-        casusBelli: '汉廷已灭，曹操休整一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
-        warLines: [
-          '一个月后，曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
-          '袁绍兵多粮足，颜良、文丑诸将皆在军中；曹操兵精，却要以少击众。',
-          '袁绍临阵改令、不听田丰沮授之谏，河北军对碰只剩八成；曹操要趁这口气烧乌巢、断粮道。',
-        ],
-        successLines: [
-          '官渡火起，袁绍大军溃散，曹操一路追到邺城，袁氏覆灭。',
-          '公孙瓒、鲜卑先后被扫平，河北、幽燕、塞外尽归曹操。',
-          '曹操完成第三阶段，北方已定；只等蜀、吴也走完各自的三步。',
-        ],
-      },
-      {
-        id: 'wei_sworn',
-        label: '坐等赤壁',
-        short: '坐等赤壁',
-        stage: 4,
-        targets: [],
-        waitAllMajorsStage3: true,
-        waitChibi: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'wei_xiliang',
-        title: '大战之前',
-        casusBelli: '曹操已统一北方，只等刘备、孙权也走完各自战略，三家再会猎荆州。',
-        waitLines: [
-          '许都的粮车一辆接一辆往南运，邺城的降卒也被编入曹军。',
-          '曹操按兵不动，只派曹仁、夏侯惇盯着襄阳、新野、江陵三镇。',
-          '他要在南下之前先歇足一口气；赤壁那把火，还没烧起来。',
-        ],
-      },
-      {
-        id: 'wei_xiliang',
-        label: '扫平西凉',
-        short: '扫平西凉',
-        stage: 4,
-        targets: ['ma', 'hansui'],
-        objective: { type: 'destroy', factions: ['ma', 'hansui'] },
-        noTimeout: true,
-        // 赤壁善后本身已是半个月（chibi.aftermathRestDays=15），这里不再叠加等待。
-        waitDays: 0,
-        restDays: 0,
-        next: 'wei_jingzhou',
-        title: '赤壁败后',
-        casusBelli: '赤壁一把火把曹军烧回江北；曹操休整半个月，回头先收拾一直没归附的马腾、韩遂，稳住关中与凉州。',
-        warLines: [
-          '赤壁败后半个月，曹操命关中诸将西进，兵发武威、金城，要灭马腾、韩遂。',
-          '凉州骑兵来去如风，曹军只能一城一城地推；马腾、韩遂互不救援，正好被分而破之。',
-          '曹操要在荆州再起兵之前，先把自己的后背彻底扫干净。',
-        ],
-        successLines: [
-          '马腾、韩遂相继败亡，凉州诸郡归入曹操手中。',
-          '曹操在长安休整，关中、凉州连成一线，西顾之忧尽去。',
-          '他把目光转回荆州：赤壁的账，迟早要算。',
-        ],
-      },
-      {
-        id: 'wei_jingzhou',
-        label: '荆州争霸',
-        short: '荆州争霸',
-        stage: 5,
-        targets: [],
-        waitJingzhou: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'end',
-        title: '荆州争霸',
-        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
-        waitLines: [
-          '襄阳、新野、江陵三镇的探马一日三报，曹军按剑待发。',
-          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
-        ],
-      },
-    ],
-
-    // 吴：刘表 → 袁术（称帝后）→ 南越 → 待天下大势 → 荆州
-    wu: [
-      {
-        id: 'wu_jiangdong',
-        label: '为父报仇',
-        short: '为父报仇',
-        stage: 1,
-        targets: ['biao'],
-        objective: { type: 'destroy', factions: ['biao'] },
-        noTimeout: true,
-        restDays: 3,
-        next: 'wu_yuanshu',
-        title: '为父报仇',
-        casusBelli: '孙权要报孙坚死于黄祖箭下之仇，先取荆州，统一江东门户。',
-        warLines: [
-          '孙权以“为父报仇”为名，向刘表宣战，周瑜督水军直取夏口、江陵。',
-          '荆州水军与江东水军在三江口对峙，两岸烽火连了百里。',
-          '长沙、武陵、桂阳、赤壁皆在刘表旗下；夷陵已由孙权的水军先一步占住，江东要一座一座地拔。',
-        ],
-        successLines: [
-          '刘表势力覆灭，长沙、武陵、桂阳、赤壁尽归江东；夷陵本就在孙权手中，江陵门户由此连成一线。',
-          '孙权在江陵祭告孙坚，周瑜督造战船，准备北上。',
-          '只等曹操也走完第一步，天下便会传出袁术称帝的消息。',
-        ],
-      },
-      {
-        id: 'wu_yuanshu',
-        label: '讨伐袁术',
-        short: '讨伐袁术',
-        stage: 2,
-        targets: ['yuanshu'],
-        objective: { type: 'destroy', factions: ['yuanshu'] },
-        waitEmperor: true,
-        noTimeout: true,
-        restDays: 30,
-        next: 'wu_shanyue',
-        title: '讨伐袁术',
-        casusBelli: '袁术在寿春僭号称帝，孙权奉天子诏，与曹操合兵讨伐仲家。',
-        warLines: [
-          '袁术在寿春僭号称帝，建号“仲家”，置百官、修宫室。',
-          '孙权与曹操同时传檄，江东水军自濡须入淮，直取寿春、合肥、庐江。',
-          '袁术原本只守本土，如今四面受敌，术军连城门都不敢开。',
-        ],
-        successLines: [
-          '寿春城破，袁术病亡，仲家百官尽散，淮南之地归孙曹两家分取。',
-          '孙权收编袁术水军，江东声势大振。',
-          '下一阶段：南征南越，把交州、桂阳以南尽收入吴。',
-        ],
-      },
-      {
-        id: 'wu_shanyue',
-        label: '南征南越',
-        short: '南征南越',
-        stage: 3,
-        targets: ['shanyue'],
-        objective: { type: 'destroy', factions: ['shanyue'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'wu_sworn',
-        title: '南征南越',
-        casusBelli: '袁术已灭，孙权转兵南方，要收南越诸部，完成江东的第三阶段。',
-        warLines: [
-          '孙权命贺齐、吕范南征南越，兵锋直指南越王城。',
-          '南越诸部据险而守，江东军每进一步都要先开山道。',
-          '南越一平，其丁壮便可补入江东水军，荆州争霸才有本钱。',
-        ],
-        successLines: [
-          '南越王城破，潘临等部大半归吴，小部分残部逃往交州。',
-          '孙权命贺齐镇南越，征发丁壮，江东休养生息。',
-          '江东三阶段已毕；下一步，只看荆州那三座城。',
-        ],
-      },
-      {
-        id: 'wu_sworn',
-        label: '会盟荆州',
-        short: '会盟荆州',
-        stage: 4,
-        targets: [],
-        waitAllMajorsStage3: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'wu_jingzhou',
-        title: '江东已定',
-        casusBelli: '孙权已统一江东、交州，只等曹操、刘备也完成各自战略，三家再会猎荆州。',
-        waitLines: [
-          '建业的船坞日夜赶工，柴桑的粮船已经排到江心。',
-          '孙权按兵不动，只派吕蒙、甘宁盯着荆州三镇。',
-          '天下大势，即将在三家会盟荆州时翻开新的一页。',
-        ],
-      },
-      {
-        id: 'wu_jingzhou',
-        label: '荆州争霸',
-        short: '荆州争霸',
-        stage: 5,
-        targets: [],
-        waitJingzhou: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'end',
-        title: '荆州争霸',
-        casusBelli: '三家战略已毕，荆州三镇成为天下唯一的焦点。',
-        waitLines: [
-          '襄阳、新野、江陵三镇的探马一日三报，吴军按剑待发。',
-          '谁先占尽荆州三镇，谁就能号令天下募兵；另外两家，必然结盟来攻。',
-        ],
-      },
-    ],
-
-    // 袁绍：与公孙瓒混战 → 东取吕布、北扫鲜卑 → 等官渡 → 官渡
-    yuan: [
-      {
-        id: 'yuan_duel',
-        label: '幽冀不死不休',
-        short: '不死不休',
-        stage: 1,
-        targets: ['gongsun'],
-        objective: { type: 'destroy', factions: ['gongsun'] },
-        noTimeout: true,
-        restDays: 15,
-        next: 'yuan_expand',
-        title: '幽冀不死不休',
-        casusBelli: '袁绍与公孙瓒开局便撕破脸，幽冀两家不死不休，任何议和书都退回。',
-        warLines: [
-          '袁绍与公孙瓒在幽冀边界点起烽火，两家开局便是不死不休。',
-          '袁绍自邺城北上，公孙瓒自蓟城南下，范阳、涿郡一线成了绞肉场。',
-          '这一战没有议和，只有一方灭国才会停。',
-        ],
-        successLines: [
-          '公孙瓒败亡，袁绍尽收幽燕之地，白马义从的旗号从此不再出现。',
-          '邺城大摆宴席，河北兵甲堆满武库，袁绍志得意满。',
-          '席间田丰、沮授劝他休养生息，袁绍不听，只令大军休整半月，便要继续用兵。',
-        ],
-      },
-      {
-        id: 'yuan_expand',
-        label: '北扫鲜卑',
-        short: '北扫鲜卑',
-        stage: 2,
-        targets: ['xianbei'],
-        objective: { type: 'destroy', factions: ['xianbei'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'yuan_wait_guandu',
-        title: '河北极盛',
-        casusBelli: '袁绍灭公孙瓒后兵强马壮，要趁势北扫鲜卑，把河北四州连成一片；吕布既已向曹操低头，他不愿再分兵东顾。',
-        warLines: [
-          '袁绍席罢，只命一路北出塞外扫鲜卑，东线按兵不动。',
-          '河北新胜，粮草充足，袁绍自谓兵强马壮，不把曹操、孙权放在眼里。',
-          '他要赶在曹操统一北方之前，先拿下鲜卑、安定塞外，再回头与曹操争中原。',
-        ],
-        successLines: [
-          '鲜卑败亡，袁绍坐拥河北、幽燕、塞外，声势到了极点。',
-          '袁绍在邺城阅兵，甲士塞满漳水两岸，谋臣武将都不敢再劝他收手。',
-          '他按兵不动，只等曹操北上，再南下与曹操争锋。',
-        ],
-      },
-      {
-        id: 'yuan_wait_guandu',
-        label: '坐等官渡',
-        short: '坐等官渡',
-        stage: 3,
-        targets: [],
-        waitGuandu: true,
-        noTimeout: true,
-        restDays: 0,
-        next: 'yuan_guandu',
-        title: '坐观成败',
-        casusBelli: '袁绍要等曹操北上，再举河北之兵南下，与曹操争夺中原。',
-        waitLines: [
-          '袁绍在邺城按兵不动，只派斥候南下打探许都消息。',
-          '他要等曹操先动，再以逸待劳，南下与曹操决战。',
-          '田丰、沮授数次进言，劝他趁曹操兵疲先取许都；袁绍只笑不答。',
-        ],
-      },
-      {
-        id: 'yuan_guandu',
-        label: '官渡决战',
-        short: '官渡决战',
-        stage: 4,
-        targets: ['wei'],
-        objective: { type: 'destroy', factions: ['wei'] },
-        noTimeout: true,
-        restDays: 0,
-        next: 'end',
-        stageFlag: 'guandu',
-        yuanPenalty: true,
-        title: '官渡决战',
-        casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。',
-        warLines: [
-          '曹操北上，袁绍也把河北大军全部压上，两军在官渡相遇。',
-          '营寨连绵数十里，粮道只隔一条汴水。',
-          '袁绍自恃兵多，不肯听田丰、沮授之谏，临阵改令，军心已散。',
-          '曹操兵精粮足，以逸待劳；袁绍昏招迭出，这一战河北军的对碰只余八成。',
-        ],
-        successLines: [
-          '官渡一战，袁绍大军溃散，曹操一路追到邺城。',
-          '袁绍带着残部退回河北，从此再无力南下。',
-        ],
-      },
-    ],
-
-    // 公孙瓒：与袁绍不死不休；若赢，也只是等曹操北上
-    gongsun: [
-      {
-        id: 'gongsun_duel',
-        label: '幽冀不死不休',
-        short: '不死不休',
-        stage: 1,
-        targets: ['yuan'],
-        objective: { type: 'destroy', factions: ['yuan'] },
-        noTimeout: true,
-        restDays: 0,
-        next: 'gongsun_wait',
-        title: '幽冀不死不休',
-        casusBelli: '公孙瓒与袁绍开局便撕破脸，幽冀两家不死不休，任何议和书都退回。',
-        warLines: [
-          '公孙瓒与袁绍在幽冀边界点起烽火，两家开局便是不死不休。',
-          '白马义从自蓟城南下，袁绍的河北步卒自邺城北上。',
-          '这一战没有议和，只有一方灭国才会停。',
-        ],
-        successLines: [
-          '袁绍败亡，公孙瓒尽收冀州，白马义从的旗号重新立在中原。',
-          '但他还没来得及庆功，曹操的北方大军已经压到幽燕边界。',
-        ],
-      },
-      {
-        id: 'gongsun_wait',
-        label: '坐等幽燕',
-        short: '坐等幽燕',
-        stage: 2,
-        targets: [],
-        noTimeout: true,
-        restDays: 0,
-        next: 'end',
-        title: '坐等幽燕',
-        casusBelli: '公孙瓒守住幽燕，只等曹操与袁绍分出胜负。',
-        waitLines: [
-          '公孙瓒据蓟城而守，北连鲜卑，南望冀州。',
-          '他既不降曹，也不降袁，只想等两家拼到两败俱伤。',
-        ],
-      },
-    ],
-  },
-  emperor: {
-    title: '袁术称帝',
-    lines: [
-      '袁术在寿春僭号称帝，建号“仲家”，置百官、修宫室。',
-      '曹操与孙权同时传檄，尽起两国兵马讨伐仲家。',
-      '寿春、合肥、庐江一带烽火连天；袁术原本只守本土，如今四面受敌。',
-      '袁术覆灭之后，孙曹两家暂不开战，各自去完成自己的第二阶段。',
-    ],
-  },
-
-  chibi: {
-    title: '赤壁之战',
-    caoRestDays: 30,
-    battleDays: 3,
-    aftermathRestDays: 15,
-    fireLossPct: 0.8,
-    caoRemainPct: 0.1,
-    minCaoLordsDead: 4,
-    southTitle: '曹操南下',
-    southLines: [
-      '魏、蜀、吴三家都走完第三阶段，曹操不再等荆州自己生变，亲率中原大军沿荆州南下。',
-      '襄阳、新野、江陵三镇望风换旗；曹军水陆并进，兵锋直抵长江北岸。',
-      '孙权遣鲁肃过江，刘备也从成都、江陵一线收拢兵马；孙刘两家在赤壁结成联军。',
-      '曹操下令休战一个月，等北军水土稍服、船工练熟，再渡江一击定荆州。',
-    ],
-    battleTitle: '赤壁火起',
-    battleLines: [
-      '一个月后，曹军自乌林、赤壁一线排开战船，欲一举渡江。',
-      '孙刘联军以黄盖诈降、火船突入，东南风骤起，曹军连环船队被一把火烧成火墙。',
-      '火攻与溃散合计折去曹军八成士兵；江面上尽是烧沉的楼船与落水的北军。',
-      '孙刘联军按剩余兵力合算，与曹操残军正面决战；曹军再折大半。',
-      '曹操知道大势已去，烧掉剩余战船，带着残部沿华容道北逃。',
-    ],
-    aftermathTitle: '曹操败走',
-    aftermathLines: [
-      '赤壁一役，曹军战船尽毁，伤亡与溃散者不计其数。',
-      '一批没有上名将榜的低阶曹将战死江岸；曹操身边只剩诸夏侯、曹氏与少数名将。',
-      '孙权、刘备分兵抢占荆州三镇：襄阳、新野归刘备，江陵归孙权。',
-      '孙刘两家约定休战半个月，分赃完毕后，再为荆州三镇重新开战。',
-    ],
-    finalTitle: '赤壁余烬',
-    finalLines: [
-      '赤壁火灭，曹操北归，孙刘分荆州。',
-      '半个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有十轮血战。',
-    ],
-  },
-
-  jingzhou: {
-    title: '荆州会战',
-    lines: [
-      '魏、蜀、吴三家各自完成第三阶段，按兵一个月后，同时把兵锋转向荆州。',
-      '襄阳第一，新野第二，江陵第三；三镇是荆州的点位，也是天下霸主的门闩。',
-      '谁先尽占三镇，谁就夺得霸主之位：全国募兵效率 +20%，另外两家立刻结盟。',
-    ],
-    cycleTitle: '荆州再战',
-    cycleLines: [
-      '霸主占着荆州三镇，另外两家结盟，休整一个月后同时来攻。',
-      '曹刘在汉中到长安、洛阳一线开战；刘孙在夷陵、江陵、长沙、武陵开战；曹孙在合肥、庐江、寿春开战。',
-      '结盟的两家彼此停战，只合力攻打霸主；谁再占尽三镇，谁就是新的霸主。',
-    ],
-    finalTitle: '第十轮·不死不休',
-    finalLines: [
-      '荆州已经易主十次，这一次不再休战。',
-      '第十轮占尽三镇的霸主，除全国募兵 +20% 外，再得 +50% 杀敌；曹操若夺荆州，不享这项额外杀敌。',
-      '霸主与两家联盟不死不休：要么霸主灭掉两家，要么两家合力灭掉霸主。',
-      '霸主灭国的一瞬间，盟友因利益分配不均立刻反目，天下只剩最后一个国家。',
-    ],
-  },
-
-  endgame: {
-    title: '乱国叙事',
-    lines: [
-      '魏蜀吴三足鼎立，谁占荆州三镇，谁就做霸主。',
-      '霸主募兵更盛，另外两家结盟来攻；一轮又一轮，直到第十轮不再休战。',
-    ],
-  },
-
-  unification: {
-    title: '天下归一',
-    lines: [
-      '最后一国降旗，九州尽归一统。',
-      '可就在统一的那一刻，除了跟随你起兵的兄弟，所有封臣都翻脸了。',
-      '一支冷箭从背后射来，你失去三分之一的弟兄；他们拼死断后，护着你往西逃。',
-      '边境小镇的雾里还有一条活路。主线已在地图上标出，沿着线条走，不要回头。',
-    ],
-    betrayTitle: '全国背叛',
-    betrayLines: [
-      '统一大典还没结束，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
-      '你身边只剩兄弟旧部；三分之一的弟兄在乱军中倒下，用命换出一条缺口。',
-      '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往边陲小镇走。',
-    ],
-    edgeTitle: '边陲小镇',
-    edgeLines: [
-      '雾散开一线，小镇的灯火在雾里亮着。',
-      '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
-      '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
-    ],
-    fogTitle: '迷雾迷人眼',
-    fogLines: [
-      '迷雾迷人眼，无法深入探索；再往里走，可能会迷失其中，永远无法出来。',
-    ],
-  },
-};
-
-module.exports = { STORY };
-
-  };
-
-  /* js/core/story.js */
-  __defs[18] = function (module, exports, __require) {
-/**
- * 汉末战略状态机。
- *
- * 它不直接改地图，只做四件事：
- *  1. 按阶段给各国递战书、停战书，并留下剧情文书；
- *  2. 给国战 AI 标注“这一阶段该打谁/不该打谁”；
- *  3. 记录最后一座城是谁打下的，亡国时让灭国者优先收人；
- *  4. 推动袁术称帝、荆州会战与三国循环。
- */
-
-const { STORY } = __require(19);
-const { FACTIONS, ROADS, FACTION_COMBAT } = __require(5);
-const { LORD_POWER_BY_ID } = __require(17);
-const { siteById } = __require(8);
-const army = __require(9);
-const war = __require(15);
-
-let logFn = function () {};
-
-function bindLogger(fn) {
-  logFn = fn || function () {};
-}
-
-function key(a, b) {
-  return a < b ? a + '|' + b : b + '|' + a;
-}
-
-/** 公告里不显示“第一/第二战略”这类阶段序号，只留战略名。 */
-function displayLabel(cfg) {
-  if (!cfg) return '';
-  return String(cfg.label || cfg.short || cfg.title || '').replace(/^第[一二三四五六七八九十百]+战略\s*·\s*/, '');
-}
-
-/** 袁绍官渡状态：只有在配置明确压低战力时才启用；n46 起恢复为正常值。 */
-function applyYuanCombat(state, weak) {
-  if (!state || !state.story) return;
-  if (!FACTION_COMBAT.yuan) FACTION_COMBAT.yuan = { power: 1 };
-  const penaltyPower = Number(STORY.yuanWeakPower);
-  const penaltyEnabled = isFinite(penaltyPower) && penaltyPower < 0.999;
-  const on = penaltyEnabled && !!weak && factionAlive(state, 'yuan');
-  FACTION_COMBAT.yuan.power = on ? penaltyPower : 1;
-  state.story.yuanWeak = on;
-  // n51：昏君只压对碰系数（0.8），不再把袁军士气钉死在 35。
-  // 旧档若还留着 storyMoraleCap=35，在这里恢复成战前士气，避免读档后仍然半残。
-  (state.lords || []).forEach(function (l) {
-    if (l.faction !== 'yuan' || !l.alive || l.dead) return;
-    if (l.storyMoraleCap) {
-      l.morale = Math.max(typeof l.morale === 'number' ? l.morale : 0, l.preStoryMorale || 70);
-      l.storyMoraleCap = null;
-    }
-  });
-}
-
-function yuanMoraleTick(state) {
-  // 0.8 版只压对碰，不再每日把袁军士气往下按。
-  const st = state.story;
-  if (!st || !st.yuanWeak || !factionAlive(state, 'yuan')) return;
-}
-
-function resetCombat() {
-  if (FACTION_COMBAT.yuan) FACTION_COMBAT.yuan.power = 1;
-  Object.keys(FACTION_COMBAT).forEach(function (f) {
-    if (FACTION_COMBAT[f]) FACTION_COMBAT[f].killMul = 1;
-  });
-}
-const resetYuanCombat = resetCombat;
-
-/* ------------------------------------------------------------ 基础查询 */
-
-function hasStory(state) {
-  return !!(state && state.story && state.story.mode);
-}
-
-function isPassive(state, faction) {
-  return !!(state && state.story && state.story.passive && state.story.passive[faction]);
-}
-
-function isMajor(faction) {
-  return STORY.majors.indexOf(faction) >= 0;
-}
-
-function isDuel(faction) {
-  return STORY.duelFactions.indexOf(faction) >= 0;
-}
-
-/** 边缘小国领主每天补兵的比例；大国是它的两倍。整体比旧版快一倍。 */
-function recruitRate(state, faction) {
-  const base = isPassive(state, faction) ? 0.12 : 0.24;
-  const st = state && state.story;
-  if (st && st.endgame && st.endgame.active && st.endgame.strongest === faction) {
-    return base * (STORY.jingzhouStrongRecruitMul || 1.2);
-  }
-  return base;
-}
-
-function citiesOf(state, faction) {
-  return (state.world.sites || []).filter(function (s) {
-    return s.type !== 'camp' && s.ownerFaction === faction;
-  });
-}
-
-function factionDead(state, id) {
-  return !!(state.factionState && state.factionState[id] && state.factionState[id].dead);
-}
-
-function factionAlive(state, id) {
-  if (!id || !FACTIONS[id] || factionDead(state, id)) return false;
-  if (citiesOf(state, id).length) return true;
-  return (state.parties || []).some(function (p) { return p && p.faction === id; });
-}
-
-function factionName(id) {
-  return (FACTIONS[id] && (FACTIONS[id].full || FACTIONS[id].name)) || id || '诸侯';
-}
-
-function siteOwnerIs(state, siteId, faction) {
-  const s = siteById(state.world, siteId);
-  return !!(s && s.ownerFaction === faction);
-}
-
-function allSitesOwned(state, faction, ids) {
-  return (ids || []).every(function (id) { return siteOwnerIs(state, id, faction); });
-}
-
-function countTroops(state, faction) {
-  let n = 0;
-  (state.lords || []).forEach(function (l) {
-    if (!l || l.faction !== faction || !l.alive || l.dead || l.retired || l.prisoner) return;
-    Object.keys(l.troops || {}).forEach(function (k) { n += l.troops[k] || 0; });
-  });
-  return n;
-}
-
-function powerOf(state, faction) {
-  return citiesOf(state, faction).length * 100 + countTroops(state, faction);
-}
-
-/* ------------------------------------------------------------ 城道相邻 */
-
-let SITE_EDGES = null;
-
-function siteEdges() {
-  if (SITE_EDGES) return SITE_EDGES;
-  SITE_EDGES = {};
-  (ROADS || []).forEach(function (p) {
-    if (!p || !p[0] || !p[1]) return;
-    (SITE_EDGES[p[0]] = SITE_EDGES[p[0]] || []).push(p[1]);
-    (SITE_EDGES[p[1]] = SITE_EDGES[p[1]] || []).push(p[0]);
-  });
-  return SITE_EDGES;
-}
-
-function siteAdjacent(a, b) {
-  const e = siteEdges();
-  return !!(a && b && e[a] && e[a].indexOf(b) >= 0);
-}
-
-/* ------------------------------------------------------------ 文书 */
-
-function eventLines(lines) {
-  return (lines || []).filter(Boolean).slice(0, 5);
-}
-
-function pushStoryEvent(state, title, lines, opts) {
-  const o = opts || {};
-  if (!state || !state.events) return;
-  state.events.push({
-    type: 'story',
-    title: title,
-    lines: eventLines(lines),
-    tag: o.tag || '大势',
-    art: o.art || null,
-    auto: o.auto || 7,
-    skipAny: true,
-  });
-}
-
-function pushWarEvent(state, title, lines) {
-  if (!state || !state.events) return;
-  state.events.push({
-    type: 'diplomacy',
-    kind: 'war',
-    title: title,
-    lines: eventLines(lines),
-    skipAny: true,
-  });
-}
-
-function pushPeaceEvent(state, title, lines) {
-  if (!state || !state.events) return;
-  state.events.push({
-    type: 'diplomacy',
-    kind: 'peace',
-    title: title || '两家罢兵',
-    lines: eventLines(lines),
-    skipAny: true,
-  });
-}
-
-/** 开局军情不抢在第一天弹出：到第三天再一次性说明天下棋局。 */
-function announceOpening(state) {
-  const st = state && state.story;
-  if (!st || st.openingEventShown) return;
-  st.openingEventShown = true;
-  pushWarEvent(state, '天下棋局', [
-    '曹操以“兖州旧怨”向吕布宣战，徐州、兖州边关同时点起烽火。',
-    '孙权以“为父报仇”向刘表宣战，江东水军直指夏口、江陵。',
-    '袁绍与公孙瓒撕破脸，幽冀两家开局便不死不休，谁也不接议和书。',
-    '刘备按兵新野，只等第八日向刘璋递出“收取西川”的战书。',
-    '南蛮与南越沿牂牁、交趾的山道开战，两边都不接议和书。',
-    '南蛮自朱提下山，只掠刘璋的野战军，不围城池；南越沿新开的武陵道北上，只取长沙以南。',
-    '马腾另据居延，新领地不与汉廷、韩遂接壤；汉廷与韩遂则在天水一线直接相邻，两家开战。',
-  ]);
-  logFn(state, '天下棋局已开：曹操讨吕布，孙权攻刘表，袁绍与公孙瓒不死不休；南蛮牵制刘璋、南越南下，马腾据居延，汉廷与韩遂相邻开战。', 'war');
-}
-
-function maybeOpeningEvent(state) {
-  const st = state && state.story;
-  if (!st || st.openingEventShown) return;
-  const due = st.openingEventDay || STORY.openingEventDay || 3;
-  if (state.clock.day < due) return;
-  announceOpening(state);
-}
-
-/* ------------------------------------------------------------ 初始化 */
-
-function freshPhase(firstId) {
-  return {
-    id: firstId,
-    status: 'waiting',
-    startedDay: 0,
-    restUntil: 0,
-    nextId: null,
-    completed: 0,
-    success: false,
-    timedOut: false,
-  };
-}
-
-/** 牵制战：南蛮只骚扰刘璋、南越只打长沙以南；两家开局就递战书。 */
-function declareProxyWars(state) {
-  const proxy = STORY.proxyWars || {};
-  Object.keys(proxy).forEach(function (attacker) {
-    const cfg = proxy[attacker];
-    if (!cfg || !cfg.target) return;
-    if (!factionAlive(state, attacker) || !factionAlive(state, cfg.target)) return;
-    war.declare(state, attacker, cfg.target, true, true);
-  });
-}
-
-function init(state, logger) {
-  if (logger) bindLogger(logger);
-  // 史实沙盘没有玩家主线，但天下仍要按史实阶段走：照样起状态机，只是不推章节。
-  const sandbox = !!(state && !state.storyMode && state.historicalSandbox);
-  if (!state || (!state.storyMode && !sandbox)) return null;
-  if (state.story && state.story.mode) return state.story;
-
-  resetCombat();
-  const st = {
-    mode: true,
-    startedDay: state.clock.day,
-    day: state.clock.day,
-    phases: {},
-    targets: {},
-    priority: {},
-    passive: {},
-    originCities: {},
-    retake: {},
-    noPeace: {},
-    emperor: { declared: false, day: 0, coalition: [] },
-    duel: { startDay: state.clock.day, ended: false, winner: null },
-    chibi: null,
-    chibiDone: false,
-    xiliangDone: false,
-    jingzhou: null,
-    jingzhouDone: false,
-    jingzhouKillBonus: null,
-    endgame: null,
-    headline: '',
-    openingDeclared: false,
-    openingEventDay: STORY.openingEventDay || 3,
-    openingEventShown: false,
-    yuanWeak: false,
-    yuanBattleLost: false,
-    edgeWarsDeclared: false,
-    blockerTargets: {},
-    blockerWars: {},
-    waitEvents: {},
-    proxyWars: STORY.proxyWars || {},
-    proxyWarsDeclared: false,
-    stage3Done: {},
-    sandbox,
-    openingPending: !!sandbox,
-    guanduStarted: false,
-    kingdomsAllAtWar: false,
-    unifiedFaction: null,
-    targetRegion: {},
-  };
-  state.story = st;
-
-  STORY.passiveFactions.forEach(function (f) { st.passive[f] = true; });
-  STORY.noPeacePairs.forEach(function (pair) {
-    st.noPeace[key(pair[0], pair[1])] = true;
-  });
-  // 南蛮与南越从开局就在山道上互攻，任何议和书都不收。
-  if (factionAlive(state, 'nanman') && factionAlive(state, 'shanyue')) {
-    war.declare(state, 'nanman', 'shanyue', true, true);
-  }
-  // 马腾、韩遂、汉廷三方开局即互相开战；三家都只在本土一城范围内争夺。
-  const triple = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
-  triple.forEach(function (a, i) {
-    triple.slice(i + 1).forEach(function (b) {
-      war.declare(state, a, b, true, true);
-    });
-  });
-  declareProxyWars(state);
-  st.proxyWarsDeclared = true;
-  applyYuanCombat(state, false);
-
-  Object.keys(FACTIONS).forEach(function (f) {
-    st.originCities[f] = citiesOf(state, f).map(function (s) { return s.id; });
-    st.retake[f] = [];
-  });
-
-  Object.keys(STORY.phases).forEach(function (f) {
-    const list = STORY.phases[f];
-    if (!list || !list.length) return;
-    st.phases[f] = freshPhase(list[0].id);
-    st.targets[f] = [];
-  });
-
-  // 开局四场：曹操讨吕布、孙权报父仇、刘备取西川、袁绍与公孙瓒不死不休。
-  // 史实沙盘里玩家没有章节可依，这四场战书改在第三天统一递出（见 tick）。
-  if (sandbox) {
-    // 阶段已经建好，但都按兵不动：等第三天统一递战书，别让 tickPhase 提前动手。
-    Object.keys(st.phases).forEach(function (f) {
-      const p = st.phases[f];
-      if (!p) return;
-      p.waitingForWar = true;
-      p.waitUntil = st.openingEventDay || STORY.openingEventDay || 3;
-    });
-    st.openingPending = true;
-  } else {
-    beginOpeningWars(state);
-  }
-  refreshHeadline(state);
-  return st;
-}
-
-/** 开局四场战书：主线和史实沙盘共用，沙盘等到第三天再叫一次。 */
-function beginOpeningWars(state) {
-  const st = state.story;
-  if (!st) return;
-  ['wei', 'wu', 'shu', 'yuan', 'gongsun'].forEach(function (f) {
-    if (st.phases[f]) startPhase(state, f, { silent: true, opening: true });
-  });
-  st.openingDeclared = true;
-  st.openingPending = false;
-  state.openingWarsDeclared = true;
-  refreshHeadline(state);
-}
-
-/** 读档后恢复：状态都在存档里，只需要把上次的局面接上 */
-function resume(state, logger) {
-  if (logger) bindLogger(logger);
-  if (!state || (!state.storyMode && !state.historicalSandbox)) return null;
-  if (!state.story || !state.story.mode) return null;
-  state.story.day = state.clock.day;
-  if (!state.story.targets) state.story.targets = {};
-  if (!state.story.priority) state.story.priority = {};
-  if (!state.story.retake) state.story.retake = {};
-  if (!state.story.originCities) state.story.originCities = {};
-  if (!state.story.phases) state.story.phases = {};
-  if (!state.story.emperor) state.story.emperor = { declared: false, day: 0, coalition: [] };
-  if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
-  if (!state.story.waitEvents) state.story.waitEvents = {};
-  if (state.story.chibi === undefined) state.story.chibi = null;
-  if (state.story.chibiDone === undefined) state.story.chibiDone = !!(state.story.chibi && state.story.chibi.done);
-  if (state.story.xiliangDone === undefined) {
-    // 旧档已经走完赤壁的，视为西凉已扫平；还在赤壁之前的，留给新阶段。
-    state.story.xiliangDone = !!state.story.chibiDone;
-  }
-  const weiPhase = state.story.phases && state.story.phases.wei;
-  if (weiPhase && weiPhase.id === 'wei_sworn' && weiPhase.nextId === 'wei_jingzhou') {
-    weiPhase.nextId = 'wei_xiliang';
-  }
-  if (state.story.jingzhouKillBonus === undefined) state.story.jingzhouKillBonus = null;
-  if (!state.story.blockerTargets) state.story.blockerTargets = {};
-  if (!state.story.blockerWars) state.story.blockerWars = {};
-  if (state.story.yuanWeak === undefined) state.story.yuanWeak = false;
-  if (state.story.edgeWarsDeclared === undefined) state.story.edgeWarsDeclared = false;
-  if (state.story.proxyWarsDeclared === undefined) {
-    declareProxyWars(state);
-    state.story.proxyWarsDeclared = true;
-  }
-  if (!state.story.proxyWars) state.story.proxyWars = STORY.proxyWars || {};
-  if (state.story.openingEventDay === undefined) {
-    state.story.openingEventDay = STORY.openingEventDay || 3;
-  }
-  if (state.story.openingEventShown === undefined) {
-    state.story.openingEventShown = state.clock.day >= state.story.openingEventDay;
-  }
-  if (!state.story.stage3Done) state.story.stage3Done = {};
-  if (state.story.guanduStarted === undefined) state.story.guanduStarted = false;
-  if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
-  if (!state.story.targetRegion) state.story.targetRegion = {};
-  applyYuanCombat(state, !!state.story.yuanWeak);
-  if (state.story.jingzhouKillBonus && state.story.jingzhouKillBonus !== 'wei') {
-    if (!FACTION_COMBAT[state.story.jingzhouKillBonus]) FACTION_COMBAT[state.story.jingzhouKillBonus] = { power: 1 };
-    FACTION_COMBAT[state.story.jingzhouKillBonus].killMul = STORY.jingzhouKillMul || 1.5;
-  }
-  refreshHeadline(state);
-  return state.story;
-}
-
-/* ------------------------------------------------------------ 阶段 */
-
-function phaseList(faction) {
-  return STORY.phases[faction] || [];
-}
-
-function phaseCfg(faction, id) {
-  return phaseList(faction).filter(function (p) { return p.id === id; })[0] || null;
-}
-
-function currentCfg(state, faction) {
-  const p = state.story.phases[faction];
-  return p ? phaseCfg(faction, p.id) : null;
-}
-
-function phaseTargets(state, faction, cfg) {
-  let list = (cfg && cfg.targets ? cfg.targets.slice() : []);
-  if (cfg && cfg.parallel && factionAlive(state, cfg.parallel) && list.indexOf(cfg.parallel) < 0) {
-    list.push(cfg.parallel);
-  }
-  return list.filter(function (id) {
-    return id && !factionDead(state, id);
-  });
-}
-
-/* ------------------------------------------------------------ 反卡位宣战 */
-
-let ROAD_EDGE_CACHE = null;
-function roadEdgeMap() {
-  if (ROAD_EDGE_CACHE) return ROAD_EDGE_CACHE;
-  const edges = {};
-  (ROADS || []).forEach(function (pair) {
-    if (!pair || !pair[0] || !pair[1]) return;
-    (edges[pair[0]] = edges[pair[0]] || []).push(pair[1]);
-    (edges[pair[1]] = edges[pair[1]] || []).push(pair[0]);
-  });
-  ROAD_EDGE_CACHE = edges;
-  return edges;
-}
-
-function siteOwnerKey(site) {
-  if (!site) return null;
-  if (site.playerOwned) return 'player';
-  return site.ownerFaction || null;
-}
-
-function isCitySite(site) {
-  return !!site && (site.type === 'town' || site.type === 'castle');
-}
-
-/** 当前阶段真正要拿下的城：capture 直接取目标城，destroy 取目标势力现存城。 */
-function phaseGoalSites(state, faction, cfg) {
-  const out = [];
-  const seen = {};
-  function add(id) {
-    if (!id || seen[id]) return;
-    const site = siteById(state.world, id);
-    if (!isCitySite(site)) return;
-    seen[id] = true;
-    out.push(site);
-  }
-  const obj = cfg && cfg.objective;
-  if (obj && (obj.type === 'capture' || obj.type === 'captureOrDestroy')) {
-    (obj.sites || []).forEach(add);
-  }
-  const goalFactions = [];
-  if (obj && obj.type === 'destroy') {
-    (obj.factions || []).forEach(function (f) { goalFactions.push(f); });
-  } else {
-    (cfg && cfg.targets || []).forEach(function (f) { goalFactions.push(f); });
-  }
-  goalFactions.forEach(function (f) {
-    if (f === faction || factionDead(state, f)) return;
-    citiesOf(state, f).forEach(function (s) { if (isCitySite(s)) add(s.id); });
-  });
-  return out;
-}
-
-function shortestRoadPath(state, fromIds, targetId, allowSite) {
-  const edges = roadEdgeMap();
-  const queue = [];
-  const parent = {};
-  const visited = {};
-  fromIds.forEach(function (id) {
-    if (!id || visited[id]) return;
-    visited[id] = true;
-    parent[id] = null;
-    queue.push(id);
-  });
-  while (queue.length) {
-    const cur = queue.shift();
-    if (cur === targetId) {
-      const path = [];
-      let step = cur;
-      while (step) {
-        path.unshift(step);
-        step = parent[step];
-      }
-      return path;
-    }
-    (edges[cur] || []).forEach(function (next) {
-      if (visited[next]) return;
-      const site = siteById(state.world, next);
-      if (!site) return;
-      if (allowSite && !allowSite(site)) return;
-      visited[next] = true;
-      parent[next] = cur;
-      queue.push(next);
-    });
-  }
-  return null;
-}
-
-function blockerFromPath(state, faction, path, allowedOwner) {
-  if (!path || path.length < 2) return null;
-  for (let i = 1; i < path.length; i++) {
-    const site = siteById(state.world, path[i]);
-    const owner = siteOwnerKey(site);
-    if (!owner || allowedOwner(owner)) continue;
-    if (owner === 'player' || owner === 'bandit' || owner === 'rebel') return null;
-    if (factionDead(state, owner)) return null;
-    return owner;
-  }
-  return null;
-}
-
-/**
- * 目标城被第三国占着，或者唯一可走的城道必须穿过第三国城池：
- * 这国就是“卡位者”，向它宣战，避免它靠中立身份堵住战略目标。
- */
-function findBlockingFactions(state, faction, cfg) {
-  const targets = phaseGoalSites(state, faction, cfg);
-  if (!targets.length) return [];
-  const targetFactions = [];
-  ((cfg && cfg.objective && cfg.objective.factions) || (cfg && cfg.targets) || []).forEach(function (f) {
-    if (targetFactions.indexOf(f) < 0) targetFactions.push(f);
-  });
-  const own = citiesOf(state, faction).filter(isCitySite).map(function (s) { return s.id; });
-  if (!own.length) return [];
-  const allowedOwner = function (owner) {
-    return !owner || owner === faction || targetFactions.indexOf(owner) >= 0;
-  };
-  const blockers = [];
-  targets.forEach(function (goal) {
-    const owner = siteOwnerKey(goal);
-    if (owner && owner !== faction && !allowedOwner(owner)) {
-      if (owner !== 'player' && owner !== 'bandit' && owner !== 'rebel' && !factionDead(state, owner) &&
-          blockers.indexOf(owner) < 0) blockers.push(owner);
-      return;
-    }
-    if (owner === faction) return;
-    // 有一条完全不碰第三国城池的路线，就不算被卡位。
-    if (shortestRoadPath(state, own, goal.id, function (site) {
-      return allowedOwner(siteOwnerKey(site));
-    })) return;
-    // 没有安全路线：按最短城道找第一个挡路的第三国。
-    const shortest = shortestRoadPath(state, own, goal.id, null);
-    const blocker = blockerFromPath(state, faction, shortest, allowedOwner);
-    if (blocker && blockers.indexOf(blocker) < 0) blockers.push(blocker);
-  });
-  return blockers;
-}
-
-function syncPhaseBlockers(state, faction) {
-  const st = state.story;
-  const p = st && st.phases && st.phases[faction];
-  if (!p || p.status !== 'war') return;
-  const cfg = currentCfg(state, faction);
-  if (!cfg) return;
-  const base = phaseTargets(state, faction, cfg);
-  const blockers = findBlockingFactions(state, faction, cfg);
-  const prev = st.blockerWars[faction] || [];
-  const oldBlockers = st.blockerTargets[faction] || [];
-  const fresh = blockers.filter(function (b) { return prev.indexOf(b) < 0; });
-  const current = (st.targets[faction] || []).filter(function (f) { return oldBlockers.indexOf(f) < 0; });
-  const preserved = current.length ? current : base;
-  st.blockerTargets[faction] = blockers.slice();
-  st.targets[faction] = preserved.filter(function (f, i, arr) { return arr.indexOf(f) === i; })
-    .concat(blockers.filter(function (f) { return preserved.indexOf(f) < 0; }));
-  blockers.forEach(function (b) {
-    if (b === faction || factionDead(state, b)) return;
-    if (!war.atWar(state, faction, b)) war.declare(state, faction, b, true, true);
-  });
-  st.blockerWars[faction] = blockers.slice();
-  if (fresh.length && p.status === 'war') {
-    pushStoryEvent(state, '战略卡位', [
-      factionName(faction) + '的战略目标被' + fresh.map(factionName).join('、') + '挡在城道上。',
-      '对方既不归顺，也不让路；' + factionName(faction) + '不再忍让，直接递出战书。',
-      '挡路的城池必须先拔掉，否则灭国、取城的目标永远差最后一程。',
-    ], { tag: '大势', art: 'war', auto: 8 });
-    logFn(state, '【' + factionName(faction) + '】战略目标被' + fresh.map(factionName).join('、') +
-      '卡住，自动宣战打通城道。', 'war');
-    refreshHeadline(state);
-  }
-}
-
-function enforceStrategicBlockers(state) {
-  const st = state.story;
-  if (!st || st.endgame || (st.chibi && !st.chibi.done)) return;
-  (STORY.blockerMajors || []).forEach(function (f) {
-    if (!factionAlive(state, f)) return;
-    syncPhaseBlockers(state, f);
-  });
-}
-
-function canBeginPhase(state, cfg) {
-  if (!cfg) return false;
-  const st = state.story || {};
-  const day = state.clock.day;
-  if (cfg.notBeforeDay && day < cfg.notBeforeDay) return false;
-  if (cfg.waitEmperor && !(st.emperor && st.emperor.declared)) {
-    // 袁术如果已经被别人先灭，称帝事件不会再发生，孙权直接进入下一阶段。
-    if (factionAlive(state, 'yuanshu')) return false;
-  }
-  if (cfg.waitGuandu && !st.guanduStarted) return false;
-  if (cfg.waitJingzhou && !(st.jingzhou && st.jingzhou.active)) return false;
-  if (cfg.waitChibi) {
-    // 赤壁必须先打完；三家若有一家先亡，赤壁不会发生，不再无限等下去。
-    if (!st.chibiDone) {
-      const alive = (STORY.kingdoms || []).filter(function (f) { return factionAlive(state, f); });
-      if (alive.length >= (STORY.kingdoms || []).length) return false;
-    }
-  }
-  if (cfg.waitAllMajorsStage3) {
-    const alive = (STORY.kingdoms || []).filter(function (f) { return factionAlive(state, f); });
-    if (!alive.length || !alive.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
-  }
-  if (cfg.waitBleed) {
-    if (!state.story.duel.ended) {
-      const bleedAt = (state.story.duel.startDay || 1) + STORY.bleedDays;
-      if (day < bleedAt) return false;
-    }
-  }
-  if (cfg.waitFactionDead) {
-    if (!factionDead(state, cfg.waitFactionDead)) return false;
-    const fs = state.factionState && state.factionState[cfg.waitFactionDead];
-    const deadDay = (fs && (fs.deadDay || fs.lastLossDay)) || 0;
-    if (deadDay && day < deadDay + (cfg.waitAfterDays || 0)) return false;
-  }
-  return true;
-}
-
-function startPhase(state, faction, opts) {
-  const st = state.story;
-  const p = st.phases[faction];
-  if (!p) return false;
-  const cfg = phaseCfg(faction, p.id);
-  if (!cfg) return false;
-  const silent = !!(opts && opts.silent);
-  const opening = !!(opts && opts.opening);
-
-  const skipWait = !!(opts && opts.skipWait);
-  // 开局第几天才递战书：到点前保持“等待”，不要提前把仗打起来。
-  if (cfg.notBeforeDay && state.clock.day < cfg.notBeforeDay) {
-    p.status = 'waiting';
-    p.startedDay = state.clock.day;
-    p.waitingForWar = false;
-    p.waitUntil = cfg.notBeforeDay;
-    p.stage = cfg.stage || 0;
-    st.targets[faction] = [];
-    refreshHeadline(state);
-    return true;
-  }
-  if (cfg.waitDays && !skipWait) {
-    p.status = 'waiting';
-    p.waitingForWar = true;
-    p.waitUntil = state.clock.day + cfg.waitDays;
-    p.startedDay = state.clock.day;
-    p.restUntil = 0;
-    p.success = false;
-    p.timedOut = false;
-    p.nextId = cfg.next || null;
-    p.stage = cfg.stage || 0;
-    st.targets[faction] = [];
-    if (!state.story.waitEvents[faction + ':' + cfg.id]) {
-      state.story.waitEvents[faction + ':' + cfg.id] = true;
-      pushStoryEvent(state, cfg.title || displayLabel(cfg), [
-        '大军已经点齐，但还不到出兵的时辰。',
-        '等上' + cfg.waitDays + '天，等粮草到齐、探马回报，再动手。',
-      ], { tag: '战略', art: 'peace', auto: 8 });
-    }
-    refreshHeadline(state);
-    return true;
-  }
-  p.waitingForWar = false;
-  const targets = phaseTargets(state, faction, cfg);
-  p.status = 'war';
-  p.stage = cfg.stage || 0;
-  p.startedDay = state.clock.day;
-  p.restUntil = 0;
-  p.success = false;
-  p.timedOut = false;
-  p.nextId = cfg.next || null;
-  st.targets[faction] = targets;
-  if (opts && opts.priority) st.priority[faction] = opts.priority;
-  // 刘备入川的旧逻辑靠这个标记锁剑阁首攻，也让主公亲自挂帅。
-  if (faction === 'shu' && cfg.id === 'shu_yizhou' && state.flags) {
-    state.flags.liubeiYiWar = true;
-  }
-  if (cfg.id === 'wei_north' || cfg.id === 'yuan_guandu') st.guanduStarted = true;
-
-  war.abortCampaign(state, faction);
-  if (cfg.yuanPenalty) applyYuanCombat(state, true);
-  const declared = [];
-  targets.forEach(function (to) {
-    if (!factionAlive(state, to)) return;
-    if (war.atWar(state, faction, to)) {
-      declared.push(to);
-      return;
-    }
-    if (war.declare(state, faction, to, true, true)) declared.push(to);
-  });
-
-  if (!silent && declared.length) {
-    const lines = (cfg.warLines || [cfg.casusBelli]).slice();
-    const names = declared.map(factionName).join('、');
-    lines.push('战书已下：' + factionName(faction) + '向' + names + '正式宣战。');
-    pushWarEvent(state, cfg.title || displayLabel(cfg), lines);
-    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '：' + (cfg.casusBelli || ''), 'war');
-  } else if (opening && declared.length) {
-    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，向' + declared.map(factionName).join('、') + '宣战。', 'war');
-  }
-  // 官渡开局：战书落下后再把曹袁两军补满、调到官渡列阵，并直接开一场合战。
-  if ((cfg.stage === 'guandu' || cfg.stageFlag === 'guandu') && state.storyHooks && state.storyHooks.stageGuandu) {
-    state.storyHooks.stageGuandu(state);
-  }
-  // 战书落下就立刻点兵：不要等第二天的 strategyTick 才让第一阶段动起来。
-  if (declared.length && faction !== 'player' && faction !== 'bandit') {
-    if (!state.warCampaigns || typeof state.warCampaigns !== 'object') state.warCampaigns = {};
-    if (!state.siegeCooldown || typeof state.siegeCooldown !== 'object') state.siegeCooldown = {};
-    if (!state.warCampaigns[faction]) war.planCampaign(state, faction, state.clock.day);
-  }
-  refreshHeadline(state);
-  return true;
-}
-
-function phaseDone(state, faction, cfg) {
-  const obj = cfg && cfg.objective;
-  if (!obj) return false;
-  if (obj.type === 'destroy') {
-    return (obj.factions || []).every(function (id) { return factionDead(state, id); });
-  }
-  if (obj.type === 'capture') {
-    return allSitesOwned(state, faction, obj.sites || []);
-  }
-  if (obj.type === 'captureOrDestroy') {
-    if (allSitesOwned(state, faction, obj.sites || [])) return true;
-    return (obj.factions || []).every(function (id) { return factionDead(state, id); });
-  }
-  return false;
-}
-
-function targetNames(state, cfg) {
-  return (cfg && cfg.targets ? cfg.targets : []).filter(function (id) { return FACTIONS[id]; })
-    .map(factionName).join('、');
-}
-
-function phasePeace(state, faction, cfg) {
-  const st = state.story;
-  if (!st) return [];
-  const partners = war.warPartners(state, faction);
-  const done = [];
-  partners.forEach(function (other) {
-    if (!other || other === 'bandit') return;
-    if (factionDead(state, other)) return;
-    const k = key(faction, other);
-    if (st.noPeace[k]) return;
-    if (st.emperor && st.emperor.coalitionTarget &&
-        st.emperor.coalitionTarget === other &&
-        (st.emperor.coalition || []).indexOf(faction) >= 0) {
-      return;
-    }
-    if (st.endgame && st.endgame.active) return;
-    if (war.makePeace(state, faction, other, true)) done.push(other);
-  });
-  return done;
-}
-
-function finishPhase(state, faction, ok) {
-  const st = state.story;
-  const p = st.phases[faction];
-  if (!p) return;
-  const cfg = currentCfg(state, faction);
-  if (!cfg) { p.status = 'done'; return; }
-
-  // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
-  if (!ok) {
-    const deadline = STORY.phaseDeadlineDays || 720;
-    if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
-    const peaceTo = phasePeace(state, faction, cfg);
-    p.status = 'rest';
-    p.success = false;
-    p.timedOut = true;
-    p.completed += 1;
-    if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
-    if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
-    p.nextId = cfg.timeoutNext || cfg.next || 'end';
-    p.restUntil = state.clock.day + (cfg.timeoutRestDays || 0);
-    if (cfg.id === 'yuan_duel' || cfg.id === 'gongsun_duel') {
-      st.duel.ended = true;
-      st.duel.winner = null;
-    }
-    st.targets[faction] = [];
-    delete st.priority[faction];
-    war.abortCampaign(state, faction);
-    const lines = (cfg.timeoutLines || [
-      '两年过去，' + displayLabel(cfg) + '仍未达成。',
-      '再拖下去只会把国力耗空，只能暂且收兵，把这一页翻过去。',
-    ]).slice();
-    if (peaceTo.length) lines.push('与' + peaceTo.map(factionName).join('、') + '遣使议和，两家收兵。');
-    pushStoryEvent(state, displayLabel(cfg) + ' · 逾期', lines, { tag: '战略', art: 'peace', auto: 8 });
-    logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '两年未成，自动进入下一阶段。', 'throne');
-    refreshHeadline(state);
-    return;
-  }
-  // 第一阶段（completed===0）是开局灭国战：不递停战书，也不预告下一步；
-  // 否则“与刚被灭的吕布遣使议和”会暴露曹操接下来要往关中/荆州用兵。
-  const opening = (p.completed || 0) === 0;
-  const peaceTo = opening ? [] : phasePeace(state, faction, cfg);
-  p.status = 'rest';
-  p.success = true;
-  p.timedOut = false;
-  p.completed += 1;
-  if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
-  if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
-  p.nextId = cfg.successNext || cfg.next || 'end';
-  p.restUntil = state.clock.day + (cfg.restDays || STORY.restDays);
-  st.targets[faction] = [];
-  delete st.priority[faction];
-  war.abortCampaign(state, faction);
-
-  let lines = (cfg.successLines || []).slice();
-  if (opening) {
-    // 开局阶段只留战果，不把“下一阶段：……”写进公告。
-    lines = lines.filter(function (line) {
-      return !/^(下一阶段|下一战略|下一步)/.test(String(line).trim());
-    });
-  }
-  if (peaceTo.length) {
-    lines.push('与' + peaceTo.map(factionName).join('、') + '遣使议和，两家收兵，边关鼓角暂歇。');
-  }
-  const markTitle = displayLabel(cfg) + ' · 达成';
-  if (opening) {
-    // 第一阶段只发战略结果，不弹“议和”页，也不展示下一阶段目标。
-    pushStoryEvent(state, markTitle, lines, {
-      tag: '战略',
-      auto: 8,
-    });
-  } else if (peaceTo.length) {
-    // 真正递了停战书的阶段，走议和文书：大字是战略结果，小字写清为何收兵。
-    pushPeaceEvent(state, markTitle, lines);
-  } else {
-    pushStoryEvent(state, markTitle, lines, {
-      tag: '战略',
-      art: 'peace',
-      auto: 8,
-    });
-  }
-  logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '达成。', 'throne');
-
-  if (cfg.id === 'yuan_duel' || cfg.id === 'gongsun_duel') {
-    st.duel.ended = true;
-    st.duel.winner = ok ? faction : null;
-  }
-  refreshHeadline(state);
-}
-
-function advancePhase(state, faction) {
-  const st = state.story;
-  const p = st.phases[faction];
-  if (!p) return;
-  const nextId = p.nextId;
-  if (!nextId || nextId === 'end') {
-    p.status = 'done';
-    p.id = 'done';
-    p.nextId = null;
-    st.targets[faction] = [];
-    delete st.priority[faction];
-    war.abortCampaign(state, faction);
-    refreshHeadline(state);
-    return;
-  }
-  const cfg = phaseCfg(faction, nextId);
-  if (!cfg) {
-    p.status = 'done';
-    return;
-  }
-  const oldCompleted = p.completed;
-  st.phases[faction] = freshPhase(nextId);
-  st.phases[faction].completed = oldCompleted;
-  st.targets[faction] = [];
-  refreshHeadline(state);
-  if (!canBeginPhase(state, cfg)) {
-    // 等待型阶段（如“等袁术灭亡后一个月”）保持 waiting，不递战书、不进战斗。
-    if (cfg.waitFactionDead) enterWaitPhase(state, faction, cfg);
-    return;
-  }
-  // 等待条件已经满足：直接跨过等待阶段，进入真正的下一战。
-  if (cfg.waitFactionDead) {
-    p.nextId = cfg.next || 'end';
-    p.status = 'rest';
-    p.restUntil = state.clock.day;
-    advancePhase(state, faction);
-    return;
-  }
-  startPhase(state, faction, {});
-}
-
-/** 进入“坐观成败”型等待阶段：只发一条大势文书，不向任何势力宣战。 */
-function enterWaitPhase(state, faction, cfg) {
-  const p = state.story.phases[faction];
-  if (!p) return;
-  p.status = 'waiting';
-  p.startedDay = state.clock.day;
-  p.nextId = cfg.next || null;
-  state.story.targets[faction] = [];
-  delete state.story.priority[faction];
-  if (!state.story.waitEvents) state.story.waitEvents = {};
-  if (state.story.waitEvents[faction + ':' + cfg.id]) return;
-  state.story.waitEvents[faction + ':' + cfg.id] = true;
-  pushStoryEvent(state, cfg.waitTitle || displayLabel(cfg), cfg.waitLines || [cfg.casusBelli], {
-    tag: '大势', art: 'peace', auto: 8,
-  });
-  logFn(state, '【' + factionName(faction) + '】' + displayLabel(cfg) + '，按兵不动。', 'throne');
-}
-
-function tickPhase(state, faction) {
-  const st = state.story;
-  const p = st.phases[faction];
-  if (!p || p.status === 'done') return;
-  if (factionDead(state, faction) || !factionAlive(state, faction)) {
-    p.status = 'done';
-    st.targets[faction] = [];
-    return;
-  }
-  const cfg = currentCfg(state, faction);
-
-  if (p.status === 'waiting') {
-    if (!cfg) { p.status = 'done'; return; }
-    if (p.waitingForWar) {
-      if (state.clock.day < (p.waitUntil || 0)) return;
-      p.waitingForWar = false;
-      startPhase(state, faction, { skipWait: true });
-      return;
-    }
-    if (!canBeginPhase(state, cfg)) return;
-    if (cfg.waitFactionDead) {
-      p.status = 'rest';
-      p.nextId = cfg.next || 'end';
-      p.restUntil = state.clock.day;
-      advancePhase(state, faction);
-      return;
-    }
-    // 赤壁没打成（三家缺一）时，曹操直接从“坐等赤壁”转去扫西凉，不能卡在空阶段。
-    if (cfg.waitChibi && faction === 'wei' && !st.chibiDone) {
-      beginWeiXiliang(state);
-      return;
-    }
-    startPhase(state, faction, {});
-    return;
-  }
-
-  if (p.status === 'war') {
-    if (!cfg) { p.status = 'done'; return; }
-    if (phaseDone(state, faction, cfg)) {
-      finishPhase(state, faction, true);
-      return;
-    }
-    // 两年防卡死：无论是否 noTimeout，只要玩家把阶段拖满两年，就自动跳过。
-    if (state.clock.day - (p.startedDay || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
-      finishPhase(state, faction, false);
-    }
-    return;
-  }
-
-  if (p.status === 'rest') {
-    if (state.clock.day >= p.restUntil) advancePhase(state, faction);
-    return;
-  }
-}
-
-/* ------------------------------------------------------------ 袁术称帝 */
-
-function maybeEmperor(state) {
-  const st = state.story;
-  if (!st || !st.emperor || st.emperor.declared) return;
-  if (!factionAlive(state, 'yuanshu')) return;
-  const attackers = (STORY.emperorAttackers || ['wei', 'wu']).filter(function (f) {
-    return factionAlive(state, f);
-  });
-  if (!attackers.length) return;
-  // 曹、孙各自完成第一阶段之后，再等三天，才由袁术称帝。
-  const ready = attackers.every(function (f) {
-    const p = st.phases[f];
-    return p && (p.completed || 0) >= 1;
-  });
-  if (!ready) return;
-  if (!st.emperor.pendingDay) {
-    st.emperor.pendingDay = state.clock.day + (STORY.emperorDelayDays || 3);
-    st.emperor.coalition = attackers.slice();
-    st.emperor.coalitionTarget = 'yuanshu';
-    return;
-  }
-  if (state.clock.day < st.emperor.pendingDay) return;
-  st.emperor.declared = true;
-  st.emperor.day = state.clock.day;
-
-  attackers.forEach(function (f) {
-    if (!war.atWar(state, f, 'yuanshu')) war.declare(state, f, 'yuanshu', true, true);
-    // 不抢走当前阶段的主目标：袁术只是额外加入可打清单，让一部分兵力分出去。
-    const cur = st.targets[f] || [];
-    if (cur.indexOf('yuanshu') < 0) cur.push('yuanshu');
-    st.targets[f] = cur;
-    war.abortCampaign(state, f);
-  });
-  const lines = STORY.emperor.lines.slice();
-  lines[1] = attackers.map(factionName).join('、') + '同时传檄，尽起两国兵马讨伐仲家。';
-  pushWarEvent(state, STORY.emperor.title, lines);
-  logFn(state, '袁术在寿春称帝，' + attackers.map(factionName).join('、') + '同时宣战；两国分兵攻袁术。', 'war');
-  refreshHeadline(state);
-}
-
-/* ------------------------------------------------------------ 荆州解封 */
-
-/* ------------------------------------------------------------ 赤壁史诗 */
-
-function storySite(state, id) {
-  return siteById(state.world, id);
-}
-
-/** 剧情直接换旗：保留城池建筑与基础守军，不经过围城结算。 */
-function setStorySiteOwner(state, site, faction) {
-  if (!site || !faction) return null;
-  const old = site.ownerFaction || (site.playerOwned ? 'player' : null);
-  if (old === faction && !site.playerOwned) return old;
-  site.ownerFaction = faction;
-  site.faction = faction;
-  site.playerOwned = false;
-  site.lordId = null;
-  if (FACTIONS[faction]) {
-    site.color = FACTIONS[faction].color;
-    site.banner = FACTIONS[faction].banner;
-  }
-  const base = Number(site.garrisonBase) || Number(site.garrison) || 40;
-  site.garrison = Math.max(28, Math.round(base * 0.45));
-  site.garrisonBase = site.garrison;
-  recordCapture(state, site, old, faction);
-  return old;
-}
-
-function assignStorySites(state, faction, ids) {
-  const taken = [];
-  (ids || []).forEach(function (id) {
-    const site = storySite(state, id);
-    if (!site) return;
-    const old = setStorySiteOwner(state, site, faction);
-    taken.push({ id: id, name: site.name, old: old });
-  });
-  return taken;
-}
-
-function chibiPlayerParticipated(state, site) {
-  const p = state && state.player;
-  if (!p || !site || p.faction !== 'wei') return false;
-  const x = Number(p.x);
-  const y = Number(p.y);
-  if (!isFinite(x) || !isFinite(y)) return false;
-  return Math.max(Math.abs(x - site.x), Math.abs(y - site.y)) <= 16;
-}
-
-/** 曹操南取荆州：三镇直接换曹旗，进入一个月休战。 */
-function startChibiPrelude(state) {
-  const st = state.story;
-  if (!st || st.chibi || st.jingzhou || st.endgame) return false;
-  if (!stage3Done(state)) return false;
-  const day = state.clock.day;
-  const cf = STORY.chibi || {};
-  stopMajorWars(state);
-  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
-  const taken = assignStorySites(state, 'wei', STORY.jingzhouSites);
-  const site = storySite(state, 'chibi');
-  const c = {
-    active: true,
-    phase: 'rest',
-    since: day,
-    until: day + (cf.caoRestDays || 30),
-    site: 'chibi',
-    taken: taken,
-    caoBefore: countTroops(state, 'wei'),
-    caoAfterFire: 0,
-    caoAfterBattle: 0,
-    deadLords: [],
-    split: null,
-    playerParticipated: false,
-  };
-  st.chibi = c;
-  st.chibiDone = false;
-  st.targets.wei = [];
-  const lines = (STORY.chibi && STORY.chibi.southLines || []).slice();
-  lines.push('襄阳、新野、江陵三镇已归曹操；孙刘两家退保长江以南，暂避曹军锋芒。');
-  pushStoryEvent(state, (STORY.chibi && STORY.chibi.southTitle) || '曹操南下', lines, {
-    tag: '史诗', art: 'war', auto: 10,
-  });
-  logFn(state, '曹操沿荆州南下，取襄阳、新野、江陵；三国休战一个月，准备赤壁决战。', 'war');
-  refreshHeadline(state);
-  return true;
-}
-
-/** 赤壁火攻：先烧掉曹军八成，再留三天让孙刘联军与残军对决。 */
-function beginChibiBattle(state) {
-  const st = state.story;
-  const c = st && st.chibi;
-  if (!c || c.phase !== 'rest') return false;
-  const cf = STORY.chibi || {};
-  const day = state.clock.day;
-  stopMajorWars(state);
-  war.makePeace(state, 'shu', 'wu', true);
-  war.declare(state, 'wei', 'shu', true, true);
-  war.declare(state, 'wei', 'wu', true, true);
-  st.targets.wei = ['shu', 'wu'];
-  st.targets.shu = ['wei'];
-  st.targets.wu = ['wei'];
-  c.phase = 'battle';
-  c.since = day;
-  c.until = day + (cf.battleDays || 3);
-  c.caoBefore = countTroops(state, 'wei');
-  const site = storySite(state, 'chibi');
-  c.playerParticipated = chibiPlayerParticipated(state, site);
-  let lost = 0;
-  (state.lords || []).forEach(function (l) {
-    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return;
-    const n = army.troopCount(l.troops);
-    if (n <= 0) return;
-    const cut = Math.max(0, Math.round(n * (cf.fireLossPct || 0.8)));
-    army.distributeLosses(l.troops, cut);
-    lost += cut;
-  });
-  c.fireLoss = lost;
-  c.caoAfterFire = countTroops(state, 'wei');
-  const lines = (STORY.chibi && STORY.chibi.battleLines || []).slice();
-  lines.push('火攻前曹军约 ' + c.caoBefore + ' 人，火后只剩约 ' + c.caoAfterFire + ' 人。');
-  lines.push('孙刘联军合计约 ' + (countTroops(state, 'shu') + countTroops(state, 'wu')) +
-    ' 人，沿江列阵，准备与曹军残部决战。');
-  pushStoryEvent(state, (STORY.chibi && STORY.chibi.battleTitle) || '赤壁火起', lines, {
-    tag: '史诗', art: 'war', auto: 10,
-  });
-  logFn(state, '赤壁火攻：曹军由 ' + c.caoBefore + ' 人折到 ' + c.caoAfterFire + ' 人；孙刘联军列阵决战。', 'war');
-  refreshHeadline(state);
-  return true;
-}
-
-function aliveLordCount(state, faction) {
-  return (state.lords || []).filter(function (l) {
-    return l && l.faction === faction && l.alive && !l.dead && !l.prisoner;
-  }).length;
-}
-
-function caoDeathCandidates(state, protectedIds) {
-  const rankLevel = { king: 9, lord: 7, general: 5 };
-  return (state.lords || []).filter(function (l) {
-    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return false;
-    if (l.isPlayer || protectedIds[l.id]) return false;
-    if (LORD_POWER_BY_ID[l.id]) return false; // 名将榜前 50 不上死亡名单
-    const level = Number(l.level) || rankLevel[l.rank] || 5;
-    return level <= 5;
-  }).sort(function (a, b) {
-    return (Number(a.level) || 5) - (Number(b.level) || 5) ||
-      String(a.id).localeCompare(String(b.id));
-  });
-}
-
-function killCaoLordsAtChibi(state) {
-  const c = state.story.chibi;
-  const target = Math.round((aliveLordCount(state, 'shu') + aliveLordCount(state, 'wu')) / 2);
-  const caoNow = aliveLordCount(state, 'wei');
-  const minDead = (STORY.chibi && STORY.chibi.minCaoLordsDead) || 4;
-  const candidates = caoDeathCandidates(state, {});
-  const want = Math.min(candidates.length, Math.max(0, caoNow - target, minDead));
-  const killed = [];
-  for (let i = 0; i < want && i < candidates.length; i++) {
-    const l = candidates[i];
-    l.dead = true;
-    l.alive = false;
-    l.troops = {};
-    l.prisoner = false;
-    l.inCity = null;
-    l.order = null;
-    l.defending = null;
-    l.chasing = false;
-    l.patrolPath = null;
-    l.killedAt = 'chibi';
-    l.deathDay = state.clock.day;
-    (state.world.sites || []).forEach(function (s) {
-      if (s.lordId === l.id) s.lordId = null;
-    });
-    killed.push(l.name || l.id);
-  }
-  c.deadLords = killed;
-  return killed;
-}
-
-function retreatCaoLords(state) {
-  const fallback = storySite(state, 'xuchang') || storySite(state, 'luoyang');
-  (state.lords || []).forEach(function (l) {
-    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner || l.isPlayer) return;
-    l.order = null;
-    l.defending = null;
-    l.chasing = false;
-    l.hunting = false;
-    l.fleeing = false;
-    l.wander = null;
-    l.patrolPath = null;
-    l.patrolLoop = null;
-    const home = storySite(state, l.home);
-    const safe = home && (home.ownerFaction === 'wei' || (home.playerOwned && state.player.faction === 'wei'))
-      ? home : fallback;
-    if (safe) {
-      l.inCity = safe.id;
-      l.x = safe.x;
-      l.y = safe.y;
-    }
-  });
-}
-
-/** 曹军退到一成，低阶曹将战死；孙刘分荆州，进入半个月休战。 */
-function resolveChibiBattle(state) {
-  const st = state.story;
-  const c = st && st.chibi;
-  if (!c || c.phase !== 'battle') return false;
-  const cf = STORY.chibi || {};
-  const day = state.clock.day;
-  const remainTarget = Math.max(0, Math.round((c.caoBefore || 0) * (cf.caoRemainPct || 0.1)));
-  const current = countTroops(state, 'wei');
-  if (current > remainTarget) {
-    let left = current - remainTarget;
-    const total = current;
-    (state.lords || []).forEach(function (l) {
-      if (left <= 0) return;
-      if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return;
-      const n = army.troopCount(l.troops);
-      if (n <= 0) return;
-      const cut = Math.min(left, n, Math.max(0, Math.round((current - remainTarget) * n / total)));
-      army.distributeLosses(l.troops, cut);
-      left -= cut;
-    });
-  }
-  c.caoAfterBattle = countTroops(state, 'wei');
-  const killed = killCaoLordsAtChibi(state);
-  retreatCaoLords(state);
-  const shuAlive = factionAlive(state, 'shu');
-  const wuAlive = factionAlive(state, 'wu');
-  let split = { shu: [], wu: [] };
-  if (shuAlive && wuAlive) {
-    split.shu = ['xiangyang', 'xinye'];
-    split.wu = ['jiangling'];
-  } else if (shuAlive) {
-    split.shu = STORY.jingzhouSites.slice();
-  } else if (wuAlive) {
-    split.wu = STORY.jingzhouSites.slice();
-  }
-  if (split.shu.length) assignStorySites(state, 'shu', split.shu);
-  if (split.wu.length) assignStorySites(state, 'wu', split.wu);
-  c.split = split;
-  stopMajorWars(state);
-  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
-  c.phase = 'aftermath';
-  c.since = day;
-  c.until = day + (cf.aftermathRestDays || 60);
-  const lines = (STORY.chibi && STORY.chibi.aftermathLines || []).slice();
-  if (killed.length) lines.push('战死曹将：' + killed.join('、') + '。');
-  else lines.push('这一战没有低阶曹将战死，曹军残部退回北方。');
-  if (c.playerParticipated) lines.push('你随曹军参加赤壁，乱军中杀出重围，没有被写死。');
-  lines.push('曹操残部北撤，孙刘分荆州；半个月内不再开战。');
-  pushStoryEvent(state, (STORY.chibi && STORY.chibi.aftermathTitle) || '曹操败走', lines, {
-    tag: '史诗', art: 'war', auto: 10,
-  });
-  logFn(state, '赤壁决战：曹军余 ' + c.caoAfterBattle + ' 人，曹操北逃；低阶曹将战死 ' +
-    killed.length + ' 人；孙刘分荆州，休战半个月。', 'war');
-  refreshHeadline(state);
-  return true;
-}
-
-function maybeChibi(state) {
-  const st = state.story;
-  if (!st || st.chibiDone || st.jingzhou || st.endgame) return false;
-  if (st.chibi) {
-    tickChibi(state);
-    return true;
-  }
-  if (!stage3Done(state)) return false;
-  if (!STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
-  const last = Math.max.apply(null, STORY.kingdoms.map(function (f) { return st.stage3Done[f] || 0; }));
-  if (state.clock.day < last + (STORY.jingzhouUnlockRestDays || 30)) return false;
-  return startChibiPrelude(state);
-}
-
-function tickChibi(state) {
-  const st = state.story;
-  const c = st && st.chibi;
-  if (!c || c.done) return false;
-  if (c.phase === 'rest' && state.clock.day >= (c.until || 0)) {
-    beginChibiBattle(state);
-    return true;
-  }
-  if (c.phase === 'battle' && state.clock.day >= (c.until || 0)) {
-    resolveChibiBattle(state);
-    return true;
-  }
-  if (c.phase === 'aftermath' && state.clock.day >= (c.until || 0)) {
-    c.phase = 'done';
-    c.done = true;
-    c.active = false;
-    st.chibiDone = true;
-    pushStoryEvent(state, (STORY.chibi && STORY.chibi.finalTitle) || '赤壁余烬',
-      (STORY.chibi && STORY.chibi.finalLines) || [
-        '赤壁火灭，曹操北归，孙刘分荆州。',
-        '半个月后，荆州三镇再次成为三家必争之地。',
-      ], { tag: '史诗', art: 'peace', auto: 9 });
-    logFn(state, '赤壁余烬：孙刘分荆州，休战半个月后开启荆州十轮争霸。', 'war');
-    beginWeiXiliang(state);
-    refreshHeadline(state);
-    return true;
-  }
-  return false;
-}
-
-/** 赤壁之后：曹操回头扫西凉；若马腾韩遂已亡，直接记完成，不空等十五天。 */
-function beginWeiXiliang(state) {
-  const st = state.story;
-  if (!st || st.endgame || st.jingzhou || st.xiliangDone) return false;
-  if (!factionAlive(state, 'wei')) return false;
-  const targets = ['ma', 'hansui'].filter(function (f) { return factionAlive(state, f); });
-  const p = st.phases.wei;
-  if (!targets.length) {
-    st.xiliangDone = true;
-    // 西凉已经没人可打：直接把魏国阶段推到荆州，别让标题停在“坐等赤壁”。
-    if (p && p.id === 'wei_sworn') {
-      st.phases.wei = freshPhase('wei_jingzhou');
-      st.phases.wei.completed = p.completed || 0;
-      st.targets.wei = [];
-    }
-    return false;
-  }
-  if (!p || p.id === 'wei_xiliang' || p.id === 'wei_jingzhou') return false;
-  const completed = p.completed || 0;
-  st.phases.wei = freshPhase('wei_xiliang');
-  st.phases.wei.completed = completed;
-  st.targets.wei = [];
-  startPhase(state, 'wei', {});
-  return true;
-}
-
-function maybeJingzhou(state) {
-  const st = state.story;
-  if (!st || st.endgame || st.jingzhouDone || st.jingzhou) return false;
-  // 赤壁史诗必须先走完；旧档已经进入荆州循环的，不会被新层覆盖。
-  if (!st.chibiDone) return false;
-  // 曹操赤壁败后要先休整半个月、扫平马腾韩遂，西凉未定就不进荆州。
-  if (factionAlive(state, 'wei') && !st.xiliangDone) {
-    beginWeiXiliang(state);
-    if (!st.xiliangDone) return false;
-  }
-  if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
-  if (!STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
-  return startJingzhou(state);
-}
-
-/* ------------------------------------------------------------ 边缘诸部 */
-
-/** 大国第一阶段都打完后，边缘诸部才开始互相攻伐；只打与本土道路相邻的城。 */
-function maybeEdgeWars(state) {
-  const st = state.story;
-  if (!st || st.edgeWarsDeclared) return;
-  const firstDone = STORY.majors.every(function (f) {
-    const p = st.phases[f];
-    return p && (p.completed || 0) >= 1;
-  });
-  if (!firstDone || state.clock.day < (STORY.edgeWarDay || 0)) return;
-  const edge = (STORY.edgeFactions || []).filter(function (f) { return factionAlive(state, f); });
-  if (edge.length < 2) return;
-  st.edgeWarsDeclared = true;
-  const declared = [];
-  for (let i = 0; i < edge.length; i++) {
-    for (let j = i + 1; j < edge.length; j++) {
-      const a = edge[i];
-      const b = edge[j];
-      if (a === 'nanman' && b === 'shanyue') continue;
-      if (!war.atWar(state, a, b)) {
-        if (war.declare(state, a, b, true, true)) declared.push([a, b]);
-      }
-    }
-  }
-  pushStoryEvent(state, '边地烽烟', [
-    '魏、蜀、吴的第一阶段已告一段落，中原暂时收刀，边缘诸部却开始互相吞并。',
-    '鲜卑、西凉、韩遂、南蛮、南越各自只打与本土道路直接相邻的城池，不肯远征。',
-    '南蛮与南越仍在牂牁、交趾一线死战，谁递议和书都不接。',
-  ], { tag: '大势', art: 'war', auto: 8 });
-  logFn(state, '边缘诸部开始互相攻伐；南蛮与南越永不停战。', 'war');
-  refreshHeadline(state);
-}
-
-/* ------------------------------------------------------------ 荆州争霸：十轮循环 */
-
-function kingdomAlive(state, f) { return factionAlive(state, f); }
-
-function stage3Done(state) {
-  const st = state.story;
-  if (!st || !STORY.kingdoms) return false;
-  return STORY.kingdoms.every(function (f) {
-    return !!(st.stage3Done && st.stage3Done[f]);
-  });
-}
-
-function holderOfJingzhou(state) {
-  const sites = (state.story.jingzhou && state.story.jingzhou.sites) || STORY.jingzhouSites || [];
-  return STORY.kingdoms.filter(function (f) {
-    return sites.length && allSitesOwned(state, f, sites);
-  })[0] || null;
-}
-
-function strongestKingdom(state, except) {
-  const list = STORY.kingdoms.filter(function (f) {
-    return factionAlive(state, f) && (!except || except.indexOf(f) < 0);
-  });
-  list.sort(function (a, b) { return powerOf(state, b) - powerOf(state, a); });
-  return list[0] || null;
-}
-
-function jingzhouAllies(state, strong) {
-  return STORY.kingdoms.filter(function (f) {
-    return f !== strong && factionAlive(state, f);
-  });
-}
-
-function stopMajorWars(state) {
-  STORY.kingdoms.forEach(function (a) {
-    STORY.kingdoms.forEach(function (b) {
-      if (a < b) war.makePeace(state, a, b, true);
-    });
-    war.abortCampaign(state, a);
-  });
-}
-
-function startJingzhou(state) {
-  const st = state.story;
-  if (!st || st.endgame) return false;
-  if (!STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
-  st.jingzhou = {
-    active: true,
-    sites: STORY.jingzhouSites.slice(),
-    cycle: 1,
-    since: state.clock.day,
-    until: state.clock.day + 120,
-    winner: null,
-    strong: null,
-  };
-  st.jingzhouFocus = STORY.jingzhouSites.slice();
-  st.endgame = {
-    active: true,
-    phase: 'battle',
-    cycle: 1,
-    since: state.clock.day,
-    until: st.jingzhou.until,
-    strongest: null,
-    allies: [],
-    initialCities: {},
-    final: false,
-  };
-  st.kingdomsAllAtWar = true;
-  if (!st.targetRegion) st.targetRegion = {};
-  // 第一轮：三家互相开战，谁先占尽三镇谁就是霸主。
-  STORY.kingdoms.forEach(function (a) {
-    STORY.kingdoms.forEach(function (b) {
-      if (a < b) war.declare(state, a, b, true, true);
-    });
-    st.targets[a] = STORY.kingdoms.filter(function (x) { return x !== a; });
-    st.targetRegion[a] = null;
-    war.abortCampaign(state, a);
-  });
-  pushStoryEvent(state, STORY.jingzhou.title, STORY.jingzhou.lines, { tag: '会战', art: 'war', auto: 9 });
-  logFn(state, '三家会盟荆州：襄阳、新野、江陵三镇开战。', 'war');
-  refreshHeadline(state);
-  return true;
-}
-
-function beginJingzhouCycle(state) {
-  const st = state.story;
-  const eg = st.endgame;
-  const king = eg.strongest;
-  const allies = eg.allies && eg.allies.length ? eg.allies.slice() : jingzhouAllies(state, king);
-  const round = eg.cycle || 1;
-  if (round >= (STORY.jingzhouMaxCycles || 10)) {
-    beginFinalJingzhou(state);
-    return;
-  }
-  eg.cycle = round + 1;
-  eg.phase = 'battle';
-  eg.since = state.clock.day;
-  eg.until = state.clock.day + 120;
-  st.jingzhou.active = true;
-  st.jingzhou.cycle = eg.cycle;
-  st.jingzhou.until = eg.until;
-  st.jingzhou.winner = null;
-  // 结盟者彼此停战，只合力打霸主；霸主则同时打两家。
-  if (allies.length >= 2) war.makePeace(state, allies[0], allies[1], true);
-  [king].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
-  if (king) {
-    st.targets[king] = allies.slice();
-    allies.forEach(function (a) {
-      if (!war.atWar(state, a, king)) war.declare(state, a, king, true, true);
-      st.targets[a] = [king];
-    });
-  } else {
-    STORY.kingdoms.forEach(function (a) {
-      st.targets[a] = STORY.kingdoms.filter(function (b) { return b !== a; });
-      STORY.kingdoms.forEach(function (b) {
-        if (a < b) war.declare(state, a, b, true, true);
-      });
-    });
-  }
-  pushStoryEvent(state, STORY.jingzhou.cycleTitle, [
-    '第' + eg.cycle + '轮荆州争霸开始。',
-    king ? (factionName(king) + '占着荆州三镇，' + allies.map(factionName).join('、') + '结盟来攻。') : '荆州三镇暂无霸主，三家继续混战。',
-    king ? '曹刘在汉中到长安、洛阳一线开战；刘孙在夷陵、江陵、长沙、武陵开战；曹孙在合肥、庐江、寿春开战。' : '三军混战，谁先占尽三镇，谁就是新的霸主。',
-  ], { tag: '会战', art: 'war', auto: 9 });
-  logFn(state, '荆州第' + eg.cycle + '轮：' + (king ? allies.map(factionName).join('、') + '合攻' + factionName(king) : '三家混战'), 'war');
-  refreshHeadline(state);
-}
-
-function beginFinalJingzhou(state) {
-  const st = state.story;
-  const eg = st.endgame;
-  eg.phase = 'final';
-  eg.final = true;
-  eg.since = state.clock.day;
-  eg.until = 0;
-  st.jingzhou.active = false;
-  st.jingzhou.final = true;
-  st.jingzhouDone = true;
-  stopMajorWars(state);
-  const strong = eg.strongest;
-  const allies = eg.allies || [];
-  // 第十轮霸主：基础 +20% 募兵已在 endgame.strongest 上生效；
-  // 额外 +50% 杀敌只给蜀、吴，曹操夺冠不享受这项红利。
-  if (strong && strong !== 'wei') {
-    if (!FACTION_COMBAT[strong]) FACTION_COMBAT[strong] = { power: 1 };
-    FACTION_COMBAT[strong].killMul = STORY.jingzhouKillMul || 1.5;
-    st.jingzhouKillBonus = strong;
-  } else {
-    st.jingzhouKillBonus = null;
-  }
-  // 第 10 轮不再停战：霸主与联盟不死不休。
-  if (strong) {
-    [strong].concat(allies).forEach(function (f) { war.abortCampaign(state, f); });
-    st.targets[strong] = allies.slice();
-    allies.forEach(function (a) {
-      if (!war.atWar(state, a, strong)) war.declare(state, a, strong, true, true);
-      st.targets[a] = [strong];
-    });
-    if (allies.length >= 2) war.makePeace(state, allies[0], allies[1], true);
-  } else {
-    STORY.kingdoms.forEach(function (a) {
-      st.targets[a] = STORY.kingdoms.filter(function (b) { return b !== a; });
-      STORY.kingdoms.forEach(function (b) {
-        if (a < b) war.declare(state, a, b, true, true);
-      });
-    });
-  }
-  const finalLines = (STORY.jingzhou && STORY.jingzhou.finalLines || []).slice();
-  if (strong && strong !== 'wei') {
-    finalLines.push(factionName(strong) + '夺得第十轮荆州，杀敌效率额外 +50%。');
-  } else if (strong) {
-    finalLines.push(factionName(strong) + '夺得第十轮荆州；曹操不享受额外 +50% 杀敌。');
-  }
-  pushStoryEvent(state, STORY.jingzhou.finalTitle, finalLines, { tag: '会战', art: 'war', auto: 9 });
-  logFn(state, '第十轮荆州争霸：不再停战，霸主与联盟不死不休。', 'war');
-  if (strong && strong !== 'wei') logFn(state, factionName(strong) + '获得第十轮荆州额外杀敌 +50%。', 'war');
-  refreshHeadline(state);
-}
-
-/** 小国最后一块城多挨着谁，就并给谁；没有相邻大国时归当前最强的一家。 */
-function nearestKingdomFor(state, faction) {
-  const mine = citiesOf(state, faction).map(function (s) { return s.id; });
-  let best = null;
-  let bestScore = 0;
-  STORY.kingdoms.forEach(function (k) {
-    if (!factionAlive(state, k)) return;
-    const theirs = citiesOf(state, k);
-    let score = 0;
-    mine.forEach(function (a) {
-      theirs.forEach(function (b) {
-        if (siteAdjacent(a, b.id)) score += 1;
-      });
-    });
-    if (score > bestScore) {
-      bestScore = score;
-      best = k;
-    }
-  });
-  return best || strongestKingdom(state);
-}
-
-/**
- * 三国乱战的停战期：还挂着旧旗的小国由邻近的魏蜀吴吞并，
- * 君主退隐、残部并入胜方，避免十轮荆州打到一半还有第三方在边上捡城。
- */
-function sweepMinorFactions(state) {
-  const st = state.story;
-  if (!st || !st.endgame) return [];
-  const minor = Object.keys(FACTIONS).filter(function (id) {
-    if (id === 'bandit' || id === 'player' || id === 'rebel') return false;
-    if (STORY.kingdoms.indexOf(id) >= 0) return false;
-    return factionAlive(state, id);
-  });
-  const swept = [];
-  minor.forEach(function (id) {
-    const to = nearestKingdomFor(state, id);
-    if (!to) return;
-    const sites = citiesOf(state, id);
-    sites.forEach(function (site) { setStorySiteOwner(state, site, to); });
-    Object.keys(FACTIONS).forEach(function (other) {
-      if (other !== id && other !== 'bandit') war.makePeace(state, id, other, true);
-    });
-    war.abortCampaign(state, id);
-    if (state.storyHooks && state.storyHooks.fallFaction) {
-      state.storyHooks.fallFaction(state, id, { silent: true });
-    } else {
-      const fs = state.factionState[id] || (state.factionState[id] = {});
-      fs.dead = true;
-      fs.deadDay = state.clock.day;
-    }
-    swept.push({ id: id, name: factionName(id), to: to, sites: sites.length });
-  });
-  if (!swept.length) return swept;
-  const detail = swept.slice(0, 4).map(function (x) {
-    return x.name + '并入' + factionName(x.to);
-  }).join('；');
-  pushStoryEvent(state, '三国定鼎', [
-    '荆州休战，魏、蜀、吴三家回头把地图上还挂着旧旗的小国一并收了。',
-    detail + (swept.length > 4 ? '；其余小国也望风归降。' : '。'),
-    '从此天下只剩三家，荆州三镇便是最后的战场。',
-  ], { tag: '大势', art: 'peace', auto: 9 });
-  logFn(state, '荆州停战：' + detail + '，天下只剩魏蜀吴三家。', 'throne');
-  refreshHeadline(state);
-  return swept;
-}
-
-function endJingzhouRound(state, winner) {
-  const st = state.story;
-  const eg = st.endgame;
-  if (!eg || eg.phase !== 'battle') return;
-  const holder = winner || holderOfJingzhou(state);
-  const strong = holder || eg.strongest || strongestKingdom(state);
-  eg.strongest = strong;
-  eg.allies = jingzhouAllies(state, strong);
-  eg.phase = 'rest';
-  eg.since = state.clock.day;
-  eg.until = state.clock.day + (STORY.jingzhouCycleRestDays || 30);
-  st.jingzhou.active = false;
-  st.jingzhou.winner = holder;
-  st.jingzhou.strong = strong;
-  st.jingzhou.until = eg.until;
-  stopMajorWars(state);
-  STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
-  if (!eg.cycle) eg.cycle = 1;
-  if (eg.cycle >= (STORY.jingzhouMaxCycles || 10)) {
-    beginFinalJingzhou(state);
-    return;
-  }
-  // 停战期先把还活着的小国收掉，再发本轮荆州文书。
-  sweepMinorFactions(state);
-  const lines = holder ? [
-    factionName(holder) + '占尽襄阳、新野、江陵，成为新一轮霸主。',
-    '全国募兵效率 +20%；另外两国立刻结盟，停战一个月。',
-    '一个月后，两家联盟会从汉中、夷陵、合肥三个方向同时来攻。',
-  ] : [
-    '这一轮谁也没能独吞荆州三镇。',
-    strongestKingdom(state) ? (factionName(strong) + '兵势最盛，被另外两家视为霸主。') : '三家各自收兵。',
-    '休整一个月，再战荆州。',
-  ];
-  pushStoryEvent(state, holder ? '荆州霸主：' + factionName(holder) : '荆州休战', lines, { tag: '会战', art: 'peace', auto: 9 });
-  logFn(state, holder ? '荆州霸主：' + factionName(holder) + '，全国募兵 +20%。' : '荆州休战一个月。', 'war');
-  refreshHeadline(state);
-}
-
-function tickJingzhou(state) {
-  const st = state.story;
-  if (!st || !st.jingzhou || !st.jingzhou.active) return;
-  const holder = holderOfJingzhou(state);
-  if (holder) { endJingzhouRound(state, holder); return; }
-  if (state.clock.day >= (st.jingzhou.until || 0)) endJingzhouRound(state, null);
-}
-
-/** 最终阶段（第十轮后不死不休）也会被玩家拖住；满两年强制推举共主，进入统一背叛。 */
-function forceEndgameUnification(state) {
-  const eg = state.story.endgame;
-  if (!eg || eg.forced) return false;
-  const alive = STORY.kingdoms.filter(function (f) { return factionAlive(state, f); });
-  const winner = (eg.strongest && alive.indexOf(eg.strongest) >= 0 ? eg.strongest : null)
-    || strongestKingdom(state) || alive[0];
-  if (!winner) return false;
-  (state.world.sites || []).forEach(function (s) {
-    if (s.id === 'edge_town') return;
-    if (s.type !== 'town' && s.type !== 'castle') return;
-    s.ownerFaction = winner;
-    s.faction = winner;
-    s.playerOwned = false;
-  });
-  eg.forced = true;
-  eg.forcedWinner = winner;
-  eg.forcedDay = state.clock.day;
-  pushStoryEvent(state, STORY.unification ? STORY.unification.forceTitle || '天下易主' : '天下易主', [
-    '荆州十轮打了两年，最后一座城仍悬而未决。',
-    '各地军头不愿再耗，合推' + factionName(winner) + '为共主，望风归降。',
-    '旧旗一夜之间换了颜色；接下来，就该轮到那场全国背叛了。',
-  ], { tag: '终局', art: 'war', auto: 9 });
-  logFn(state, '两年僵持结束：' + factionName(winner) + '被推为共主，天下归旗。', 'war');
-  refreshHeadline(state);
-  return true;
-}
-
-function tickEndgame(state) {
-  const st = state.story;
-  const eg = st.endgame;
-  if (!eg || !eg.active) return;
-  if (eg.phase === 'battle') {
-    // 只用还活着的国家判断；若只剩一家，交给统一流程。
-    if (STORY.kingdoms.filter(function (f) { return factionAlive(state, f); }).length <= 1) return;
-    tickJingzhou(state);
-    return;
-  }
-  if (eg.phase === 'rest') {
-    if (state.clock.day >= (eg.until || 0)) beginJingzhouCycle(state);
-    return;
-  }
-  if (eg.phase === 'final') {
-    // 第十轮后没有下一阶段，玩家若靠守城拖住，两年后强制推举共主。
-    if (!eg.forced && state.clock.day - (eg.since || state.clock.day) >= (STORY.phaseDeadlineDays || 720)) {
-      forceEndgameUnification(state);
-      return;
-    }
-    const alive = STORY.kingdoms.filter(function (f) { return factionAlive(state, f); });
-    if (alive.length <= 1) return;
-    const strong = eg.strongest && factionAlive(state, eg.strongest) ? eg.strongest : null;
-    if (!strong) {
-      // 霸主已灭：联盟因分赃不均立刻反目，直到只剩最后一国。
-      eg.allies = alive.slice();
-      STORY.kingdoms.forEach(function (a) {
-        if (!factionAlive(state, a)) return;
-        st.targets[a] = alive.filter(function (b) { return b !== a; });
-        alive.forEach(function (b) {
-          if (a < b && !war.atWar(state, a, b)) war.declare(state, a, b, true, true);
-        });
-      });
-    }
-    return;
-  }
-}
-
-/** 兼容旧导出：旧“乱国循环”的入口等价于新的荆州争霸。 */
-function startEndgame(state) {
-  return startJingzhou(state);
-}
-
-function beginGang(state) { return startJingzhou(state); }
-function beginTwoStrong(state) { return beginJingzhouCycle(state); }
-function beginTripleRest(state) { return beginFinalJingzhou(state); }
-function endJingzhou(state, winner) { return endJingzhouRound(state, winner); }
-
-/* ------------------------------------------------------------ 灭国归属 *//* ------------------------------------------------------------ 灭国归属 */
-
-function recordCapture(state, site, oldFaction, byFaction) {
-  const st = state.story;
-  if (!st || !site || !oldFaction || oldFaction === byFaction) return;
-  if (st.passive[oldFaction]) {
-    if (!st.retake[oldFaction]) st.retake[oldFaction] = [];
-    if (st.retake[oldFaction].indexOf(site.id) < 0) st.retake[oldFaction].push(site.id);
-  }
-  if (st.retake[byFaction]) {
-    const i = st.retake[byFaction].indexOf(site.id);
-    if (i >= 0) st.retake[byFaction].splice(i, 1);
-  }
-  const fs = state.factionState && state.factionState[oldFaction];
-  if (fs) {
-    const left = citiesOf(state, oldFaction).length;
-    if (!left) {
-      fs.lastConqueror = byFaction || null;
-      fs.lastCityId = site.id;
-      fs.lastLossDay = state.clock.day;
-    }
-  }
-  const fsBy = state.factionState && state.factionState[byFaction];
-  if (fsBy && citiesOf(state, byFaction).length > 0) fsBy.lastConqueror = null;
-
-  // 官渡之后：只有配置仍压低袁军时，才触发“大军溃散”的战况文书。
-  const yuanPenaltyPower = Number(STORY.yuanWeakPower);
-  if (st.yuanWeak && isFinite(yuanPenaltyPower) && yuanPenaltyPower < 0.999 &&
-      factionAlive(state, 'yuan') && oldFaction === 'yuan' &&
-      byFaction === 'wei' && !st.yuanBattleLost) {
-    st.yuanBattleLost = true;
-    state.lords.forEach(function (l) {
-      if (l.faction === 'yuan' && l.alive && !l.dead) l.morale = Math.min(l.morale || 70, 70);
-    });
-    pushStoryEvent(state, '官渡败讯', [
-      '官渡前线溃散，袁绍的河北大军丢下粮车与旌旗，退回黄河北岸。',
-      '袁绍不听田丰、沮授之言，斩将换令，军中人人自危。',
-      '从此袁军士气低迷，对碰只剩八成；这支部队要一直撑到曹操把袁氏灭亡。',
-    ], { tag: '大势', art: 'war', auto: 8 });
-    logFn(state, '官渡败讯：袁绍军心涣散，对碰系数保持 0.8，直到袁氏灭亡。', 'war');
-    refreshHeadline(state);
-  }
-}
-
-/* ------------------------------------------------------------ 主循环 */
-
-function refreshHeadline(state) {
-  const st = state.story;
-  if (!st) return;
-  const parts = [];
-  // 荆州开打后，三国主线阶段已全部让位；不再显示“扫平西凉/坐等赤壁”这类旧标签。
-  if (!(st.jingzhou && st.jingzhou.active)) {
-    STORY.majors.forEach(function (f) {
-      const p = st.phases[f];
-      if (!p) return;
-      if (p.status === 'done') return;
-      const cfg = currentCfg(state, f);
-      if (p.status === 'rest') {
-        parts.push(FACTIONS[f].name + '：休整');
-      } else if (cfg) {
-        parts.push(FACTIONS[f].name + '：' + (cfg.short || cfg.label));
-      }
-    });
-  }
-  if (!st.duel.ended && factionAlive(state, 'yuan') && factionAlive(state, 'gongsun')) {
-    parts.push('袁绍·公孙瓒：不死不休');
-  }
-  if (st.emperor && st.emperor.declared && factionAlive(state, 'yuanshu')) {
-    parts.push('袁术：仲家称帝');
-  }
-  const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
-  if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
-  if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
-  if (st.chibi && !st.chibi.done) {
-    parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
-  }
-  if (st.jingzhou && st.jingzhou.active) parts.push('荆州：三家会战');
-  if (st.endgame && st.endgame.active) parts.push('乱国：三国循环');
-  st.headline = parts.join(' · ');
-}
-
-function tick(state) {
-  const st = state.story;
-  if (!state || !st || !st.mode) return;
-  st.day = state.clock.day;
-  applyYuanCombat(state, !!st.yuanWeak);
-  yuanMoraleTick(state);
-  if (state.gameOver) return;
-  if (st.sandbox && st.openingPending) {
-    const due = st.openingEventDay || STORY.openingEventDay || 3;
-    if (state.clock.day >= due) beginOpeningWars(state);
-  }
-  maybeOpeningEvent(state);
-
-  maybeEmperor(state);
-  maybeEdgeWars(state);
-  if (st.endgame && st.endgame.active) {
-    tickEndgame(state);
-    refreshHeadline(state);
-    return;
-  }
-  maybeChibi(state);
-  if (st.chibiDone) beginWeiXiliang(state);
-  enforceStrategicBlockers(state);
-  maybeJingzhou(state);
-  if (st.endgame && st.endgame.active) {
-    tickEndgame(state);
-    refreshHeadline(state);
-    return;
-  }
-  Object.keys(st.phases).forEach(function (f) {
-    tickPhase(state, f);
-  });
-  refreshHeadline(state);
-}
-
-module.exports = {
-  init, resume, tick, refreshHeadline, recordCapture, bindLogger, resetCombat,
-  isPassive, hasStory, siteAdjacent, factionAlive, factionDead, recruitRate,
-  startEndgame, startPhase, beginGang, beginTwoStrong, beginTripleRest,
-  maybeEmperor, maybeChibi, maybeJingzhou, endJingzhou,
-  _private: {
-    phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, eventLines, displayLabel,
-    findBlockingFactions, startChibiPrelude, beginChibiBattle, resolveChibiBattle,
-    startJingzhou, beginFinalJingzhou, sweepMinorFactions, beginWeiXiliang,
-  },
-};
-
-  };
-
   /* js/data/bios.js */
-  __defs[20] = function (module, exports, __require) {
+  __defs[17] = function (module, exports, __require) {
 /**
  * 领主生平：按史实写，一人三四句，讲清来处、功业、下场。
  * 史书只留一行的人（吕旷、吕翔之类），就照实写"记载极少"，不硬编。
@@ -12653,7 +8519,6 @@ const {
   createWorld,
   siteFromRow,
   layRoads,
-  clearRoads,
   ensureWorldFeatures,
   findPath,
   siteById,
@@ -12662,8 +8527,6 @@ const {
   addHours,
   gridDistance,
   isPassable,
-  edgeTownDistance,
-  edgeTownBlocked,
   regionAt,
   inBanditExclusion,
 } = __require(8);
@@ -12672,24 +8535,19 @@ const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
 const war = __require(15);
-const story = __require(18);
 const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
-  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS, FACTION_ROSTER_MUL,
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
   BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
 } = __require(12);
-const { LORD_BIOS } = __require(20);
-const { LORD_POWER_BY_ID, MARSHAL_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL, roleInfoFor, commandCapFor } = __require(17);
+const { LORD_BIOS } = __require(17);
 
 const HOUR_SECONDS = 0.26; // 1 游戏小时 = 0.26 真实秒
 const NPC_STEP_HOURS = 3;
-/** 马超固定归蜀：天下动起来后第 12 天，只要人还在凉州，就带本部南下投刘备。 */
-const MA_CHAO_TO_SHU_DAY = 12;
 /** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
 const LORD_STEP_HOURS = 6;
 // 同一格连续两个行军步（12 时辰）还走不动，就判定为卡点，换一个可达目的地。
@@ -12710,12 +8568,6 @@ const LORD_BANDIT_HUNT_RATIO = 1.25;
 const LORD_BANDIT_HUNT_GAP = 4;
 /** 领主只在身边三格内主动清匪；更远的匪团不追，避免全图领主排着队追一支匪。 */
 const LORD_BANDIT_HUNT_RANGE = 3;
-/** 兵力低于满编三分之二就认为需要回城；募到三分之二以上才允许再出城。 */
-const LORD_RECOVERY_RATIO = 2 / 3;
-/** 领主在十五格内优先找恢复最快的城，而不是机械地回最近的本城。 */
-const LORD_RECOVERY_SEARCH_RANGE = 15;
-/** 行军/巡逻途中路过据点只按两成速度补兵；驻城或驻在村口才算完整恢复。 */
-const LORD_PATROL_RECRUIT_RATIO = 0.2;
 /** 匪团与领主交战至少撑满六个时辰，不能被一刀秒掉。 */
 const BANDIT_MIN_BATTLE_HOURS = 6;
 const LORD_FLEE_OWN_MAX = 30;
@@ -12784,7 +8636,6 @@ function reconcileFactionRulers(state) {
       FACTIONS[id].banner = fs.rulerName.charAt(0);
     }
   });
-  if (Array.isArray(state.lords)) applyLordRoles(state);
 }
 
 /** 玩家那面旗在数据里的默认样子：没立国时仍是“你的旗” */
@@ -12902,23 +8753,10 @@ function pushLog(state, text, kind) {
 /* ---------------------------------------------------------------- 初始化 */
 
 function createGame(opts) {
-  story.resetCombat();
   resetFactionRulers();
   const seed = (opts && opts.seed) || (Date.now() % 2147483647);
   const rng = new RNG(seed);
   const world = createWorld(seed);
-  // 两个游戏背景：乱世三国是旧版群雄混战，三国演义保留史实开局人事，
-  // 但不再强制推进主线阶段；是否启用剧情状态机由显式 storyMode 决定。
-  const background = (opts && opts.background) ||
-    ((opts && opts.storyMode) ? 'romance' : 'chaos');
-  const storyMode = (opts && typeof opts.storyMode === 'boolean')
-    ? opts.storyMode
-    : background === 'romance';
-  const historicalRoster = background === 'romance';
-  // 三国演义改成史实沙盘后不再跑十二章主线；乱世三国仍保留旧战役链。
-  const campaignDisabled = historicalRoster && !storyMode;
-  // 史实沙盘：玩家没有主线章节，但天下仍按史实阶段递战书。
-  const historicalSandbox = historicalRoster && !storyMode;
 
   world.sites.forEach(function (site) {
     let h = 0;
@@ -12939,7 +8777,7 @@ function createGame(opts) {
     // 领主招兵走另一口锅：和玩家的招募池分开，互不抢人
     site.lordRecruits = {};
     if (site.type === 'town' || site.type === 'castle' || site.type === 'village') {
-      const lcap = economy.LORD_RECRUIT_CAP[site.type] || 0;
+      const lcap = site.type === 'village' ? 2 : 4;
       (site.recruitList || []).forEach(function (id, i) {
         site.lordRecruits[id] = (h + i * 7) % (lcap + 1);
       });
@@ -12998,12 +8836,6 @@ function createGame(opts) {
   const state = {
     version: SAVE_VERSION,
     seed,
-    background,
-    historicalRoster,
-    campaignDisabled,
-    historicalSandbox,
-    storyMode,
-    story: null,
     clock: { day: 1, hour: 5 },
     world,
     player,
@@ -13028,13 +8860,11 @@ function createGame(opts) {
     rng,
     questSeq: 1,
     partySeq: 1,
-    fieldBattleSeq: 1,
     battle: null,
     playerSiege: null,
     foodWarning: null,
     postBattleLord: null,
     killRecords: {},
-    strategistUsed: {},
     noPeaceForever: {},
     peaceOfferCooldown: {},
     peaceOfferPending: null,
@@ -13052,44 +8882,24 @@ function createGame(opts) {
     },
   };
 
-  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   syncPlayerFaction(null);
   spawnLords(state);
   autoAssignFiefs(state);
   heroes.resolveHeroSites(state);
   spawnBanditParties(state, BANDIT_START_COUNT);
-  // 史实沙盘没有主线章节，追兵也就不该跟来：开局直接往东走。
-  if (!historicalSandbox) spawnChaseParty(state, spawn);
+  spawnChaseParty(state, spawn);
   state.parties.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
   state.lords.forEach(function (u, i) { u.npcSlot = i % NPC_SLOT_COUNT; });
   war.init(state);
   war.bindLogger(pushLog);
-  war.bindCaptureHook(story.recordCapture);
-  story.resume(state, pushLog);
   war.bindPassable(isPassable);
   war.bindFleeGuard(lordMayFlee);
   war.bindMovement(stepUnitTo, unitOccupies, siteAt);
   warmPatrolFields(state);
 
-  if (historicalSandbox) {
-    pushLog(state, '洛阳城破了。你只带出九个人，往东走。');
-    pushLog(state, '这一局没有写好的下一章；到陈留落脚，第三天起天下自己往前演。');
-  } else {
-    pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
-    if (state.campaignDisabled) {
-      pushLog(state, '这一局没有写好的下一章；到陈留落脚，天下会自己往前演。');
-    } else {
-      pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
-    }
-  }
-  if (!state.campaignDisabled) {
-    state.events.push({ type: 'chapter', chapterId: __require(5).CAMPAIGN[0].id });
-  }
-  // 剧情模式：各国按历史阶段递战书；普通模式保持原来的随机天下。
-  // 史实沙盘不再启动剧情状态机，只保留上面的史实人事。
-  story.bindLogger(pushLog);
-  war.bindCaptureHook(story.recordCapture);
-  story.init(state, pushLog);
+  pushLog(state, '洛阳城破了。你只带出九个人，往东走，身后是西凉步卒。');
+  pushLog(state, '别回头。跑到陈留，还能剩几个跟你。');
+  state.events.push({ type: 'chapter', chapterId: __require(5).CAMPAIGN[0].id });
   return state;
 }
 
@@ -13322,13 +9132,11 @@ function lordFromDef(state, def) {
     y: spot.y,
     troops: deepCopy(def.soldiers),
     morale: def.morale,
-    baseMorale: def.morale,
     sight: def.sight,
     chasing: false,
     alive: true,
     respawnDay: 0,
     defTroops: deepCopy(def.soldiers),
-    strategistOnly: !!def.strategistOnly,
     wander: null,
     dead: false,
     retired: false,
@@ -13337,102 +9145,12 @@ function lordFromDef(state, def) {
     resting: false,
     scattered: false,
     scatterUntilH: 0,
-    scatterHomeId: null,
-    scatterCityId: null,
-    scatterRecovering: false,
-    scatterHidden: false,
   };
-}
-
-
-/** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
-function stageGuandu(state) {
-  const guandu = siteById(state.world, 'guandu');
-  if (!guandu) return false;
-  ['wei', 'yuan'].forEach(function (faction, sideIndex) {
-    const lords = state.lords.filter(function (l) {
-      return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
-    });
-    lords.forEach(function (lord, i) {
-      lord.troops = deepCopy(lord.defTroops || lord.troops || {});
-      // 官渡不再削袁绍士气：袁军按初始正常士气列阵，曹军仍以逸待劳。
-      lord.morale = faction === 'yuan'
-        ? (Number(lord.baseMorale) || Number(lord.defMorale) || 78)
-        : 92;
-      lord.inCity = null;
-      lord.resting = false;
-      lord.defending = null;
-      lord.order = null;
-      lord.chasing = false;
-      lord.engagedWith = null;
-      lord.engagedSinceH = null;
-      lord.enteringSiteId = null;
-      lord.cityEnterAtH = null;
-      lord.routePath = null;
-      lord.routePathFor = null;
-      lord.orderPath = null;
-      lord.patrolPath = null;
-      lord.wander = null;
-      lord.stepFrom = null;
-      lord.stepTo = null;
-      lord.stepStartH = null;
-      lord.stepHours = null;
-      lord.nextMoveH = 0;
-      const side = faction === 'yuan' ? -1 : 1;
-      const anchor = {
-        x: guandu.x + ((i % 5) - 2) * 2,
-        y: guandu.y + side * (6 + Math.floor(i / 5) * 2),
-      };
-      const spot = findFreeSpotNear(state, anchor.x, anchor.y, 6, lord) ||
-        findFreeSpotNear(state, guandu.x, guandu.y, 12, lord);
-      if (spot) {
-        lord.x = spot.x;
-        lord.y = spot.y;
-        lord.prevX = spot.x;
-        lord.prevY = spot.y;
-      }
-    });
-  });
-
-  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
-  if (state.fieldBattles && state.fieldBattles.some(function (bf) {
-    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  })) return true;
-  const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
-  const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
-  if (caocao && yuanshao && war.createFieldBattle) {
-    war.createFieldBattle(state,
-      { kind: 'lord', id: caocao.id },
-      { kind: 'lord', id: yuanshao.id },
-      { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
-  }
-  return true;
 }
 
 function spawnLords(state) {
   const { LORDS } = __require(5);
-  const { STORY } = __require(19);
-  let defs = LORDS;
-  if (state.storyMode || state.historicalRoster) {
-    // 三国演义专属人事：吕布、刘表、刘璋削减领主；魏蜀吴补入新人。
-    // 无主线模式也保留这套史实人事，只是不再启动战略阶段。
-    const cuts = STORY.lordCuts || {};
-    defs = defs.filter(function (def) {
-      const drop = cuts[def.faction] || [];
-      return drop.indexOf(def.id) < 0;
-    });
-    defs = defs.concat(STORY.lordAdds || []);
-  }
-  state.lords = defs.map(function (def) { return lordFromDef(state, def); });
-  applyLordRoles(state);
-  applyLordTier4Rule(state);
-  applyLordPowerRoster(state);
-  applyFactionRosterCap(state);
-  if (state.flags) {
-    state.flags.lordTier4V1 = true;
-    state.flags.lordWeiCapV1 = true;
-    state.flags.lordRolesV1 = true;
-  }
+  state.lords = LORDS.map(function (def) { return lordFromDef(state, def); });
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -14215,78 +9933,6 @@ function maybeStartDiplomacy(state) {
   return true;
 }
 
-/**
- * 马超固定归蜀：到第 12 天，若他还在马腾旗下、没有被困在牢里或战场上，
- * 就带本部投刘备。凉州剩下的人由韩遂去收拾，这条线不再靠随机灭国。
- */
-function ensureMaChaoToShu(state) {
-  if (!state || !state.flags) return false;
-  if (state.flags.machaoToShuDone) return false;
-  if (state.clock.day < MA_CHAO_TO_SHU_DAY) return false;
-  const mc = (state.lords || []).filter(function (l) { return l.id === 'machao'; })[0];
-  if (!mc || mc.dead || !mc.alive) {
-    state.flags.machaoToShuDone = true;
-    return false;
-  }
-  if (mc.faction === 'shu') {
-    state.flags.machaoToShuDone = true;
-    return false;
-  }
-  if (mc.faction !== 'ma') return false;
-  if (mc.prisoner || mc.fieldBattleId) return false;
-  if ((state.factionState.shu || {}).dead || (state.factionState.ma || {}).dead) return false;
-  moveLordToFaction(state, mc, 'shu');
-  // 马超已经不在凉军里，旧战役名单里的人要撤掉，免得他继续替马家攻城。
-  if (state.warCampaigns && state.warCampaigns.ma) war.abortCampaign(state, 'ma');
-  state.flags.machaoToShuDone = true;
-  pushLog(state, '马超带着西凉铁骑离开武威，南下投了刘备；凉州军心从此散了一半。', 'war');
-  return true;
-}
-
-/**
- * 武威破后三天：只让陇西献城，居延仍留马家旗。
- * 马腾韩遂不互相灭国：最后一座城沿用现有的保城判定，不额外加新机制。
- */
-function resolveMaSurrender(state) {
-  if (!state || !state.flags || !state.flags.maSurrenderDay) return false;
-  if (state.clock.day < state.flags.maSurrenderDay) return false;
-  if ((state.factionState.ma || {}).dead) {
-    state.flags.maSurrenderDone = true;
-    state.flags.maSurrenderDay = 0;
-    return false;
-  }
-  if ((state.factionState.hansui || {}).dead) return false;
-  const fac = FACTIONS.hansui;
-  const sites = (state.world.sites || []).filter(function (s) {
-    return s.ownerFaction === 'ma' && !s.playerOwned;
-  });
-  if (!sites.length) {
-    fallFaction(state, 'ma');
-    state.flags.maSurrenderDone = true;
-    state.flags.maSurrenderDay = 0;
-    return true;
-  }
-  // 优先留一座城（居延），村庄可以献；如果只剩村庄，就留最后一座。
-  let keep = sites.filter(function (s) { return s.type === 'town' || s.type === 'castle'; })[0] ||
-    sites[sites.length - 1];
-  sites.forEach(function (s) {
-    if (s === keep) return;
-    s.ownerFaction = 'hansui';
-    s.faction = 'hansui';
-    s.color = fac.color;
-    s.banner = fac.banner;
-    s.lordId = null;
-    s.selfFief = false;
-  });
-  const yielded = sites.filter(function (s) { return s !== keep; })
-    .map(function (s) { return s.name; }).join('、');
-  state.flags.maSurrenderDone = true;
-  state.flags.maSurrenderDay = 0;
-  pushLog(state, (yielded ? yielded + '开城，' : '') + keep.name +
-    '仍留马家旗；韩遂收兵，不灭马家。', 'war');
-  return true;
-}
-
 function dailyTick(state) {
   state.stats.days += 1;
   const p = state.player;
@@ -14346,14 +9992,10 @@ function dailyTick(state) {
   campRespawnTick(state);
   banditRespawnTick(state);
   refillBandits(state);
-  // 剧情战略：阶段目标、宣战/议和文书、袁术称帝与三国循环
-  story.tick(state);
   // 国战：谁跟谁翻了脸；牢里的人熬过一天
   war.diplomacyTick(state);
   war.peaceOfferTick(state);
   war.prisonerTick(state);
-  // 马超归蜀这条线先走：他走了以后韩遂再动凉州，才是“马家被灭”的顺序。
-  ensureMaChaoToShu(state);
   // 国战 AI：各家的集结、开拔、围城与守城，一天只做一次决策
   if (war.strategyTick) war.strategyTick(state);
   // 领主重生（关在牢里的不算，等着被赎、被救或自己跑）
@@ -14371,8 +10013,6 @@ function dailyTick(state) {
       pushLog(state, lord.name + '重新聚起了部曲。');
     }
   });
-  // 0 兵打散的领主：三天期满后悄悄到募兵最快的城，从零开始招募
-  scatteredLordTick(state);
 
   // 领主在自己的城镇/村庄招兵：用独立的领主兵源池，和玩家招募互不冲突
   lordRestTick(state);
@@ -14390,12 +10030,8 @@ function dailyTick(state) {
   }
 
   // 灭国：城丢光、人也没了，七天倒计时
-  resolveMaSurrender(state);
   factionTick(state);
-  // 玩家效忠的势力（包括 NPC 主公）打完全部要点，也要在这里触发统一背叛。
-  if (!state.arc) checkVictory(state);
   // 统一之后的长夜：三十天大旱 / 再统一
-  edgeFogTick(state);
   arcTick(state);
   // 玩家在陈留歇满一天，诸侯才开始互相宣战
   maybeStartDiplomacy(state);
@@ -14535,9 +10171,7 @@ function adjacentEnemy(state, x, y) {
   if (isSafeResting(state)) return null;
   let best = null;
   const nowH = gameHours(state);
-  const all = state.parties.concat(state.lords.filter(function (l) {
-    return l.alive && !l.scattered && !l.scatterHidden;
-  }));
+  const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   all.forEach(function (unit) {
     if (!isHostileFaction(state, unit.faction)) return;
     if (!canFight(state, unit.id)) return;
@@ -14555,9 +10189,7 @@ function checkPursuit(state) {
   // 人在城里/关隘歇着，外面的人找不到你；在村庄躲着不算，追兵照样能摸进来
   if (isSafeResting(state)) return;
   const nowH = gameHours(state);
-  const all = state.parties.concat(state.lords.filter(function (l) {
-    return l.alive && !l.scattered && !l.scatterHidden;
-  }));
+  const all = state.parties.concat(state.lords.filter(function (l) { return l.alive; }));
   for (let i = 0; i < all.length; i++) {
     const unit = all[i];
     if (!isHostileFaction(state, unit.faction)) continue;
@@ -14662,7 +10294,7 @@ function breakTail(state, unitId, kind) {
   let best = null;
   let bestD = 1e9;
   state.lords.forEach(function (l) {
-    if (!l.alive || l.inCity || l.prisoner || l.scattered || l.scatterHidden) return;
+    if (!l.alive || l.inCity || l.prisoner) return;
     const d = Math.max(Math.abs(l.x - unit.x), Math.abs(l.y - unit.y));
     if (d <= range && d < bestD) {
       bestD = d;
@@ -14860,8 +10492,6 @@ function releaseStuckBanditEngagements(state) {
     if (bad) {
       party.engagedWith = null;
       party.engagedSinceH = null;
-      party.scuffle = Math.max(party.scuffle || 0, 3);
-      party.pauseUntil = Math.max(party.pauseUntil || 0, nowH + 3);
       if (lord) clearLordEngagement(state, lord, 3);
     }
   });
@@ -15223,110 +10853,6 @@ function siteFriendlyToLord(state, lord, site) {
   return !war.atWar(state, lord.faction, site.ownerFaction);
 }
 
-/**
- * 据点募兵倍率：都城 2 倍、要地 1.5 倍、普通城 1 倍、村庄 0.5 倍。
- * 都城优先于要地：襄阳这种“既是都城又是要地”的城按 2 倍算。
- */
-function siteRecoveryMultiplier(site) {
-  if (!site) return 0;
-  if (CAPITAL_IDS.indexOf(site.id) >= 0) return 2;
-  if (STRATEGIC_SITES[site.id]) return 1.5;
-  if (site.type === 'town' || site.type === 'castle') return 1;
-  if (site.type === 'village') return 0.5;
-  return 0;
-}
-
-/** 领主在某个据点每天补兵的实际比例；行军/巡逻途中只按两成。 */
-function lordRecoveryRate(state, lord, site, stationary) {
-  const mult = siteRecoveryMultiplier(site);
-  if (!mult) return 0;
-  const base = story.recruitRate(state, lord && lord.faction);
-  return base * mult * lordRecruitMul(lord) * (stationary ? 1 : LORD_PATROL_RECRUIT_RATIO);
-}
-
-/**
- * 十五格内恢复最快的本方/友军城。先比恢复倍率，再比距离；
- * 正在被敌军围攻的城不作为首选，避免领主一头撞进围城战场。
- */
-function bestRecoveryCity(state, lord, maxDist) {
-  const range = maxDist || LORD_RECOVERY_SEARCH_RANGE;
-  let best = null;
-  (state.world.sites || []).forEach(function (site) {
-    if (site.type !== 'town' && site.type !== 'castle') return;
-    if (!siteFriendlyToLord(state, lord, site)) return;
-    const d = gridDistance(lord, site);
-    if (d > range) return;
-    const besieged = !!(site.siegeStatus && site.siegeFaction &&
-      war.atWar(state, lord.faction, site.siegeFaction));
-    if (besieged && best && !best.besieged) return;
-    const mult = siteRecoveryMultiplier(site);
-    if (!best || mult > best.mult || (mult === best.mult && d < best.d) ||
-        (mult === best.mult && d === best.d && !besieged && best.besieged)) {
-      best = { site: site, d: d, mult: mult, besieged: besieged };
-    }
-  });
-  return best;
-}
-
-/** 打散后落脚的城：全图募兵最快的本方/友军城，不限十五格。 */
-function fastestRecoveryCity(state, lord) {
-  const all = (state.world.sites || []).filter(function (s) {
-    return (s.type === 'town' || s.type === 'castle') && siteFriendlyToLord(state, lord, s);
-  });
-  let best = null;
-  all.forEach(function (site) {
-    const mult = siteRecoveryMultiplier(site);
-    const d = gridDistance(lord, site);
-    const besieged = !!(site.siegeStatus && site.siegeFaction &&
-      war.atWar(state, lord.faction, site.siegeFaction));
-    if (!best || mult > best.mult || (mult === best.mult && d < best.d) ||
-        (mult === best.mult && d === best.d && !besieged && best.besieged)) {
-      best = { site: site, d: d, mult: mult, besieged: besieged };
-    }
-  });
-  return best;
-}
-
-/** 城是否正被敌军/玩家围攻：用于打散领主“哪怕没招满也可以出城”的唯一例外。 */
-function siteUnderAttack(state, lord, site) {
-  if (!site) return false;
-  if (state.playerSiege && state.playerSiege.siteId === site.id) return true;
-  if (site.siegeStatus && site.siegeFaction &&
-      war.atWar(state, lord.faction, site.siegeFaction)) return true;
-  return Object.keys(state.warCampaigns || {}).some(function (faction) {
-    const cp = state.warCampaigns[faction];
-    return cp && cp.targetId === site.id && (cp.stage === 'siege' || cp.stage === 'assault') &&
-      war.atWar(state, lord.faction, faction);
-  });
-}
-
-/** 打散后的本土落点：优先原封地/家乡，丢了就找本势力最近的城，再退到村。 */
-function scatteredHomeSite(state, lord) {
-  if (!state || !lord) return null;
-  const sites = state.world && state.world.sites ? state.world.sites : [];
-  function own(site) {
-    if (!site) return false;
-    if (lord.faction === 'player') return !!site.playerOwned;
-    return site.ownerFaction === lord.faction;
-  }
-  const want = siteById(state.world, lord.scatterHomeId || lord.home);
-  if (own(want)) return want;
-  let best = null;
-  let bestD = 999;
-  sites.forEach(function (s) {
-    if (!own(s) || (s.type !== 'town' && s.type !== 'castle')) return;
-    const d = gridDistance(lord, s);
-    if (d < bestD) { bestD = d; best = s; }
-  });
-  if (best) return best;
-  sites.forEach(function (s) {
-    if (!own(s) || s.type !== 'village') return;
-    const d = gridDistance(lord, s);
-    if (d < bestD) { bestD = d; best = s; }
-  });
-  return best;
-}
-
 /** 离领主最近的、能进去歇脚的友好城镇。优先城/关，府里能看到人。 */
 function nearestFriendlySite(state, lord, maxDist) {
   const sites = state.world.sites.filter(function (s) {
@@ -15374,8 +10900,6 @@ function enterLordCity(state, lord, site) {
   lord.enteringSiteId = null;
   lord.cityEnterAtH = null;
   lord.orderDetourTarget = null;
-  // 进城不清补兵目标：到了目标城就守住这个选择，别一进门又嫌别处更快，
-  // 再次出城，形成 A—B—A 的来回跑。
   pushLog(state, lord.name + '带人进了' + site.name + '，旗卷起来，歇在城里。');
   return true;
 }
@@ -15404,18 +10928,9 @@ function beginLordCityEntry(state, lord, site, hours) {
 
 function leaveLordCity(state, lord, reason) {
   const site = siteById(state.world, lord.inCity);
-  const wasHidden = !!lord.scatterHidden;
-  if (!site) {
-    lord.inCity = null;
-    lord.resting = false;
-    lord.scatterRecovering = false;
-    lord.scatterHidden = false;
-    return;
-  }
+  if (!site) { lord.inCity = null; lord.resting = false; return; }
   lord.inCity = null;
   lord.resting = false;
-  lord.scatterRecovering = false;
-  lord.scatterHidden = false;
   lord.chasing = false;
   lord.hunting = false;
   lord.fleeing = false;
@@ -15431,64 +10946,33 @@ function leaveLordCity(state, lord, reason) {
   lord.routePath = null;
   lord.routePathFor = null;
   lord.patrolPath = null;
-  lord.recoveryTargetId = null;
   // 出城只挪到城边一格，并按一步 6 时辰做插值；
   // 不做“从城中心直接闪到三格外的空地”。
-  // 同城几位领主一起出城时，贴身一圈可能全被友军占住；这时往两格、三格外找，
-  // 绝不能退回城中心——否则下一拍又被判成“踩在城中心”，当场收旗进城，形成出出进进。
-  const spot = findFreeSpotNear(state, site.x, site.y, 1, lord) ||
-    findFreeSpotNear(state, site.x, site.y, 2, lord) ||
-    findFreeSpotNear(state, site.x, site.y, 3, lord);
+  const spot = findFreeSpotNear(state, site.x, site.y, 1, lord);
   if (!spot) {
-    // 三圈都满了：这次先留在城里，等有空位再出，不要假装出城又立刻回城。
-    lord.inCity = site.id;
-    lord.resting = true;
+    lord.x = site.x;
+    lord.y = site.y;
     lord.nextMoveH = gameHours(state) + 1;
     return;
   }
   const nowH = gameHours(state);
   stepUnitTo(state, lord, spot, LORD_STEP_HOURS, { x: site.x, y: site.y });
   lord.nextMoveH = nowH + LORD_STEP_HOURS;
-  if (reason && !wasHidden) pushLog(state, lord.name + '从' + site.name + '里出来，重新竖起旗。');
-}
-
-/** 每天检查打散的队伍：三天期满后悄悄送到募兵最快的城，从零开始收兵。 */
-function scatteredLordTick(state) {
-  const day = state.clock.day;
-  state.lords.forEach(function (lord) {
-    if (!lord.alive || lord.prisoner || !lord.scattered) return;
-    if (day < (lord.respawnDay || 999999)) return;
-    const target = fastestRecoveryCity(state, lord);
-    if (!target || !target.site) return; // 本方已经没有可募兵的城，等换旗/灭国逻辑处理
-    const site = target.site;
-    lord.scattered = false;
-    lord.scatterUntilH = 0;
-    lord.respawnDay = 0;
-    lord.scatterCityId = site.id;
-    lord.x = site.x;
-    lord.y = site.y;
-    lord.inCity = site.id;
-    lord.scatterRecovering = true;
-    // 三天招兵期间对玩家完全不可见：不画地图模型，不进城池领主列表，也不发战报。
-    lord.scatterHidden = true;
-    lord.troops = {};
-    lord.resting = true;
-    lord.nextMoveH = gameHours(state);
-    lord.fleeing = false;
-    lord.chasing = false;
-    lord.hunting = false;
-    lord.order = null;
-    lord.defending = null;
-  });
+  if (reason) pushLog(state, lord.name + '从' + site.name + '里出来，重新竖起旗。');
 }
 
 /** 每天让停在城里、城下等候或村口歇脚的领主补一点兵；兵源与玩家分开 */
 function lordRecruitTick(state) {
+  const nowH = gameHours(state);
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner) return;
-    // 打散的队伍由 scatteredLordTick 统一送回最快的城，三天后从零招募；
-    // 在别处等待期间不能靠“就近友城”提前补兵。逃窜（≥1 兵）不在此列。
-    if (lord.scattered) return;
+    // 被打散的队伍要先收拢残部：三天（72 时辰）内不能招募。
+    // 逃窜（还有至少 1 兵）不受这条限制，进城即可补兵。
+    if (lord.scattered) {
+      if (nowH < (lord.scatterUntilH || 0)) return;
+      lord.scattered = false;
+      lord.scatterUntilH = 0;
+    }
     let site = lord.inCity ? siteById(state.world, lord.inCity) : null;
     if (!site) {
       // 城外等候、村口歇脚也能招兵：只要模型贴着自家/友军的据点。
@@ -15501,63 +10985,17 @@ function lordRecruitTick(state) {
     if (!site) return;
     if (lord.inCity && (site.type !== 'town' && site.type !== 'castle')) return;
     if (!siteFriendlyToLord(state, lord, site)) return;
-    // 榜单领主按榜单 cap 满编；刘备作为入川主帅也按等级上限保持满编，
-    // 其余普通领主仍以自身编制为满员目标，不能因等级上限高于编制而卡在城里招不满。
-    const full = (lordPowerInfo(lord) || lord.id === 'liubei')
-      ? lordTroopCap(lord)
-      : Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
     const now = army.troopCount(lord.troops || {});
     if (full <= 0 || now >= full) return;
-    // 驻城/驻在村口按据点倍率补兵；行军巡逻路过只按两成。
-    const stationary = !!lord.inCity ||
-      (!!lord.resting && Math.max(Math.abs(site.x - lord.x), Math.abs(site.y - lord.y)) <= 1);
-    const rate = lordRecoveryRate(state, lord, site, stationary);
-    const quota = Math.max(1, Math.round((full - now) * rate));
+    const quota = Math.max(1, Math.min(lord.inCity ? 8 : 6, Math.round((full - now) * 0.12)));
     recruitLordFromSite(state, lord, site, quota);
   });
-}
-
-/** 复国阶段的叛军巡逻：自己城优先，其次无人巡逻，再其次人最少，满五进首都。 */
-function rebelPatrolSite(state, lord) {
-  const sites = (state.world.sites || []).filter(function (s) {
-    return (s.type === 'town' || s.type === 'castle') && s.ownerFaction === 'rebel';
-  });
-  if (!sites.length) return null;
-  const counts = {};
-  (state.lords || []).forEach(function (l) {
-    if (!l || l === lord || !l.alive || l.dead || l.faction !== 'rebel') return;
-    if (l.patrolSiteId) counts[l.patrolSiteId] = (counts[l.patrolSiteId] || 0) + 1;
-  });
-  const home = siteById(state.world, lord.home);
-  if (home && home.ownerFaction === 'rebel' && (counts[home.id] || 0) < 5) {
-    lord.patrolSiteId = home.id;
-    return home;
-  }
-  const empty = sites.filter(function (s) { return !counts[s.id]; });
-  if (empty.length) {
-    empty.sort(function (a, b) { return (b.garrisonBase || 0) - (a.garrisonBase || 0); });
-    lord.patrolSiteId = empty[0].id;
-    return empty[0];
-  }
-  const least = sites.slice().sort(function (a, b) {
-    return (counts[a.id] || 0) - (counts[b.id] || 0) || (b.garrisonBase || 0) - (a.garrisonBase || 0);
-  })[0];
-  if (least && (counts[least.id] || 0) < 5) {
-    lord.patrolSiteId = least.id;
-    return least;
-  }
-  // 全国每座城都已满五名领主：进首都。
-  const capital = siteById(state.world, 'luoyang') || siteById(state.world, 'ye') || sites[0];
-  if (capital) lord.patrolSiteId = capital.id;
-  return capital;
 }
 
 /** 每名领主先选一处主城当巡逻锚点，再按 id 排独立的三城路线 */
 function patrolSiteFor(state, lord) {
   if (!lord) return null;
-  if (lord.faction === 'rebel' && state.arc && state.arc.phase === 'reconquest') {
-    return rebelPatrolSite(state, lord);
-  }
   const sites = state.world.sites || [];
   const fief = sites.filter(function (s) { return s.lordId === lord.id; })[0];
   if (fief) return fief;
@@ -15602,12 +11040,6 @@ function patrolRouteFor(state, lord) {
   if (!lord) return [];
   const anchor = patrolSiteFor(state, lord);
   if (!anchor) return [];
-  // 巡逻锚点换了城，旧的三城路线就作废，否则会一直绕回老城。
-  if (Array.isArray(lord.patrolRouteIds) && lord.patrolRouteIds.length &&
-      lord.patrolRouteIds[0] !== anchor.id) {
-    lord.patrolRouteIds = null;
-    lord.patrolIdx = null;
-  }
 
   const cities = (state.world.sites || []).filter(function (s) {
     if (s.type !== 'town' && s.type !== 'castle') return false;
@@ -15890,34 +11322,24 @@ function lordRestTick(state) {
       return;
     }
     // 有军令（集结 / 围城 / 守城）就出城；但兵太少时先留在城里招兵，不跟着去送。
-    // 榜单领主按榜单 cap 满编；普通领主仍按原编制判定低兵。
-    const full = (lordPowerInfo(lord) || lord.id === 'liubei')
-      ? lordTroopCap(lord)
-      : Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
+    const full = Math.min(army.troopCount(lord.defTroops || {}), lordTroopCap(lord));
     const now = army.troopCount(lord.troops || {});
-    const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
+    const low = now <= Math.max(6, Math.round(full * 0.65));
     if (lord.order && lord.order.siteId) {
-      if (low) {
-        // 兵还没补到三分之二：不管军令是集结还是去守别城，都先留在城里补人。
-        // 以前守城令会让他带四十人出城，下一拍又被“门口这座城”吸回来，
-        // 于是整座城的领主一起出出进进。
-        if (lord.order.type !== 'defend') {
-          lord.order = null;
-          lord.defending = null;
-        }
-        return;
-      }
-      if (lord.order.hold && lord.order.siteId === lord.inCity) {
+      if (low && lord.order.type !== 'defend') {
+        lord.order = null;
+        lord.defending = null;
+      } else if (lord.order.hold && lord.order.siteId === lord.inCity) {
         // 守城令就在本城：留在城里补兵，不算抗令
         return;
+      } else {
+        leaveLordCity(state, lord, '军令到了');
+        return;
       }
-      leaveLordCity(state, lord, '军令到了');
-      return;
     }
     // 兵少时优先招兵，不出去巡逻
     if (low) return;
-    if (full > 0 && now >= Math.max(1, Math.ceil(full * LORD_RECOVERY_RATIO)) &&
-        state.rng.next() < 0.5) {
+    if (full > 0 && now >= Math.max(1, Math.round(full * 0.85)) && state.rng.next() < 0.5) {
       leaveLordCity(state, lord);
       // 出城后从自己的巡逻路线接上；同一座城每次换一条郊外路线，
       // 只有一座城的领主也能沿本城路线走动，不会没有 wander 卡在城里。
@@ -16208,17 +11630,8 @@ function lordMayFlee(state, lord) {
 function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   const p = state.player;
   const sight = Math.max(3, lord.sight || 5);
-  const arcReconquest = !!(state.arc && state.arc.phase === 'reconquest');
-  const arcEdge = state.world && state.world.edgeTown && state.world.edgeTown.id;
-  // 复国阶段：全国叛军都盯着主角，主角在边陲小镇十格内时才回去巡逻。
-  if (arcReconquest && lord.faction === 'rebel' && p.atSiteId !== arcEdge) {
-    return {
-      role: 'hunt',
-      target: { kind: 'player', unit: p, count: threatCount(p), d: gridDistance(lord, p), name: p.name || '你' },
-    };
-  }
-  // 敌军领主另算视野：复国阶段的叛军会跨州追着主角封的领主打。
-  const foeSight = arcReconquest && lord.faction === 'rebel' ? 9999 : Math.max(sight, LORD_FOE_SIGHT);
+  // 敌军领主另算视野：同一条战线上的旗号，隔着十几格也该认得出。
+  const foeSight = Math.max(sight, LORD_FOE_SIGHT);
   const own = threatCount(lord);
   const candidates = [];
 
@@ -16233,8 +11646,7 @@ function lordThreatFor(state, lord, isOwnCountry, paidOff) {
   (state.lords || []).forEach(function (other) {
     if (!other || other === lord || !other.alive || other.dead || other.retired) return;
     if (other.inCity || other.prisoner || other.engagedWith) return;
-    if (!other.faction || other.faction === lord.faction) return;
-    if (other.faction === 'player' && !arcReconquest) return;
+    if (!other.faction || other.faction === lord.faction || other.faction === 'player') return;
     if (!war.atWar(state, lord.faction, other.faction)) return;
     const d = gridDistance(lord, other);
     if (d > foeSight) return;
@@ -16562,20 +11974,6 @@ function moveLords(state, slot) {
     if (lord.fieldBattleId) return;
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
-    // 非玩家单位误入边陲小镇十格：不让他继续走，直接送回本城。
-    if (lord.faction !== 'player' && !lord.inCity && edgeTownBlocked(state.world, lord.x, lord.y)) {
-      const home = siteById(state.world, lord.home);
-      if (home && home.ownerFaction === lord.faction) {
-        lord.inCity = home.id;
-        lord.x = home.x;
-        lord.y = home.y;
-        lord.stepFrom = null;
-        lord.stepTo = null;
-        lord.routePath = null;
-        lord.order = null;
-      }
-      return;
-    }
 
     // 已经走到城中心、这一步也走完了：现在才收旗进城。
     if (lord.enteringSiteId && lord.cityEnterAtH && nowH >= lord.cityEnterAtH) {
@@ -16636,67 +12034,26 @@ function moveLords(state, slot) {
       lord.order && lord.order.siteId === 'jiange' &&
       state.warCampaigns && state.warCampaigns.shu &&
       state.warCampaigns.shu.targetId === 'jiange');
-    // 打散的队伍从大地图上彻底消失，不接军令、不赶路，等三天期满由
-    // scatteredLordTick 悄悄送到募兵最快的城重新开始。
-    if (lord.scattered) {
-      lord.order = null;
-      lord.defending = null;
-      lord.fleeing = false;
-      lord.chasing = false;
-      lord.hunting = false;
-      lord.scatterHidden = true;
-      return;
-    }
     // 在城里歇脚：旗收起来，大地图上先不画他；有军令才出城
     if (lord.inCity) {
       const city = siteById(state.world, lord.inCity);
       if (!city || !siteFriendlyToLord(state, lord, city)) {
         leaveLordCity(state, lord);
         return;
-      }
-      // 打散后从零募兵：招到 2/3 以前不出城，城池被围攻才提前出城追击。
-      if (lord.scatterRecovering) {
-        if (siteUnderAttack(state, lord, city)) {
-          lord.scatterRecovering = false;
-          lord.scatterHidden = false;
-          leaveLordCity(state, lord, '本城遇袭');
-        }
-        return;
-      }
-      const full = army.troopCount(lord.defTroops || {});
-      const now = army.troopCount(lord.troops || {});
-      const low = now < Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO));
-      // 已经在城里但城不是十五格内恢复最快的：趁低兵转往更快的城。
-      if (low && full > 0 && !siteUnderAttack(state, lord, city) &&
-          lord.recoveryTargetId !== city.id) {
-        const best = bestRecoveryCity(state, lord, LORD_RECOVERY_SEARCH_RANGE);
-        if (best && best.site.id !== city.id) {
-          leaveLordCity(state, lord, '转往' + best.site.name + '补兵');
-          // 记住这次转城目标：否则刚出城门又被“门口这座城”吸回去，
-          // 领主会在城门口反复出城/进城，正是玩家看到的怪循环。
-          lord.recoveryTargetId = best.site.id;
-          return;
-        }
-      }
-      if (!low) lord.recoveryTargetId = null;
-      if (lord.order && lord.order.siteId && !lord.order.hold &&
-          (yiRush || now >= Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO)))) {
+      } else if (lord.order && lord.order.siteId && !lord.order.hold &&
+          (yiRush || army.troopCount(lord.troops || {}) > Math.max(6, Math.round(army.troopCount(lord.defTroops || {}) * 0.65)))) {
         leaveLordCity(state, lord, '军令到了');
         return;
-      }
-      // 复国阶段：叛军不能一直缩在城里，要出城按“自己城/无人城/最少人/首都”巡。
-      if (lord.faction === 'rebel' && state.arc && state.arc.phase === 'reconquest') {
-        leaveLordCity(state, lord, '出城巡视');
+      } else {
         return;
       }
-      return;
     }
     const paidOff = !!(lord.payoffUntil && nowH < lord.payoffUntil);
     const home = siteById(state.world, lord.home);
     const nowCount = army.troopCount(lord.troops || {});
     const fullCount = army.troopCount(lord.defTroops || {});
-    // 掉到满编三分之二以下先回城补人：不然开局玩家能把名将一个个捡走
-    const needRest = nowCount < Math.max(6, Math.ceil(fullCount * LORD_RECOVERY_RATIO));
+    // 掉到六成五以下先回城补人：不然开局玩家能把名将一个个捡走
+    const needRest = nowCount <= Math.max(6, Math.round(fullCount * 0.65));
     // 兵太少就不再执行集结/围城军令；守城令可以留着，但到城后先补兵。
     if (needRest && lord.order && lord.order.type !== 'defend' && !yiRush) {
       lord.order = null;
@@ -16784,23 +12141,8 @@ function moveLords(state, slot) {
       }
       lord.resting = true;
     } else if (needRest) {
-      // 兵力不到三分之二：已经在城门口就先进城，不再为了“更快的城”绕路；
-      // 离城较远时，在十五格内找恢复最快的本方/友军城，找不到再退回最近的本城。
-      // 但如果刚从某城出来、正转往更好的补兵城，就不能被门口的原城重新吸回去。
-      let recoverySite = siteById(state.world, lord.recoveryTargetId);
-      if (recoverySite && (!siteFriendlyToLord(state, lord, recoverySite) ||
-          siteUnderAttack(state, lord, recoverySite))) {
-        lord.recoveryTargetId = null;
-        recoverySite = null;
-      }
-      const gate = recoverySite ? null : (state.world.sites || []).filter(function (s) {
-        if (s.type !== 'town' && s.type !== 'castle') return false;
-        if (Math.max(Math.abs(s.x - lord.x), Math.abs(s.y - lord.y)) > 1) return false;
-        return siteFriendlyToLord(state, lord, s);
-      })[0];
-      const best = recoverySite ? { site: recoverySite } :
-        (gate ? { site: gate } : bestRecoveryCity(state, lord, LORD_RECOVERY_SEARCH_RANGE));
-      const rest = best || fleeSiteFor(state, lord);
+      // 兵力掉到六成五以下：回自己的城，或就近进友军城休整、补兵
+      const rest = fleeSiteFor(state, lord);
       const restingSite = rest && rest.site;
       if (restingSite) {
         target = { x: restingSite.x, y: restingSite.y, siteId: restingSite.id };
@@ -17044,9 +12386,6 @@ function fightNeighbors(state) {
   state.parties.forEach(function (party) {
     if (party.faction !== 'bandit') return;
     if (army.troopCount(party.troops) <= 0) return;
-    // 刚解除幽灵缠斗/撤退余惊还没过：这一拍不能再立刻贴上去。
-    if (party.pauseUntil && nowH < party.pauseUntil) return;
-    if (party.scuffle && party.scuffle > 0) return;
     // 玩家刚接的猎匪任务：五天内 NPC 领主不能把这支目标打散，玩家能赶到。
     if (questProtectedParty(state, party)) {
       if (party.engagedWith) {
@@ -17059,7 +12398,7 @@ function fightNeighbors(state) {
     let lord = null;
     if (party.engagedWith) {
       lord = state.lords.filter(function (l) { return l.id === party.engagedWith; })[0];
-      if (!lord || !lord.alive || lord.prisoner || lord.inCity || lord.scattered ||
+      if (!lord || !lord.alive || lord.prisoner || lord.inCity ||
           Math.abs(lord.x - party.x) > 1 || Math.abs(lord.y - party.y) > 1) {
         clear(party, lord, true);
         return;
@@ -17082,7 +12421,7 @@ function fightNeighbors(state) {
       }
     } else {
       lord = state.lords.filter(function (l) {
-        return l.alive && !l.prisoner && !l.inCity && !l.scattered && !l.engagedWith && l.faction !== 'bandit' &&
+        return l.alive && !l.prisoner && !l.inCity && !l.engagedWith && l.faction !== 'bandit' &&
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
@@ -17104,8 +12443,9 @@ function fightNeighbors(state) {
     const countB = army.troopCount(lord.troops);
     if (countB <= 0) {
       clear(party, lord, true);
-      // 0 兵自动打散，哪怕挂着守城令也不当俘虏；三天后回本土城复活。
-      if (!lord.scattered && !lord.prisoner) {
+      if (lord.defending) {
+        war.capture(state, lord, 'bandit', party.name);
+      } else if (!lord.scattered && !lord.prisoner) {
         war.markLordScattered(state, lord, party.name);
       }
       return;
@@ -17144,13 +12484,12 @@ function fightNeighbors(state) {
       clear(party, lord, true);
       const partyOut = retreatFrom(state, party, lord);
       retreatFrom(state, lord, party);
-      // 0 兵一律打散，守城令也不再转成俘虏。
       if (remainB <= 0 && !lord.prisoner) {
-        war.markLordScattered(state, lord, party.name);
+        if (lord.defending) war.capture(state, lord, 'bandit', party.name);
+        else war.markLordScattered(state, lord, party.name);
       }
       if (!partyOut) destroyBanditParty(state, party, 'mutual');
-      // 领主被打空时不再写“两败俱伤”的战报，避免暴露隐藏状态。
-      if (near && remainB > 0) pushLog(state, party.name + '和' + lord.name + '打到两败俱伤，各自收拢残兵退开。', 'war');
+      if (near) pushLog(state, party.name + '和' + lord.name + '打到两败俱伤，各自收拢残兵退开。', 'war');
       return;
     }
 
@@ -17170,16 +12509,19 @@ function fightNeighbors(state) {
       return;
     }
 
-    // 领主败了：0 兵先按打散处理；还有至少 1 兵才进入撤退/被俘判定。
+    // 领主败了：大概率带残兵逃回城，小概率被匪团抓住，但不会被 NPC 杀掉。
     clear(party, lord, true);
-    if (remainB <= 0) {
-      if (!lord.prisoner) war.markLordScattered(state, lord, party.name);
-      // 打散不写战报，玩家不会看到“三天后重立”的提示。
+    if (remainB <= 0 && lord.defending) {
+      war.capture(state, lord, 'bandit', party.name);
+      if (near) pushLog(state, lord.name + '在乱军里被' + party.name + '的人按住捆了。', 'war');
       return;
     }
     if (rng.next() < 0.84 && retreatFrom(state, lord, party)) {
       lord.scuffle = 6;
-      if (near) pushLog(state, lord.name + '的阵线被冲散，带着残兵往后退了。', 'war');
+      if (remainB <= 0 && !lord.prisoner) {
+        war.markLordScattered(state, lord, party.name);
+        if (near) pushLog(state, lord.name + '的部曲被' + party.name + '打空，残旗四散，三天内无法重新集结。', 'war');
+      } else if (near) pushLog(state, lord.name + '的阵线被冲散，带着残兵往后退了。', 'war');
     } else {
       war.capture(state, lord, 'bandit', party.name);
       if (near) pushLog(state, lord.name + '在乱军里被' + party.name + '的人按住捆了。', 'war');
@@ -17202,8 +12544,6 @@ function greedyStep(state, unit, target, opts) {
     const nx = unit.x + dirs[i][0];
     const ny = unit.y + dirs[i][1];
     if (!isPassable(state.world, nx, ny)) continue;
-    // 边陲小镇十格内是禁区：NPC 不能进去，只有玩家与玩家兄弟可以。
-    if (unit.faction && unit.faction !== 'player' && edgeTownBlocked(state.world, nx, ny)) continue;
     const site = siteAt(state.world, nx, ny);
     if (site) {
       // 村庄不是保险箱：追兵可以踩进村里把玩家揪出来
@@ -17310,9 +12650,6 @@ function startLordBattle(state, lord) {
   player.gateEdge = war.strategicDefenseAt(state, 'player', state.player.x, state.player.y);
   const battle = new Battle({
     rng: state.rng,
-    state: state,
-    // 同一场遭遇战反复进出不重复触发；隔一个时辰再撞上才算新战场。
-    battleKey: 'lord:' + lord.id + ':' + state.clock.day + ':' + Math.floor(state.clock.hour),
     attacker: player,
     defender: {
       name: lord.name + '军',
@@ -17322,12 +12659,6 @@ function startLordBattle(state, lord) {
       atkPct: 0.05,
       defPct: 0.05,
       edge: war.factionEdge(lord.faction, player.faction),
-      forceValue: lord.forceValue,
-      commandValue: lord.commandValue,
-      strategists: lord.strategistGrade ? [{
-        id: lord.id, name: lord.name, grade: lord.strategistGrade,
-        pct: lord.strategistPct || 0, cap: lord.strategistCap || 100,
-      }] : [],
     },
     context: { kind: 'lord', lordId: lord.id, lordName: lord.name, lordFaction: lord.faction },
   });
@@ -17699,35 +13030,25 @@ function resolveBattle(state, battle) {
   const hbLoot = heroes.heroBonus(state).lootPct;
   if (hbLoot > 0 && summary.loot > 0) summary.loot = Math.round(summary.loot * (1 + hbLoot));
 
-  // 天机简「回魂」：阵亡者八成归队，按本场实际阵亡人数算，不再按初始兵力算。
+  // 天机简「名册」：阵亡者更多归队
   if (battle.shiMark === 'roll' && summary.result !== 'retreat') {
-    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.80;
-    const dead = Math.max(0, summary.initialA - summary.remainA);
-    const back = Math.max(0, Math.round(dead * rollPct));
+    const rollPct = (HISTORY_MARKS.roll && HISTORY_MARKS.roll.backPct) || 0.70;
+    const back = Math.max(0, Math.round(summary.initialA * rollPct));
     if (back > 0) {
       const t = battle.a.initialTroops;
       let put = 0;
-      const putByType = {};
       Object.keys(t).forEach(function (id) {
         if (put >= back) return;
         const n = Math.min(t[id] - (battle.a.troops[id] || 0), back - put);
         if (n > 0) {
           battle.a.troops[id] = (battle.a.troops[id] || 0) + n;
-          putByType[id] = (putByType[id] || 0) + n;
           put += n;
         }
       });
-      if (playerContingent && put > 0) {
-        playerContingent.count = (playerContingent.count || 0) + put;
-        Object.keys(putByType).forEach(function (id) {
-          playerContingent.snapshot[id] = (playerContingent.snapshot[id] || 0) + putByType[id];
-        });
-      }
       syncPlayerTroopsFromField();
       summary.remainA = battle.remainA();
       summary.rollBack = put;
-      summary.shiNote = '回魂：' + put + ' 名阵亡者归队（本场阵亡 ' + dead + ' 人，复活八成）';
-      pushLog(state, '天机简「回魂」生效：' + put + ' 个名字又从纸上站了起来。');
+      pushLog(state, '天机简「名册」生效：' + put + ' 个名字又从纸上站了起来。');
     }
   }
 
@@ -17909,7 +13230,6 @@ function takeSite(state, site) {
       changeRelation(state, oldFaction, -60);
     }
     war.onSiteTaken(state, site, oldFaction);
-    war.notifyCapture(state, site, oldFaction, 'player');
     applyPlayerCountry(state);
     pushLog(state, '你拿下了' + site.name + '。从今天起，这里归你。');
     checkVictory(state);
@@ -18364,8 +13684,6 @@ const LORD_RANK = {
   liubiao: 'king', liuzhang: 'king', kebineng: 'king', mateng: 'king', huangfusong: 'king',
   xiahou: 'lord', zhangliao: 'lord', guanyu: 'lord', zhangfei: 'lord', zhouyu: 'lord',
   taishici: 'lord', yanliang: 'lord', gaoshun: 'lord', caimao: 'lord', zhangren: 'lord', machao: 'lord',
-  sunce: 'lord', zhangxiu: 'lord', wenyang: 'lord', dengai: 'lord', jiangwei: 'lord',
-  caozhang: 'lord', huaxiong: 'lord', liyan: 'lord',
 };
 const RANK_NAME = { king: '君主', lord: '领兵者', general: '将领' };
 const RANK_RATE = { king: 5, lord: 3, general: 2 };
@@ -18395,257 +13713,10 @@ function lordCapForLevel(level) {
   return 50 + lv * 20;
 }
 
-function lordPowerInfo(lord) {
-  return LORD_POWER_BY_ID[lord && lord.id] || null;
-}
-
-/** 名将榜上限 × 国别系数；魏国名将多，单体上限下调，避免堆出双倍兵力。 */
-function lordBaseCap(lord) {
-  if (!lord) return 30;
-  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
-  // 将帅值：带兵指数的标幺值，1.0 = 150 人；三类身份在 applyLordRoles 里取最高。
-  if (lord.commandValue !== null && lord.commandValue !== undefined) {
-    return commandCapFor(lord.commandValue, mul);
-  }
-  const power = lordPowerInfo(lord);
-  const base = power ? power.cap : lordCapForLevel(lordLevel(lord));
-  return Math.max(40, Math.round(base * mul));
-}
-
-function lordPowerCap(lord) {
-  if (!lord) return 0;
-  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
-  const power = lordPowerInfo(lord);
-  if (!power) return 0;
-  return lordBaseCap(lord);
-}
-
 function lordTroopCap(lord) {
   if (!lord) return 30;
-  if (lord.commandValue !== null && lord.commandValue !== undefined) return lordBaseCap(lord);
-  if (lordPowerInfo(lord)) return lordPowerCap(lord);
-  // 有国别系数的势力（目前是魏）连国君与榜外领主也按系数收口；其余势力仍保底原编制。
-  if (FACTION_ROSTER_MUL[lord.faction]) return lordBaseCap(lord);
   const defCount = army.troopCount(lord.defTroops || lord.troops || {});
   return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
-}
-
-function lordRecruitMul(lord) {
-  const power = lordPowerInfo(lord);
-  // 君主默认 1.5；榜单速率高于 1.5 时取榜单值，低于 1.5 时仍按 1.5。
-  const base = lordRank(lord) === 'king' ? DEFAULT_MONARCH_RECRUIT_MUL : 1;
-  return power ? Math.max(base, power.recruitMul) : base;
-}
-
-/* ------------------------------------------------------------ 四阶精锐 */
-
-/** 各势力四阶兵的“门面兵种”：名将榜领主与君主至少带一队。 */
-const LORD_T4_BY_FACTION = {
-  wei: 'guard', shu: 'baier', wu: 'danyang', yuan: 'heavy',
-  lv: 'tiefu', ma: 'tiefu', xianbei: 'tengri',
-  zhang: 'guard', zhanglu: 'guard', nanman: 'guard', shanyue: 'danyang',
-  yuanshu: 'guard', biao: 'guard', gongsun: 'guard', hansui: 'guard', han: 'guard',
-};
-const LORD_T4_FALLBACK = 'guard';
-const LORD_T4_RATIO = 0.05;
-const LORD_T4_MIN = 4;
-const LORD_T4_MAX = 8;
-
-function lordTier4Unit(faction) {
-  return LORD_T4_BY_FACTION[faction] || LORD_T4_FALLBACK;
-}
-
-function rosterHasTier4(roster) {
-  return Object.keys(roster || {}).some(function (id) {
-    return TROOPS[id] && Number(TROOPS[id].tier) === 4;
-  });
-}
-
-/** 名将榜前 50、帅才 Top20 或国君：只有这批人配带四阶精锐。 */
-function lordKeepsTier4(lord) {
-  if (!lord) return false;
-  if (LORD_POWER_BY_ID[lord.id]) return true;
-  if (MARSHAL_BY_ID[lord.id]) return true;
-  if (lord.rank === 'king') return true;
-  const f = FACTIONS[lord.faction];
-  return !!(f && f.lord && f.lord === lord.name);
-}
-
-function stripTier4(roster) {
-  if (!roster) return false;
-  let changed = false;
-  Object.keys(roster).forEach(function (id) {
-    if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
-      delete roster[id];
-      changed = true;
-    }
-  });
-  return changed;
-}
-
-/** 给没有四阶兵的资格领主补一小队：从人数最多的一阶兵里换，不凭空加总兵力。 */
-function injectTier4(roster, unit) {
-  if (!roster || rosterHasTier4(roster)) return false;
-  const total = army.troopCount(roster);
-  if (total <= 0) return false;
-  const add = Math.max(LORD_T4_MIN, Math.min(LORD_T4_MAX, Math.round(total * LORD_T4_RATIO)));
-  let donor = null;
-  Object.keys(roster).forEach(function (id) {
-    if (TROOPS[id] && Number(TROOPS[id].tier) >= 4) return;
-    if (!donor || (roster[id] || 0) > (roster[donor] || 0)) donor = id;
-  });
-  let put = add;
-  if (donor) {
-    const take = Math.min(put, Math.max(0, (roster[donor] || 0) - 1));
-    roster[donor] -= take;
-    if (roster[donor] <= 0) delete roster[donor];
-    put = take;
-  }
-  if (put > 0) roster[unit] = (roster[unit] || 0) + put;
-  return put > 0;
-}
-
-/**
- * 单个领主的四阶兵归一：够资格的保留数量、换成当前势力的门面兵；
- * 不够资格的全部剥掉。换旗（张辽归魏、张郃降曹）时也要走一遍。
- */
-function normalizeLordTier4(lord) {
-  if (!lord || !lord.faction) return;
-  const unit = lordTier4Unit(lord.faction);
-  const keep = lordKeepsTier4(lord);
-  [lord.defTroops, lord.troops].forEach(function (roster) {
-    if (!roster) return;
-    if (!keep) { stripTier4(roster); return; }
-    let count = 0;
-    Object.keys(roster).forEach(function (id) {
-      if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
-        count += roster[id] || 0;
-        delete roster[id];
-      }
-    });
-    if (count > 0) roster[unit] = (roster[unit] || 0) + count;
-    else injectTier4(roster, unit);
-  });
-}
-
-/**
- * 四阶兵资格：名将榜前 50、君主保留；榜外且不是国君的领主一律剥掉四阶兵。
- * 旧档里既成事实的四阶兵也会被清掉，保证“精兵只跟名将”的规则一致。
- */
-function applyLordTier4Rule(state) {
-  if (!state || !Array.isArray(state.lords)) return;
-  state.lords.forEach(function (lord) {
-    if (!lord || lord.dead) return;
-    normalizeLordTier4(lord);
-  });
-}
-
-/** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
-function lordRosterToCap(base, cap) {
-  const src = base && Object.keys(base).length ? base : { militia: 1 };
-  const total = army.troopCount(src);
-  const target = Math.max(1, Math.round(Number(cap) || 0));
-  if (target <= total) return deepCopy(src);
-  const ids = Object.keys(src);
-  const out = {};
-  let assigned = 0;
-  ids.forEach(function (id, i) {
-    if (i === ids.length - 1) {
-      out[id] = Math.max(1, target - assigned);
-    } else {
-      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
-    }
-    assigned += out[id];
-  });
-  return out;
-}
-
-/** 按比例把编制整体缩放（可缩可扩），用于魏国名将上限下调后的旧档收口。 */
-function lordRosterScale(base, cap) {
-  const src = base && Object.keys(base).length ? base : { militia: 1 };
-  const total = army.troopCount(src);
-  const target = Math.max(1, Math.round(Number(cap) || 0));
-  if (!total || Math.abs(target - total) <= 1) return deepCopy(src);
-  const ids = Object.keys(src);
-  const out = {};
-  let assigned = 0;
-  ids.forEach(function (id, i) {
-    if (i === ids.length - 1) {
-      out[id] = Math.max(1, target - assigned);
-    } else {
-      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
-    }
-    assigned += out[id];
-  });
-  return out;
-}
-
-/** 判断君主：优先看势力状态里的 rulerId，旧档再看 FACTIONS.lord 名字。 */
-function lordIsRuler(state, lord) {
-  if (!state || !lord || !lord.faction) return false;
-  const fs = state.factionState && state.factionState[lord.faction];
-  if (fs && fs.rulerId) return fs.rulerId === lord.id;
-  const f = FACTIONS[lord.faction];
-  return !!(f && f.lord && f.lord === lord.name);
-}
-
-/**
- * 三类身份落到领主身上：将帅值、武力值、军师档位。
- * 同一类只取最高值；三类之间互不覆盖，可以同时存在。
- */
-function applyLordRoles(state) {
-  if (!state || !Array.isArray(state.lords)) return;
-  state.lords.forEach(function (lord) {
-    if (!lord) return;
-    const info = roleInfoFor(lord, { isRuler: lordIsRuler(state, lord) });
-    lord.commandValue = info.command;
-    lord.forceValue = info.force;
-    lord.strategistGrade = info.strategist ? info.strategist.grade : null;
-    lord.strategistPct = info.strategist ? info.strategist.pct : 0;
-    lord.strategistCap = info.strategist ? info.strategist.cap : 0;
-    lord.marshalRank = info.marshal ? info.marshal.rank : null;
-    lord.generalRank = info.general ? info.general.rank : null;
-  });
-}
-
-/** 新开局与旧档迁移共用：给有将帅值的领主补足满编编制，并写入名次/倍率。 */
-function applyLordPowerRoster(state) {
-  if (!state || !Array.isArray(state.lords)) return;
-  state.lords.forEach(function (lord) {
-    const power = lordPowerInfo(lord);
-    if (power) {
-      lord.powerRank = power.rank;
-      lord.powerScore = power.score;
-    }
-    lord.recruitMul = lordRecruitMul(lord);
-    if (lord.commandValue === null || lord.commandValue === undefined) return;
-    // 随军谋士只保留少量亲兵，不按将帅值补成满编军团，避免凭空多出大军。
-    if (lord.strategistOnly) return;
-    const cap = lordTroopCap(lord);
-    const defCount = army.troopCount(lord.defTroops || {});
-    if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);
-    else if (defCount > cap) lord.defTroops = lordRosterScale(lord.defTroops, cap);
-    // 现兵也夹到新上限：改档后不能留着超过新上限的部队。
-    const nowCount = army.troopCount(lord.troops || {});
-    if (nowCount > cap) lord.troops = lordRosterScale(lord.troops, cap);
-  });
-}
-
-/** 有国别系数的势力把满编与现存兵力都夹到新上限；只缩不扩。 */
-function applyFactionRosterCap(state) {
-  if (!state || !Array.isArray(state.lords)) return;
-  state.lords.forEach(function (lord) {
-    if (!lord || !FACTION_ROSTER_MUL[lord.faction]) return;
-    const cap = lordTroopCap(lord);
-    [lord.defTroops, lord.troops].forEach(function (roster, i) {
-      if (!roster) return;
-      if (army.troopCount(roster) > cap) {
-        const scaled = lordRosterScale(roster, cap);
-        if (i === 0) lord.defTroops = scaled;
-        else lord.troops = scaled;
-      }
-    });
-  });
 }
 
 function lordLines(lord) {
@@ -18727,7 +13798,7 @@ function lordTroopLine(lord) {
 /* ---------------------------------------------------------------- 战役 */
 
 function campaignState(state) {
-  if (state && state.campaignDisabled) return null;
+  if (!state || !state.campaign) return null;
   const stage = state.campaign.stage;
   return CAMPAIGN[Math.min(stage, CAMPAIGN.length - 1)];
 }
@@ -18756,7 +13827,7 @@ const CAMPAIGN_TARGET_SITE = {
 };
 
 function campaignTargetPos(state) {
-  if (!state || !state.campaign || state.campaignDisabled) return null;
+  if (!state || !state.campaign) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   if (!ch) return null;
   const site = siteById(state.world, CAMPAIGN_TARGET_SITE[ch.id]);
@@ -18765,7 +13836,7 @@ function campaignTargetPos(state) {
 }
 
 function campaignInfo(state) {
-  if (!state || !state.campaign || state.campaignDisabled) return null;
+  if (!state || !state.campaign) return null;
   if (state.campaign.stage >= CAMPAIGN.length) {
     return { done: true, total: CAMPAIGN.length, index: CAMPAIGN.length };
   }
@@ -18782,9 +13853,18 @@ function campaignInfo(state) {
   };
 }
 
-function advanceCampaign(state) {
-  if (state && state.campaignDisabled) return;
+function advanceCampaign(state, depth) {
+  if (!state || !state.campaign) return;
+  const d = depth || 0;
+  // 一章完成会立刻检查下一章；正常最多十几层。这里留一个硬上限，
+  // 防止旧档字段异常时递归打穿调用栈，表现成整局卡死。
+  if (d > 24) return;
   const c = state.campaign;
+  if (!c || typeof c !== 'object') return;
+  if (!Array.isArray(c.done)) c.done = [];
+  if (!state.flags) state.flags = {};
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
+  if (typeof c.stage !== 'number' || !isFinite(c.stage)) c.stage = 0;
   if (c.stage >= CAMPAIGN.length) return;
   const ch = CAMPAIGN[c.stage];
   if (!ch) return;
@@ -18809,7 +13889,7 @@ function advanceCampaign(state) {
     const next = CAMPAIGN[c.stage];
     state.events.push({ type: 'chapter', chapterId: next ? next.id : ch.id });
     pushLog(state, '【' + ch.title + '】' + (ch.after || ''));
-    advanceCampaign(state);
+    advanceCampaign(state, d + 1);
   }
 }
 
@@ -18842,7 +13922,7 @@ function checkCampaign(state, key) {
 
 /** 当前这一章，在哪个据点能打出关键一仗 */
 function campaignObjective(state, site) {
-  if (!site || !state || state.campaignDisabled) return null;
+  if (!site || !state || !state.campaign) return null;
   const ch = CAMPAIGN[state.campaign.stage];
   const id = ch && ch.id;
   if (id === 'act1b' && site.id === 'puyang') return { id: 'puyang_raid', name: '黄巾余部', needTroops: 45 };
@@ -19078,12 +14158,6 @@ const DEFECT_TO = {
   wuyi: 'shu', leitong: 'shu', lengbao: 'shu', liugui: 'shu',
   guotu: 'wei', lvkuang: 'wei', lvxiang: 'wei',
   pangde: 'wei', maxiu: 'shu', matie: 'shu', chengyin: 'wei',
-  zhangxiu: 'wei', liyan: 'shu', wulan: 'shu', xingdaorong: 'shu', ehuang: 'shu',
-  guanhai: 'wei', wuangou: 'wei', huaxiong: 'wei',
-  // 马超无论凉州最后由谁打下来，都固定归蜀，不留在西凉当降将。
-  machao: 'shu',
-  // 公孙瓒灭亡后，赵云固定流向刘备；无论河北最后由谁拿下都适用。
-  zhaoyun: 'shu',
   huangfusong: 'wei', zhujun: 'wei', luzhi: 'wei',
 };
 
@@ -19380,22 +14454,12 @@ function moveLordToFaction(state, lord, target) {
   lord.fleePath = null;
   lord.resting = false;
   lord.hidden = null;
-  // 亡国残部投靠时，手里还剩多少兵就带多少兵走；只有原本就打空了的，
-  // 才按旧编制补一小队，别让“剩余的兵力”在换旗时凭空消失。
-  const left = army.troopCount(lord.troops || {});
-  lord.troops = left > 0
-    ? takeSomeTroops(lord.troops, left)
-    : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
+  lord.troops = takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
-  // 换旗后四阶精锐也要换门面：张辽、张郃归魏后带亲卫，榜外降将不再保留旧国精锐。
-  normalizeLordTier4(lord);
 }
 
-/** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
-function fallFaction(state, id, opts) {
-  const silent = !!(opts && opts.silent);
-  // 叛军只在统一背叛后才是真正的势力；开局没有城时不能被判亡国。
-  if (id === 'rebel' && !state.arc) return false;
+/** 一个势力连城带人都没了，满七天：亡国 */
+function fallFaction(state, id) {
   const fs = state.factionState[id] || (state.factionState[id] = {});
   fs.dead = true;
   fs.deadDay = state.clock.day;
@@ -19412,10 +14476,6 @@ function fallFaction(state, id, opts) {
     ruler.troops = {};
     ruler.prisoner = null;
     ruler.inCity = null;
-    // 亡国后旧主不再挂旧国旗：他只剩“隐居的旧主”这层身份，等玩家去请。
-    // 旧国名留在 hidden.faction 里，只用来判断关系与出山概率。
-    ruler.faction = null;
-    ruler.retired = true;
     ruler.hidden = { siteId: v ? v.id : null, since: state.clock.day, faction: id };
     fs.fate = 'hidden';
     fs.hiddenLordId = ruler.id;
@@ -19426,23 +14486,11 @@ function fallFaction(state, id, opts) {
     lines.push('“' + ruler.name + '”这个名字，从今天的榜文上划掉了。');
   }
 
-  // 剩下的领主：灭国者优先收大部分；小部分逃往邻国，由邻国吸纳。
-  // 最后一座城是谁打下的，谁就是灭国者；这条在夺城钩子里记进 fs.lastConqueror。
+  // 剩下的领主：史实里该投谁就投谁，宁死不降的散归乡里
   const others = state.lords.filter(function (l) {
     return l.faction === id && l.alive && l !== ruler && !l.factionStateFixed;
   });
-  const conqueror = fs.lastConqueror;
-  const conquerorAlive = !!(conqueror && (conqueror === 'player'
-    ? state.player.faction === 'player' && state.world.sites.some(function (s) { return s.playerOwned; })
-    : factionAlive(state, conqueror)));
-  // 灭国分三档：史实固定的去向（DEFECT_TO）先走；剩下的六成半归攻破最后城池的人；
-  // 其余没有固定去向的，全部由邻国就近吸纳。只有宁死不降的（LOYAL_GONE）才隐居。
-  // 不能再让带兵的旧部留在原地打旧旗号。
-  const flexible = others.filter(function (l) { return !LOYAL_GONE[l.id] && !DEFECT_TO[l.id]; });
-  const shareQuota = conquerorAlive ? Math.ceil(flexible.length * 0.65) : 0;
-  let givenToConqueror = 0;
   const gone = [];
-  const retired = [];
   others.forEach(function (l) {
     if (LOYAL_GONE[l.id]) {
       l.alive = false;
@@ -19451,40 +14499,27 @@ function fallFaction(state, id, opts) {
       gone.push(l.name);
       return;
     }
-    // 史实里已经写好的去向优先：张辽从吕布旗下转入魏，赵云从公孙瓒旗下转入蜀。
+    // 史实里已经写好的去向优先：张辽从吕布旗下转入魏，不随就近掷骰。
     const fixedTo = DEFECT_TO[l.id];
-    let target = fixedTo && factionAlive(state, fixedTo) ? fixedTo : null;
-    if (!target && conquerorAlive && givenToConqueror < shareQuota) {
-      target = conqueror;
-    }
-    if (!target) target = pickFactionFor(state, l, id);
+    const target = fixedTo && factionAlive(state, fixedTo)
+      ? fixedTo : pickFactionFor(state, l, id);
     if (!target) {
       l.alive = false;
       l.retired = true;
       l.troops = {};
-      retired.push(l.name);
       return;
     }
-    if (target === conqueror) givenToConqueror += 1;
     moveLordToFaction(state, l, target);
     lines.push(l.name + '带着残部投了' + (FACTIONS[target].full || target) + '。');
   });
-  if (conquerorAlive && givenToConqueror > 0) {
-    lines.unshift('最后一座城是' + (conqueror === 'player' ? '你的旗' : (FACTIONS[conqueror].full || conqueror)) +
-      '打下的，' + givenToConqueror + ' 名领主归入其帐下。');
-  }
   if (gone.length) {
     lines.push(gone.slice(0, 4).join('、') + '不肯降，解甲归乡里去了。');
-  }
-  if (retired.length) {
-    lines.push(retired.slice(0, 4).join('、') + '见大势已去，散部归田。');
   }
 
   // 这个势力的旗从此从地图上撤掉（跟你的旧关系留着：村里那个隐者还认这个）
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
-  if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
   state.events.push({
     type: 'faction-fall',
@@ -19493,7 +14528,6 @@ function fallFaction(state, id, opts) {
     fate: fs.fate || 'killed',
     lines: lines,
   });
-  return true;
 }
 
 /** 每日：灭国倒计时（连着七天没城没人，才算亡） */
@@ -19501,10 +14535,6 @@ function factionTick(state) {
   if (!state.factionState) state.factionState = {};
   Object.keys(FACTIONS).forEach(function (id) {
     if (id === 'bandit' || id === 'player') return;
-    // 叛军不是开局的正常诸侯：它在“全国背叛”前没有城也没有人，
-    // 不能按普通势力跑七天灭国倒计时，否则开局就会误弹“叛军 亡了”。
-    // 统一背叛后 state.arc 存在，叛军才真正接管全国，重新参与存亡判定。
-    if (id === 'rebel' && !state.arc) return;
     const fs = state.factionState[id] || (state.factionState[id] = {});
     if (fs.dead) return;
     if (factionAlive(state, id)) {
@@ -19513,16 +14543,6 @@ function factionTick(state) {
       }
       fs.doomDays = 0;
       fs.doomDay = 0;
-      // 又夺回城了：最后一座城的记录作废，下一次亡国重新计算。
-      // 只剩野外残部不算复国，不能把灭国者记录冲掉。
-      const hasCity = state.world.sites.some(function (s) {
-        return s.type !== 'camp' && s.ownerFaction === id;
-      });
-      if (hasCity && fs.lastConqueror) {
-        fs.lastConqueror = null;
-        fs.lastCityId = null;
-        fs.lastLossDay = 0;
-      }
       return;
     }
     fs.doomDays = (fs.doomDays || 0) + 1;
@@ -19651,8 +14671,7 @@ function claimAdShi(state) {
 
 const AD_REWARD_MAX = 10;
 const AD_REWARD_GOLD = 1000;
-// 调试期把粮草广告奖励临时拉高，方便观察各国第一阶段怎么打。
-const AD_REWARD_FOOD = 2000;
+const AD_REWARD_FOOD = 200;
 const AD_REWARD_SHI = 2;
 const AD_REWARD_KINDS = ['gold', 'food', 'shi'];
 const AD_REWARD_NAMES = { gold: '金钱', food: '粮草', shi: '天机简' };
@@ -19720,7 +14739,7 @@ function adRewardInfo(state, dayKey) {
 
 /**
  * 看完一次激励视频后领取：
- *   kind = 'gold' 领 1000 金钱，'food' 领 2000 粮草，'shi' 领 2 支天机简。
+ *   kind = 'gold' 领 1000 金钱，'food' 领 200 粮草，'shi' 领 2 支天机简。
  * 三类奖励各自每天 10 次，互不占用；过现实日零点自动重置。
  */
 function claimAdReward(state, kind, dayKey) {
@@ -19738,7 +14757,7 @@ function claimAdReward(state, kind, dayKey) {
     actual = AD_REWARD_GOLD;
     p.gold += actual;
   } else if (kind === 'food') {
-    // 广告奖励按需求临时给足 2000 粮草；这是额外军粮，不按平时购粮的车上限截断。
+    // 广告奖励按需求给足 200 粮草；这是额外军粮，不按平时购粮的车上限截断。
     actual = AD_REWARD_FOOD;
     p.food = (p.food || 0) + actual;
   } else {
@@ -19798,219 +14817,171 @@ function allMajorSitesOwned(state) {
 }
 
 /** 第一次统一：不结束游戏，先让人站在城头看三十天 */
-function edgeTownSite(state) {
-  return siteById(state.world, (state.world.edgeTown && state.world.edgeTown.id) || 'edge_town');
-}
-
-function setEdgeFog(state, open) {
-  const edge = edgeTownSite(state);
-  if (!edge) return null;
-  if (!state.world.edgeTown) {
-    state.world.edgeTown = { id: edge.id, x: edge.x, y: edge.y, radius: 10, fogOpen: !!open };
-  }
-  state.world.edgeTown.fogOpen = !!open;
-  edge.fogSealed = !open;
-  if (state.story) state.story.edgeTownOpen = !!open;
-  return edge;
-}
-
-function shavePlayerTroops(state, ratio) {
-  const p = state.player;
-  const total = army.troopCount(p.troops || {});
-  let lose = Math.max(0, Math.floor(total * ratio));
-  const keepRatio = Math.max(0, 1 - ratio);
-  Object.keys(p.troops || {}).forEach(function (id) {
-    const n = p.troops[id] || 0;
-    const keep = Math.floor(n * keepRatio);
-    lose -= n - keep;
-    p.troops[id] = keep;
-  });
-  // 四舍五入后仍多出来的零头，从数量最多的兵种里扣。
-  Object.keys(p.troops || {}).forEach(function (id) {
-    if (lose <= 0) return;
-    const cut = Math.min(lose, p.troops[id] || 0);
-    p.troops[id] = (p.troops[id] || 0) - cut;
-    lose -= cut;
-  });
-  return total - army.troopCount(p.troops || {});
-}
-
-function nearestRebelCity(state, from) {
-  let best = null;
-  let bestD = Infinity;
-  (state.world.sites || []).forEach(function (s) {
-    if (s.type === 'camp' || s.id === 'edge_town') return;
-    const d = Math.max(Math.abs(s.x - from.x), Math.abs(s.y - from.y));
-    if (d < bestD) { bestD = d; best = s; }
-  });
-  return best;
-}
-
-/** 统一瞬间：全国背叛，兄弟断后，玩家带残部逃往边陲小镇 */
 function startUnification(state) {
   if (state.arc) return false;
   const p = state.player;
   const day = state.clock.day;
-  const formerFaction = p.faction;
-  const edge = setEdgeFog(state, true);
-  if (!edge) return false;
-  const ex = edge.x;
-  const ey = edge.y;
   state.arc = {
-    phase: 'retreat',
+    phase: 'celebration',
     startDay: day,
-    exileSiteId: edge.id,
-    disasterDay: day,
+    disasterDay: day + 30,
+    exileSiteId: null,
     finaleDay: 0,
     loyalLords: [],
-    lostBrothers: [],
-    lastGrantDay: day,
-    arrivalDay: 0,
   };
-  state.arc.rescueRoute = true;
-  // 开局阶段叛军没有城，factionTick 不把它当普通势力倒计时；旧档若已经
-  // 误判过“叛军亡了”，在统一背叛真正开始时要把这面旗重新立起来。
-  const rebelFs = state.factionState.rebel || (state.factionState.rebel = {});
-  rebelFs.dead = false;
-  rebelFs.deadDay = 0;
-  rebelFs.doomDays = 0;
-  rebelFs.doomDay = 0;
   p.renown += 300;
   p.gold += 600;
-
-  // 全国城头一夜换旗：除了边陲小镇，全部归叛军。
-  (state.world.sites || []).forEach(function (s) {
-    if (s.id === edge.id) return;
-    if (s.type === 'camp') {
-      s.ownerFaction = 'bandit';
-      return;
-    }
-    s.ownerFaction = 'rebel';
-    s.playerOwned = false;
-    s.selfFief = false;
-    s.lordId = null;
-    s.playerBlocked = false;
-    s.burned = false;
-    s.garrison = Math.max(10, Math.round((s.garrisonBase || 30) * 0.6));
-    s.color = FACTIONS.rebel.color;
-    s.banner = FACTIONS.rebel.banner;
+  pushLog(state, '【天下归一】你站在都城的城楼上，看见四面城门都挂着自己的旗。三十天后，一场大旱会从西边来。');
+  state.events.push({
+    type: 'arc', phase: 'celebration',
+    title: '天下归一',
+    lines: [
+      p.faction && p.faction !== 'player' && FACTIONS[p.faction]
+        ? '你随着' + FACTIONS[p.faction].full + '的旗，走到了最后一座城。'
+        : '你把自己的旗插上了最后一座城。',
+      '各地使者排队递上降表，你在城楼上站了很久。',
+      '从今天起，天下只有一个年号。只是西边的云，已经开始发黄。',
+    ],
   });
-  edge.ownerFaction = 'player';
-  edge.playerOwned = true;
-  edge.selfFief = true;
-  edge.garrison = Math.max(24, edge.garrison || 24);
-  edge.banner = p.country && p.country.name ? p.country.name : '旗';
-  edge.color = p.country && p.country.color ? p.country.color : '#d9a441';
-  state.world.factionGrid = null;
+  return true;
+}
+
+/** 找一块地图边缘、能走的空地，放下那座“这时才出现”的边陲小城 */
+function makeExileSite(state) {
+  if (state.arc && state.arc.exileSiteId) {
+    return siteById(state.world, state.arc.exileSiteId);
+  }
+  const world = state.world;
+  const spots = [];
+  for (let y = 2; y < world.h - 2; y += 1) {
+    for (let x = 2; x < world.w - 2; x += 1) {
+      const edge = Math.min(x, y, world.w - 1 - x, world.h - 1 - y);
+      if (edge > 5) continue;
+      if (!isPassable(world, x, y)) continue;
+      if (siteAt(world, x, y)) continue;
+      const near = world.sites.some(function (s) {
+        return Math.abs(s.x - x) + Math.abs(s.y - y) < 4;
+      });
+      if (near) continue;
+      spots.push({ x: x, y: y, edge: edge });
+    }
+  }
+  const pick = spots.sort(function (a, b) { return a.edge - b.edge; })[0];
+  if (!pick) return null;
+  const site = {
+    id: 'exile_town',
+    name: '边陲小城',
+    type: 'town',
+    x: pick.x,
+    y: pick.y,
+    region: regionAt(world, pick.x, pick.y),
+    ownerFaction: 'player',
+    playerOwned: true,
+    lordId: null,
+    selfFief: true,
+    color: state.player.country && state.player.country.color ? state.player.country.color : '#d9a441',
+    banner: state.player.country && state.player.country.name ? state.player.country.name : '旗',
+    garrison: 24,
+    garrisonBase: 24,
+    recruitList: ['militia', 'spear'],
+    recruitCap: 8,
+    recruits: { militia: 6, spear: 3 },
+    priceIndex: 1.15,
+    blurb: '一座地图边缘的小城。城墙不高，却是你此刻唯一还能落脚的地方。',
+    population: 900,
+    foodStock: {},
+    lordRecruits: { militia: 4, spear: 2 },
+  };
+  world.sites.push(site);
+  world.factionGrid = null;
+  if (state.arc) state.arc.exileSiteId = site.id;
+  return site;
+}
+
+/** 第三十天：大旱、易子而食、天下皆反，玩家被赶出都城 */
+function triggerDisaster(state) {
+  if (!state.arc || state.arc.phase !== 'celebration') return;
+  const p = state.player;
+  const formerFaction = p.faction;
+  const exile = makeExileSite(state);
+  if (!exile) return;
+  const day = state.clock.day;
+  const oldSites = state.world.sites.filter(function (s) { return s.id !== exile.id; });
+
+  oldSites.forEach(function (s) {
+    if (s.playerOwned || s.ownerFaction === 'player' ||
+        (formerFaction && formerFaction !== 'player' && s.ownerFaction === formerFaction)) {
+      s.playerOwned = false;
+      s.ownerFaction = 'bandit';
+      s.lordId = null;
+      s.selfFief = false;
+      s.playerBlocked = true;
+      s.garrison = Math.max(8, Math.round((s.garrisonBase || 20) * 0.6));
+    }
+    if (s.type !== 'camp') s.burned = true;
+  });
 
   Object.keys(FACTIONS).forEach(function (id) {
-    if (id === 'rebel' || id === 'player') return;
+    if (id === 'player') return;
     state.relations[id] = -100;
-    state.wars[id] = false;
-    war.makePeace(state, 'player', id, true);
+    state.wars[id] = true;
+    if (id !== 'bandit') war.declare(state, 'player', id, true);
   });
-  state.relations.rebel = -100;
-  state.wars.rebel = true;
-  war.declare(state, 'player', 'rebel', true, true);
 
   const loyal = [];
-  const rebels = [];
   state.lords.forEach(function (l) {
-    if (!l || !l.alive || l.dead || l.retired) return;
-    const fromYourCamp = !!l.hero || l.faction === 'player';
-    if (fromYourCamp) {
-      l.faction = 'player';
+    // 从玩家队伍里出去的人，哪怕原先挂的是旧主的旗，也认你这个人
+    const fromYourCamp = !!l.hero || l.faction === 'player' ||
+      !!(formerFaction && l.faction === formerFaction && l.hero);
+    if (fromYourCamp && l.alive) {
       l.arcEnemy = false;
       l.arcNoRecruit = false;
       l.arcNoCapture = false;
+      l.faction = 'player';
       l.inCity = null;
       l.order = null;
-      l.defending = null;
-      l.chasing = false;
-      l.home = edge.id;
-      l.x = p.x;
-      l.y = p.y;
-      l.stepFrom = null;
-      l.stepTo = null;
-      l.routePath = null;
-      l.patrolPath = null;
-      loyal.push(l);
+      l.x = exile.x;
+      l.y = exile.y;
+      l.home = exile.id;
+      loyal.push(l.id);
     } else {
-      l.faction = 'rebel';
       l.arcEnemy = true;
       l.arcNoRecruit = true;
       l.arcNoCapture = true;
-      l.order = null;
-      l.defending = null;
-      l.chasing = false;
-      const h = siteById(state.world, l.home);
-      const home = h && h.ownerFaction === 'rebel' ? h : nearestRebelCity(state, l);
-      l.home = home ? home.id : 'luoyang';
-      l.inCity = home ? home.id : null;
-      if (home) {
-        l.x = home.x;
-        l.y = home.y;
-      }
-      rebels.push(l);
     }
   });
 
-  // 兄弟里每三个人留下一个断后。
-  const casualties = loyal.length >= 3 ? Math.floor(loyal.length / 3) : 0;
-  for (let i = 0; i < casualties; i += 1) {
-    const l = loyal[i];
-    l.alive = false;
-    l.dead = true;
-    l.arcEnemy = false;
-    state.arc.lostBrothers.push(l.name);
-  }
-  state.arc.loyalLords = loyal.filter(function (l) { return l.alive; }).map(function (l) { return l.id; });
-  const troopLoss = shavePlayerTroops(state, 1 / 3);
-
-  // 玩家从旧都城（或当前位置）出发，路线自动指向边陲小镇。
+  if (!p.country) p.country = { name: '汉', color: '#d9a441' };
   p.faction = 'player';
-  p.atSiteId = null;
+  p.gold = Math.max(0, Math.round(p.gold * 0.4));
+  p.food = Math.min(army.foodCap(p.troops), 24);
+  p.morale = Math.max(10, p.morale - 40);
+  p.renown = Math.max(0, p.renown - 100);
+  p.atSiteId = exile.id;
+  p.x = exile.x;
+  p.y = exile.y;
   p.route = [];
   p.stepFrom = null;
   p.stepTo = null;
   p.stepProgress = 0;
-  const route = findPath(state.world, { x: p.x, y: p.y }, { x: ex, y: ey });
-  if (route && route.length) p.route = route;
-  p.morale = Math.max(12, p.morale - 35);
-  p.renown = Math.max(0, p.renown - 80);
-  if (!p.country) p.country = { name: '汉', color: '#d9a441' };
-  p.flagName = p.country.name || '汉';
-  state.flags.edgeRetreat = true;
-
+  if (state.playerSiege) state.playerSiege = null;
+  state.arc.phase = 'reconquest';
+  state.arc.disasterDay = day;
+  state.arc.loyalLords = loyal;
+  state.arc.famine = true;
+  state.world.factionGrid = null;
   state.events.push({
-    type: 'arc', phase: 'betrayal',
-    title: '全国背叛',
+    type: 'arc', phase: 'disaster',
+    title: '大旱 · 天下皆反',
     lines: [
-      '最后一座城归旗的当天，各地太守同时举兵，旗号从“匡扶”换成了“清君侧”。',
-      '除了从你帐下出去的兄弟，所有人都翻脸了；' +
-        (state.arc.lostBrothers.length ? ('断后的' + state.arc.lostBrothers.join('、') + '再也没跟上来。') : '你在乱军里丢了三分之一的弟兄。'),
-      '追兵就在身后，不能停留。路上遇到拦路的 NPC，只能留下部分兵力断后，自己继续往西走。',
-      '边陲小镇的雾已经散开一线；跟着地图上的线条走，不要回头。',
+      '第三十天，西边的天一直黄着。井先干了，然后是河。',
+      '粮价一天三涨，路边开始有人交换孩子。各地豪强把你的旗从城头扯下来，换上了自己的。',
+      '你所在的城市被反贼围了。你带着还能走的旧部，从北门杀出去。',
+      '天亮时，你在一座地图边缘的小城停下。城很小，但没有挂别人的旗。',
+      '从今天起，全国都在捉拿你。只有从你队伍里出去的领主，还愿意站在你这边。',
     ],
   });
-  pushLog(state, '【全国背叛】你失去所有城，只剩兄弟旧部，沿地图指引退往边陲小镇。');
-  state.arc.troopLoss = troopLoss;
-  state.arc.rebelCount = rebels.length;
-  if (state.story) state.story.unifiedFaction = formerFaction || 'player';
-  return true;
-}
-
-/** 兼容旧流程：灾变入口现在直接触发统一背叛。 */
-function triggerDisaster(state) {
-  if (state.arc) return false;
-  return startUnification(state);
-}
-
-/** 找一块地图边缘、能走的空地，放下那座“这时才出现”的边陲小城（旧档兜底） */
-function makeExileSite(state) {
-  const edge = edgeTownSite(state);
-  if (edge) return edge;
-  return null;
+  pushLog(state, '【大旱 · 天下皆反】你失去所有城，退到边陲小城。天下皆敌，只有旧部还在。');
 }
 
 /** 再次统一：大赏四方，进入尾声选择 */
@@ -20037,104 +15008,17 @@ function checkVictory(state) {
     if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) triggerArcFinale(state);
     return;
   }
-  // 荆州最终阶段拖满两年：共主已被强制推举，直接进入全国背叛。
-  if (state.story && state.story.endgame && state.story.endgame.forcedWinner) {
-    startUnification(state);
-    return;
-  }
   if (allMajorSitesOwned(state)) startUnification(state);
 }
 
-/** 每天检查：撤退到边陲小镇、每月补给、复国后再统一 */
-/** 边陲小镇十格迷雾：玩家靠近时只给提示，不让他继续深入。 */
-function edgeFogTick(state) {
-  const edge = edgeTownSite(state);
-  if (!edge) return;
-  if (state.world.edgeTown && state.world.edgeTown.fogOpen) return;
-  if (state.flags.edgeFogPrompt) return;
-  const p = state.player;
-  const d = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
-  if (d > (state.world.edgeTown ? state.world.edgeTown.radius || 10 : 10) + 2) return;
-  state.flags.edgeFogPrompt = true;
-  pushLog(state, '【迷雾】迷雾迷人眼，无法深入探索，否则可能迷失其中，永远无法出来。');
-  state.events.push({
-    type: 'edge-fog',
-    title: '迷雾迷人眼',
-    lines: [
-      '雾从西边压过来，十步外的树影都看不清了。',
-      '迷雾迷人眼，无法深入探索；再往里走，可能会迷失其中，永远无法出来。',
-      '你退了两步，雾才慢慢散开。',
-    ],
-  });
-}
-
+/** 每天检查三十天灾变与再统一 */
 function arcTick(state) {
   if (!state.arc) return;
-  const arc = state.arc;
-  const p = state.player;
-  const edge = edgeTownSite(state);
-  if (!edge) return;
-
-  if (arc.phase === 'retreat') {
-    // 路上遇到拦路 NPC：只能留下一部分兵力断后，自己继续走。
-    const nearFoe = (state.lords || []).filter(function (l) {
-      return l && l.alive && !l.dead && l.faction === 'rebel' && !l.inCity &&
-        Math.max(Math.abs(l.x - p.x), Math.abs(l.y - p.y)) <= 2;
-    })[0];
-    if (nearFoe && !arc.blockerDone) {
-      arc.blockerDone = true;
-      state.flags.edgeBlockers = (state.flags.edgeBlockers || 0) + 1;
-      pushLog(state, '【断后】' + nearFoe.name + '追上来了。你留下部分兵力断后，自己继续往边陲小镇走。');
-      state.events.push({
-        type: 'arc', phase: 'retreat-block',
-        title: '留兵断后',
-        lines: [
-          nearFoe.name + '的旗号从侧面压上来，队伍不能停。',
-          '你点出一部分弟兄留下断后，自己带着剩下的兄弟继续往西。',
-          '追兵不会等，边陲小镇也不会等。',
-        ],
-      });
-      // 断后损耗：每次损失两成兵力；不进入战斗，不拖时间。
-      shavePlayerTroops(state, 0.2);
-    }
-    const d = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
-    if (p.atSiteId === edge.id || d <= 1) {
-      p.atSiteId = edge.id;
-      p.x = edge.x;
-      p.y = edge.y;
-      p.route = [];
-      arc.phase = 'reconquest';
-      arc.arrivalDay = state.clock.day;
-      arc.lastGrantDay = state.clock.day;
-      state.flags.edgeRetreat = false;
-      state.flags.edgeArrived = true;
-      pushLog(state, '【边陲小镇】你在雾散开的小镇里落脚。每月 1000 金币、2000 粮草，从今天开始算。');
-      state.events.push({
-        type: 'arc', phase: 'edge',
-        title: '边陲小镇',
-        lines: [
-          '雾散开一线，小镇的灯火在雾里亮着。',
-          '这里每月送来 1000 金币、2000 粮草；其余诸侯的人马不敢靠近小镇十格。',
-          '从今天起，你带着剩下的兄弟，从这座小镇重新反攻九州。',
-        ],
-      });
-    }
-    return;
+  if (state.arc.phase === 'celebration' && state.clock.day >= state.arc.disasterDay) {
+    triggerDisaster(state);
+  } else if (state.arc.phase === 'reconquest' && allMajorSitesOwned(state)) {
+    triggerArcFinale(state);
   }
-
-  if (arc.phase === 'reconquest') {
-    // 每月补给：固定 1000 金币、2000 粮草。
-    if (state.clock.day - (arc.lastGrantDay || arc.arrivalDay || state.clock.day) >= 30) {
-      arc.lastGrantDay = state.clock.day;
-      p.gold += 1000;
-      p.food += 2000;
-      pushLog(state, '【边陲小镇】本月补给 1000 金币、2000 粮草已到。');
-    }
-    if (allMajorSitesOwned(state)) triggerArcFinale(state);
-    return;
-  }
-
-  if (arc.phase === 'finale') return;
 }
 
 function decideEnding(state) {
@@ -20172,12 +15056,6 @@ function serialize(state) {
   const copy = {
     version: SAVE_VERSION,
     seed: state.seed,
-    background: state.background || (state.storyMode ? 'romance' : 'chaos'),
-    historicalRoster: !!(state.historicalRoster || state.background === 'romance'),
-    campaignDisabled: !!state.campaignDisabled,
-    historicalSandbox: !!state.historicalSandbox,
-    storyMode: !!state.storyMode,
-    story: state.story || null,
     clock: state.clock,
     world: state.world,
     player: state.player,
@@ -20215,26 +15093,37 @@ function serialize(state) {
     timeScale: state.timeScale,
     questSeq: state.questSeq,
     partySeq: state.partySeq,
-    fieldBattleSeq: state.fieldBattleSeq || 1,
     flee: state.flee || {},
     factionState: state.factionState || {},
     knownHidden: state.knownHidden || {},
     noPeace: state.noPeace || {},
     noPeaceForever: state.noPeaceForever || {},
     heroSites: state.heroSites || null,
-    warCampaigns: state.warCampaigns || {},
+    // 国战战役里的 siegeBattle 是运行时 Battle 对象，Battle.state 指回整局
+    // state，直接 JSON.stringify 会抛 “Converting circular structure”。
+    // 存档只保留战役的外壳字段；读档后 tickSiegeAssault 会按当前兵力重建攻城战。
+    warCampaigns: (function () {
+      const out = {};
+      Object.keys(state.warCampaigns || {}).forEach(function (fid) {
+        const cp = state.warCampaigns[fid];
+        if (!cp || typeof cp !== 'object') return;
+        const copy = Object.assign({}, cp);
+        delete copy.siegeBattle;
+        delete copy.battle;
+        out[fid] = copy;
+      });
+      return out;
+    })(),
     siegeCooldown: state.siegeCooldown || {},
     playerSiege: state.playerSiege || null,
     foodWarning: state.foodWarning || null,
     postBattleLord: state.postBattleLord || null,
     killRecords: state.killRecords || {},
-    strategistUsed: state.strategistUsed || {},
     peaceOfferCooldown: state.peaceOfferCooldown || {},
     peaceOfferPending: state.peaceOfferPending || null,
     playerWarSince: state.playerWarSince || {},
     fiefTaxDay: state.fiefTaxDay || 0,
     arc: state.arc || null,
-    tourneyWeek: state.tourneyWeek || null,
   };
   copy.player.route = [];
   copy.player.fieldBattleId = null;
@@ -20255,23 +15144,10 @@ function deserialize(json) {
   if (!data.relations) return null; // 旧档不兼容
   if ((data.version || 0) < SAVE_VERSION) return null; // 旧地图/旧领主表不兼容
 
-  // 先清掉上一局可能残留的袁绍旧昏君系数；剧情档随后由 story.resume 按存档恢复。
-  story.resetCombat();
   resetFactionRulers();
   const state = {
     version: data.version || SAVE_VERSION,
     seed: data.seed,
-    background: data.background || (data.storyMode ? 'romance' : 'chaos'),
-    historicalRoster: !!(data.historicalRoster ||
-      (data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance'),
-    campaignDisabled: data.campaignDisabled != null
-      ? !!data.campaignDisabled
-      : ((data.background || (data.storyMode ? 'romance' : 'chaos')) === 'romance' && !data.storyMode),
-    historicalSandbox: data.historicalSandbox != null
-      ? !!data.historicalSandbox
-      : (!!data.historicalRoster && !data.storyMode),
-    storyMode: !!data.storyMode,
-    story: data.story || null,
     clock: data.clock,
     world: data.world,
     player: data.player,
@@ -20304,7 +15180,6 @@ function deserialize(json) {
     events: [],
     stats: data.stats || { battlesWon: 0, battlesLost: 0, troopsLost: 0, goldEarned: 0, distance: 0, days: 0, sitesTaken: 0, villagesRaided: 0 },
     flags: data.flags || {},
-    tourneyWeek: data.tourneyWeek || null,
     campaign: data.campaign || { stage: 0, done: [] },
     gameOver: !!data.gameOver,
     ending: data.ending || null,
@@ -20314,7 +15189,6 @@ function deserialize(json) {
     rng: new RNG((data.seed || 1) + (data.clock ? data.clock.day : 1) * 7919),
     questSeq: data.questSeq || 1,
     partySeq: data.partySeq || 1,
-    fieldBattleSeq: data.fieldBattleSeq || 1,
     flee: data.flee || {},
     factionState: data.factionState || {},
     knownHidden: data.knownHidden || {},
@@ -20327,7 +15201,6 @@ function deserialize(json) {
     foodWarning: data.foodWarning || null,
     postBattleLord: data.postBattleLord || null,
     killRecords: data.killRecords || {},
-    strategistUsed: data.strategistUsed || {},
     peaceOfferCooldown: data.peaceOfferCooldown || {},
     peaceOfferPending: null,
     playerWarSince: data.playerWarSince || {},
@@ -20356,6 +15229,18 @@ function deserialize(json) {
   state.player.stepFrom = null;
   state.player.stepTo = null;
   state.player.stepProgress = 0;
+
+  // 旧档兼容：主线字段是后加的，早期同版本存档可能只有 stage，没有
+  // campaign.done / flags.campaignDone。缺数组会在章节完成那一帧抛异常，
+  // 主循环没有兜底时就会永久停在当前画面。
+  if (!state.campaign || typeof state.campaign !== 'object') {
+    state.campaign = { stage: 0, done: [] };
+  }
+  if (!Array.isArray(state.campaign.done)) state.campaign.done = [];
+  if (typeof state.campaign.stage !== 'number' || !isFinite(state.campaign.stage)) {
+    state.campaign.stage = 0;
+  }
+  if (!Array.isArray(state.flags.campaignDone)) state.flags.campaignDone = [];
 
   // 同版本老档补上后来新增的城与势力：
   // 新开局由 createWorld 全量生成；读旧档时只补缺失据点，不重算玩家已经打下的城。
@@ -20395,28 +15280,6 @@ function deserialize(json) {
     oldShouchun.color = FACTIONS.yuanshu.color;
   }
 
-  // n41：汉中北面的武都、上洛改为自由城。只迁移一次，避免刘璋日后
-  // 重新占回时又被读档逻辑抹成无主；玩家已经打下的城绝不覆盖。
-  state.flags = state.flags || {};
-  if (!state.flags.wuduShangluoFree) {
-    FREE_CITY_IDS.forEach(function (id) {
-      const site = siteById(state.world, id);
-      if (!site || site.playerOwned) return;
-      if (site.ownerFaction && site.ownerFaction !== 'zhang') return;
-      site.ownerFaction = null;
-      site.faction = null;
-      site.lordId = null;
-      site.banner = '';
-      site.color = '#8f8f86';
-    });
-    state.flags.wuduShangluoFree = true;
-  }
-  // n41：已经由刘备拿下成都的旧档，补上“以成都为大本营”的治所迁移。
-  const chengduSite = siteById(state.world, 'chengdu');
-  if (chengduSite && chengduSite.ownerFaction === 'shu' && !chengduSite.playerOwned) {
-    war.markShuChengduBase(state, chengduSite, 'shu');
-  }
-
   // n18 老档换旗：只在城池仍是旧主且没有被玩家占下时迁移，避免覆盖玩家的战果。
   const LEGACY_OWNER_MOVES = [
     { id: 'ji', from: ['han'], to: 'gongsun' },
@@ -20439,71 +15302,18 @@ function deserialize(json) {
     (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
   });
 
-  // n43 老档：襄平归公孙瓒；官渡/白马换位；汉廷诸将收回长安—潼关一线。
-  const N43_OWNER_MOVES = [
-    { id: 'xiangping', from: ['han', null], to: 'gongsun' },
-    { id: 'hanzhong', from: ['zhang'], to: 'zhanglu' },
-    { id: 'wudu', from: [null, 'zhang'], to: 'zhanglu' },
-    { id: 'shangluo', from: [null, 'zhang'], to: 'zhanglu' },
-    { id: 'taishanguan', from: [null], to: 'lv' },
-  ];
-  N43_OWNER_MOVES.forEach(function (move) {
-    const site = siteById(state.world, move.id);
-    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
-    if (move.from.indexOf(site.ownerFaction) < 0) return;
-    const faction = FACTIONS[move.to];
-    if (!faction) return;
-    site.ownerFaction = move.to;
-    site.faction = move.to;
-    site.banner = faction.banner;
-    site.color = faction.color;
-    site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
-  });
-  // n44 老档：泰山关由吕布改归袁绍，夷陵由刘表改归孙权；只迁移旧主，保留玩家战果。
-  const N44_OWNER_MOVES = [
-    { id: 'taishanguan', from: ['lv', null], to: 'yuan' },
-    { id: 'yiling', from: ['biao'], to: 'wu' },
-  ];
-  N44_OWNER_MOVES.forEach(function (move) {
-    const site = siteById(state.world, move.id);
-    if (!site || site.playerOwned || site.ownerFaction === move.to) return;
-    if (move.from.indexOf(site.ownerFaction) < 0) return;
-    const faction = FACTIONS[move.to];
-    if (!faction) return;
-    site.ownerFaction = move.to;
-    site.faction = move.to;
-    site.banner = faction.banner;
-    site.color = faction.color;
-    site.lordId = null;
-    site.recruitList = (RECRUIT_SETS[move.to] || site.recruitList || []).slice();
-    site.lordRecruits = {};
-    (site.recruitList || []).forEach(function (id) { site.lordRecruits[id] = 1; });
-  });
-  // n45：开局叛军没有城，不能被七天灭国逻辑误判；旧档如果已经弹出过
-  // “叛军 亡了”，在读档时把这面旗恢复，统一背叛后才有叛军可打。
-  const legacyRebel = state.factionState.rebel;
-  if (legacyRebel && legacyRebel.dead &&
-      (!state.arc || state.arc.phase === 'retreat')) {
-    legacyRebel.dead = false;
-    legacyRebel.deadDay = 0;
-    legacyRebel.doomDays = 0;
-    legacyRebel.doomDay = 0;
-  }
-  // n45：北平—蓟直连。蓟原先只靠涿（村）接路，而村庄不计入城网，
-  // 袁绍拿下北平、涿、范阳后仍无法把蓟算作“道路相接”的敌城。
-  const N45_ROADS = [
-    ['beiping', 'ji'],
-  ];
-  layRoads(state.world, N45_ROADS);
-  // 边陲小镇：老档没有这张图，补城并挂上雾圈元数据。
-  const edgeSite = siteById(state.world, 'edge_town');
-  if (edgeSite && !state.world.edgeTown) {
-    state.world.edgeTown = { id: edgeSite.id, x: edgeSite.x, y: edgeSite.y, radius: 10, fogOpen: false };
-    edgeSite.fogSealed = true;
-    edgeSite.specialEdge = true;
+  // n19 老档：襄平转为无主城；官渡/白马换位；汉廷诸将收回长安—潼关一线。
+  const xiangpingSite = siteById(state.world, 'xiangping');
+  if (xiangpingSite && !xiangpingSite.playerOwned &&
+      (!xiangpingSite.ownerFaction || xiangpingSite.ownerFaction === 'han')) {
+    xiangpingSite.ownerFaction = null;
+    xiangpingSite.faction = null;
+    xiangpingSite.banner = '';
+    xiangpingSite.color = '#8f8f86';
+    xiangpingSite.lordId = null;
+    xiangpingSite.recruitList = (RECRUIT_SETS.none || []).slice();
+    xiangpingSite.lordRecruits = {};
+    (xiangpingSite.recruitList || []).forEach(function (id) { xiangpingSite.lordRecruits[id] = 1; });
   }
 
   SITE_ROWS.forEach(function (row) {
@@ -20577,46 +15387,6 @@ function deserialize(json) {
     ['jiaozhi', 'shanyue'],
   ];
   layRoads(state.world, N19_ROADS);
-  // n20 也有“两端都是旧城”的连线；旧档不补城，也必须补这些路。
-  // 官渡—新野的旧路不再在 ROADS 里声明，但旧档已铺下的路面不做破坏性擦除。
-  const N20_ROADS = [
-    ['xuchang', 'xinye'],
-    ['xiaopei', 'pengcheng'],
-    ['pengcheng', 'xuzhou'],
-  ];
-  layRoads(state.world, N20_ROADS);
-  // n21 新增荆襄—赤壁—夏口与建宁—南中道路；旧档两端都是旧城，也要补路面。
-  const N21_ROADS = [
-    ['xiangyang', 'chibi'],
-    ['chibi', 'xiakou'],
-    ['jianning', 'nanzhong'],
-  ];
-  layRoads(state.world, N21_ROADS);
-  // n32 西北路网：金城—天水接上，安定接武威与长安；旧档两端都是旧城时也要补。
-  const N32_ROADS = [
-    ['jincheng', 'tianshui'],
-    ['wuwei', 'anding'],
-    ['anding', 'changan'],
-  ];
-  layRoads(state.world, N32_ROADS);
-  // n33 断开枹罕—西平：新开局已不铺这条线，旧档也要把旧路面、旧桥和旧山口还原。
-  clearRoads(state.world, [['xiping', 'fuhan']]);
-  // 牂牁从 (18,40) 下移到 (20,44)，贴着交趾；旧档同步搬城，不能让道路悬空。
-  const zangkeRow = SITE_ROWS.filter(function (row) { return row[0] === 'zangke'; })[0];
-  const zangkeSite = siteById(state.world, 'zangke');
-  if (zangkeRow && zangkeSite) {
-    const scale = state.world.w / 40;
-    zangkeSite.x = Math.round(zangkeRow[4] * scale);
-    zangkeSite.y = Math.round(zangkeRow[5] * scale);
-  }
-  // 旧档补齐打散隐藏字段，避免读档后把旧状态当可见领主绘制。
-  (state.lords || []).forEach(function (lord) {
-    if (lord.scatterCityId === undefined) lord.scatterCityId = null;
-    if (lord.scatterRecovering === undefined) lord.scatterRecovering = false;
-    if (lord.scatterHidden === undefined) lord.scatterHidden = false;
-    // 旧档里仍处于三天打散的领主，一律按新规则隐藏，等 scatteredLordTick 安排募兵城。
-    if (lord.scattered) lord.scatterHidden = true;
-  });
   state.world.factionGrid = null;
 
   // 同版本老档补上村市口粮与领主独立兵源池
@@ -20663,8 +15433,6 @@ function deserialize(json) {
     if (l.restSite === undefined) l.restSite = null;
     if (l.scattered === undefined) l.scattered = false;
     if (l.scatterUntilH === undefined) l.scatterUntilH = 0;
-    if (l.scatterHomeId === undefined) l.scatterHomeId = null;
-    if (l.scattered && !l.respawnDay) l.respawnDay = state.clock.day + 3;
     if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
   const known = {};
@@ -20680,19 +15448,6 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
-  // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
-  applyLordRoles(state);
-  state.flags.lordRolesV1 = true;
-  // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
-  if (!state.flags.lordTier4V1) {
-    applyLordTier4Rule(state);
-    state.flags.lordTier4V1 = true;
-  }
-  // 旧档里魏国领主还没按国别系数收口：满编与现存兵力一起夹到新上限。
-  if (!state.flags.lordWeiCapV1) {
-    applyFactionRosterCap(state);
-    state.flags.lordWeiCapV1 = true;
-  }
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
@@ -20701,15 +15456,8 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
-  // 国君可能已经换代：按最终 rulerId 再算一次三类身份，并把新帅才的满编编制补到上限。
-  applyLordRoles(state);
-  applyLordPowerRoster(state);
-  applyFactionRosterCap(state);
-  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
-  war.bindCaptureHook(story.recordCapture);
-  story.resume(state, pushLog);
   war.bindPassable(isPassable);
   war.bindFleeGuard(lordMayFlee);
   war.bindMovement(stepUnitTo, unitOccupies, siteAt);
@@ -20835,9 +15583,6 @@ module.exports = {
   fallFaction,
   pickFactionFor,
   moveLordToFaction,
-  ensureMaChaoToShu,
-  MA_CHAO_TO_SHU_DAY,
-  resolveMaSurrender,
   tavernRumor,
   hiddenLordsAt,
   hiddenLordVisible,
@@ -20860,14 +15605,6 @@ module.exports = {
   lordLevel,
   lordCapForLevel,
   lordTroopCap,
-  lordPowerCap,
-  lordRecruitMul,
-  lordPowerInfo,
-  lordKeepsTier4,
-  lordIsRuler,
-  applyLordRoles,
-  applyLordTier4Rule,
-  applyLordPowerRoster,
   useHistory,
   adShiInfo,
   claimAdShi,
@@ -20914,20 +15651,12 @@ module.exports = {
   canFight,
   gameHours,
   LORD_RANK,
-  LORD_RECOVERY_RATIO,
-  LORD_RECOVERY_SEARCH_RANGE,
-  LORD_PATROL_RECRUIT_RATIO,
-  siteRecoveryMultiplier,
-  lordRecoveryRate,
-  bestRecoveryCity,
-  fastestRecoveryCity,
-  siteUnderAttack,
 };
 
   };
 
   /* js/core/audio.js */
-  __defs[21] = function (module, exports, __require) {
+  __defs[18] = function (module, exports, __require) {
 /**
  * 程序化场景音乐：不加载任何音频文件，全部用 WebAudio 现场合成。
  *
@@ -20953,6 +15682,32 @@ const SCALE = [
 ];
 const BASS = [73.42, 87.31, 98.0, 110.0, 130.81, 146.83];
 const MODE_ORDER = ['title', 'field', 'town', 'battle', 'tense', 'sorrow', 'victory'];
+
+/**
+ * 真实录音：全部来自 OpenGameArt 的 CC0（公共领域）曲目，
+ * 可商用、无需署名。文件放在 assets/audio/，加载失败时自动回落到
+ * 下面的程序化音乐，不会因为音频缺失卡住游戏。
+ */
+const AUDIO_FILES = {
+  title: 'assets/audio/title_hanmo.mp3',
+  field: 'assets/audio/field_xingjun.mp3',
+  town: 'assets/audio/town_shijing.mp3',
+  battle: 'assets/audio/battle_zhangu.mp3',
+  tense: 'assets/audio/tense_duizhi.mp3',
+  sorrow: 'assets/audio/sorrow_guoshang.mp3',
+  victory: 'assets/audio/victory_kaixuan.mp3',
+};
+const AUDIO_FILE_NAMES = {
+  title: '汉末风起（实录）',
+  field: '千里行军（实录）',
+  town: '市井烟火（实录）',
+  battle: '战鼓催阵（实录）',
+  tense: '两军对峙（实录）',
+  sorrow: '国殇（实录）',
+  victory: '凯旋（实录）',
+};
+const FILE_VOLUME = 0.32;
+const FILE_FADE = 0.9;
 
 /**
  * 曲目表：melody 里的数字是 SCALE 下标，-1 表示休止；
@@ -21114,6 +15869,18 @@ const S = {
   enabled: true,
   master: null,
   cursor: {},
+  // 真实录音播放器：HTMLAudio 或小游戏 InnerAudioContext
+  player: null,
+  playerKind: null,
+  playerTried: false,
+  userReady: false,
+  lastMode: null,
+  fileMode: null,
+  filePlaying: false,
+  fileVolume: 0,
+  fileFailed: false,
+  fileFailedMode: null,
+  filePending: false,
 };
 
 function storageGet(key) {
@@ -21159,8 +15926,117 @@ function createCtx() {
   return S.ctx;
 }
 
+/** 录音加载/播放失败：自动播放限制只算“还没准备好”，换场景时再试。 */
+function onFileError(err, mode) {
+  const text = String((err && (err.errMsg || err.message || err.name)) || '');
+  if (/NotAllowed|not allowed|autoplay|user gesture|interrupted/i.test(text)) {
+    S.filePending = true;
+    S.filePlaying = false;
+    return;
+  }
+  S.fileFailed = true;
+  S.fileFailedMode = mode || S.fileMode;
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+function createPlayer() {
+  if (S.playerTried) return S.player;
+  S.playerTried = true;
+  try {
+    if (typeof tt !== 'undefined' && tt.createInnerAudioContext) {
+      const p = tt.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'tt';
+    } else if (typeof wx !== 'undefined' && wx.createInnerAudioContext) {
+      const p = wx.createInnerAudioContext();
+      p.loop = true;
+      p.volume = 0;
+      if (p.onError) p.onError(function (err) { onFileError(err, S.fileMode); });
+      if (p.onEnded) p.onEnded(function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.play(); } catch (e) { /* ignore */ }
+        }
+      });
+      S.player = p;
+      S.playerKind = 'wx';
+    } else if (typeof Audio !== 'undefined') {
+      const p = new Audio();
+      p.loop = true;
+      p.preload = 'auto';
+      p.volume = 0;
+      p.onerror = function () { onFileError(null, S.fileMode); };
+      p.onended = function () {
+        if (S.filePlaying && S.player === p) {
+          try { p.currentTime = 0; p.play(); } catch (e) { /* ignore */ }
+        }
+      };
+      S.player = p;
+      S.playerKind = 'html';
+    }
+  } catch (e) {
+    S.player = null;
+  }
+  return S.player;
+}
+
+function stopFile() {
+  if (S.player) {
+    try {
+      if (S.player.stop) S.player.stop();
+      else if (S.player.pause) S.player.pause();
+    } catch (e) { /* ignore */ }
+    try { S.player.volume = 0; } catch (e) { /* ignore */ }
+  }
+  S.fileMode = null;
+  S.filePlaying = false;
+  S.fileVolume = 0;
+}
+
+/** 开始播放某场景的录音；返回 false 表示该场景没有可用录音，交给程序化音乐。 */
+function startFile(mode) {
+  if (!S.enabled || !AUDIO_FILES[mode]) return false;
+  if (S.fileFailedMode === mode) return false;
+  if (S.fileMode === mode && S.filePlaying) return true;
+  const p = createPlayer();
+  if (!p) return false;
+  stopFile();
+  try {
+    p.src = AUDIO_FILES[mode];
+    p.loop = true;
+    p.volume = 0;
+    S.fileMode = mode;
+    S.filePlaying = true;
+    S.fileVolume = 0;
+    S.fileFailed = false;
+    S.filePending = false;
+    const ret = p.play ? p.play() : null;
+    if (ret && ret.catch) ret.catch(function (err) { onFileError(err, mode); });
+    return true;
+  } catch (e) {
+    onFileError(e, mode);
+    // 自动播放被拦截时保留 pending，等下一次触摸由 resume() 重试。
+    if (S.filePending) return true;
+    return false;
+  }
+}
+
 function resume() {
+  S.userReady = true;
   if (!S.enabled) return;
+  // 真实录音优先；浏览器/小游戏都要求第一次触摸后才能出声。
+  if (S.mode && !S.filePlaying && S.fileFailedMode !== S.mode) {
+    startFile(S.mode);
+  }
   const ctx = createCtx();
   if (!ctx) return;
   try {
@@ -21169,14 +16045,22 @@ function resume() {
 }
 
 function setEnabled(on) {
+  const keepMode = S.mode || S.lastMode;
   S.enabled = !!on;
   storageSet('bw_audio', S.enabled ? 'on' : 'off');
   if (!S.enabled) {
+    S.lastMode = keepMode;
     stop();
     if (S.master) S.master.gain.value = 0;
   } else {
     if (S.master) S.master.gain.value = 0.26;
+    S.mode = keepMode;
+    // 用户手动重新打开声音时，允许之前失败过的曲目再试一次。
+    S.fileFailed = false;
+    S.fileFailedMode = null;
+    S.filePending = false;
     resume();
+    if (S.mode && !S.filePlaying) startFile(S.mode);
   }
 }
 
@@ -21208,6 +16092,13 @@ function tone(freq, dur, type, gain, delay, opts) {
     osc.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    // 长局必做：音符播完后断开音频图。旧实现只 stop 不断开，gain 节点
+    // 一直挂在 master 上，几十万个节点会把浏览器音频线程拖死，表现成
+    // 玩到某个时辰整局卡住。这里断开后让 GC 正常回收。
+    osc.onended = function () {
+      try { osc.disconnect(); } catch (err) { /* ignore */ }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     osc.start(now);
     osc.stop(now + dur + 0.02);
   } catch (e) { /* ignore */ }
@@ -21227,8 +16118,9 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     const g = ctx.createGain();
     g.gain.value = gain;
     let node = src;
+    let filter = null;
     if (filterFreq && ctx.createBiquadFilter) {
-      const filter = ctx.createBiquadFilter();
+      filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = filterFreq;
       filter.Q.value = 0.8;
@@ -21238,6 +16130,11 @@ function noiseBurst(dur, gain, filterFreq, delay) {
     node.connect(g);
     const dst = out();
     if (dst) g.connect(dst);
+    src.onended = function () {
+      try { src.disconnect(); } catch (err) { /* ignore */ }
+      if (filter) { try { filter.disconnect(); } catch (err) { /* ignore */ } }
+      try { g.disconnect(); } catch (err) { /* ignore */ }
+    };
     src.start(ctx.currentTime + (delay || 0));
   } catch (e) { /* ignore */ }
 }
@@ -21300,16 +16197,20 @@ function nextTrack() {
 
 function play(mode) {
   if (!MODES[mode]) return;
-  if (S.mode === mode && S.track) return;
+  if (S.mode === mode && (S.track || S.filePlaying || S.fileMode === mode)) return;
   const changed = S.mode !== mode;
   S.mode = mode;
+  S.lastMode = mode;
   if (changed) {
     S.track = null;
     S.trackTime = 0;
     S.t = 0;
     S.step = 0;
+    stopFile();
   }
-  // 第一次播放要等用户点屏幕：createCtx 在 resume() 里调用，避免自动播放被浏览器拦截。
+  if (!S.enabled) return;
+  // 第一次触摸前不要创建 WebAudio 音符，也不要在移动端偷偷起播。
+  if (S.userReady && startFile(mode)) return;
   if (!S.ctx) return;
   if (S.ctx.state === 'suspended' && S.ctx.resume) {
     try { S.ctx.resume(); } catch (e) { /* ignore */ }
@@ -21322,10 +16223,23 @@ function stop() {
   S.track = null;
   S.trackTime = 0;
   S.t = 0;
+  stopFile();
 }
 
 function update(dt) {
-  if (!S.ctx || !S.enabled || !S.mode) return;
+  if (!S.enabled || !S.mode) return;
+
+  // 真实录音：单曲循环，进入场景时从 0 淡入，避免切歌“啪”一声。
+  if (S.filePlaying && S.player) {
+    S.fileVolume = Math.min(FILE_VOLUME, S.fileVolume + dt * (FILE_VOLUME / FILE_FADE));
+    try { S.player.volume = S.fileVolume; } catch (e) { /* ignore */ }
+    return;
+  }
+  // 录音还在等第一次触摸，或已经加载但尚未起播：不要同时叠程序化音乐。
+  if (S.fileMode && !S.fileFailed) return;
+  if (S.filePending) return;
+
+  if (!S.ctx) return;
   // 浏览器/微信在用户第一次触摸前会把 AudioContext 挂在 suspended；
   // 这时不排音符，否则恢复瞬间会把几十秒的音符一起挤到 0 秒播放。
   if (S.ctx.state && S.ctx.state !== 'running') return;
@@ -21379,15 +16293,18 @@ function isEnabled() {
 }
 
 function currentTrack() {
+  if (S.filePlaying && S.fileMode) {
+    return { id: 'file_' + S.fileMode, name: AUDIO_FILE_NAMES[S.fileMode] || S.fileMode, mode: S.fileMode };
+  }
   return S.track ? { id: S.track.id, name: S.track.name, mode: S.track.mode } : null;
 }
 
 function listMusic() {
   return MODE_ORDER.map(function (mode) {
-    return {
-      mode: mode,
-      tracks: (MODES[mode] || []).map(function (t) { return t.name; }),
-    };
+    const names = [];
+    if (AUDIO_FILE_NAMES[mode]) names.push(AUDIO_FILE_NAMES[mode]);
+    (MODES[mode] || []).forEach(function (t) { names.push(t.name); });
+    return { mode: mode, tracks: names };
   });
 }
 
@@ -21402,17 +16319,19 @@ module.exports = {
   listMusic,
   MODE_ORDER,
   TRACKS,
+  AUDIO_FILES,
+  AUDIO_FILE_NAMES,
 };
 
   };
 
   /* js/scenes/title.js */
-  __defs[22] = function (module, exports, __require) {
+  __defs[19] = function (module, exports, __require) {
 /**
  * 标题：征战汉末
  */
 
-const { text, panel, wrap } = __require(6);
+const { text, panel } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 
@@ -21432,8 +16351,6 @@ function hasSave(app) {
 
 const TitleScene = {
   enter(app) {
-    // 每次回到标题都先收掉剧本选择层，避免从存档/玩法页回来时卡在弹层。
-    this.choosing = false;
     app.saveMeta = hasSave(app);
     // 三国争霸主图：浏览器从 web/ 同目录取，小游戏从包内 assets/ 取。
     // 图没加载好时先保留原来的烈火背景兜底，不让首页空着。
@@ -21472,30 +16389,20 @@ const TitleScene = {
       size: 17, align: 'center', color: '#bca88a',
     });
 
-    // 开启游戏后先走剧本选择：乱世三国是旧版自由混战，三国演义是史实人事沙盘。
-    // 三国演义不再挂主线阶段，天下由群雄按现有国战 AI 自行演进。
-    if (this.choosing) {
-      drawScenarioChooser(ctx, app, w, h);
-      return;
-    }
-
-    // 窄屏/矮屏时不能把主按钮顶到标题第三行，按标题底部留出安全间距。
-    const by = Math.max(h * 0.46, h * 0.285 + 210);
-    const bh = 76;
+    // 按钮：新的开始 / 最近存档 / 保存的存档 / 玩法 / 商店
+    const by = h * 0.50;
+    const bh = 70;
     const gapY = 78;
     const bw = w - 160;
-    app.ui.button(ctx, 80, by, bw, bh, '开启游戏', {
-      id: 'new_game', size: 30, fill: '#3a2c1e', onTap: function () {
-        this.choosing = true;
-      }.bind(this),
-    });
-    text(ctx, '选择剧本 · 乱世三国 / 三国演义', w / 2, by + bh + 7, {
-      size: 14, align: 'center', color: '#9f8d70',
+    app.ui.button(ctx, 80, by, bw, bh, '新的开始 · 洛阳溃兵', {
+      id: 'new', size: 28, fill: '#3a2c1e', onTap: function () {
+        app.state = stateLib.createGame({});
+        app.replace('map');
+      },
     });
 
-    const row2 = by + bh + 54;
     const meta = app.saveMeta;
-    app.ui.button(ctx, 80, row2, bw, bh,
+    app.ui.button(ctx, 80, by + gapY, bw, bh,
       meta ? '加载最近存档 · 第 ' + meta.clock.day + ' 天' : '加载最近存档（空）', {
         id: 'cont', size: 26, disabled: !meta, fill: '#241c14', onTap: function () {
           const raw = app.runtime.storage.get(SAVE_KEY);
@@ -21509,13 +16416,13 @@ const TitleScene = {
         },
       });
 
-    app.ui.button(ctx, 80, row2 + gapY, bw, bh, '加载保存存档 · 九个槽', {
+    app.ui.button(ctx, 80, by + gapY * 2, bw, bh, '加载保存存档 · 九个槽', {
       id: 'slots', size: 26, fill: '#241c14', onTap: function () {
         app.push('saves', { mode: 'load', from: 'title' });
       },
     });
 
-    app.ui.button(ctx, 80, row2 + gapY * 2, bw, bh - 4, '玩法 · 战役 · 兵种', {
+    app.ui.button(ctx, 80, by + gapY * 3, bw, bh - 4, '玩法 · 战役 · 兵种', {
       id: 'help', size: 24, fill: '#201a14', onTap: function () {
         app.push('help');
       },
@@ -21530,86 +16437,6 @@ const TitleScene = {
   onTouchMove() {},
   onTouchEnd() {},
 };
-
-/** 剧本选择层：先看两句介绍，再决定进哪一个天下。 */
-function drawScenarioChooser(ctx, app, w, h) {
-  ctx.fillStyle = 'rgba(0,0,0,0.82)';
-  ctx.fillRect(0, 0, w, h);
-
-  // 全屏挡板：选择层打开时，避免点穿到背后的标题按钮。
-  app.ui.rect(ctx, 0, 0, w, h, function () {});
-
-  const mw = Math.min(w - 48, 520);
-  const mh = Math.min(h - 80, 566);
-  const mx = (w - mw) / 2;
-  const my = (h - mh) / 2;
-  panel(ctx, mx, my, mw, mh, { fill: '#18130e' });
-
-  text(ctx, '选择剧本', mx + mw / 2, my + 24, {
-    size: 30, align: 'center', color: '#ffe0a0', shadow: true,
-  });
-  text(ctx, '先定一朝天下，再开一局', mx + mw / 2, my + 62, {
-    size: 14, align: 'center', color: '#bca88a',
-  });
-
-  const cardX = mx + 18;
-  const cardW = mw - 36;
-  const cardGap = 14;
-  const cardTop = my + 88;
-  const cardH = Math.min(188, Math.floor((mh - 88 - 62 - cardGap * 2) / 2));
-
-  drawScenarioCard(ctx, app, cardX, cardTop, cardW, cardH, {
-    title: '乱世三国',
-    tag: '旧版剧情',
-    desc: '沿用以前的洛阳溃兵开局与群雄自由混战；行军、攻城、募兵、内政都与三国演义共用同一套机制。',
-    action: '进入乱世三国',
-    id: 'new_chaos',
-    onTap: function () {
-      app.state = stateLib.createGame({ background: 'chaos' });
-      app.replace('map');
-    },
-  });
-
-  const card2Y = cardTop + cardH + cardGap;
-  drawScenarioCard(ctx, app, cardX, card2Y, cardW, cardH, {
-    title: '三国演义',
-    tag: '史实沙盘',
-    desc: '保留史实开局人事，但不再推进主线章节；让群雄按自己的兵力和道路去争天下。',
-    action: '进入三国演义',
-    id: 'new_romance',
-    onTap: function () {
-      app.state = stateLib.createGame({ background: 'romance', storyMode: false });
-      app.replace('map');
-    },
-  });
-
-  app.ui.button(ctx, cardX, my + mh - 57, cardW, 42, '返回', {
-    id: 'scenario_back', size: 20, fill: '#241c14', onTap: function () {
-      app.top().scene.choosing = false;
-    },
-  });
-}
-
-function drawScenarioCard(ctx, app, x, y, w, h, opts) {
-  panel(ctx, x, y, w, h, { fill: '#241b13' });
-  text(ctx, opts.title, x + 18, y + 13, {
-    size: 26, color: '#f0c060',
-  });
-  text(ctx, opts.tag, x + w - 18, y + 20, {
-    size: 13, align: 'right', color: '#bca88a',
-  });
-
-  const lines = wrap(ctx, opts.desc, w - 36, 14, 'normal').slice(0, h < 170 ? 2 : 3);
-  lines.forEach(function (line, i) {
-    text(ctx, line, x + 18, y + 54 + i * 20, {
-      size: 14, weight: 'normal', color: '#c8b89e',
-    });
-  });
-
-  app.ui.button(ctx, x + 18, y + h - 47, w - 36, 34, opts.action, {
-    id: opts.id, size: 18, fill: '#3a2c1e', onTap: opts.onTap,
-  });
-}
 
 /** 主页背景：有三国争霸图就铺图，图没到就退回程序化烈火战场 */
 function drawTitleBackdrop(ctx, app, w, h, t) {
@@ -21775,7 +16602,7 @@ module.exports.SAVE_KEY = SAVE_KEY;
   };
 
   /* js/core/territory.js */
-  __defs[24] = function (module, exports, __require) {
+  __defs[21] = function (module, exports, __require) {
 /**
  * 势力领土网格：天下大势与大地图共用。
  *
@@ -21846,7 +16673,7 @@ module.exports = {
   };
 
   /* js/scenes/flows.js */
-  __defs[25] = function (module, exports, __require) {
+  __defs[22] = function (module, exports, __require) {
 /**
  * 场景流转：把 state.events 翻成场景切换
  * map / town 都会调用，保证事件不丢。
@@ -21948,19 +16775,6 @@ function process(app) {
       });
       return;
     }
-    if (ev.type === 'story') {
-      // 三国演义是史实沙盘：天下大势只进史册，不打断行军。
-      if (st.historicalSandbox) continue;
-      app.push('news', {
-        title: ev.title || '天下大势',
-        lines: ev.lines || [],
-        tag: ev.tag || '大势',
-        art: ev.art || null,
-        auto: ev.auto || 10,
-        skipAny: ev.skipAny !== false,
-      });
-      return;
-    }
     if (ev.type === 'diplomacy') {
       // 宣战/议和停 7 秒，背景是战场或使团交书；点屏幕任意处直接跳过。
       const peace = ev.kind === 'peace';
@@ -22001,7 +16815,7 @@ module.exports = { process, tryCampaign };
   };
 
   /* js/scenes/map.js */
-  __defs[23] = function (module, exports, __require) {
+  __defs[20] = function (module, exports, __require) {
 /**
  * 大地图场景：三国全图、区域风景、玩家骑马立绘、城池名牌、行军
  */
@@ -22012,10 +16826,10 @@ const { UI_COLORS } = pixel;
 const stateLib = __require(7);
 const army = __require(9);
 const { regionAt, regionDef, siteById, siteAt, terrainAt, bridgeHasWater } = __require(8);
-const territory = __require(24);
+const territory = __require(21);
 const { FACTIONS, TERRAIN, CAMPAIGN, COAST, RIVER_HUANG, RIVER_YANG, RIVER_HUAI, RIVER_WEI, RIVER_HAN, MOUNTAINS, ROADS, BASE_W, CAPITAL_IDS, STRATEGIC_SITES } = __require(5);
 const { lookFor } = __require(12);
-const flows = __require(25);
+const flows = __require(22);
 
 const TILE = 64;
 // 缩放后的格宽：TS = TILE × 缩放档位，render 时按当前档位刷新
@@ -22077,21 +16891,6 @@ function zoomName(z) {
   if (z < 1.22) return ZOOM_NAMES[1];
   if (z < 2.18) return ZOOM_NAMES[2];
   return ZOOM_NAMES[3];
-}
-
-/** 当前势力君主：兼容开局静态君主表、动态继任与君主 rank 三种来源 */
-function isKingLord(st, lord) {
-  if (!st || !lord || !lord.faction) return false;
-  if (lord.faction === 'player' || lord.faction === 'bandit') return false;
-  if (lord.rank === 'king') return true;
-  const fs = st.factionState && st.factionState[lord.faction];
-  if (fs) {
-    if (fs.rulerId) return fs.rulerId === lord.id;
-    if (fs.rulerName) return fs.rulerName === lord.name;
-  }
-  const def = FACTIONS[lord.faction];
-  if (def && (def.lord === lord.name || def.full === lord.name)) return true;
-  return stateLib.lordRank(lord) === 'king';
 }
 
 function setZoom(app) {
@@ -22328,10 +17127,8 @@ const MapScene = {
     drawFactionTint(ctx, app, cam, box, w);
     drawSites(ctx, app, cam, box, w);
     drawUnits(ctx, app, cam, box, w);
-    drawEdgeFog(ctx, app, cam, box, w);
     drawQuestMarkers(ctx, app, cam, box, w);
     drawRoute(ctx, app, cam, box);
-    drawEdgeGuide(ctx, app, cam, box, w);
     drawPlayerOnMap(ctx, app, cam, box);
     drawRegionTag(ctx, app, box, w);
     drawQuestCard(ctx, app, box, w);
@@ -23597,61 +18394,6 @@ function drawSites(ctx, app, cam, box, w) {
   ctx.restore();
 }
 
-function drawEdgeFog(ctx, app, cam, box, w) {
-  const st = app.state;
-  const edge = st && st.world && st.world.edgeTown;
-  if (!edge) return;
-  if (edge.fogOpen) return;
-  if (st.story && st.story.edgeTownOpen) return;
-  if (st.arc && (st.arc.phase === 'disaster' || st.arc.phase === 'reconquest' || st.arc.phase === 'finale')) return;
-  const cx = edge.x * TS + TS / 2 - cam.x;
-  const cy = box.top + edge.y * TS + TS / 2 - cam.y;
-  const radius = (edge.radius || 10) * TS;
-  if (cx + radius < 0 || cx - radius > w || cy + radius < box.top || cy - radius > box.top + box.h) return;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, box.top, w, box.h);
-  ctx.clip();
-
-  // 十格浓雾：中心几乎看不见城，外缘逐渐化开。
-  const g = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
-  g.addColorStop(0, 'rgba(176,178,170,0.92)');
-  g.addColorStop(0.45, 'rgba(162,166,160,0.9)');
-  g.addColorStop(0.78, 'rgba(136,142,138,0.82)');
-  g.addColorStop(0.94, 'rgba(120,126,124,0.45)');
-  g.addColorStop(1, 'rgba(120,126,124,0)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 缓慢漂移的雾团，让边缘不是一刀切的圆。
-  for (let i = 0; i < 7; i += 1) {
-    const a = i * 2.1 + 0.7;
-    const rr = radius * (0.28 + (i % 3) * 0.19);
-    const ox = Math.cos(a) * radius * 0.35;
-    const oy = Math.sin(a) * radius * 0.28;
-    ctx.fillStyle = 'rgba(226,228,220,' + (0.08 + (i % 3) * 0.025) + ')';
-    ctx.beginPath();
-    ctx.arc(cx + ox, cy + oy, rr, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const p = st.player;
-  const pd = Math.max(Math.abs(p.x - edge.x), Math.abs(p.y - edge.y));
-  if (pd <= (edge.radius || 10) + 2) {
-    const ty = cy - radius * 0.42;
-    ctx.fillStyle = 'rgba(20,18,14,0.78)';
-    ctx.fillRect(cx - 118, ty - 18, 236, 54);
-    text(ctx, '迷雾迷人眼', cx, ty, { size: 24, align: 'center', color: '#f0e6cf', shadow: true });
-    text(ctx, '无法深入探索，否则可能迷失其中，永远无法出来', cx, ty + 24, {
-      size: 12, align: 'center', color: '#c9c0aa',
-    });
-  }
-  ctx.restore();
-}
-
 function drawUnits(ctx, app, cam, box, w) {
   const st = app.state;
   const assets = app.assets;
@@ -23736,12 +18478,9 @@ function drawUnits(ctx, app, cam, box, w) {
     }
   });
 
-  // 领主：君主最后画，避免被周围骑队和名牌压住
-  const drawLords = st.lords.slice().sort(function (a, b) {
-    return (isKingLord(st, a) ? 1 : 0) - (isKingLord(st, b) ? 1 : 0);
-  });
-  drawLords.forEach(function (lord) {
-    if (!lord.alive || lord.inCity || lord.scatterHidden || lord.scattered) return;
+  // 领主
+  st.lords.forEach(function (lord) {
+    if (!lord.alive || lord.inCity) return;
     const up = stateLib.unitAnimPos(lord, nowH);
     const sx = up.x * TS - cam.x + TS / 2;
     const sy = box.top + up.y * TS - cam.y + TS / 2;
@@ -23765,41 +18504,18 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.arc(sx, sy, 28 * z, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 君主：单人 Q 版无双步将，不再骑马、不再带两卒；普通领主仍是骑马队伍
+    // 领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
     const look = lookFor(lord.id);
-    const isKing = isKingLord(st, lord);
-    const bw = isKing ? 24 * z : 28 * z;
-    const bh = isKing ? 26 * z : 30 * z;
-    let bxx = sx + 16 * z;
-    let byy = sy - 42 * z;
-    if (isKing) {
-      // 金环踩在脚边，远看也能从一片骑队里认出君主
-      ctx.fillStyle = 'rgba(240,196,92,0.22)';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 19 * z, 31 * z, 9 * z, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,214,120,0.7)';
-      ctx.lineWidth = Math.max(1, 2 * z);
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 19 * z, 26 * z, 7 * z, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const icon = assets.monarchIconFor(col, look);
-      const iw = 84 * z;
-      const ih = iw * 80 / 64;
-      const bottom = sy + 20 * z;
-      ctx.drawImage(icon, sx - iw / 2, bottom - ih, iw, ih);
-      bxx = sx - bw / 2;
-      byy = bottom - ih - bh - 5 * z;
-    } else {
-      // 普通领主：一整队人马（骑手 + 两卒 + 旗），按势力上色
-      const icon = assets.partyIconFor(col, look);
-      const isz = (lord.id === 'lvbu' ? 122 : look.big ? 112 : 100) * z;
-      ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
-    }
+    const icon = assets.partyIconFor(col, look);
+    const isz = (lord.id === 'lvbu' ? 122 : look.big ? 112 : 100) * z;
+    ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
 
     // 势力简写：一面小旗，全国地图上也认得出是哪家的
     const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
+    const bw = 28 * z;
+    const bh = 30 * z;
+    const bxx = sx + 16 * z;
+    const byy = sy - 42 * z;
     ctx.fillStyle = 'rgba(12,9,6,0.6)';
     ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;
@@ -23812,20 +18528,18 @@ function drawUnits(ctx, app, cam, box, w) {
     });
 
     const nsz = Math.max(12, Math.round(18 * z));
-    const nameY = isKing ? sy + 30 * z : sy + 21 * z;
     if (z >= 0.4) {
       ctx.font = 'bold ' + nsz + 'px "PingFang SC","Microsoft YaHei",sans-serif';
       const tw = ctx.measureText(lord.name).width;
       ctx.fillStyle = 'rgba(10,8,6,0.75)';
-      ctx.fillRect(sx - tw / 2 - 7, nameY - 1, tw + 14, nsz + 6);
-      text(ctx, lord.name, sx, nameY, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
+      ctx.fillRect(sx - tw / 2 - 7, sy + 20 * z, tw + 14, nsz + 6);
+      text(ctx, lord.name, sx, sy + 21 * z, { size: nsz, align: 'center', color: hostile ? '#e58a7a' : '#e6dbc2' });
     }
     // 拉近到半图视野就写兵力，远望只认旗
     if (z >= 0.5) {
-      text(ctx, String(army.troopCount(lord.troops || {})), isKing ? sx + 43 * z : sx + 24 * z,
-        isKing ? sy - 62 * z : sy - 58 * z, {
-          size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
-        });
+      text(ctx, String(army.troopCount(lord.troops || {})), sx + 24 * z, sy - 58 * z, {
+        size: Math.max(15, Math.round(20 * z)), align: 'left', color: '#efe3c6', shadow: true,
+      });
     }
 
     if (stateLib.lordEngagementValid(st, lord)) {
@@ -23958,35 +18672,6 @@ function playerPixel(app) {
   return { gx, gy };
 }
 
-function drawEdgeGuide(ctx, app, cam, box, w) {
-  const st = app.state;
-  const arc = st && st.arc;
-  if (!arc || arc.phase !== 'retreat') return;
-  const edge = st.world && st.world.edgeTown;
-  if (!edge) return;
-  const p = st.player;
-  const px = (p.x + 0.5) * TS - cam.x;
-  const py = box.top + (p.y + 0.5) * TS - cam.y;
-  const ex = (edge.x + 0.5) * TS - cam.x;
-  const ey = box.top + (edge.y + 0.5) * TS - cam.y;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, box.top, w, box.h);
-  ctx.clip();
-  ctx.strokeStyle = 'rgba(240,198,96,0.9)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 8]);
-  ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.lineTo(ex, ey);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(30,24,14,0.8)';
-  ctx.fillRect(ex - 52, ey - 44, 104, 24);
-  text(ctx, '边陲小镇', ex, ey - 32, { size: 18, align: 'center', color: '#f0d090', shadow: true });
-  ctx.restore();
-}
-
 function drawPlayerOnMap(ctx, app, cam, box) {
   // 人在城里歇着、只是拉远看天下：地图上不摆自己，回城界面才有他
   if (app.restView) return;
@@ -24084,10 +18769,8 @@ function focusTaskTarget(app, target, label) {
 function drawQuestCard(ctx, app, box, w) {
   const st = app.state;
   const info = stateLib.campaignInfo(st);
+  if (!info) return;
   const activeSide = (st.quests || []).filter(function (q) { return q && !q.done && !q.failed; });
-  // 史实沙盘没有主线时，只留酒馆支线；一条支线也没有就不占地图。
-  if (!info && !activeSide.length) return;
-  const sideOnly = !info;
   const side = activeSide[0] || null;
   const collapsed = !!app.questTrackCollapsed;
 
@@ -24114,7 +18797,7 @@ function drawQuestCard(ctx, app, box, w) {
   const headerH = 30;
   const mainH = 64;
   const sideH = side ? 56 : 36;
-  const ph = headerH + (sideOnly ? 0 : mainH) + sideH + 8;
+  const ph = headerH + mainH + sideH + 8;
 
   ctx.fillStyle = 'rgba(10,8,6,0.84)';
   ctx.fillRect(x, y, pw, ph);
@@ -24131,30 +18814,28 @@ function drawQuestCard(ctx, app, box, w) {
   });
 
   let ry = y + headerH + 4;
-  if (!sideOnly) {
-    // 主线：只显示当前这一章，不再把整条主线摊开
-    const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
-    const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
-    ctx.fillStyle = 'rgba(38,29,18,0.72)';
-    ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
-    ctx.fillStyle = '#d9a441';
-    ctx.fillRect(x + 8, ry, 3, mainH - 4);
-    text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
-    const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
-    text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
-    const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
-    mainLines.forEach(function (ln, i) {
-      text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
-    });
-    text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
-    app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
-      const target = stateLib.campaignTargetPos(st);
-      if (target) focusTaskTarget(app, target, '主线目标');
-      else app.push('journal');
-    });
+  // 主线：只显示当前这一章，不再把整条主线摊开
+  const mainTitle = info.done ? '主线已走完' : '第 ' + (info.index + 1) + '/' + info.total + ' 章 · ' + info.title;
+  const mainHint = info.done ? '剩下的是占地与写史' : String(info.hint || info.goal || '');
+  ctx.fillStyle = 'rgba(38,29,18,0.72)';
+  ctx.fillRect(x + 8, ry, pw - 16, mainH - 4);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(x + 8, ry, 3, mainH - 4);
+  text(ctx, '主线', x + 18, ry + 4, { size: 12, color: '#8a8070' });
+  const mainTitleLine = wrap(ctx, mainTitle, pw - 52, 18)[0] || mainTitle;
+  text(ctx, mainTitleLine, x + 18, ry + 17, { size: 18, color: '#f0c060' });
+  const mainLines = wrap(ctx, mainHint, pw - 52, 13).slice(0, 1);
+  mainLines.forEach(function (ln, i) {
+    text(ctx, ln, x + 18, ry + 40 + i * 16, { size: 13, color: '#c9bda2' });
+  });
+  text(ctx, '定位 ▸', x + pw - 18, ry + 5, { size: 11, align: 'right', color: '#8a8070' });
+  app.ui.rect('quest_main', x + 8, ry, pw - 16, mainH - 4, function () {
+    const target = stateLib.campaignTargetPos(st);
+    if (target) focusTaskTarget(app, target, '主线目标');
+    else app.push('journal');
+  });
 
-    ry += mainH;
-  }
+  ry += mainH;
   // 支线：只收一条酒馆差事，点一下把镜头送到目标
   const sideHint = side
     ? (side.type === 'hunt' ? '去地图上找到目标队伍并打散' :
@@ -24243,18 +18924,15 @@ function drawTop(ctx, app, w) {
   text(ctx, title, 16, 40, { size: 24, color: '#f0c060' });
   text(ctx, '· ' + p.name + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
-  // 倍速：额外保留 8x 测试档
-  const speeds = [1, 2, 3, 8];
-  const speedW = 40;
-  const speedGap = 6;
-  const speedStart = w - 18 - (speeds.length * speedW + (speeds.length - 1) * speedGap);
+  // 倍速
+  const speeds = [1, 2, 3];
   speeds.forEach(function (s, i) {
-    const bx = speedStart + i * (speedW + speedGap);
+    const bx = w - 150 + i * 46;
     const active = (st.timeScale || 1) === s;
     ctx.fillStyle = active ? '#d9a441' : '#2c2318';
-    ctx.fillRect(bx, 12, speedW, 32);
-    text(ctx, s + 'x', bx + speedW / 2, 18, { size: 18, align: 'center', color: active ? '#201409' : '#9c907a' });
-    app.ui.rect('speed' + s, bx, 12, speedW, 32, function () {
+    ctx.fillRect(bx, 12, 40, 32);
+    text(ctx, s + 'x', bx + 20, 18, { size: 18, align: 'center', color: active ? '#201409' : '#9c907a' });
+    app.ui.rect('speed' + s, bx, 12, 40, 32, function () {
       st.timeScale = s;
     });
   });
@@ -24525,7 +19203,7 @@ module.exports = MapScene;
   };
 
   /* js/scenes/atlas.js */
-  __defs[26] = function (module, exports, __require) {
+  __defs[23] = function (module, exports, __require) {
 /**
  * 天下大势：可缩放的势力总图
  * 任何缩放级别都保留城与关隘的名字；放大时铺上各势力领土色、描州界。
@@ -24534,7 +19212,7 @@ module.exports = MapScene;
 const { REGIONS, FACTIONS, CAPITAL_IDS } = __require(5);
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const territory = __require(24);
+const territory = __require(21);
 
 const MAP_TOP = 112;
 const MAP_LEFT = 10;
@@ -24617,9 +19295,6 @@ const AtlasScene = {
 
     text(ctx, '天下大势', 16, 22, { size: 34, color: '#f0c060' });
     text(ctx, '魏 · 蜀 · 吴 · 群雄割据', 16, 66, { size: 17, color: '#a2947a' });
-    if (st.story && st.story.mode && st.story.headline) {
-      text(ctx, st.story.headline, 16, 88, { size: 13, color: '#c8b48a' });
-    }
 
     app.ui.button(ctx, w - 146, 20, 130, 56, '返回', {
       id: 'atlas_back', size: 22, onTap: function () { app.pop(); },
@@ -24950,7 +19625,7 @@ module.exports = AtlasScene;
   };
 
   /* js/render/scenery.js */
-  __defs[28] = function (module, exports, __require) {
+  __defs[25] = function (module, exports, __require) {
 /**
  * 场景背景：不引入外部图片，用 Canvas 画出“像照片一样”的场所剪影。
  * 城是街市、村是田埂、扎营是帐篷、比武是彩棚、牢房是铁栏。
@@ -25356,149 +20031,36 @@ module.exports = { drawBackdrop };
   };
 
   /* js/core/tourney.js */
-  __defs[29] = function (module, exports, __require) {
+  __defs[26] = function (module, exports, __require) {
 /**
- * 军机棋盘：城池里的六局军情博弈。
+ * 比武大会：押一注报名费，跟一位好手在彩棚底下比三招血。
  *
- * 六局都只押一注：报名 40 金钱，胜者得 200 金钱；每七天只摆十局，满十局要等下一轮。
- * 规则全部由本文件计算，场景层只负责把选择画成棋盘。
- *   单挑斩将：劈克刺，刺克闪，闪克劈（三分之一的胜面）
- *   校场夺魁：左挡 / 右挡 / 左攻 / 右攻，对手四滴血、挡对可反手重击
- *   断粮道：三处粮道，AI 拦两处，只剩一条空档
- *   狙杀敌哨：两处明哨一处暗哨 × 换防/不换
- *   火攻时机：顺风放火 / 等风停 / 严阵以待 × 防备/不备
- *   烽火传令：三选一避开伏兵，再在剩下两条道中二选一
- * 六局摊下来，赢面都在四成以下，棋盘是消遣，不是提款机。
+ * 玩法是"猜手"：每合一招，双方各出一手——
+ *   左挡 / 右挡 / 左攻 / 右攻。
+ * 结算：
+ *   · 都攻 → 两败俱伤，各掉一滴血
+ *   · 都挡 → 各自绕圈试探，这合白打
+ *   · 一攻一挡，方向相同（挡住）→ 攻击方掉血，防守方不掉，还白赚一刀
+ *   · 一攻一挡，方向不同（挡空）→ 防守方掉血
+ * 三滴血，先见底的人输。报名 40 金，赢的人拿 200。
+ *
+ * 不杀人不损兵，纯个人武艺（骑砍竞技场的味道）。
  */
 
-const heroes = __require(14);
 const { LORDS, FACTIONS } = __require(5);
+const heroes = __require(14);
 
+const HP = 3;
 const FEE = 40;
 const PRIZE = 200;
 
-const DUEL_MOVES = [
-  { id: 'pi', name: '劈', beats: 'ci', desc: '大刀当头劈下，克刺。' },
-  { id: 'ci', name: '刺', beats: 'shan', desc: '枪尖直取咽喉，克闪。' },
-  { id: 'shan', name: '闪', beats: 'pi', desc: '侧身让过刀锋，克劈。' },
-];
-const DUEL_BY_ID = {};
-DUEL_MOVES.forEach(function (m) { DUEL_BY_ID[m.id] = m; });
-
-// 校场夺魁：老比武大会那套“猜手”，左挡 / 右挡 / 左攻 / 右攻，各三滴血。
-const ARENA_MOVES = [
-  { id: 'blockL', name: '左挡', dir: 'L', kind: 'block', desc: '护住左肩' },
-  { id: 'blockR', name: '右挡', dir: 'R', kind: 'block', desc: '护住右肩' },
-  { id: 'attackL', name: '左攻', dir: 'L', kind: 'attack', desc: '从左边切进去' },
-  { id: 'attackR', name: '右攻', dir: 'R', kind: 'attack', desc: '从右边切进去' },
-];
-const ARENA_BY_ID = {};
-ARENA_MOVES.forEach(function (m) { ARENA_BY_ID[m.id] = m; });
-const ARENA_HP = 3;
-// 校场对手是常年下场的老手：多一件护心镜，多撑一刀；你挡对方向能反手重击。
-const ARENA_FOE_HP = 4;
-const SUPPLY_BLOCK_COUNT = 2;
-const WEEK_LIMIT = 10;
-const WEEK_DAYS = 7;
-
-const SUPPLY_NODES = [
-  { id: 'east', name: '东粮道', short: '东', desc: '靠河，车辙最深。' },
-  { id: 'center', name: '中粮道', short: '中', desc: '直通大营，守备最密。' },
-  { id: 'west', name: '西粮道', short: '西', desc: '绕山，路窄而隐蔽。' },
-];
-const SUPPLY_BY_ID = {};
-SUPPLY_NODES.forEach(function (n) { SUPPLY_BY_ID[n.id] = n; });
-
-const SENTRY_TARGETS = [
-  { id: 'brightA', name: '前门明哨', desc: '火把底下站着，换防要从火前走过。' },
-  { id: 'brightB', name: '侧门明哨', desc: '侧门那盏灯下，换防只是转身，箭贴不着。' },
-  { id: 'hidden', name: '帐后暗哨', desc: '营帐阴影里的一双眼睛，不动才露头。' },
-];
-const SENTRY_AIS = [
-  { id: 'change', name: '换防', desc: '哨兵互换位置。' },
-  { id: 'stay', name: '不换', desc: '原位盯到天亮。' },
-];
-const FIRE_MOVES = [
-  { id: 'burn', name: '顺风放火', desc: '趁风势把火船送过去。' },
-  { id: 'wait', name: '等风停', desc: '先按住火船，等风向定。' },
-  { id: 'hold', name: '不再放火', desc: '严阵以待，今夜只守不攻。' },
-];
-const FIRE_AIS = [
-  { id: 'ready', name: '防备', desc: '沿江布下拒火船。' },
-  { id: 'unready', name: '不备', desc: '只当是寻常夜雾。' },
-];
-const RELAY_LANES = [
-  { id: 'east', name: '东驿道', short: '东', desc: '沿河快马，路最宽。' },
-  { id: 'center', name: '中驿道', short: '中', desc: '穿过两道土岗。' },
-  { id: 'west', name: '西驿道', short: '西', desc: '绕山，近而险。' },
-];
-const RELAY_BY_ID = {};
-RELAY_LANES.forEach(function (n) { RELAY_BY_ID[n.id] = n; });
-
-const MODES = [
-  {
-    id: 'duel', name: '单挑斩将', icon: 'duel', color: '#4a241c',
-    short: '劈 · 刺 · 闪',
-    intro: '两军阵前，你与敌将各出一招。劈克刺，刺克闪，闪克劈；同招相抵，可再出一手。',
-    rule: '一局定胜负。胜者斩将夺旗，得 200 金钱。',
-    choiceTitle: '你出哪一招？',
-    choices: DUEL_MOVES.map(function (m) {
-      return { id: m.id, name: m.name, desc: '克 ' + DUEL_BY_ID[m.beats].name };
-    }),
-  },
-  {
-    id: 'arena', name: '校场夺魁', icon: 'arena', color: '#3a2c1e',
-    short: '挡与攻 · 四手',
-    intro: '校场画了个圈，你与好手各持木刀，护住左右两肩。每合一招：要么护住一边，要么从那一边切进去。',
-    rule: '你三滴血，对手四滴血；挡对方向可反手重击。同招相抵白打一合；两败俱伤退报名费。',
-    choiceTitle: '这一合怎么走？',
-    choices: ARENA_MOVES.map(function (m) {
-      return { id: m.id, name: m.name, desc: m.desc, kind: m.kind };
-    }),
-  },
-  {
-    id: 'supply', name: '断粮道', icon: 'supply', color: '#3b3020',
-    short: '三条粮道 · 留一条',
-    intro: '敌营粮道分东、中、西三处。你先选一处偷袭，AI 同时把两处卡死；只剩一条道是空的。',
-    rule: '三条道里 AI 拦两条，撞上任何一处伏兵即输。烧掉敌粮得 200 金钱。',
-    choiceTitle: '偷袭哪一处粮道？',
-    choices: SUPPLY_NODES.map(function (n) {
-      return { id: n.id, name: n.name, desc: n.desc };
-    }),
-  },
-  {
-    id: 'sentry', name: '狙杀敌哨', icon: 'sentry', color: '#26372e',
-    short: '两明一暗 · 换防',
-    intro: '敌营外三处哨位：前门明哨、侧门明哨、帐后暗哨。你挑一处放箭，AI 决定换防或不换。',
-    rule: '只有前门明哨换防时会走过火把，帐后暗哨不换才露头；侧门转身、明哨站定都空。',
-    choiceTitle: '先狙哪一个？',
-    choices: SENTRY_TARGETS.map(function (n) {
-      return { id: n.id, name: n.name, desc: n.desc };
-    }),
-  },
-  {
-    id: 'fire', name: '火攻时机', icon: 'fire', color: '#4a2a18',
-    short: '顺风 / 等风 / 严阵',
-    intro: '风向不定。你选顺风放火、等风停，或者干脆不再放火；AI 选防备或不备。',
-    rule: '顺风遇不备、等风遇防备才得手；严阵以待只是收兵，退你报名费。',
-    choiceTitle: '何时点火？',
-    choices: FIRE_MOVES.map(function (n) {
-      return { id: n.id, name: n.name, desc: n.desc };
-    }),
-  },
-  {
-    id: 'relay', name: '烽火传令', icon: 'relay', color: '#2c2a40',
-    short: '三选一 · 再二选一',
-    intro: '你是传令兵，要把军信送到前线。第一关三条驿道，AI 在其中一条设卡；避开后，第二关只剩两条道，AI 再补一道卡。',
-    rule: '两关都避开伏兵，军信送到，得 200 金钱；任一次撞上即输。',
-    choiceTitle: '第一关走哪条道？',
-    choices: RELAY_LANES.map(function (n) {
-      return { id: n.id, name: n.name, desc: n.desc };
-    }),
-  },
-];
-const MODE_BY_ID = {};
-MODES.forEach(function (m) { MODE_BY_ID[m.id] = m; });
+const MOVES = {
+  blockL: { id: 'blockL', name: '左挡', dir: 'L', kind: 'block' },
+  blockR: { id: 'blockR', name: '右挡', dir: 'R', kind: 'block' },
+  attackL: { id: 'attackL', name: '左攻', dir: 'L', kind: 'attack' },
+  attackR: { id: 'attackR', name: '右攻', dir: 'R', kind: 'attack' },
+};
+const MOVE_IDS = ['blockL', 'blockR', 'attackL', 'attackR'];
 
 function fee() {
   return FEE;
@@ -25508,509 +20070,189 @@ function prize() {
   return PRIZE;
 }
 
-function modeById(id) {
-  return MODE_BY_ID[id] || null;
-}
-
-function modeList() {
-  return MODES.slice();
-}
-
-function choiceList(modeId, relayState) {
-  const mode = modeById(modeId);
-  if (!mode) return [];
-  if (modeId === 'relay' && relayState && relayState.stage === 2) {
-    return RELAY_LANES.filter(function (n) {
-      return (relayState.remaining || []).indexOf(n.id) >= 0;
-    });
-  }
-  return mode.choices.slice();
-}
-
-function labelFor(modeId, choiceId) {
-  const mode = modeById(modeId);
-  if (!mode) return choiceId;
-  if (modeId === 'relay') {
-    return (RELAY_BY_ID[choiceId] && RELAY_BY_ID[choiceId].name) || choiceId;
-  }
-  if (modeId === 'arena') {
-    return (ARENA_BY_ID[choiceId] && ARENA_BY_ID[choiceId].name) || choiceId;
-  }
-  const list = mode.choices || [];
-  for (let i = 0; i < list.length; i++) {
-    if (list[i].id === choiceId) return list[i].name;
-  }
-  return choiceId;
-}
-
-function aiLabelFor(modeId, aiId) {
-  if (modeId === 'supply') return (SUPPLY_BY_ID[aiId] && SUPPLY_BY_ID[aiId].name) || aiId;
-  if (modeId === 'sentry') {
-    return (SENTRY_AIS.filter(function (n) { return n.id === aiId; })[0] || {}).name || aiId;
-  }
-  if (modeId === 'fire') {
-    return (FIRE_AIS.filter(function (n) { return n.id === aiId; })[0] || {}).name || aiId;
-  }
-  if (modeId === 'relay') return (RELAY_BY_ID[aiId] && RELAY_BY_ID[aiId].name) || aiId;
-  if (modeId === 'duel') return (DUEL_BY_ID[aiId] && DUEL_BY_ID[aiId].name) || aiId;
-  if (modeId === 'arena') return (ARENA_BY_ID[aiId] && ARENA_BY_ID[aiId].name) || aiId;
-  return aiId;
-}
-
-/** 单挑：返回 win / lose / tie。 */
-function resolveDuel(playerMove, aiMove) {
-  const p = DUEL_BY_ID[playerMove];
-  if (!p || !DUEL_BY_ID[aiMove]) return null;
-  if (playerMove === aiMove) return 'tie';
-  return p.beats === aiMove ? 'win' : 'lose';
-}
-
-/** 断粮道：三条道 AI 拦两条，只剩一条空档。 */
-function resolveSupply(playerNode, blocks) {
-  if (!SUPPLY_BY_ID[playerNode]) return null;
-  const list = Array.isArray(blocks) ? blocks : [blocks];
-  if (!list.length || list.some(function (id) { return !SUPPLY_BY_ID[id]; })) return null;
-  return list.indexOf(playerNode) >= 0 ? 'lose' : 'win';
-}
-
-/** 狙杀敌哨：只有前门明哨换防时会走过火把，暗哨不换才露头。 */
-function resolveSentry(target, aiMove) {
-  if (!SENTRY_TARGETS.some(function (n) { return n.id === target; })) return null;
-  const ok = (target === 'hidden' && aiMove === 'stay') ||
-    (target === 'brightA' && aiMove === 'change');
-  return ok ? 'win' : 'lose';
-}
-
-/** 火攻时机：严阵以待是收兵，退报名费。 */
-function resolveFire(move, aiMove) {
-  if (move === 'hold') return 'draw';
-  const ok = (move === 'burn' && aiMove === 'unready') ||
-    (move === 'wait' && aiMove === 'ready');
-  return ok ? 'win' : 'lose';
-}
-
-/** 烽火传令：每一关都只是“选中的道是否撞上设卡道”。 */
-function resolveRelayStage(playerLane, blockLane) {
-  if (!RELAY_BY_ID[playerLane] || !RELAY_BY_ID[blockLane]) return null;
-  return playerLane !== blockLane ? 'win' : 'lose';
-}
-
-/** 校场夺魁：一合的结算，只看双方各自出的手。 */
-function resolveArena(pMoveId, fMoveId) {
-  const pm = ARENA_BY_ID[pMoveId];
-  const fm = ARENA_BY_ID[fMoveId];
-  if (!pm || !fm) return null;
-  let dmgPlayer = 0;
-  let dmgFoe = 0;
-  let line = '';
-  const pDir = pm.dir === 'L' ? '左' : '右';
-  const fDir = fm.dir === 'L' ? '左' : '右';
-
-  if (pm.kind === 'attack' && fm.kind === 'attack') {
-    dmgPlayer = 1;
-    dmgFoe = 1;
-    line = '两边同时抢攻，木刀都落了实，各挨一下。';
-  } else if (pm.kind === 'block' && fm.kind === 'block') {
-    line = '两人都在收着，绕着圈子走了半圈，这一合谁也没碰上谁。';
-  } else if (pm.kind === 'attack' && fm.kind === 'block') {
-    if (pm.dir === fm.dir) {
-      dmgPlayer = 1;
-      line = '你从' + pDir + '边抢攻，对手正好在' + fDir + '边架上木刀，你虎口被震得发麻。';
-    } else {
-      dmgFoe = 1;
-      line = '你从' + pDir + '边虚晃一招，人却从另一边切进去，一刀拍在他护肩上。';
-    }
-  } else if (pm.dir === fm.dir) {
-    // 挡对了顺势反手一记重刀，比寻常一刀更沉
-    dmgFoe = 2;
-    line = '他攻你' + fDir + '边，你' + pDir + '手木刀迎上去，磕开刀锋，反手一记重刀抽在他背上。';
-  } else {
-    dmgPlayer = 1;
-    line = '他攻你' + fDir + '边，你挡在' + pDir + '边——护不住，肋下吃了一记。';
-  }
-  return { dmgPlayer: dmgPlayer, dmgFoe: dmgFoe, line: line };
-}
-
-/** 校场上的对手：从天下名将里抽一位，声望越高，读招越准。 */
-function pickArenaFoe(state) {
-  const list = (LORDS || []).filter(function (l) { return l && l.id && l.name; });
-  if (!list.length) return { name: '外乡好手', tag: '校场常客', skill: 0.16 };
-  const def = list[state.rng.int(0, list.length - 1)];
+/** 挑一个本地的对手：从天下名将里抽一位，身板随声望涨一点 */
+function pickFoe(state) {
+  const rng = state.rng;
+  const list = LORDS.filter(function (l) { return l && l.id && l.name; });
+  const def = list[rng.int(0, list.length - 1)];
   const rep = Math.min(20, Math.floor((state.player.renown || 0) / 60));
   return {
     name: def.name,
     faction: def.faction,
     lordId: def.id,
+    // 读招的本事：0.12 ~ 0.5，随你的声望往上加，别让人一开场就摸透
     skill: Math.max(0.12, Math.min(0.5, 0.16 + rep * 0.02)),
     tag: (FACTIONS[def.faction] || {}).full || '外地来的好手',
   };
 }
 
-/** 对手出招：多数时候乱来，偶尔读你上一手的习惯。 */
-function pickArenaAI(state, arena) {
-  const last = arena && arena.moves && arena.moves.length
-    ? arena.moves[arena.moves.length - 1] : null;
-  if (last && state.rng.next() < (arena.foe.skill || 0.2)) {
+function enter(state, site) {
+  const cost = FEE;
+  if (state.player.gold < cost) {
+    return { ok: false, msg: '报名要 ' + cost + ' 金钱，你身上不够' };
+  }
+  state.player.gold -= cost;
+  state.tourney = {
+    siteId: site ? site.id : null,
+    siteName: site ? site.name : '此地',
+    hp: HP,
+    foeHp: HP,
+    foe: pickFoe(state),
+    moves: [],
+    log: [],
+    done: false,
+    champion: false,
+    draw: false,
+    fee: cost,
+    pot: PRIZE,
+    round: 0,
+  };
+  return { ok: true, msg: '交了 ' + cost + ' 金钱报名费，签了生死状（其实不杀人）。' };
+}
+
+/** 对手出招：多数时候乱来，偶尔读你上一手的习惯 */
+function aiMove(state) {
+  const t = state.tourney;
+  if (!t) return 'attackL';
+  const rng = state.rng;
+  const last = t.moves.length ? t.moves[t.moves.length - 1] : null;
+  if (last && rng.next() < (t.foe.skill || 0.2)) {
     if (last.pMove === 'attackL') return 'blockL';
     if (last.pMove === 'attackR') return 'blockR';
     if (last.pMove === 'blockL') return 'attackR';
     if (last.pMove === 'blockR') return 'attackL';
   }
-  return ARENA_MOVES[state.rng.int(0, ARENA_MOVES.length - 1)].id;
+  return MOVE_IDS[rng.int(0, MOVE_IDS.length - 1)];
 }
 
-function safeFlags(state) {
-  if (!state.flags || typeof state.flags !== 'object') state.flags = {};
-  return state.flags;
-}
-
-function pickFrom(state, list) {
-  if (!list || !list.length) return null;
-  return list[state.rng.int(0, list.length - 1)];
-}
-
-function pickDuelAI(state) {
-  return pickFrom(state, DUEL_MOVES).id;
-}
-
-/** AI 一次拦两道：三条道只给你留一条空档。 */
-function pickSupplyBlocks(state) {
-  const pool = SUPPLY_NODES.map(function (n) { return n.id; });
-  const first = pickFrom(state, SUPPLY_NODES).id;
-  const rest = pool.filter(function (id) { return id !== first; });
-  const j = Math.max(0, Math.min(rest.length - 1, state.rng.int(0, rest.length - 1)));
-  const second = rest[j];
-  const out = [first, second];
-  safeFlags(state).warboardSupplyLastBlocks = out.slice();
-  return out;
-}
-
-/* ---------------------------------------------------------- 七天十局 */
-
-/** 每七天摆十局；跨过七天自动重开一轮。 */
-function weekState(state) {
-  if (!state.tourneyWeek || typeof state.tourneyWeek.startDay !== 'number') {
-    state.tourneyWeek = { startDay: state.clock ? state.clock.day : 1, used: 0 };
-  }
-  const w = state.tourneyWeek;
-  const day = state.clock ? state.clock.day : w.startDay;
-  if (day - w.startDay >= WEEK_DAYS || day < w.startDay) {
-    w.startDay = day;
-    w.used = 0;
-  }
-  return w;
-}
-
-function remaining(state) {
-  const w = weekState(state);
-  return Math.max(0, WEEK_LIMIT - w.used);
-}
-
-function weekInfo(state) {
-  const w = weekState(state);
-  return {
-    used: w.used,
-    limit: WEEK_LIMIT,
-    remaining: Math.max(0, WEEK_LIMIT - w.used),
-    startDay: w.startDay,
-    resetIn: Math.max(0, WEEK_DAYS - ((state.clock ? state.clock.day : w.startDay) - w.startDay)),
-  };
-}
-
-function pickSentryAI(state) {
-  return pickFrom(state, SENTRY_AIS).id;
-}
-
-function pickFireAI(state) {
-  return pickFrom(state, FIRE_AIS).id;
-}
-
-function pickRelayBlock(state, lanes) {
-  return pickFrom(state, lanes).id;
-}
-
-/** 报名：交 40，初始化当前这一局。 */
-function enter(state, site, modeId) {
-  if (!state || !state.player) return { ok: false, msg: '还没有开局。' };
-  const mode = modeById(modeId || 'duel');
-  if (!mode) return { ok: false, msg: '棋盘上没有这一局。' };
-  if (state.tourney && !state.tourney.done) {
-    return { ok: false, msg: '上一局还没下完。' };
-  }
-  const gold = Number(state.player.gold || 0);
-  if (gold < FEE) return { ok: false, msg: '报名要 ' + FEE + ' 金钱，你身上不够。' };
-  const week = weekState(state);
-  if (week.used >= WEEK_LIMIT) {
-    return { ok: false, msg: '这七天的十局已经下满，' + Math.max(1, WEEK_DAYS - ((state.clock ? state.clock.day : week.startDay) - week.startDay)) + ' 天后再开张。' };
-  }
-
-  state.player.gold = gold - FEE;
-  week.used += 1;
-  const t = {
-    mode: mode.id,
-    modeName: mode.name,
-    siteId: site ? site.id : null,
-    siteName: site ? site.name : '此地',
-    fee: FEE,
-    pot: PRIZE,
-    round: 0,
-    done: false,
-    champion: false,
-    win: false,
-    result: null,
-    draw: false,
-    log: [],
-    choiceTitle: mode.choiceTitle,
-  };
-  if (mode.id === 'arena') {
-    t.arena = {
-      hp: ARENA_HP,
-      foeHp: ARENA_FOE_HP,
-      foe: pickArenaFoe(state),
-      moves: [],
-    };
-    t.choiceTitle = '这一合怎么走？';
-  }
-  if (mode.id === 'relay') {
-    t.relay = {
-      stage: 1,
-      firstLane: null,
-      block1: null,
-      remaining: RELAY_LANES.map(function (n) { return n.id; }),
-      block2: null,
-    };
-  }
-  state.tourney = t;
-  return {
-    ok: true,
-    msg: '交 ' + FEE + ' 金钱，军机棋盘摆开：' + mode.name + '（本周还剩 ' + remaining(state) + ' 局）。',
-    mode: mode.id,
-  };
-}
-
-function addLog(t, lines) {
-  if (!lines || !lines.length) return;
-  t.log.push(lines.filter(Boolean).join('\n'));
-  if (t.log.length > 12) t.log.shift();
-}
-
-function finish(state, t, win, resultLines) {
-  if (!t || t.done) return;
-  t.done = true;
-  t.win = !!win;
-  t.champion = !!win;
-  t.draw = false;
-  t.result = win ? 'win' : 'lose';
-  addLog(t, resultLines || []);
-  if (win) {
-    state.player.gold = Number(state.player.gold || 0) + PRIZE;
-    state.player.renown = Number(state.player.renown || 0) + 12;
-    state.player.morale = Math.min(100, Number(state.player.morale || 0) + 4);
-    if (state.stats) state.stats.goldEarned = Number(state.stats.goldEarned || 0) + PRIZE;
-    heroes.gainHeroExp(state, 4);
-    addLog(t, ['棋盘收官，你赢了。赏钱 ' + PRIZE + ' 金钱，声望 +12。']);
-  } else {
-    state.player.renown = Number(state.player.renown || 0) + 2;
-    state.player.morale = Math.max(0, Number(state.player.morale || 0) - 2);
-    addLog(t, ['这一局输了。报名费不退，声望 +2。']);
-  }
+function dirName(d) {
+  return d === 'L' ? '左' : '右';
 }
 
 /**
- * 下一步。选完之后由场景层展示结果。
- * @param {object} state
- * @param {string} choice
+ * 纯结算：给定双方这一合的招，算出各掉几滴血。
+ * 规则只在这里写一遍，play 和测试都走它。
  */
-function choose(state, choice) {
-  const t = state && state.tourney;
-  if (!t) return { ok: false, msg: '棋盘已经收了。' };
-  if (t.done) return { ok: false, msg: '这一局已经下完。' };
-  const mode = modeById(t.mode);
-  if (!mode) return { ok: false, msg: '这局棋盘已经作废。' };
-  t.round += 1;
+function settle(pMoveId, fMoveId) {
+  const pm = MOVES[pMoveId];
+  const fm = MOVES[fMoveId];
+  if (!pm || !fm) return null;
+  let dmgPlayer = 0;
+  let dmgFoe = 0;
+  let line = '';
 
-  if (t.mode === 'duel') {
-    if (!DUEL_BY_ID[choice]) return { ok: false, msg: '没有这一招。' };
-    const ai = pickDuelAI(state);
-    const result = resolveDuel(choice, ai);
-    if (result === 'tie') {
-      t.draw = true;
-      addLog(t, ['你出「' + labelFor('duel', choice) + '」，敌将也出「' + labelFor('duel', ai) + '」。', '同招相抵，各自收招；不另收报名费，可再出一手。']);
-      return {
-        ok: true, mode: t.mode, result: 'tie', done: false,
-        playerChoice: choice, aiChoice: ai,
-        playerLabel: labelFor('duel', choice), aiLabel: labelFor('duel', ai),
-        lines: ['同招相抵，重新起手。'],
-      };
-    }
-    t.draw = false;
-    const win = result === 'win';
-    addLog(t, ['你出「' + labelFor('duel', choice) + '」，敌将出「' + labelFor('duel', ai) + '」。', win ? '刀锋先到，敌将落马。' : '敌将先变招，你的刀势落空。']);
-    finish(state, t, win, [win ? '阵前斩将，夺旗而还。' : '你被亲兵抢回阵中，这局输了。']);
-  } else if (t.mode === 'arena') {
-    const a = t.arena;
-    if (!a) return { ok: false, msg: '这一场已经散了。' };
-    const pm = ARENA_BY_ID[choice];
-    if (!pm) return { ok: false, msg: '校场上只有左挡、右挡、左攻、右攻。' };
-    const ai = pickArenaAI(state, a);
-    const settled = resolveArena(choice, ai);
-    a.hp -= settled.dmgPlayer;
-    a.foeHp -= settled.dmgFoe;
-    a.moves.push({ pMove: choice, fMove: ai, dmgPlayer: settled.dmgPlayer, dmgFoe: settled.dmgFoe });
-    const lines = ['第 ' + t.round + ' 合：' + settled.line,
-      '（你 ' + Math.max(0, a.hp) + ' 血 · ' + a.foe.name + ' ' + Math.max(0, a.foeHp) + ' 血）'];
-    addLog(t, lines);
-    if (a.hp <= 0 && a.foeHp <= 0) {
-      // 两败俱伤：报名费退回，赏格作废
-      t.done = true;
-      t.draw = true;
-      t.win = false;
-      t.champion = false;
-      t.result = 'draw';
-      state.player.gold = Number(state.player.gold || 0) + FEE;
-      state.player.renown = Number(state.player.renown || 0) + 2;
-      addLog(t, ['两个人一起倒下去，砸翻了校场的灯。主事的人把 ' + FEE + ' 金钱报名费退了你。']);
-      return {
-        ok: true, mode: t.mode, result: 'draw', done: true,
-        playerChoice: choice, aiChoice: ai,
-        playerLabel: labelFor('arena', choice), aiLabel: labelFor('arena', ai),
-        hp: 0, foeHp: 0, lines: lines,
-      };
-    }
-    if (a.foeHp <= 0) {
-      addLog(t, ['他撑着木刀跪在地上，认了。', '校场四周把铜钱往场里洒。']);
-      finish(state, t, true, ['校场夺魁，赏钱 ' + PRIZE + ' 金钱。']);
-    } else if (a.hp <= 0) {
-      addLog(t, ['你膝盖一软，坐在了土里。' + a.foe.name + '收了手，抱拳说：再练两年。']);
-      finish(state, t, false, ['报名费没了，台下还是有人叫好。']);
+  if (pm.kind === 'attack' && fm.kind === 'attack') {
+    dmgPlayer = 1;
+    dmgFoe = 1;
+    line = '两边同时抢攻，家伙都落了实，各挨一下。';
+  } else if (pm.kind === 'block' && fm.kind === 'block') {
+    line = '两边都在收着，绕着彩棚走了半圈，这一合谁也没摸着谁。';
+  } else if (pm.kind === 'attack' && fm.kind === 'block') {
+    if (pm.dir === fm.dir) {
+      // 挡对了：进攻方白挨一刀，防守方不掉血
+      dmgPlayer = 1;
+      line = '你从' + dirName(pm.dir) + '边抢攻，对面正好在' + dirName(fm.dir) + '边架上盾，你虎口被震得发麻。';
     } else {
-      return {
-        ok: true, mode: t.mode, result: 'continue', done: false,
-        playerChoice: choice, aiChoice: ai,
-        playerLabel: labelFor('arena', choice), aiLabel: labelFor('arena', ai),
-        hp: a.hp, foeHp: a.foeHp, lines: lines,
-      };
+      // 挡空了：防守方掉血
+      dmgFoe = 1;
+      line = '你从' + dirName(pm.dir) + '边虚晃一招，人却从' + dirName(pm.dir === 'L' ? 'R' : 'L') + '边切进去，一刀劈在他护肩上。';
     }
-  } else if (t.mode === 'supply') {
-    if (!SUPPLY_BY_ID[choice]) return { ok: false, msg: '没有这处粮道。' };
-    const blocks = pickSupplyBlocks(state);
-    const result = resolveSupply(choice, blocks);
-    const win = result === 'win';
-    const blockText = blocks.map(function (id) { return labelFor('supply', id); }).join('、');
-    addLog(t, ['你偷袭「' + labelFor('supply', choice) + '」，伏兵卡住「' + blockText + '」两处。',
-      win ? '剩下那条空道没人守，粮车一把火烧了。' : '这条道正撞在伏兵枪口上，火把从两侧亮起。']);
-    finish(state, t, win, [win ? '断粮成功，敌营军心大乱。' : '偷袭失败，你带伤退回。']);
-    t.lastBlocks = blocks.slice();
-  } else if (t.mode === 'sentry') {
-    if (!SENTRY_TARGETS.some(function (n) { return n.id === choice; })) {
-      return { ok: false, msg: '哨位只有两处明哨和一处暗哨。' };
-    }
-    const ai = pickSentryAI(state);
-    const result = resolveSentry(choice, ai);
-    const win = result === 'win';
-    addLog(t, ['你瞄准「' + labelFor('sentry', choice) + '」，敌营今夜「' + aiLabelFor('sentry', ai) + '」。',
-      win ? '弩箭擦着火光过去，哨兵无声倒下。' : '箭钉在木桩上，哨兵一缩身，营门立刻警觉。']);
-    finish(state, t, win, [win ? '敌哨已除，营门开了一条暗路。' : '一箭落空，你只能退入夜色。']);
-  } else if (t.mode === 'fire') {
-    if (!FIRE_MOVES.some(function (n) { return n.id === choice; })) {
-      return { ok: false, msg: '火攻只有两种时机。' };
-    }
-    const ai = pickFireAI(state);
-    const result = resolveFire(choice, ai);
-    if (result === 'draw') {
-      t.done = true;
-      t.draw = true;
-      t.win = false;
-      t.champion = false;
-      t.result = 'draw';
-      state.player.gold = Number(state.player.gold || 0) + FEE;
-      state.player.renown = Number(state.player.renown || 0) + 1;
-      addLog(t, ['你传令收兵，火船拖回港内，沿江列阵守到天亮。',
-        '敌营「' + aiLabelFor('fire', ai) + '」也没等到你点火。报名费 ' + FEE + ' 退回，赏格作废。']);
-      return {
-        ok: true, mode: t.mode, result: 'draw', done: true,
-        playerChoice: choice, aiChoice: ai,
-        playerLabel: labelFor('fire', choice), aiLabel: aiLabelFor('fire', ai),
-        lines: ['严阵以待，今夜不战。'],
-      };
-    }
-    const win = result === 'win';
-    addLog(t, ['你选「' + labelFor('fire', choice) + '」，敌营选择「' + aiLabelFor('fire', ai) + '」。', win ? '火船顺风撞入水寨，江面烧成一条火龙。' : '风向不对，火船还未靠近就被拒火船拦住。']);
-    finish(state, t, win, [win ? '火攻得手，敌营水寨尽毁。' : '火攻失手，你折了火船退回。']);
-  } else if (t.mode === 'relay') {
-    const relay = t.relay || (t.relay = {
-      stage: 1, firstLane: null, block1: null,
-      remaining: RELAY_LANES.map(function (n) { return n.id; }), block2: null,
-    });
-    const lane = RELAY_BY_ID[choice];
-    if (!lane) return { ok: false, msg: '没有这条驿道。' };
-    if (relay.stage === 1) {
-      const block = pickRelayBlock(state, RELAY_LANES);
-      relay.firstLane = choice;
-      relay.block1 = block;
-      relay.remaining = RELAY_LANES.filter(function (n) { return n.id !== block; }).map(function (n) { return n.id; });
-      const result = resolveRelayStage(choice, block);
-      if (result === 'lose') {
-        addLog(t, ['第一关你走「' + lane.name + '」，AI 在「' + (RELAY_BY_ID[block] || {}).name + '」设卡。', '关卡火把亮起，军信没能出营。']);
-        finish(state, t, false, ['第一关就被截住，传令失败。']);
-      } else {
-        relay.stage = 2;
-        addLog(t, ['第一关你走「' + lane.name + '」，AI 的关卡设在「' + (RELAY_BY_ID[block] || {}).name + '」。', '你绕过关卡，前方只剩第二条驿道。']);
-        return {
-          ok: true, mode: t.mode, result: 'continue', done: false,
-          stage: 2, playerChoice: choice, aiChoice: block,
-          playerLabel: lane.name, aiLabel: (RELAY_BY_ID[block] || {}).name,
-          remaining: relay.remaining.slice(),
-          lines: ['第一关已过，进入第二关。'],
-        };
-      }
-    } else {
-      if (relay.remaining.indexOf(choice) < 0) return { ok: false, msg: '这条道已经被关卡封了。' };
-      const block = pickRelayBlock(state, relay.remaining.map(function (id) { return RELAY_BY_ID[id]; }));
-      relay.block2 = block;
-      const result = resolveRelayStage(choice, block);
-      const win = result === 'win';
-      addLog(t, ['第二关你走「' + lane.name + '」，AI 在「' + (RELAY_BY_ID[block] || {}).name + '」补卡。', win ? '你从山道尽头冲出去，军信送到了。' : '第二条关卡封住山道，军信落在泥里。']);
-      finish(state, t, win, [win ? '烽火传到前线，大军按军信而动。' : '传令失败，前线没能等到这封信。']);
-    }
+  } else if (pm.dir === fm.dir) {
+    // 你挡住他的攻：反手赚他一下
+    dmgFoe = 1;
+    line = '他攻你' + dirName(fm.dir) + '，你' + dirName(pm.dir) + '手盾迎上去，磕开刀锋还推了他一把。';
   } else {
-    return { ok: false, msg: '这局棋盘已经作废。' };
+    dmgPlayer = 1;
+    line = '他攻你' + dirName(fm.dir) + '边，你挡在' + dirName(pm.dir) + '边——护不住，肋下吃了一记。';
   }
 
+  return { dmgPlayer: dmgPlayer, dmgFoe: dmgFoe, line: line };
+}
+
+/**
+ * 出一招，跟对手的招一起结算。
+ * 返回 { ok, pMove, fMove, hp, foeHp, done, champion, draw, lines }
+ */
+function play(state, moveId) {
+  const t = state.tourney;
+  if (!t) return { ok: false, msg: '大会已经散了' };
+  if (t.done) return { ok: false, msg: '这一场已经完了' };
+  const pm = MOVES[moveId];
+  if (!pm) return { ok: false, msg: '没有这么一手' };
+
+  const fm = MOVES[aiMove(state)];
+  const settled = settle(pm.id, fm.id);
+  const dmgPlayer = settled.dmgPlayer;
+  const dmgFoe = settled.dmgFoe;
+  t.round += 1;
+  const lines = ['第 ' + t.round + ' 合：', settled.line];
+
+  t.hp -= dmgPlayer;
+  t.foeHp -= dmgFoe;
+  t.moves.push({ pMove: moveId, fMove: fm.id, dmgPlayer: dmgPlayer, dmgFoe: dmgFoe });
+  lines.push('（你 ' + Math.max(0, t.hp) + ' 血 · ' + t.foe.name + ' ' + Math.max(0, t.foeHp) + ' 血）');
+
+  let result = 'continue';
+  if (t.hp <= 0 && t.foeHp <= 0) {
+    t.done = true;
+    t.draw = true;
+    result = 'draw';
+    state.player.gold += t.fee;
+    state.player.renown += 6;
+    lines.push('两个人一起倒下去，砸翻了彩棚的灯。主事的人把 ' + t.fee + ' 金钱报名费退了你，赏格对半分不成，只好作罢。');
+  } else if (t.foeHp <= 0) {
+    t.done = true;
+    t.champion = true;
+    result = 'win';
+    state.player.gold += t.pot;
+    state.player.renown += 40;
+    state.player.morale = Math.min(100, state.player.morale + 8);
+    heroes.gainHeroExp(state, 10);
+    lines.push('他撑着刀跪在地上，认了。彩棚下把铜钱往场里洒，赏钱 ' + t.pot + ' 金钱，声望 +40。');
+    if (t.foe.lordId) {
+      const lid = t.foe.lordId;
+      state.lords.forEach(function (l) {
+        if (l.id === lid && l.alive) {
+          state.relations[l.faction] = Math.min(100, (state.relations[l.faction] || 0) + 6);
+        }
+      });
+    }
+  } else if (t.hp <= 0) {
+    t.done = true;
+    result = 'lose';
+    state.player.renown += 2;
+    state.player.morale = Math.max(0, state.player.morale - 4);
+    lines.push('你膝盖一软，坐在了土里。' + t.foe.name + '收了手，抱拳说：再练两年。报名费没了，台下还是有人叫好——敢上场的人不多。声望 +2。');
+  }
+
+  t.log.push(lines.join('\n'));
   return {
     ok: true,
-    mode: t.mode,
-    result: t.result,
-    done: !!t.done,
-    winner: t.win ? 'player' : 'ai',
+    pMove: pm.id,
+    fMove: fm.id,
+    hp: Math.max(0, t.hp),
+    foeHp: Math.max(0, t.foeHp),
+    done: t.done,
     champion: !!t.champion,
-    playerChoice: choice,
-    playerLabel: labelFor(t.mode, choice),
-    aiChoice: t.mode === 'supply' ? null : undefined,
-    blocks: t.mode === 'supply' ? (t.lastBlocks || []).slice() : undefined,
-    lines: t.log.length ? t.log[t.log.length - 1].split('\n') : [],
+    draw: !!t.draw,
+    result: result,
+    lines: lines,
   };
 }
 
 function close(state) {
-  if (state) state.tourney = null;
+  state.tourney = null;
 }
 
 module.exports = {
-  FEE, PRIZE, MODES, DUEL_MOVES, SUPPLY_NODES, SENTRY_TARGETS,
-  SENTRY_AIS, FIRE_MOVES, FIRE_AIS, RELAY_LANES, ARENA_MOVES, ARENA_HP,
-  ARENA_FOE_HP, SUPPLY_BLOCK_COUNT, WEEK_LIMIT, WEEK_DAYS,
-  fee, prize, modeById, modeList, choiceList, labelFor, aiLabelFor,
-  resolveDuel, resolveSupply, resolveSentry, resolveFire, resolveRelayStage, resolveArena,
-  pickDuelAI, pickSupplyBlocks, pickSentryAI, pickFireAI, pickArenaAI, pickArenaFoe,
-  weekState, weekInfo, remaining,
-  enter, choose, close,
+  HP, FEE, PRIZE, MOVES, MOVE_IDS,
+  fee, prize, pickFoe, enter, aiMove, settle, play, close,
 };
 
   };
 
   /* js/scenes/town.js */
-  __defs[27] = function (module, exports, __require) {
+  __defs[24] = function (module, exports, __require) {
 /**
  * 城池 / 村庄 / 匪巢界面
  * 布局：顶部城名 → 自己状态条（金/粮/兵/望/简/士气）→ 大按钮菜单 → 子页
@@ -26020,13 +20262,13 @@ module.exports = {
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const pixel = __require(3);
-const scenery = __require(28);
+const scenery = __require(25);
 const stateLib = __require(7);
 const economy = __require(11);
 const trade = __require(13);
 const heroes = __require(14);
 const army = __require(9);
-const tourney = __require(29);
+const tourney = __require(26);
 const { siteById, regionDef } = __require(8);
 const { TROOPS } = __require(10);
 
@@ -26039,7 +20281,7 @@ function siteSeed(id) {
 }
 const { FACTIONS, EQUIPMENT, STRATEGIC_SITES } = __require(5);
 const { VILLAGE_FOOD } = __require(12);
-const flows = __require(25);
+const flows = __require(22);
 
 const PAD = 16;
 
@@ -26247,8 +20489,8 @@ function menuItems(app, site) {
       onTap: function () { app.townView.view = 'hall'; },
     });
     list.push({
-      id: 'm_tourney', label: '军机棋盘', sub: '单挑 · 校场 · 断粮 · 狙哨 · 火攻 · 传令，一局定胜负', fill: '#3a2c1e',
-      right: (app.state.tourney && !app.state.tourney.done) ? '推演中' : '报名 ' + tourney.fee() + '金钱',
+      id: 'm_tourney', label: '比武大会', sub: '四招赌手 · 三滴血，赢钱赢名声，不杀人', fill: '#3a2c1e',
+      right: (app.state.tourney && !app.state.tourney.done) ? '进行中' : '报名 ' + tourney.fee(app.state) + '金钱',
       onTap: function () { app.push('tourney', { siteId: site.id }); },
     });
     const obj = stateLib.campaignObjective(app.state, site);
@@ -26781,7 +21023,6 @@ function renderTavern(app, site) {
         app.showToast(q ? '接下来的事：' + q.title : '今天没人找你办事。', 2.4);
       },
     });
-    y += 160;
   } else {
     mine.forEach(function (q) {
       panel(ctx, PAD, y, w - PAD * 2, 126, { fill: '#241c14' });
@@ -27001,7 +21242,7 @@ function renderHall(app, site) {
 
   // 情报：该势力的领主
   const resting = st.lords.filter(function (l) {
-    return l.alive && l.inCity === site.id && !l.scatterHidden;
+    return l.alive && l.inCity === site.id;
   });
   if (resting.length) {
     text(ctx, '府中歇脚 · ' + resting.length + ' 位领主', PAD, y + 6, { size: 20, color: '#d9a441' });
@@ -27023,7 +21264,7 @@ function renderHall(app, site) {
     }
   }
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.inCity && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.inCity;
   });
   text(ctx, '麾下领主', PAD, y + 6, { size: 20, color: '#a2947a' });
   y += 40;
@@ -27070,7 +21311,7 @@ function renderLordList(app, site) {
   const st = app.state;
   const f = site.ownerFaction;
   const lords = st.lords.filter(function (l) {
-    return l.faction === f && l.alive && !l.dead && !l.retired && !l.scatterHidden;
+    return l.faction === f && l.alive && !l.dead && !l.retired;
   });
   const rows = lords.slice().sort(function (a, b) {
     const ra = { king: 0, lord: 1, general: 2 }[stateLib.lordRank(a)] || 3;
@@ -27383,7 +21624,7 @@ module.exports = TownScene;
   };
 
   /* js/scenes/founding.js */
-  __defs[30] = function (module, exports, __require) {
+  __defs[27] = function (module, exports, __require) {
 /**
  * 立国页：打下第一座城后选一个字的国号，再选旗色。
  * 扎营里的“国号与旗色”也复用这一页，只改两个字。
@@ -27667,7 +21908,7 @@ module.exports = FoundingScene;
   };
 
   /* js/scenes/fief.js */
-  __defs[31] = function (module, exports, __require) {
+  __defs[28] = function (module, exports, __require) {
 /**
  * 封地页：把打下来的城、关隘、村庄封给任意领主。
  *
@@ -27679,7 +21920,7 @@ module.exports = FoundingScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(25);
 const army = __require(9);
 const heroes = __require(14);
 const { siteById, regionDef } = __require(8);
@@ -28055,7 +22296,7 @@ module.exports = FiefScene;
   };
 
   /* js/scenes/govern.js */
-  __defs[32] = function (module, exports, __require) {
+  __defs[29] = function (module, exports, __require) {
 /**
  * 处理政务：一张案上同时管封地、外交。
  * 从自己的城/村菜单进来；封地分配复用原 fief 页，外交在这里谈。
@@ -28063,7 +22304,7 @@ module.exports = FiefScene;
 
 const { text, panel, bar } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(25);
 const { FACTIONS } = __require(5);
 const { siteById } = __require(8);
 
@@ -28373,7 +22614,7 @@ module.exports = GovernScene;
   };
 
   /* js/scenes/shop.js */
-  __defs[33] = function (module, exports, __require) {
+  __defs[30] = function (module, exports, __require) {
 /**
  * 局内商店：看一段军情广告，领取金钱、粮草或天机简。
  * 每个现实自然日刷新，三种奖励各自 10 次，互不占用；过本地零点自动重置。
@@ -28426,7 +22667,7 @@ const ShopScene = {
       ? stateLib.adRewardInfo(st)
       : {
         max: 10, used: { gold: 0, food: 0, shi: 0 },
-        left: { gold: 0, food: 0, shi: 0 }, gold: 1000, food: 2000, shi: 2,
+        left: { gold: 0, food: 0, shi: 0 }, gold: 1000, food: 200, shi: 2,
       };
 
     text(ctx, p ? '军帐：金钱 ' + p.gold + ' · 粮草 ' + p.food + ' · 天机简 ' + p.shi : '还没有军帐：先开一局再来。',
@@ -28488,7 +22729,7 @@ const ShopScene = {
       });
 
     app.ui.button(ctx, PAD, 508, w - PAD * 2, 70,
-      this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 2000 粮草', {
+      this.busy && this.busyKind === 'food' ? '正在拉取军情…' : '看广告 · 领 200 粮草', {
         id: 'shop_ad_food', size: 24, fill: '#3a2c1e',
         disabled: !can || info.left.food <= 0, onTap: function () {
           watch('food');
@@ -28525,21 +22766,20 @@ module.exports = ShopScene;
   };
 
   /* js/scenes/battle.js */
-  __defs[34] = function (module, exports, __require) {
+  __defs[31] = function (module, exports, __require) {
 /**
  * 战斗场景：战前选战术 → 回合自动推进 → 结算
- * 战中可落一笔天机简（南风起 / 天降火球 / 风行 / 夜袭 / 倒戈 / 瘴气 / 回魂）
+ * 战中可落一笔天机简（南风起 / 风止 / 名册）
  */
 
 const { text, panel, bar, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
-const audio = __require(21);
 const { TROOPS } = __require(10);
 const { TACTICS, TACTIC_LIST } = __require(16);
 const { HISTORY_MARKS, CAMPAIGN, FACTIONS } = __require(5);
-const { drawBackdrop } = __require(28);
+const { drawBackdrop } = __require(25);
 
 /** 打完/撤出后一路退回地图，不在城门口再被弹一次 */
 function backToMap(app) {
@@ -28623,8 +22863,6 @@ const BattleScene = {
       if (b.finished) {
         bv.summary = stateLib.resolveBattle(app.state, b);
         bv.phase = 'result';
-        audio.play(bv.summary && bv.summary.result === 'win' ? 'victory'
-          : bv.summary && bv.summary.result === 'lose' ? 'sorrow' : 'field');
       } else if (b.batchDone) {
         bv.summary = b.interimSummary();
         bv.phase = 'interim';
@@ -28676,11 +22914,6 @@ const BattleScene = {
     if (sub) text(ctx, sub, w / 2, compact ? 56 : 92, {
       size: compact ? 15 : 18, align: 'center', color: '#a2947a',
     });
-    if (bv.phase === 'prep' && b.openingLog) {
-      text(ctx, '军师技 · ' + b.openingLog, w / 2, compact ? 78 : 122, {
-        size: compact ? 12 : 15, align: 'center', color: '#c9a0e0',
-      });
-    }
     if (fire) text(ctx, '火攻', w - 20, 10, { size: 16, align: 'right', color: '#ff8f4a' });
     if (b.shiName) text(ctx, '天机简 · ' + b.shiName, 20, 10, { size: 16, color: '#c9a0e0' });
 
@@ -28946,26 +23179,10 @@ function renderResult(app, sum, w, h, y0Top) {
   text(ctx, '我方 ' + sum.remainA + ' / ' + sum.initialA, 16, y0 + 58, { size: 20, color: '#9fb8d8' });
   text(ctx, '敌方 ' + sum.remainB + ' / ' + sum.initialB, 16, y0 + 88, { size: 20, color: '#d8a09f' });
   if (win) text(ctx, '缴获 ' + sum.loot + ' 金钱', 16, y0 + 122, { size: 22, color: '#f0c060' });
-  let extraY = y0 + (win ? 150 : 122);
-  if (sum.duelNote) {
-    text(ctx, sum.duelNote, 16, extraY, {
-      size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
-    });
-    extraY += 28;
-  }
-  if (sum.openingLog) {
-    text(ctx, '军师技 · ' + sum.openingLog, 16, extraY, { size: 15, color: '#c9a0e0' });
-    extraY += 24;
-  }
-  if (sum.shiMark) {
-    text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, extraY, { size: 17, color: '#c9a0e0' });
-    if (sum.shiNote) {
-      const lines = wrap(ctx, sum.shiNote, w - 32, 15).slice(0, 2);
-      lines.forEach(function (line, i) {
-        text(ctx, line, 16, extraY + 24 + i * 18, { size: 15, color: '#a2947a' });
-      });
-    }
-  }
+  if (sum.duelNote) text(ctx, sum.duelNote, 16, y0 + (win ? 150 : 122), {
+    size: 18, color: String(sum.duelNote).indexOf('斩') >= 0 ? '#d07060' : '#c9bda2',
+  });
+  if (sum.shiMark) text(ctx, '天机简「' + sum.shiName + '」' + (sum.shiTiming === 'after' ? '已结算 · 阵亡者归队' : '已生效'), 16, y0 + 178, { size: 17, color: '#c9a0e0' });
 
   if (pending) {
     panel(ctx, 16, h - 300, w - 32, 190, { fill: 'rgba(42,30,20,0.94)' });
@@ -29038,47 +23255,31 @@ function renderShi(app, w, h, b) {
   const ctx = app.runtime.ctx;
   ctx.fillStyle = 'rgba(8,6,4,0.94)';
   ctx.fillRect(0, 0, w, h);
-  text(ctx, '落一笔天机简', w / 2, 46, { size: 32, align: 'center', color: '#d9a441' });
-  text(ctx, '七笔可选 · 战中落笔即时生效 · 回魂留到战后结算 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 92, {
-    size: 14, align: 'center', color: '#a2947a',
+  text(ctx, '落一笔天机简', w / 2, 150, { size: 34, align: 'center', color: '#d9a441' });
+  text(ctx, '前两笔战中生效，名册战后结算 · 战中落笔即时生效 · 剩余 ' + app.state.player.shi + ' 支', w / 2, 200, {
+    size: 16, align: 'center', color: '#a2947a',
   });
 
-  const gap = 12;
-  const cols = 2;
-  const cw = Math.floor((w - 48 - gap) / cols);
-  const ch = 176;
-  const step = 184;
-  const startX = 24;
-  const startY = 128;
-  Object.keys(HISTORY_MARKS).forEach(function (id, i) {
+  let y = 250;
+  Object.keys(HISTORY_MARKS).forEach(function (id) {
     const m = HISTORY_MARKS[id];
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = startX + col * (cw + gap);
-    const y = startY + row * step;
-    panel(ctx, x, y, cw, ch, { fill: '#241c14' });
-    text(ctx, m.name, x + 12, y + 10, { size: 23, color: '#d9a441' });
-    text(ctx, m.timing === 'after' ? '战后生效 · 本场阵亡八成归队' : '战中生效 · 落笔即时', x + 12, y + 38, {
-      size: 12, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0',
-    });
-    const lines = wrap(ctx, m.desc, cw - 24, 14).slice(0, 4);
-    if (m.desc && wrap(ctx, m.desc, cw - 24, 14).length > 4 && lines.length) {
-      lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1) + '…';
-    }
-    lines.forEach(function (line, li) {
-      text(ctx, line, x + 12, y + 60 + li * 17, { size: 14, color: '#c9bda2' });
-    });
-    app.ui.button(ctx, x + 12, y + 136, cw - 24, 32, '落笔', {
-      id: 'shi_' + id, size: 18, onTap: function () {
+    panel(ctx, 24, y, w - 48, 150, { fill: '#241c14' });
+    text(ctx, m.name, 48, y + 16, { size: 29, color: '#d9a441' });
+    text(ctx, m.timingLabel || '', 188, y + 28, { size: 15, color: m.timing === 'after' ? '#8fb0c8' : '#c9a0e0' });
+    text(ctx, m.desc, 48, y + 58, { size: 16, color: '#c9bda2' });
+    text(ctx, '“' + m.text + '”', 48, y + 94, { size: 15, color: '#8a8070' });
+    app.ui.button(ctx, w - 176, y + 70, 132, 60, '落笔', {
+      id: 'shi_' + id, size: 22, onTap: function () {
         const r = stateLib.useHistory(app.state, id);
         app.showToast(r.msg, 2);
         app.battleView.shiOpen = false;
       },
     });
+    y += 162;
   });
 
-  app.ui.button(ctx, 24, Math.min(h - 58, 862), w - 48, 54, '收起笔', {
-    id: 'shi_close', size: 22, fill: '#241c14', onTap: function () {
+  app.ui.button(ctx, 24, y + 10, w - 48, 70, '收起笔', {
+    id: 'shi_close', size: 24, fill: '#241c14', onTap: function () {
       app.battleView.shiOpen = false;
     },
   });
@@ -29089,7 +23290,7 @@ module.exports = BattleScene;
   };
 
   /* js/scenes/contact.js */
-  __defs[35] = function (module, exports, __require) {
+  __defs[32] = function (module, exports, __require) {
 /**
  * 遭遇页：撞上匪团先看清对面是谁，再决定打还是走。
  * 不再一点碰上就推进战斗画面。
@@ -29213,7 +23414,7 @@ module.exports = ContactScene;
   };
 
   /* js/scenes/army.js */
-  __defs[36] = function (module, exports, __require) {
+  __defs[33] = function (module, exports, __require) {
 /**
  * 队伍页：兵力构成、遣返士兵、随行英雄（点进去能说话）
  * 内容是长列表，可上下拖
@@ -29504,7 +23705,7 @@ module.exports = ArmyScene;
   };
 
   /* js/scenes/hero.js */
-  __defs[37] = function (module, exports, __require) {
+  __defs[34] = function (module, exports, __require) {
 /**
  * 英雄对话页：从队伍页点名字进来，能聊两句，也能请他离开。
  */
@@ -29710,7 +23911,7 @@ module.exports = HeroScene;
   };
 
   /* js/scenes/prison.js */
-  __defs[38] = function (module, exports, __require) {
+  __defs[35] = function (module, exports, __require) {
 /**
  * 牢房：营后捆着的领主，收赎金或者白放换人情。
  * 也列出天下各处牢里关着的人（只读）。
@@ -29718,7 +23919,7 @@ module.exports = HeroScene;
 
 const { text, wrap } = __require(6);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(25);
 const { FACTIONS } = __require(5);
 const { lookFor } = __require(12);
 
@@ -29936,1014 +24137,155 @@ module.exports = PrisonScene;
   };
 
   /* js/scenes/tourney.js */
-  __defs[39] = function (module, exports, __require) {
+  __defs[36] = function (module, exports, __require) {
 /**
- * 军机棋盘：城池里的六局军情博弈。
- * 每局报名 40 金钱，胜者 200；每七天只摆十局。
- * 校场夺魁沿用旧比武大会的界面：对手画像、血条、四手木刀、场上记事。
+ * 比武大会：彩棚底下的"猜手"赌局。
+ * 左挡 / 右挡 / 左攻 / 右攻，各三滴血，先见底的人输。
+ * 报名 40 金钱，赢的人拿 200。
  */
 
 const { text, wrap, panel } = __require(6);
-const board = __require(29);
+const tourney = __require(26);
 const { siteById } = __require(8);
+const scenery = __require(25);
 const { lookFor } = __require(12);
 const { FACTIONS } = __require(5);
-const scenery = __require(28);
 
-const CARD_GAP = 12;
-// 整个场景按 390 宽的设计稿排；渲染时整体缩放到真实画布，热区同步放大。
-const DESIGN_W = 390;
-let KS = 1;
-let DW = DESIGN_W;
-let DH = 845;
-
-function btn(app, ctx, x, y, w, h, label, o) {
-  const opt = o || {};
-  const pressed = app.ui.pressed && app.ui.pressed.id === opt.id;
-  const dy = pressed ? 2 : 0;
-  const fill = opt.disabled ? '#1e1a15' : (opt.fill || '#3a2c1e');
-  const border = opt.disabled ? '#4a3f32' : '#8a6a42';
-  const color = opt.disabled ? '#6a6355' : (opt.color || '#f2e3c4');
-  ctx.save();
-  if (!opt.disabled) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(x + 3, y + 5, w, h);
-  }
-  ctx.fillStyle = fill;
-  ctx.fillRect(x, y + dy, w, h);
-  ctx.fillStyle = border;
-  ctx.fillRect(x, y + dy, w, 2);
-  ctx.fillRect(x, y + dy + h - 2, w, 2);
-  ctx.fillRect(x, y + dy, 2, h);
-  ctx.fillRect(x + w - 2, y + dy, 2, h);
-  if (!opt.disabled) {
-    ctx.fillStyle = 'rgba(255,255,255,0.10)';
-    ctx.fillRect(x + 2, y + dy + 2, w - 4, Math.floor(h / 3));
-  }
-  ctx.restore();
-  text(ctx, label, x + w / 2, y + dy + h / 2, {
-    size: opt.size || 26, align: 'center', baseline: 'middle', color: color,
-  });
-  if (!opt.disabled) {
-    app.ui.rect(opt.id || label, x * KS, y * KS, w * KS, h * KS, opt.onTap);
-  }
-}
 const FILL_BLOCK = '#26372e';
 const FILL_ATTACK = '#452a1c';
 
-/* ------------------------------------------------------------ 通用小件 */
-
-function drawPips(ctx, x, y, n, total, color, w) {
-  const pw = w || 34;
-  const gap = 6;
+function drawPips(ctx, x, y, n, total, color) {
   for (let i = 0; i < total; i++) {
     const alive = i < n;
     ctx.fillStyle = alive ? color : 'rgba(255,255,255,0.08)';
-    ctx.fillRect(x + i * (pw + gap), y, pw, 12);
+    ctx.fillRect(x + i * 46, y, 38, 14);
     ctx.strokeStyle = 'rgba(0,0,0,0.45)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(x + i * (pw + gap) + 0.5, y + 0.5, pw, 12);
+    ctx.strokeRect(x + i * 46, y, 38, 14);
   }
 }
-
-/** 铺满一行的格子：十天十局，用掉几格亮几格。 */
-function drawWeekBar(ctx, x, y, w, used, total) {
-  const gap = 5;
-  const pw = (w - gap * (total - 1)) / total;
-  for (let i = 0; i < total; i++) {
-    ctx.fillStyle = i < used ? '#d9b978' : 'rgba(255,255,255,0.07)';
-    ctx.fillRect(x + i * (pw + gap), y, pw, 10);
-  }
-}
-
-function ground(ctx, x, y, w, color) {
-  ctx.fillStyle = color || 'rgba(240,192,96,0.10)';
-  ctx.fillRect(x, y, w, 2);
-}
-
-/** 一个侧身的小兵：正面朝 +x。pose = idle / wind / strike / hit / down */
-function fighter(ctx, cx, baseY, s, face, pose, coat, skin) {
-  ctx.save();
-  ctx.translate(cx, baseY);
-  ctx.scale(face, 1);
-  if (pose === 'down') {
-    ctx.rotate(-0.35);
-    ctx.translate(0, 6 * s);
-  }
-  // 影子
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(0, 2, 26 * s, 7 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // 腿
-  ctx.strokeStyle = '#2b241c';
-  ctx.lineWidth = 5 * s;
-  ctx.beginPath();
-  ctx.moveTo(-2 * s, -26 * s);
-  ctx.lineTo(-10 * s, 0);
-  ctx.moveTo(4 * s, -26 * s);
-  ctx.lineTo(12 * s, 0);
-  ctx.stroke();
-  // 身子
-  ctx.fillStyle = coat || '#6a4a34';
-  ctx.fillRect(-10 * s, -62 * s, 20 * s, 38 * s);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(-10 * s, -40 * s, 20 * s, 6 * s);
-  // 头
-  ctx.fillStyle = skin || '#d8b48c';
-  ctx.beginPath();
-  ctx.arc(0, -72 * s, 9 * s, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#3a3027';
-  ctx.fillRect(-9 * s, -80 * s, 18 * s, 5 * s);
-  // 手臂与兵器
-  const sh = { x: 7 * s, y: -56 * s };
-  let tip = { x: 30 * s, y: -34 * s };
-  if (pose === 'wind') tip = { x: -12 * s, y: -96 * s };
-  else if (pose === 'strike') tip = { x: 50 * s, y: -60 * s };
-  else if (pose === 'hit') tip = { x: 20 * s, y: -20 * s };
-  ctx.strokeStyle = '#d8b48c';
-  ctx.lineWidth = 4 * s;
-  ctx.beginPath();
-  ctx.moveTo(sh.x, sh.y);
-  ctx.lineTo((sh.x + tip.x) / 2, (sh.y + tip.y) / 2 - 4 * s);
-  ctx.stroke();
-  ctx.strokeStyle = '#c9c2b4';
-  ctx.lineWidth = 3.5 * s;
-  ctx.beginPath();
-  ctx.moveTo((sh.x + tip.x) / 2, (sh.y + tip.y) / 2 - 4 * s);
-  ctx.lineTo(tip.x, tip.y);
-  ctx.stroke();
-  ctx.fillStyle = '#e8dcc0';
-  ctx.beginPath();
-  ctx.arc(tip.x, tip.y, 2.6 * s, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-/** 一匹马加骑手，跑起来四蹄交替。phase 0..1 */
-function rider(ctx, cx, baseY, s, phase, coat) {
-  const swing = Math.sin(phase * Math.PI * 2) * 5 * s;
-  const C = coat || '#4a3a2a';
-  ctx.save();
-  ctx.translate(cx, baseY);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 28 * s, 6 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // 四蹄
-  ctx.strokeStyle = '#2b241c';
-  ctx.lineWidth = 3.4 * s;
-  ctx.beginPath();
-  ctx.moveTo(-15 * s, -20 * s); ctx.lineTo(-19 * s + swing, -1 * s);
-  ctx.moveTo(-9 * s, -20 * s); ctx.lineTo(-5 * s - swing, -1 * s);
-  ctx.moveTo(9 * s, -20 * s); ctx.lineTo(5 * s + swing, -1 * s);
-  ctx.moveTo(15 * s, -20 * s); ctx.lineTo(19 * s - swing, -1 * s);
-  ctx.stroke();
-  // 马身、颈、头、尾
-  ctx.fillStyle = C;
-  ctx.fillRect(-22 * s, -37 * s, 44 * s, 18 * s);
-  ctx.fillRect(14 * s, -50 * s, 10 * s, 16 * s);
-  ctx.fillRect(20 * s, -54 * s, 13 * s, 8 * s);
-  ctx.fillRect(-27 * s, -38 * s, 6 * s, 16 * s);
-  // 骑手腿
-  ctx.fillStyle = '#3a3027';
-  ctx.fillRect(1 * s, -30 * s, 6 * s, 13 * s);
-  // 骑手身、头、盔
-  ctx.fillStyle = '#6a4a34';
-  ctx.fillRect(-6 * s, -60 * s, 13 * s, 24 * s);
-  ctx.strokeStyle = '#6a4a34';
-  ctx.lineWidth = 4 * s;
-  ctx.beginPath();
-  ctx.moveTo(6 * s, -55 * s);
-  ctx.lineTo(19 * s, -47 * s);
-  ctx.stroke();
-  ctx.fillStyle = '#d8b48c';
-  ctx.beginPath();
-  ctx.arc(0, -66 * s, 6.5 * s, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#3a3027';
-  ctx.fillRect(-7 * s, -73 * s, 14 * s, 5 * s);
-  // 背上令旗
-  ctx.strokeStyle = '#3a2c1e';
-  ctx.lineWidth = 2 * s;
-  ctx.beginPath();
-  ctx.moveTo(-8 * s, -60 * s);
-  ctx.lineTo(-12 * s, -86 * s);
-  ctx.stroke();
-  ctx.fillStyle = '#b8452f';
-  ctx.beginPath();
-  ctx.moveTo(-12 * s, -86 * s);
-  ctx.lineTo(-2 * s, -82 * s);
-  ctx.lineTo(-12 * s, -76 * s);
-  ctx.fill();
-  ctx.restore();
-}
-
-/** 火把 */
-function torch(ctx, x, y, s, lit) {
-  ctx.fillStyle = '#3a2c1e';
-  ctx.fillRect(x - 1.5 * s, y, 3 * s, 18 * s);
-  if (!lit) return;
-  const fl = 1 + Math.sin(Date.now() / 120) * 0.12;
-  ctx.fillStyle = '#e08a3a';
-  ctx.beginPath();
-  ctx.moveTo(x, y - 12 * s * fl);
-  ctx.quadraticCurveTo(x + 6 * s, y - 2 * s, x, y + 1); 
-  ctx.quadraticCurveTo(x - 6 * s, y - 2 * s, x, y - 12 * s * fl);
-  ctx.fill();
-  ctx.fillStyle = '#f2cc78';
-  ctx.beginPath();
-  ctx.moveTo(x, y - 7 * s * fl);
-  ctx.quadraticCurveTo(x + 3 * s, y - 1 * s, x, y);
-  ctx.quadraticCurveTo(x - 3 * s, y - 1 * s, x, y - 7 * s * fl);
-  ctx.fill();
-}
-
-function strikeFlash(ctx, x, y, p, color) {
-  if (p <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, 1 - p);
-  ctx.strokeStyle = color || '#f0c060';
-  ctx.lineWidth = 3;
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const r = 10 + p * 26;
-    ctx.beginPath();
-    ctx.moveTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5);
-    ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/* ------------------------------------------------------------ 模式图标 */
-
-function drawIcon(ctx, type, x, y, size, color) {
-  const cx = x + size / 2;
-  const cy = y + size / 2;
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = Math.max(2, Math.round(size / 22));
-
-  if (type === 'duel') {
-    ctx.beginPath();
-    ctx.moveTo(x + size * 0.18, y + size * 0.20);
-    ctx.lineTo(x + size * 0.82, y + size * 0.80);
-    ctx.moveTo(x + size * 0.82, y + size * 0.20);
-    ctx.lineTo(x + size * 0.18, y + size * 0.80);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x + size * 0.18, y + size * 0.20, size * 0.06, 0, Math.PI * 2);
-    ctx.arc(x + size * 0.82, y + size * 0.80, size * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (type === 'supply') {
-    // 三条粮道：三根岔开的车辙
-    ctx.lineWidth = Math.max(2, Math.round(size / 26));
-    for (let i = 0; i < 3; i++) {
-      const dx = (i - 1) * size * 0.26;
-      ctx.beginPath();
-      ctx.moveTo(cx + dx * 0.3, y + size * 0.86);
-      ctx.lineTo(cx + dx, y + size * 0.16);
-      ctx.stroke();
-    }
-    ctx.fillStyle = color;
-    ctx.fillRect(cx - size * 0.30, y + size * 0.40, size * 0.60, size * 0.10);
-    ctx.beginPath();
-    ctx.arc(cx - size * 0.18, y + size * 0.62, size * 0.06, 0, Math.PI * 2);
-    ctx.arc(cx + size * 0.18, y + size * 0.62, size * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (type === 'sentry') {
-    // 弓
-    ctx.beginPath();
-    ctx.arc(cx + size * 0.10, cy, size * 0.34, Math.PI * 0.62, Math.PI * 1.38);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - size * 0.12, cy - size * 0.30);
-    ctx.lineTo(cx - size * 0.12, cy + size * 0.30);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - size * 0.24, cy);
-    ctx.lineTo(cx + size * 0.44, cy);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx + size * 0.44, cy);
-    ctx.lineTo(cx + size * 0.32, cy - size * 0.08);
-    ctx.lineTo(cx + size * 0.32, cy + size * 0.08);
-    ctx.closePath();
-    ctx.fill();
-  } else if (type === 'fire') {
-    ctx.beginPath();
-    ctx.moveTo(cx, y + size * 0.10);
-    ctx.bezierCurveTo(x + size * 0.74, y + size * 0.38, x + size * 0.76, y + size * 0.66, cx, y + size * 0.84);
-    ctx.bezierCurveTo(x + size * 0.24, y + size * 0.66, x + size * 0.26, y + size * 0.38, cx, y + size * 0.10);
-    ctx.fill();
-    ctx.fillStyle = '#f0c060';
-    ctx.beginPath();
-    ctx.moveTo(cx, y + size * 0.34);
-    ctx.bezierCurveTo(x + size * 0.58, y + size * 0.50, x + size * 0.58, y + size * 0.62, cx, y + size * 0.70);
-    ctx.bezierCurveTo(x + size * 0.42, y + size * 0.62, x + size * 0.42, y + size * 0.50, cx, y + size * 0.34);
-    ctx.fill();
-  } else if (type === 'arena') {
-    // 校场：一圈围栏，两口木刀交叉
-    ctx.beginPath();
-    ctx.ellipse(cx, y + size * 0.76, size * 0.36, size * 0.12, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + size * 0.28, y + size * 0.22);
-    ctx.lineTo(x + size * 0.70, y + size * 0.62);
-    ctx.moveTo(x + size * 0.70, y + size * 0.22);
-    ctx.lineTo(x + size * 0.28, y + size * 0.62);
-    ctx.stroke();
-  } else if (type === 'relay') {
-    // 骑马传令：三道驿道收到脚下，骑手持令而出
-    ctx.lineWidth = Math.max(2, Math.round(size / 26));
-    const hubX = cx - size * 0.08;
-    const hubY = y + size * 0.78;
-    for (let i = 0; i < 3; i++) {
-      const dx = (i - 1) * size * 0.28;
-      ctx.beginPath();
-      ctx.moveTo(cx + dx, y + size * 0.96);
-      ctx.lineTo(hubX, hubY);
-      ctx.stroke();
-    }
-    rider(ctx, hubX, hubY + size * 0.02, size / 105, 0.25, '#5a4630');
-    ctx.fillStyle = color;
-    ctx.fillRect(hubX + size * 0.24, y + size * 0.02, size * 0.045, size * 0.22);
-    ctx.beginPath();
-    ctx.moveTo(hubX + size * 0.285, y + size * 0.03);
-    ctx.lineTo(hubX + size * 0.46, y + size * 0.08);
-    ctx.lineTo(hubX + size * 0.285, y + size * 0.14);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-/* ------------------------------------------------------------ 局内舞台 */
-
-function stageRect(app, h) {
-  const w = DW;
-  return { x: 20, y: 146, w: w - 40, h: h < 700 ? 186 : 206 };
-}
-
-/** 校场：旧比武大会式样——对手画像、四血条、你、第几合 */
-function drawArenaStage(app, ctx, t, r, fx) {
-  const a = t.arena;
-  if (!a) return;
-  const foe = a.foe;
-  const col = (FACTIONS[foe.faction] || {}).color || '#8a7448';
-  const portrait = app.assets && app.assets.portraitFor
-    ? app.assets.portraitFor(col, lookFor(foe.lordId)) : null;
-  if (portrait) ctx.drawImage(portrait, r.x + 12, r.y + 10, 68, 68);
-  else { ctx.fillStyle = col; ctx.fillRect(r.x + 12, r.y + 10, 68, 68); }
-
-  text(ctx, foe.name, r.x + 90, r.y + 12, { size: 22, color: a.foeHp > 0 ? '#efe3c6' : '#7a7060' });
-  text(ctx, (foe.tag && foe.tag !== foe.name) ? foe.tag : '校场老手', r.x + 90, r.y + 40, { size: 12, color: '#8a8070' });
-  text(ctx, '对方 · 护心镜', r.x + r.w - 14, r.y + 12, { size: 12, align: 'right', color: '#8a8070' });
-  drawPips(ctx, r.x + 90, r.y + 60, a.foeHp, board.ARENA_FOE_HP, '#c9553f', 22);
-  text(ctx, a.foeHp + ' / ' + board.ARENA_FOE_HP, r.x + r.w - 14, r.y + 58, {
-    size: 13, align: 'right', color: '#c9553f',
-  });
-
-  // 中间一小段交手：两口木刀撞在一起的动效
-  const midY = r.y + 118;
-  const cx = r.x + r.w / 2;
-  ground(ctx, r.x + 16, midY + 34, r.w - 32);
-  const p = fx && fx.mode === 'arena' ? Math.min(1, fx.t / fx.dur) : 0;
-  const swinging = p > 0.15 && p < 0.75;
-  const lunge = swinging ? Math.sin((p - 0.15) / 0.6 * Math.PI) * 14 : 0;
-  fighter(ctx, cx - 46 - lunge, midY + 34, 0.64, 1, swinging ? 'strike' : 'idle', '#4a5a46', '#d8b48c');
-  fighter(ctx, cx + 46 + lunge, midY + 34, 0.64, -1, swinging ? 'strike' : 'idle', '#5a3a34', '#e0bc94');
-  if (p > 0.5 && p < 0.95) strikeFlash(ctx, cx, midY + 4, (p - 0.5) / 0.45, '#f0c060');
-
-  // 你自己
-  text(ctx, '你', r.x + 14, r.y + r.h - 38, { size: 19, color: '#efe3c6' });
-  drawPips(ctx, r.x + 46, r.y + r.h - 34, a.hp, board.ARENA_HP, '#6fa86a', 26);
-  text(ctx, a.hp + ' / ' + board.ARENA_HP, r.x + 46 + board.ARENA_HP * 32 + 6, r.y + r.h - 35, {
-    size: 13, color: '#6fa86a',
-  });
-  text(ctx, '第 ' + (t.round || 0) + ' 合', r.x + r.w - 14, r.y + r.h - 34, {
-    size: 14, align: 'right', color: '#a2947a',
-  });
-}
-
-/** 单挑：两将拍马对冲，劈 / 刺 / 闪各有一个动作 */
-function drawDuelStage(app, ctx, t, r, fx) {
-  const midY = r.y + r.h - 52;
-  ground(ctx, r.x + 20, midY, r.w - 40);
-  const p = fx && fx.mode === 'duel' ? Math.min(1, fx.t / fx.dur) : 0;
-  const lunge = p > 0 && p < 0.8 ? Math.sin(p / 0.8 * Math.PI) * 24 : 0;
-  const pMove = fx && fx.move;
-  const aMove = fx && fx.ai;
-  let pPose = 'idle';
-  if (fx) {
-    if (pMove === 'pi') pPose = p < 0.45 ? 'wind' : 'strike';
-    else if (pMove === 'ci') pPose = 'strike';
-    else pPose = 'hit';
-  }
-  if (fx && fx.kind === 'lose' && p > 0.6) pPose = 'hit';
-  if (fx && fx.kind === 'win' && p > 0.7) pPose = 'strike';
-  fighter(ctx, r.x + 84, midY, 0.95, 1, pPose, '#4a5a46', '#d8b48c');
-
-  let fPose = 'idle';
-  if (fx) {
-    if (aMove === 'pi') fPose = p < 0.45 ? 'wind' : 'strike';
-    else if (aMove === 'ci') fPose = 'strike';
-    else fPose = 'hit';
-    if (fx.kind === 'win' && p > 0.7) fPose = 'hit';
-  }
-  fighter(ctx, r.x + r.w - 84, midY, 0.95, -1, fPose, '#5a3a34', '#e0bc94');
-
-  if (fx && p > 0.45 && p < 0.9) {
-    strikeFlash(ctx, r.x + r.w / 2, midY - 44, (p - 0.45) / 0.45, fx.kind === 'win' ? '#f0c060' : '#d46a50');
-  }
-  text(ctx, '阵前', r.x + 16, r.y + 10, { size: 13, color: '#8f806a' });
-  text(ctx, '劈 · 刺 · 闪', r.x + r.w - 16, r.y + 10, { size: 13, align: 'right', color: '#8f806a' });
-  const line = fx && fx.ai
-    ? '他这一手：' + board.aiLabelFor('duel', fx.ai)
-    : '刀在手里，先看他肩头往哪边沉。';
-  text(ctx, line, r.x + r.w / 2, r.y + r.h - 26, { size: 13, align: 'center', color: '#a2947a' });
-}
-
-/** 断粮道：三条道，AI 拦两条，只留一条空档 */
-function drawSupplyStage(app, ctx, t, r, fx) {
-  const lanes = board.SUPPLY_NODES;
-  const baseY = r.y + r.h - 30;
-  const topY = r.y + 24;
-  // 敌营粮仓
-  const barnX = r.x + r.w / 2;
-  ctx.fillStyle = '#2a2118';
-  ctx.fillRect(barnX - 46, r.y + 22, 92, 26);
-  ctx.beginPath();
-  ctx.moveTo(barnX - 54, r.y + 22);
-  ctx.lineTo(barnX, r.y + 6);
-  ctx.lineTo(barnX + 54, r.y + 22);
-  ctx.fill();
-  text(ctx, '敌营粮仓', barnX, r.y + 28, { size: 12, align: 'center', color: '#9c8d74' });
-  const blocks = (fx && fx.data && fx.data.blocks) || [];
-  const chosen = fx && fx.move;
-  const p = fx ? Math.min(1, fx.t / fx.dur) : 0;
-
-  lanes.forEach(function (n, i) {
-    const lx = r.x + r.w * (0.2 + i * 0.3);
-    ctx.strokeStyle = 'rgba(217,164,65,0.30)';
-    ctx.lineWidth = 14;
-    ctx.beginPath();
-    ctx.moveTo(lx, baseY);
-    ctx.lineTo(lx + (i - 1) * 8, topY);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,240,200,0.10)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(lx, baseY);
-    ctx.lineTo(lx + (i - 1) * 8, topY);
-    ctx.stroke();
-    text(ctx, n.short, lx, baseY + 4, { size: 14, align: 'center', color: '#b9a688' });
-    if (blocks.indexOf(n.id) >= 0 && p > 0.12) {
-      torch(ctx, lx, r.y + r.h * 0.42, 1.0, true);
-      ctx.save();
-      ctx.strokeStyle = '#c9553f';
-      ctx.lineWidth = 3;
-      const by = r.y + r.h * 0.50;
-      ctx.beginPath();
-      ctx.moveTo(lx - 18, by); ctx.lineTo(lx + 18, by);
-      ctx.moveTo(lx - 14, by + 7); ctx.lineTo(lx + 14, by + 7);
-      ctx.stroke();
-      ctx.restore();
-      text(ctx, '伏', lx, by - 20, { size: 13, align: 'center', color: '#d46a50' });
-    }
-  });
-
-  if (chosen) {
-    const idx = lanes.map(function (n) { return n.id; }).indexOf(chosen);
-    const lx = r.x + r.w * (0.2 + idx * 0.3);
-    const ly = baseY - (baseY - topY) * Math.min(0.86, p);
-    ctx.fillStyle = '#d9c39a';
-    ctx.fillRect(lx - 11, ly - 8, 22, 13);
-    ctx.fillStyle = '#8a6a42';
-    ctx.beginPath();
-    ctx.arc(lx - 7, ly + 7, 5, 0, Math.PI * 2);
-    ctx.arc(lx + 7, ly + 7, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#e08a3a';
-    ctx.beginPath();
-    ctx.moveTo(lx, ly - 14);
-    ctx.quadraticCurveTo(lx + 6, ly - 6, lx, ly - 2);
-    ctx.quadraticCurveTo(lx - 6, ly - 6, lx, ly - 14);
-    ctx.fill();
-    if (fx.kind === 'lose' && p > 0.55) strikeFlash(ctx, lx, ly, (p - 0.55) / 0.45, '#d46a50');
-  }
-}
-
-/** 狙杀敌哨：两明一暗，弓开箭出 */
-function drawSentryStage(app, ctx, t, r, fx) {
-  const baseY = r.y + r.h - 34;
-  // 敌营帐
-  const tentX = r.x + r.w * 0.60;
-  ctx.fillStyle = '#241d16';
-  ctx.beginPath();
-  ctx.moveTo(tentX - 52, baseY - 64);
-  ctx.lineTo(tentX, baseY - 96);
-  ctx.lineTo(tentX + 52, baseY - 64);
-  ctx.lineTo(tentX + 52, baseY - 24);
-  ctx.lineTo(tentX - 52, baseY - 24);
-  ctx.closePath();
-  ctx.fill();
-  text(ctx, '敌营', tentX, baseY - 62, { size: 12, align: 'center', color: '#8f806a' });
-
-  const spots = [
-    { id: 'brightA', x: r.x + r.w * 0.16, bright: true, name: '前门明哨' },
-    { id: 'hidden', x: tentX - 34, bright: false, name: '帐后暗哨' },
-    { id: 'brightB', x: r.x + r.w * 0.86, bright: true, name: '侧门明哨' },
-  ];
-  const p = fx ? Math.min(1, fx.t / fx.dur) : 0;
-  const ai = fx && fx.ai;
-  const swap = ai === 'change' && p > 0.08 && p < 0.5;
-  spots.forEach(function (sp) {
-    let x = sp.x;
-    if (sp.bright && swap) x = sp.id === 'brightA' ? sp.x + 22 : sp.x - 22;
-    ctx.fillStyle = '#3a2f22';
-    ctx.fillRect(x - 9, baseY - 40, 18, 40);
-    ctx.fillStyle = sp.bright ? '#d8b48c' : '#5c5040';
-    ctx.beginPath();
-    ctx.arc(x, baseY - 47, 6.5, 0, Math.PI * 2);
-    ctx.fill();
-    if (sp.bright) torch(ctx, x + 13, baseY - 36, 0.62, true);
-    else {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(x - 13, baseY - 42, 26, 42);
-    }
-    text(ctx, sp.name, x, baseY + 4, { size: 11, align: 'center', color: '#8f806a' });
-  });
-
-  // 你的弓：站在左下角，箭往上打
-  const bx = r.x + r.w * 0.30;
-  const by = r.y + r.h - 44;
-  const pull = fx && p < 0.35 ? 1 - p / 0.35 : 0;
-  ctx.strokeStyle = '#d9b978';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(bx, by, 20, Math.PI * 1.2, Math.PI * 1.8);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(240,220,180,0.7)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(bx - 12, by - 14);
-  ctx.lineTo(bx - 12 + pull * 10, by + 2);
-  ctx.lineTo(bx - 12, by + 18);
-  ctx.stroke();
-  text(ctx, '你', bx, by + 24, { size: 12, align: 'center', color: '#8f806a' });
-
-  if (fx && fx.move && p > 0.28 && p < 0.95) {
-    const sp = spots.filter(function (s) { return s.id === fx.move; })[0];
-    if (sp) {
-      const q = (p - 0.28) / 0.62;
-      const ax = bx + (sp.x - bx) * q;
-      const ay = (by - 4) + ((baseY - 51) - (by - 4)) * q;
-      ctx.strokeStyle = '#e8dcc0';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(ax - 11, ay + 4);
-      ctx.lineTo(ax, ay);
-      ctx.stroke();
-      if (q > 0.85) strikeFlash(ctx, sp.x, baseY - 47, (q - 0.85) / 0.15, fx.kind === 'win' ? '#f0c060' : '#d46a50');
-    }
-  }
-}
-
-/** 火攻：火船过江，或者收兵严阵以待 */
-function drawFireStage(app, ctx, t, r, fx) {
-  const waterY = r.y + 96;
-  ctx.fillStyle = 'rgba(46,74,88,0.55)';
-  ctx.fillRect(r.x + 8, waterY, r.w - 16, 52);
-  for (let i = 0; i < 5; i++) {
-    const wx = r.x + 24 + i * (r.w - 48) / 4;
-    ctx.strokeStyle = 'rgba(160,200,210,0.28)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(wx - 12, waterY + 12 + (i % 2) * 14);
-    ctx.lineTo(wx + 12, waterY + 12 + (i % 2) * 14);
-    ctx.stroke();
-  }
-  // 水寨外连成一排的敌船
-  for (let i = 0; i < 3; i++) {
-    const bx = r.x + r.w * 0.52 + i * 38;
-    const by = waterY + 22;
-    ctx.fillStyle = '#332619';
-    ctx.beginPath();
-    ctx.moveTo(bx - 17, by);
-    ctx.lineTo(bx + 17, by);
-    ctx.lineTo(bx + 11, by + 9);
-    ctx.lineTo(bx - 11, by + 9);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillRect(bx - 1, by - 20, 2, 20);
-    ctx.fillStyle = 'rgba(200,120,70,0.55)';
-    ctx.fillRect(bx + 1, by - 20, 8, 5);
-    ctx.fillStyle = '#332619';
-  }
-  ctx.fillStyle = '#2a2118';
-  ctx.fillRect(r.x + 16, r.y + 34, r.w * 0.5, 40);
-  ctx.beginPath();
-  ctx.moveTo(r.x + 16, r.y + 34);
-  ctx.lineTo(r.x + 16 + r.w * 0.25, r.y + 16);
-  ctx.lineTo(r.x + 16 + r.w * 0.5, r.y + 34);
-  ctx.fill();
-  text(ctx, '敌水寨', r.x + 16 + r.w * 0.25, r.y + 44, { size: 12, align: 'center', color: '#9c8d74' });
-  text(ctx, '江面', r.x + r.w - 16, waterY + 6, { size: 11, align: 'right', color: '#7d8f96' });
-
-  const p = fx ? Math.min(1, fx.t / fx.dur) : 0;
-  if (fx && fx.move === 'hold') {
-    for (let i = 0; i < 6; i++) {
-      const sx = r.x + 28 + i * (r.w - 56) / 5;
-      ctx.fillStyle = '#3a4a3a';
-      ctx.fillRect(sx - 10, waterY + 56, 20, 26);
-      ctx.strokeStyle = '#d9b978';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(sx - 10, waterY + 56, 20, 26);
-    }
-    text(ctx, '严阵以待 · 今夜不点火', r.x + r.w / 2, r.y + r.h - 22, { size: 13, align: 'center', color: '#a2947a' });
-    return;
-  }
-  const boatX = r.x + 44 + (r.w - 140) * Math.min(1, p * 1.1);
-  const boatY = waterY + 26;
-  ctx.fillStyle = '#6a4a34';
-  ctx.beginPath();
-  ctx.moveTo(boatX - 24, boatY);
-  ctx.lineTo(boatX + 24, boatY);
-  ctx.lineTo(boatX + 16, boatY + 15);
-  ctx.lineTo(boatX - 16, boatY + 15);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#3a2c1e';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(boatX, boatY); ctx.lineTo(boatX, boatY - 16);
-  ctx.stroke();
-  if (fx && p > 0.35) {
-    ctx.fillStyle = '#e08a3a';
-    ctx.beginPath();
-    ctx.moveTo(boatX, boatY - 34 - Math.sin(p * 9) * 4);
-    ctx.quadraticCurveTo(boatX + 16, boatY - 10, boatX, boatY - 2);
-    ctx.quadraticCurveTo(boatX - 16, boatY - 10, boatX, boatY - 34);
-    ctx.fill();
-    ctx.fillStyle = '#f2cc78';
-    ctx.beginPath();
-    ctx.moveTo(boatX, boatY - 22 - Math.sin(p * 9) * 3);
-    ctx.quadraticCurveTo(boatX + 8, boatY - 8, boatX, boatY - 2);
-    ctx.quadraticCurveTo(boatX - 8, boatY - 8, boatX, boatY - 22);
-    ctx.fill();
-  }
-  if (fx && fx.ai === 'ready') {
-    ctx.strokeStyle = '#c9553f';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(r.x + r.w * 0.62, waterY - 4);
-    ctx.lineTo(r.x + r.w * 0.62, waterY + 44);
-    ctx.stroke();
-    text(ctx, '拒火船', r.x + r.w * 0.62, waterY + 48, { size: 11, align: 'center', color: '#c9553f' });
-  }
-  if (fx && p > 0.8) strikeFlash(ctx, boatX + 18, boatY + 2, (p - 0.8) / 0.2, fx.kind === 'win' ? '#f0c060' : '#d46a50');
-  text(ctx, '顺风 · 等风 · 严阵', r.x + r.w - 14, r.y + 8, { size: 12, align: 'right', color: '#8f806a' });
-}
-
-/** 烽火传令：三选一，再过二选一，一路骑着马送信 */
-function drawRelayStage(app, ctx, t, r, fx) {
-  const baseY = r.y + r.h - 26;
-  const gateY = r.y + r.h * 0.46;
-  const lanes = board.RELAY_LANES;
-  const relay = t.relay || {};
-  const blocked = [relay.block1, relay.block2];
-  const chosen = fx ? fx.move : relay.firstLane;
-  const stage = fx && fx.stage ? fx.stage : (relay.stage || 1);
-  const p = fx ? Math.min(1, fx.t / fx.dur) : 0;
-
-  lanes.forEach(function (n, i) {
-    const lx = r.x + r.w * (0.2 + i * 0.3);
-    ctx.strokeStyle = 'rgba(217,164,65,0.30)';
-    ctx.lineWidth = 11;
-    ctx.beginPath();
-    ctx.moveTo(lx, baseY);
-    ctx.lineTo(lx + (i - 1) * 10, r.y + 24);
-    ctx.stroke();
-    text(ctx, n.short, lx, baseY + 4, { size: 14, align: 'center', color: '#b9a688' });
-    if (blocked.indexOf(n.id) >= 0) {
-      ctx.fillStyle = '#c9553f';
-      ctx.fillRect(lx - 20, gateY, 40, 4);
-      ctx.fillRect(lx - 15, gateY + 7, 30, 4);
-      torch(ctx, lx - 24, gateY + 14, 0.7, true);
-    }
-  });
-
-  ctx.strokeStyle = 'rgba(240,192,96,0.25)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(r.x + 14, gateY); ctx.lineTo(r.x + r.w - 14, gateY);
-  ctx.stroke();
-  text(ctx, stage >= 2 ? '第二关 · 只剩两条道' : '第一关 · 三条驿道', r.x + 14, r.y + 8, { size: 12, color: '#8f806a' });
-  text(ctx, '前线', r.x + r.w - 14, r.y + 8, { size: 12, align: 'right', color: '#8f806a' });
-
-  let idx = lanes.map(function (n) { return n.id; }).indexOf(chosen);
-  if (idx < 0) idx = 1;
-  const lx = r.x + r.w * (0.2 + idx * 0.3);
-  const rideY = baseY - (baseY - (r.y + 40)) * Math.min(1, p * 1.05);
-  rider(ctx, lx, rideY, 0.95, fx ? p * 3 : 0.2, '#4a3a2a');
-  if (fx && fx.kind === 'lose' && p > 0.6) strikeFlash(ctx, lx, gateY, (p - 0.6) / 0.4, '#d46a50');
-}
-
-/* ------------------------------------------------------------ 选局页 */
-
-function drawModeSelect(app, site, w, h) {
-  const ctx = app.runtime.ctx;
-  const st = app.state;
-  const siteName = site ? site.name : '此地';
-  const modes = board.modeList();
-  const week = board.weekInfo(st);
-
-  text(ctx, siteName + ' · 军机棋盘', 20, 22, { size: 31, color: '#f0c060' });
-  text(ctx, '六局军情，各押一注；七天只摆十局', 20, 66, { size: 15, color: '#a2947a' });
-
-  panel(ctx, 20, 96, w - 40, 104, { fill: '#1d1711' });
-  text(ctx, '本周还剩 ' + week.remaining + ' 局', 40, 112, { size: 24, color: '#f0c060' });
-  text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, w - 40, 122, {
-    size: 13, align: 'right', color: '#a2947a',
-  });
-  text(ctx, '报名 ' + board.FEE + ' 金钱 · 胜者 ' + board.PRIZE + ' 金钱', 40, 148, {
-    size: 12.5, color: '#c9bda2',
-  });
-  text(ctx, '七天十局，下满等下一轮。', 40, 170, { size: 12.5, color: '#c9bda2' });
-
-  const top = 216;
-  const gap = CARD_GAP;
-  const cardH = 116;
-  const cardW = (w - 40 - gap) / 2;
-  modes.forEach(function (mode, i) {
-    const row = Math.floor(i / 2);
-    const col = i % 2;
-    const x = 20 + col * (cardW + gap);
-    const y = top + row * (cardH + 12);
-    panel(ctx, x, y, cardW, cardH, { fill: '#201810' });
-    ctx.fillStyle = mode.color;
-    ctx.fillRect(x, y, 4, cardH);
-    drawIcon(ctx, mode.icon, x + 12, y + 12, 40, '#f0c060');
-    text(ctx, mode.name, x + 60, y + 14, { size: 22, color: '#f2e3c4' });
-    wrap(ctx, mode.short, cardW - 72, 11.5).slice(0, 2).forEach(function (line, li) {
-      text(ctx, line, x + 60, y + 46 + li * 15, { size: 11.5, color: '#b9a688' });
-    });
-    text(ctx, '报名 ' + board.FEE + ' · 胜 ' + board.PRIZE, x + 14, y + cardH - 22, {
-      size: 11, color: '#9c8d74',
-    });
-    text(ctx, '→', x + cardW - 14, y + cardH - 24, { size: 20, align: 'right', color: '#f0c060' });
-    app.ui.rect('wb_mode_' + mode.id, x * KS, y * KS, cardW * KS, cardH * KS, function () {
-      const r = board.enter(st, site, mode.id);
-      if (!r.ok) { app.showToast(r.msg, 2.6); return; }
-      if (TourneyScene) TourneyScene.fx = null;
-    });
-  });
-
-  const footTop = top + Math.ceil(modes.length / 2) * (cardH + 12) + 10;
-  text(ctx, '本周 ' + week.used + ' / ' + board.WEEK_LIMIT + ' 局', 20, footTop, {
-    size: 13, color: '#d9b978',
-  });
-  text(ctx, '七天一刷', w - 20, footTop, { size: 12, align: 'right', color: '#8f806a' });
-  drawWeekBar(app.runtime.ctx, 20, footTop + 26, w - 40, week.used, board.WEEK_LIMIT);
-  text(ctx, '六局赢面都不到四成，掂量着下注。', 20, footTop + 46, { size: 12, color: '#8f806a' });
-
-  btn(app, ctx, 20, h - 82, w - 40, 62, '回城', {
-    id: 'wb_back', size: 24, fill: '#241c14', onTap: function () { app.pop(); },
-  });
-}
-
-/* ------------------------------------------------------------ 对局页 */
-
-function drawBoardArt(ctx, mode) {
-  drawIcon(ctx, mode.icon, 20, 92, 46, '#e8b861');
-  text(ctx, mode.name, 76, 94, { size: 25, color: '#f2e3c4' });
-  text(ctx, mode.short, 76, 126, { size: 12, color: '#a2947a' });
-}
-
-function drawChoiceButtons(app, st, t, mode, x, y, w, locked) {
-  const ctx = app.runtime.ctx;
-  const list = board.choiceList(t.mode, t.relay);
-  const n = list.length;
-  const gap = 10;
-  const cols = n === 4 ? 2 : (n >= 3 ? 3 : n);
-  const bw = (w - 40 - gap * (cols - 1)) / cols;
-  const bh = n === 4 ? 76 : 82;
-  list.forEach(function (item, i) {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
-    const bx = 20 + col * (bw + gap);
-    const by = y + row * (bh + 26);
-    const isBlock = item.kind === 'block';
-    btn(app, ctx, bx, by, bw, bh, item.name, {
-      id: 'wb_choice_' + item.id,
-      size: n > 3 ? 24 : (n === 3 ? 20 : 28),
-      fill: t.mode === 'arena' ? (isBlock ? FILL_BLOCK : FILL_ATTACK) : mode.color,
-      disabled: !!locked,
-      onTap: function () {
-        if (TourneyScene.fx) return;
-        const r = board.choose(st, item.id);
-        if (!r.ok) { app.showToast(r.msg, 2.2); return; }
-        TourneyScene.fx = {
-          mode: t.mode,
-          move: item.id,
-          ai: r.aiChoice,
-          kind: r.result,
-          data: r,
-          stage: r.stage || (t.relay ? t.relay.stage : 1),
-          t: 0,
-          dur: r.result === 'continue' ? 0.7 : 0.95,
-        };
-        if (r.result === 'tie') app.showToast('同招相抵 · 再出一手', 2.2);
-      },
-    });
-    if (item.desc && cols <= 2) {
-      text(ctx, item.desc, bx + bw / 2, by + bh + 5, {
-        size: 11, align: 'center', color: '#8f806a',
-      });
-    }
-  });
-}
-
-function drawGame(app, site, w, h) {
-  const ctx = app.runtime.ctx;
-  const st = app.state;
-  const t = st.tourney;
-  const mode = board.modeById(t.mode);
-  if (!mode) {
-    st.tourney = null;
-    drawModeSelect(app, site, w, h);
-    return;
-  }
-  const fx = TourneyScene.fx;
-  const week = board.weekInfo(st);
-
-  text(ctx, (site ? site.name : t.siteName) + ' · 军机棋盘', 20, 22, { size: 31, color: '#f0c060' });
-  text(ctx, mode.name + ' · 报名 ' + board.FEE + ' · 胜者 ' + board.PRIZE, 20, 66, {
-    size: 15, color: '#a2947a',
-  });
-  text(ctx, '金钱 ' + st.player.gold + ' · 余 ' + week.remaining + ' 局', w - 20, 68, {
-    size: 13, align: 'right', color: '#a2947a',
-  });
-
-  drawBoardArt(ctx, mode);
-  const r = stageRect(app, h);
-  panel(ctx, r.x, r.y, r.w, r.h, { fill: '#1b160f' });
-
-  if (t.mode === 'arena') drawArenaStage(app, ctx, t, r, fx);
-  else if (t.mode === 'duel') drawDuelStage(app, ctx, t, r, fx);
-  else if (t.mode === 'supply') drawSupplyStage(app, ctx, t, r, fx);
-  else if (t.mode === 'sentry') drawSentryStage(app, ctx, t, r, fx);
-  else if (t.mode === 'fire') drawFireStage(app, ctx, t, r, fx);
-  else if (t.mode === 'relay') drawRelayStage(app, ctx, t, r, fx);
-
-  const promptY = r.y + r.h + 8;
-  let prompt = t.choiceTitle || mode.choiceTitle;
-  if (t.mode === 'relay') {
-    prompt = t.relay && t.relay.stage === 2 ? '第二关 · 剩下两条驿道，选一条冲出去' : '第一关 · 三条驿道，选一条送信';
-  } else if (t.mode === 'supply') {
-    prompt = '三条粮道，敌营拦两条 · 你走哪条？';
-  } else if (t.mode === 'sentry') {
-    prompt = '三个哨位 · 先狙哪一个？';
-  } else if (t.mode === 'fire') {
-    prompt = '点火，还是按兵不动？';
-  } else if (t.mode === 'arena' && t.arena) {
-    prompt = '第 ' + (t.round + 1) + ' 合 · 你 ' + t.arena.hp + ' 血 / ' + t.arena.foe.name + ' ' + t.arena.foeHp + ' 血';
-  }
-  text(ctx, prompt, 20, promptY, { size: 15, color: '#e0c98d' });
-
-  const choiceTop = promptY + 24;
-  const list = board.choiceList(t.mode, t.relay);
-  const cols = list.length === 4 ? 2 : (list.length >= 3 ? 3 : list.length);
-  const rows = Math.ceil(list.length / cols);
-  const bh = list.length === 4 ? 76 : 82;
-  const choiceBottom = choiceTop + rows * (bh + 26);
-
-  if (!t.done) {
-    drawChoiceButtons(app, st, t, mode, 20, choiceTop, w, !!fx);
-  } else {
-    const resTop = choiceTop;
-    panel(ctx, 20, resTop, w - 40, 136, {
-      fill: t.win ? '#1e2a1c' : (t.result === 'draw' ? '#22201a' : '#2a1b16'),
-    });
-    text(ctx, t.result === 'draw' ? '平' : (t.win ? '胜' : '负'), 40, resTop + 8, {
-      size: 38, color: t.result === 'draw' ? '#c9bda2' : (t.win ? '#8fbf7a' : '#d46a50'),
-    });
-    text(ctx, t.win ? '军机得手 · 赏钱 ' + board.PRIZE + ' 金钱'
-      : (t.result === 'draw' ? '不战而收 · 报名费已退回' : '这一局失手 · 报名费不退'),
-      40, resTop + 58, { size: 21, color: t.win ? '#f0c060' : '#c9bda2' });
-    text(ctx, t.win ? '声望 +12 · 士气 +4' : (t.result === 'draw' ? '声望 +1' : '声望 +2 · 士气 -2'), 40, resTop + 96, {
-      size: 13, color: '#a2947a',
-    });
-    text(ctx, '本周还剩 ' + week.remaining + ' 局', w - 40, resTop + 96, {
-      size: 13, align: 'right', color: '#8f806a',
-    });
-  }
-
-  const logTop = t.done ? choiceTop + 148 : choiceBottom + 10;
-  const room = h - 96 - logTop;
-  if (room > 56) {
-    const shown = (t.log || []).slice(-3).join('\n');
-    const lines = wrap(ctx, shown || '鼓声未起，棋盘上的灯已经点亮。', w - 76, 14).slice(0, 4);
-    const tips = wrap(ctx, mode.rule, w - 76, 13).slice(0, 3);
-    const bodyH = 30 + lines.length * 20;
-    const tipsH = tips.length ? 30 + tips.length * 19 : 0;
-    const logH = Math.min(room, Math.max(74, bodyH + tipsH + 44));
-    panel(ctx, 20, logTop, w - 40, logH, { fill: '#15110d' });
-    text(ctx, '棋盘记事', 38, logTop + 10, { size: 13, color: '#8f806a' });
-    lines.forEach(function (line, i) {
-      text(ctx, line, 38, logTop + 30 + i * 20, { size: 14, color: '#e4d6b9' });
-    });
-    let cursor = logTop + 30 + lines.length * 20;
-    if (tipsH && cursor + tipsH <= logTop + logH - 8) {
-      ctx.strokeStyle = 'rgba(240,192,96,0.20)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(38, cursor + 5);
-      ctx.lineTo(w - 38, cursor + 5);
-      ctx.stroke();
-      text(ctx, '军机提要', 38, cursor + 14, { size: 13, color: '#8f806a' });
-      tips.forEach(function (line, i) {
-        text(ctx, line, 38, cursor + 36 + i * 19, { size: 13, color: '#a2947a' });
-      });
-      cursor += tipsH;
-    }
-    const barTop = logTop + logH - 34;
-    if (barTop > cursor + 8) {
-      const bw = w - 76;
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(38, barTop, bw, 8);
-      ctx.fillStyle = '#d9b978';
-      ctx.fillRect(38, barTop, bw * Math.min(1, week.used / board.WEEK_LIMIT), 8);
-      text(ctx, '本周 ' + week.used + ' / ' + board.WEEK_LIMIT + ' 局', 38, barTop + 12, {
-        size: 11, color: '#7d7263',
-      });
-      text(ctx, '七天一刷', w - 38, barTop + 12, { size: 11, align: 'right', color: '#7d7263' });
-    }
-  }
-
-  if (t.done) {
-    const bw = (w - 40 - 12) / 2;
-    btn(app, ctx, 20, h - 82, bw, 62, '再摆一局', {
-      id: 'wb_again', size: 22, fill: '#3a2c1e', onTap: function () {
-        board.close(st);
-        TourneyScene.fx = null;
-      },
-    });
-    btn(app, ctx, 20 + bw + 12, h - 82, bw, 62, '领赏回城', {
-      id: 'wb_back', size: 22, fill: '#241c14', onTap: function () {
-        board.close(st);
-        TourneyScene.fx = null;
-        app.pop();
-      },
-    });
-  } else {
-    btn(app, ctx, 20, h - 82, w - 40, 62,
-      t.mode === 'relay' ? '暂离棋盘 · 可回来接着送信' : '暂离棋盘 · 报名费不退', {
-        id: 'wb_leave', size: 20, fill: '#241c14', onTap: function () { app.pop(); },
-      });
-  }
-}
-
-/* ------------------------------------------------------------ 场景 */
 
 const TourneyScene = {
   enter(app, params) {
     this.siteId = params && params.siteId;
-    this.fx = null;
+    // 旧档里的赛会是"三场连打"结构，跟现在的三血对决不兼容，直接作废
     const t = app.state.tourney;
-    if (t && (!t.mode || !board.modeById(t.mode))) app.state.tourney = null;
+    if (t && (typeof t.hp !== 'number' || !t.foe)) app.state.tourney = null;
   },
-
-  update(app, dt) {
-    const fx = this.fx;
-    if (!fx) return;
-    fx.t += dt;
-    if (fx.t >= fx.dur) this.fx = null;
-  },
+  update() {},
 
   render(app) {
     const ctx = app.runtime.ctx;
-    const W = app.runtime.width;
-    const H = app.runtime.height;
+    const w = app.runtime.width;
+    const h = app.runtime.height;
     const st = app.state;
     if (!st) { app.pop(); return; }
 
     const site = this.siteId ? siteById(st.world, this.siteId) : null;
-    ctx.fillStyle = '#14100c';
-    ctx.fillRect(0, 0, W, H);
-    scenery.drawBackdrop(ctx, 'tourney', W, H, 23);
+    const name = site ? site.name : '此地';
+    const t = st.tourney;
 
-    KS = W / DESIGN_W;
-    DW = DESIGN_W;
-    DH = H / KS;
-    ctx.save();
-    ctx.scale(KS, KS);
-    if (!st.tourney) drawModeSelect(app, site, DW, DH);
-    else drawGame(app, site, DW, DH);
-    ctx.restore();
+    ctx.fillStyle = '#14100c';
+    ctx.fillRect(0, 0, w, h);
+    scenery.drawBackdrop(ctx, 'tourney', w, h, 23);
+
+    text(ctx, name + ' 比武大会', 20, 24, { size: 34, color: '#f0c060' });
+    text(ctx, '报名 ' + tourney.FEE + ' 金钱 · 夺冠赏 ' + tourney.PRIZE + ' 金钱 · 三滴血定胜负', 20, 70, {
+      size: 16, color: '#a2947a',
+    });
+
+    if (!t) {
+      panel(ctx, 20, 104, w - 40, 240, { fill: '#201a14' });
+      const intro = '彩棚底下画了个圈，两人各持木刀，护住左右两肩。'
+        + '每合一招：要么护住一边，要么从那一边切进去。'
+        + '同时抢攻各挨一下，挡对了白赚一刀，挡空了就吃一记。'
+        + '三滴血，先倒下的认输。报名 40 金钱，赢的人捧走 200。';
+      wrap(ctx, intro, w - 96, 18).forEach(function (line, i) {
+        text(ctx, line, 44, 126 + i * 28, { size: 18, color: '#c9bda2' });
+      });
+      app.ui.button(ctx, 40, 372, w - 80, 88, '交 ' + tourney.FEE + ' 金钱 · 报名下场', {
+        id: 't_enter', size: 26, fill: '#432c18', onTap: function () {
+          const r = tourney.enter(st, site);
+          app.showToast(r.msg, 2.2);
+        },
+      });
+    } else {
+      /* -------------------------------------------------- 对手 */
+      const foe = t.foe;
+      const col = (FACTIONS[foe.faction] || {}).color || '#8a7448';
+      panel(ctx, 20, 100, w - 40, 176, { fill: '#1c1710' });
+      const portrait = app.assets.portraitFor ? app.assets.portraitFor(col, lookFor(foe.lordId)) : null;
+      if (portrait) {
+        ctx.drawImage(portrait, 36, 112, 104, 104);
+      } else {
+        ctx.fillStyle = col;
+        ctx.fillRect(36, 112, 104, 104);
+      }
+      text(ctx, foe.name, 156, 138, { size: 28, color: t.foeHp > 0 ? '#efe3c6' : '#7a7060' });
+      text(ctx, foe.tag, 156, 166, { size: 15, color: '#8a8070' });
+      text(ctx, '对方', w - 40, 132, { size: 15, align: 'right', color: '#8a8070' });
+      drawPips(ctx, 156, 184, t.foeHp, tourney.HP, '#c9553f');
+      text(ctx, t.foeHp + ' / ' + tourney.HP, 156 + 3 * 46 + 10, 184, { size: 15, color: '#c9553f' });
+
+      /* -------------------------------------------------- 自己 */
+      panel(ctx, 20, 288, w - 40, 112, { fill: '#201a14' });
+      text(ctx, '你', 40, 316, { size: 24, color: '#efe3c6' });
+      drawPips(ctx, 100, 306, t.hp, tourney.HP, '#6fa86a');
+      text(ctx, t.hp + ' / ' + tourney.HP, 100 + 3 * 46 + 10, 306, { size: 16, color: '#6fa86a' });
+      text(ctx, '金钱 ' + st.player.gold + ' · 声望 ' + st.player.renown, 40, 358, { size: 16, color: '#a2947a' });
+      text(ctx, '第 ' + (t.round || 0) + ' 合', w - 40, 358, { size: 16, align: 'right', color: '#a2947a' });
+
+      if (!t.done) {
+        text(ctx, '护住一边就挡，从一边切进去就攻。方向对了才挡得住。', 20, 412, { size: 15, color: '#8a8070' });
+        const bw = (w - 40 - 14) / 2;
+        const bh = 104;
+        const moves = [
+          { id: 'blockL', label: '左挡', fill: FILL_BLOCK },
+          { id: 'blockR', label: '右挡', fill: FILL_BLOCK },
+          { id: 'attackL', label: '左攻', fill: FILL_ATTACK },
+          { id: 'attackR', label: '右攻', fill: FILL_ATTACK },
+        ];
+        moves.forEach(function (m, i) {
+          const bx = 20 + (i % 2) * (bw + 14);
+          const by = 436 + Math.floor(i / 2) * (bh + 14);
+          app.ui.button(ctx, bx, by, bw, bh, m.label, {
+            id: 't_m_' + m.id, size: 32, fill: m.fill, onTap: function () {
+              const r = tourney.play(st, m.id);
+              if (!r.ok) { app.showToast(r.msg); return; }
+              if (r.result === 'win') app.showToast('赢了 · 赏钱 ' + tourney.PRIZE + ' 金钱', 2.4);
+              else if (r.result === 'lose') app.showToast('输了 · 报名费没了', 2.2);
+              else if (r.result === 'draw') app.showToast('同时倒地 · 报名费退你', 2.2);
+            },
+          });
+        });
+      } else {
+        const champion = t.champion;
+        const drawn = t.draw;
+        const line = champion ? '你站到了最后 · 赏钱 ' + t.pot + ' 金钱' : (drawn ? '同时倒地 · 报名费已退' : '你倒下了 · 认输退场');
+        text(ctx, line, 20, 448, { size: 28, color: champion ? '#f0c060' : '#c9bda2' });
+        app.ui.button(ctx, 40, 494, w - 80, 92, champion ? '领了赏钱 · 回城' : '收起木刀 · 回城', {
+          id: 't_leave', size: 26, fill: '#33271b', onTap: function () {
+            tourney.close(st);
+            app.pop();
+          },
+        });
+      }
+
+      /* -------------------------------------------------- 战报 */
+      const logTop = t.done ? 610 : 664;
+      const logH = Math.max(150, h - logTop - 96);
+      panel(ctx, 20, logTop, w - 40, logH, { fill: '#181410' });
+      text(ctx, '场上', 40, logTop + 26, { size: 16, color: '#8a8070' });
+      const shown = (t.log || []).slice(-2).join('\n');
+      const lines = wrap(ctx, shown || '鼓声一起，看台上的人把酒洒了一地。', w - 96, 17);
+      lines.slice(0, Math.floor((logH - 46) / 24)).forEach(function (ln, i) {
+        text(ctx, ln, 40, logTop + 52 + i * 24, { size: 17, color: '#e8dcc0' });
+      });
+    }
+
+    app.ui.button(ctx, 20, h - 88, w - 40, 66, '回城', {
+      id: 't_back', size: 24, onTap: function () { app.pop(); },
+    });
   },
 
   onTouchStart() {},
@@ -30956,7 +24298,7 @@ module.exports = TourneyScene;
   };
 
   /* js/scenes/journal.js */
-  __defs[40] = function (module, exports, __require) {
+  __defs[37] = function (module, exports, __require) {
 /**
  * 史册：主线进度 + 全部记事 + 统计。
  * 近十二天的事一条不落；再往前，只留改旗、围城、斩将这类大事。
@@ -31040,17 +24382,13 @@ const JournalScene = {
     text(ctx, '近 ' + RECENT_DAYS + ' 日一条不落，再往前只留大事 · 按住往下拖可翻旧账',
       20, 64, { size: 14, color: '#8a8070' });
 
-    // 当前章（史实沙盘不设主线）
+    // 当前章
+    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
     ctx.fillStyle = '#241c14';
     ctx.fillRect(16, 88, w - 32, 118);
     ctx.fillStyle = UI_COLORS.accent;
     ctx.fillRect(16, 88, 5, 118);
-    const stage = CAMPAIGN[Math.min(st.campaign.stage, CAMPAIGN.length - 1)];
-    if (st.campaignDisabled) {
-      text(ctx, '史实沙盘 · 无主线', 34, 100, { size: 23, color: '#f0c060' });
-      text(ctx, '诸侯按史实人事开局，之后由国战 AI 自行演进。', 34, 138, { size: 15, color: '#a2947a' });
-      text(ctx, '你要做的，是在这张图上留下自己的城。', 34, 162, { size: 15, color: '#a2947a' });
-    } else if (st.campaign.stage >= CAMPAIGN.length) {
+    if (st.campaign.stage >= CAMPAIGN.length) {
       text(ctx, '主线已走完', 34, 100, { size: 23, color: '#8fbf7a' });
       text(ctx, '剩下的，是你在图上留下多少座城。', 34, 138, { size: 15, color: '#a2947a' });
     } else if (stage) {
@@ -31194,7 +24532,7 @@ module.exports = JournalScene;
   };
 
   /* js/scenes/camp.js */
-  __defs[41] = function (module, exports, __require) {
+  __defs[38] = function (module, exports, __require) {
 /**
  * 扎营：军令与天下事都在这里。
  * 天下大势、玩法说明从底栏收进来；另添"在这里待一会儿"和"招降俘虏"。
@@ -31203,11 +24541,11 @@ module.exports = JournalScene;
 const { text, panel, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const scenery = __require(28);
+const scenery = __require(25);
 const { siteById } = __require(8);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const flows = __require(25);
+const flows = __require(22);
 
 const PAD = 16;
 
@@ -31626,7 +24964,7 @@ module.exports = CampScene;
   };
 
   /* js/scenes/help.js */
-  __defs[42] = function (module, exports, __require) {
+  __defs[39] = function (module, exports, __require) {
 /**
  * 玩法：分类页（基础 / 战役 / 势力 / 兵种 / 结局）
  * 内容超出屏幕时可上下拖动。
@@ -31636,8 +24974,6 @@ const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
-const audio = __require(21);
-const rank = __require(17);
 const { FACTIONS, CAMPAIGN, ENDINGS } = __require(5);
 const { TROOPS } = __require(10);
 
@@ -31650,22 +24986,6 @@ const TABS = [
 ];
 
 const TAB_H = 116;
-
-const MODE_LABEL = {
-  title: '标题 / 开局',
-  field: '大地图',
-  town: '城镇',
-  battle: '战斗',
-  tense: '史实 / 宣战',
-  sorrow: '败亡 / 国殇',
-  victory: '凯旋',
-};
-
-function chunk(list, n) {
-  const out = [];
-  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
-  return out;
-}
 const CONTENT_TOP = TAB_H + 10;
 
 /** 每章的"该做什么"——只指路，不剧透后面发生什么 */
@@ -31698,8 +25018,8 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '减员到三成半以下就溃。打不过可以撤——战前能"撤出"（不算败），战中"撤退"额外损失 25%。' });
     ops.push({ t: 'p', s: '撤退后有一段时间对方不会再贴上来，趁机走远。' });
     ops.push({ t: 'h1', s: '天机简' });
-    ops.push({ t: 'p', s: '战斗中能落一笔天机简，共七种：南风起（本场攻防按高两阶结算，T1 打 T3、T2 打 T4、T3 打 T5，一人可敌四路同阶）、天降火球（敌军当场折四成，单次最多 80 人）、风行（立刻脱离战场，敌军折一成并原地停 8 小时）、夜袭（敌军 3 回合完全打不出伤害）、倒戈（一成半敌军当场倒戈，最多 60 人）、瘴气（敌军每回合额外折 4%，连折 5 回合）、回魂（战后复活本场阵亡的我方八成士兵）。' });
-    ops.push({ t: 'p', s: '除回魂留到战后结算，其余六笔落笔即生效。每落一笔，所有势力对你的好感 -6。用得越多，越没人信你写的东西。' });
+    ops.push({ t: 'p', s: '战斗中能落一笔：南风起（我方攻击近三倍）、风止（敌军攻势只剩一成，持续三回合）、名册（阵亡者全部归队）。' });
+    ops.push({ t: 'p', s: '每落一笔，所有势力对你的好感 -6。用得越多，越没人信你写的东西。' });
     ops.push({ t: 'h1', s: '史册：翻旧账' });
     ops.push({ t: 'p', s: '底栏「史册」记天下事：近十二天一条不落，再往前只留城破、围城、斩将、归降这类大事；往下拖能翻旧账。' });
     ops.push({ t: 'p', s: '条目按类别着色：围城橙、集结青、战事金、天下蓝、归降绿；真正的大事前面加一枚 ◆。' });
@@ -31724,21 +25044,22 @@ function buildOps(app, tab) {
     ops.push({ t: 'p', s: '十家势力之间本来就有仇：曹操与袁绍（官渡）、曹操与吕布（兖州）、孙权与刘表（孙坚之死）、马腾与韩遂（西凉内斗）、刘璋与刘备（益州）。' });
     ops.push({ t: 'p', s: '宣战之后，双方所有领主互为敌人。大地图上他们撞见就厮杀，看见对方的旗会主动扑过去。' });
     ops.push({ t: 'p', s: '天下同时最多三场大战：各国会挑一座敌城，先在国内集结四到十二天，再开拔围城；守方领主收到烽火，最多四人驰援。' });
-    ops.push({ t: 'p', s: '蜀国南征南蛮时会一次点起八路领主，诸将分道进山；其余战线仍按常规路数出征。' });
     ops.push({ t: 'p', s: '围城至少三天，最长八天。攻下后胜方留兵守七日；同一对国家三十天内不能再动兵。' });
     ops.push({ t: 'p', s: '除主线要点名的那几位，领主之间不会互相杀死：败的一方溃逃、退回老家，或者被人生擒。' });
     ops.push({ t: 'p', s: '被擒的领主押在城里。关一天，自己逃的概率涨一点（第一天约 2%，十天约 14%，一个月接近一半）；城被攻破时，牢里被这家关着的人会趁乱跑出来。' });
     ops.push({ t: 'h1', s: '俘虏与赎金' });
     ops.push({ t: 'p', s: '你亲手打赢一位领主，他是溃逃还是被你捆走，看运气。捆回来的关在营后，队伍页底部有入口。' });
     ops.push({ t: 'p', s: '牢里可以"收赎金"（按他的家底开价）或"放了"（声望 +12，他那一国对你和气些）。' });
-    ops.push({ t: 'h1', s: '军机棋盘' });
-    ops.push({ t: 'p', s: '每座城的菜单里有"军机棋盘"：六局军情任选，每局报名 40 金钱，胜者得 200 金钱。七天里只能下十局，过了七天自动重开。' });
-    ops.push({ t: 'p', s: '单挑斩将：劈克刺、刺克闪、闪克劈；校场夺魁：左挡右挡、左攻右攻，对手四滴血、你三滴，挡住对攻可反手重击；断粮道：东中西三条道，AI 一次卡死两条，只剩一条空档；狙杀敌哨：前门明哨换防、帐后暗哨不换才中箭；传令搬兵：过两道关卡，每关猜一次守道；火攻时机：顺风遇不备、等风遇防备才得手，也可不再放火，退报名费。' });
-    ops.push({ t: 'p', s: '烽火传令要连过两关：第一关三条驿道避开伏兵，第二关只剩两条道再避开一次，军信才算送到。' });
-    ops.push({ t: 'p', s: '棋盘不损兵、不死人；输了只是丢报名费，赢了赏钱即时入账。' });
+    ops.push({ t: 'h1', s: '比武大会' });
+    ops.push({ t: 'p', s: '每座城的菜单里有"比武大会"：交报名费，连打三场，前两场是本地好手，第三场从天下名将里抽。' });
+    ops.push({ t: 'p', s: '不损兵、不死人，输了只是丢报名费。三场全胜拿赏钱（随声望涨）和 45 点声望，随行英雄也跟着长本事。' });
+    ops.push({ t: 'p', s: '你的胜算看身板：军械、声望、随行英雄的加成都会算进去。打之前每一场都标了把握百分比。' });
     ops.push({ t: 'h1', s: '存档：最近一份 + 九个槽' });
     ops.push({ t: 'p', s: '标题页四项：新的开始 / 加载最近存档 / 加载保存存档（九个槽）/ 玩法。' });
     ops.push({ t: 'p', s: '游戏里每 45 秒自动存一份"最近"，另留一份上一份可回退；营帐菜单能手动存到九个槽里，也能删、能覆盖。' });
+    ops.push({ t: 'h1', s: '场景音乐' });
+    ops.push({ t: 'p', s: '标题、大地图、城镇、战斗、对峙、败亡、凯旋七个场景各有一首 CC0 公共领域录音，可商用、无需署名。' });
+    ops.push({ t: 'p', s: '录音加载失败或宿主不支持时，自动回落到 WebAudio 现场合成的五声音阶片段。来源与授权见 assets/audio/CREDITS.md。' });
     return ops;
   }
 
@@ -31773,15 +25094,6 @@ function buildOps(app, tab) {
   }
 
   if (tab === 'campaign') {
-    if (st && st.campaignDisabled) {
-      ops.push({ t: 'h1', s: '史实沙盘 · 不设主线' });
-      ops.push({ t: 'p', s: '三国演义不再推进十二章主线，也没有必须按顺序打的关键战役。' });
-      ops.push({ t: 'p', s: '各国保留史实开局的人事与地盘，之后由国战 AI 自行宣战、集结、围城、吞并；史实会自己演进。' });
-      ops.push({ t: 'p', s: '开局头两天各诸侯按兵不动，第三天正式递出战书：曹操讨吕布、孙权攻刘表、袁绍与公孙瓒开战，往后按史实阶段往下走。' });
-      ops.push({ t: 'p', s: '史实沙盘没有追兵，洛阳城破后你带着九个人自己往东走。' });
-      ops.push({ t: 'p', s: '你仍然可以招兵、攻城、外交、在军机棋盘上推演，只是不再被主线章节牵着走。' });
-      return ops;
-    }
     const stage = st ? st.campaign.stage : 0;
     ops.push({ t: 'h1', s: '主线战役' });
     ops.push({ t: 'p', s: '一共七章，标题在这里；每一章具体发生什么，走到那一步就知道了。' });
@@ -31809,36 +25121,6 @@ function buildOps(app, tab) {
     ops.push({ t: 'gap' });
     ops.push({ t: 'h1', s: '黄巾与山贼' });
     ops.push({ t: 'p', s: '六处贼巢，全部敌对。攻破一处声望 +45、金钱 +120，且不再刷匪团。' });
-    ops.push({ t: 'gap' });
-    ops.push({ t: 'h1', s: '将帅值 / 武力值 / 军师' });
-    ops.push({ t: 'p', s: '将帅值 = 带兵指数的标幺值，1.0 = 150 人。君主 / 军师 1.5、武将 1.4；帅才 1.50～1.70，第 1 名最高。' });
-    ops.push({ t: 'p', s: '武力值 = 杀敌指数的标幺值。军师默认 0.9、帅才默认 1.4、武将按旧榜七档 1.50～4.00；战场按 (武力/1.5)^0.6 压平，避免单将无双。' });
-    ops.push({ t: 'p', s: '帅才五档带兵：' });
-    [
-      '第 1 名：1.70',
-      '第 2-5 名：1.65',
-      '第 6-10 名：1.60',
-      '第 11-15 名：1.55',
-      '第 16-20 名：1.50',
-    ].forEach(function (s) { ops.push({ t: 'p', s: '· ' + s }); });
-    ops.push({ t: 'p', s: '帅才名录：' });
-    chunk(rank.MARSHAL_TOP20, 5).forEach(function (group) {
-      const names = group.map(function (m) { return m.rank + '.' + m.name; }).join('、');
-      ops.push({ t: 'p', s: '· ' + names });
-    });
-    ops.push({ t: 'p', s: '同一领主可以同时有将帅、武力、军师三种身份；同类只取最高值，三类之间可叠加。例如君主 1.5 与武将 1.4 重合时，带兵取 1.5。' });
-    ops.push({ t: 'p', s: '历史军师开局天降神雷：S+ 杀 50%、S 杀 40%、A 杀 30%、B 杀 20%，单人封顶 100 人。不同军师可叠加；同一场战斗每个军师只触发一次，反复进出同一战场不再触发。' });
-    ops.push({ t: 'p', s: '历史军师名录：' });
-    rank.STRATEGIST_GRADES.forEach(function (g) {
-      const names = g.ids.map(function (id) { return rank.STRATEGIST_NAMES[id] || id; });
-      ops.push({ t: 'p', s: '· ' + g.grade + '（雷击 ' + Math.round(g.pct * 100) + '%）：' + names.join('、') });
-    });
-    ops.push({ t: 'gap' });
-    ops.push({ t: 'h1', s: '场景音乐' });
-    audio.listMusic().forEach(function (m) {
-      ops.push({ t: 'p', s: '· ' + (MODE_LABEL[m.mode] || m.mode) + '：' + m.tracks.join('、') });
-    });
-    ops.push({ t: 'p', s: '全部为 WebAudio 现场合成的原创五声音阶片段，不采样、不引用现存歌曲，无版权争议。' });
     return ops;
   }
 
@@ -32049,7 +25331,7 @@ module.exports = HelpScene;
   };
 
   /* js/scenes/chapter.js */
-  __defs[43] = function (module, exports, __require) {
+  __defs[40] = function (module, exports, __require) {
 /**
  * 章节提示：浮在地图中央的一张卡片，让玩家看见"现在该干什么"
  * 3.6 秒后自动收起，也可以点一下直接收
@@ -32169,7 +25451,7 @@ module.exports = ChapterScene;
   };
 
   /* js/data/news_art.js */
-  __defs[45] = function (module, exports, __require) {
+  __defs[42] = function (module, exports, __require) {
 /**
  * 宣战 / 议和全屏背景：内置 JPEG，不依赖网络和小游戏下载域名。
  * 两图为画面素材，界面文字由 NewsScene 居中叠加。
@@ -32181,34 +25463,8 @@ module.exports = { war: WAR, peace: PEACE };
 
   };
 
-  /* js/data/history_art.js */
-  __defs[46] = function (module, exports, __require) {
-/**
- * 史实文书配图：六张手绘场景，按事件标题关键词挑图，缺图时退回 war/peace。
- * 每张 640×426 JPEG，控制包体。
- */
-const LUOYANG = 'data:image/jpeg;base64,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';
-const GUANDU = 'data:image/jpeg;base64,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';
-const CHIBI = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/2wBDAQoKCg0MDRoPDxo3JR8lNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzf/wAARCAGqAoADASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAAAwQBAgUGAAf/xABAEAACAQMDAgQEBAUDAwMEAwEBAgMABBESITEFQRMiUWEycYGRBhShwSNCUrHRFWLhM3LwB0PxFiRTgiVjknP/xAAaAQADAQEBAQAAAAAAAAAAAAAAAQIDBAUG/8QAMBEAAgICAgIBAgMIAgMAAAAAAAECEQMhEjEEQRMiUTJh8BRCcYGRobHBI+FS0fH/2gAMAwEAAhEDEQA/APle44qDvzViwJ32qrV0mRFeyRXuxzUHmgCSMCq7ipzUMdqQFgc81OB9KHufpVwdt6AJzjeqk15tqgHNAHvrVtW21VNVzQATbH96q1QDmvZzxQBBNUzvVm4qg5xQNBAank81SvAnNABBmpOTvUA4FSCTzQIpk17PY1bSPWoYb0DIOCKpjAq+2KqwyKQyKgqasKn3NICnHNWU1417cUAHUbZFRpNBDEGjxyZGDx61aZLTPFTp2oRU5pzAxvvQXHcU6EmD496rnY55qTzxVRSGQeKirGq7UgPGpqDvXqkZOajG9eqd6BnlNSw9K8FOd6vp2qkIH2qMc4q52NTtQBUZAq21QK8c0CJBFezUYr2CTtQBYb174e9QNq824piJNeB2xXgdtqjg0DPVFTsa9jNAFa9V9Ne0+1AFc1Ir2k1ZR6imI8K9tzU1FAj21eqO1e3oAtivYxXhtU80ARnFeByNqnGajGKA0WWpwTvVVOKvkd6EIjG1eIxUk4FV3pgTnFewDzUkD61UZxikMtnbFQD61B2FeG9AFtjvUcHerBcHHavHemBAbFXjP1qmKkEigQxxwakHG1CDVYGmIV5qKkio7c1NGh4+1V4q1Q3ApARUnevIKkjagCFHtU8VAO2R2qx+XNAA25rw2q5warjekBDUMk52ojVTFA0SCKkbnaoxUqPSgDxFSFAqcV6mIq29Vx3FXwKjG9IZJOBXgQagjNV3U0AgoqeaopBq2cUAVbGaozdhVjvvVcZO9IZAydq9jPNTnepNID2NqjOK9VSaAPA70SL4sZ2NBPtRYzlhQNjEZOdJz7V529KKqbaj34qhjya0RmBIzXhHjfNFCqTyKuEoAWdPahU4ydjSzxlTxt61LQ0DqRxU1ZRnakMgDNXC4q+nAqwXaqSFYLG+1WUdjVjsuwqAc49KdCs9jeoxnmr+u1QM70UKymmo/WrkCqigZBNeHO9WxVW22FIC23eqnmvZ3FeNAyMVBqwGKsEJ7UAgYFEFT4ZXnirqAKAYPBryj0oh3FVG3FMls9pr2nvmrEjioJ9KAogiowKsc1Xk0AVr2PSrgb14g0AVxVgPWvVYbCgRUkAVXINSflQz32oGi5bbbmpVvU1QcVcL6UAVzvV0b1qpUjivZOBg0AXXBr1DGTVwCcZpgTtmvaanG9STigRA53qQfWvY2qMYoAt2qD6Gp5qRz+9AHl5oi9/SoA33HapG65pgKVGasADvVD7VBZY/Oqkb1AzU4JNAFhtxXvaoUb88VJJFAEZwKktnGKqcetSpBO9AHjmoqSO4O9VoETjNeIxUhsVcYanQrAgVbUDtUyLgbUHvtSKWw2anbG9UG/NWG9CEVIz8qnGOKIV2qmd8GmB7FUcUXGaq60qBMEOauCCOaGVIqAamyy+cVGc+1eHGK9nB4pAQajPrU4qMZpDJB99/SoIzXh61YDPFMCgB71YbcVfTtUEUUKwqOQpBJ9q9mU7hjtQzntREkwpBqhMqrEHB3piJmK79qXJIbUOaPDJr2Ox/vTQmWcg7E714oPDIO57VOn2oiIODVUTYqlszEZOKKIQi5A3prT6V5htuKEg5CRGDVu21EkGNzQZOARQCPNio2AOKCS2d6up34pDovn0qC3IqRjaoKnfGwpiIBz2qM1BFVOcUhl85NeP61RWoyozbjilY0gYHarBftVyPUUREFFhQIJ3oiqc7UVkAGKqBvipuymqLKAfiAqkigHarnZao5GjnemkS2BfbioG9Wx3xU6TziqEQFxVglERM80URkLtSsAASvGPFMCMjNW8IjtzRYCunFRjtTTxnFCMe+3NFgBaIDcVRjpG9HbK/OhtpbkUxAtfpUHBznmpK4O3FVYUDJAq/A3qEXPOxomjbBpksGxOagCrkDFUBPptQB4c1YH3r3oDVtO22KYEHB3rwO9Tiq+tAFjx8693wBVd+1XG3rQBIGKIu49Kqp23FSMA4NAEtt32NSOKqSCcVYbrjFAFWhAGDz60NoMDnamnAO+NqE2cmjQKxUqAahdt6LoUn1+deWPGc/apKB5I+dVyaPJHqGQcGlH1KcmkxoIQB6HNVdcHbvzVFJzuaKBq9zSGVztU4yM1YxsdsUTwiqimIARU6tNE0Y570NloEWJBWhNjkVYbVQ70MaRINXFC4NEBG2KSGwgOeao3OasD6V4jPGwqiUV1V4NnmvFcHfNW8KTAIFAaKkA1Qr6VdkdDk1e1UvKuFzvvSqx3SBBcYqGHatl7dCPhB9jScsUYJIAx7U3ChKaZn8dqkDPFH8MHiqlANxWdF2DGwqQ2KsRUrFq4FNAVDDfIqAcmrGJhVACGo2ATbvXsZ4r2K8NhTEe7VAYqcg173qDtQASN27E/ejrLJjGqlk/tRA9NMTQws0inc5+dH1B11AgexpBpNxRA2RsaaYmgxYNs1eaHI2+lAB0nOM+1HMwA2OD6VSdktUCeIjnmoKACriXJ82CD60UOmMbYoAXC1JQ4OBtRGCcqwx3GaLCwC4oAUeFxyMUMoRsRWtqDqAaHLCJF3OCKhui0rMrSAec0xGe2aP+VB2FEFrjAG3zrKUkbRiwRTJqVjwaJgoSp5rzY7dqlSvQ3D2UbjFUJwasaFIfMAK0ijKTLk5HNU2JyR9K9vVlXO1aEHlXNFWPOKqqnO1OwR6hk1LdDSBLFwO1MRW+d8U5Fb5IAFatj06W5lSKCJndjgKoySaxllSNIwsxfy2wGnepNq2NxX0vp/4CnZVa9uIbf/AGjzt+m1NXH/AKfroP5W+Rm9JIyAfqDWH7QjX4j5JJbEcCl5IyvI+tdz1z8N3vTCPzUGFJwsi7qfrXO3FtnIK1rDKmZyx0YEidxQWX1rUuIcLgjikWTvvzzW8XZk1QtpxtVSmDRmG/GaoR2NWSVU77VYtjiq6e4qu4GTTQFnZRtmqAjehtuc1GDRYUGxnerj0oaZIwMVG/emKi7NvtUAZz61VOcUaOMmgCuMAVZDlhR1tzsjcsMg14wBCQ2QQeaAIK52HFUeIjfNHQjChdgKuy77CgACqFXIGDV1GasQK8gydqBBtAPpzQZIwdhRTnJydqqxIoGLeHg781DIeaNgnmoO30pAAORVfBMuKIy5PvRIyF2oodiLw6Gwy8CvRxuGIxx39a0/DSTGtQcetWWBQMYJNLiHISjJDDbJPFMNFqGwNM+Gq4IA+dQ4wMr3qkhMzZBjIPNC0jNPyxBt22J74pSVNBGRSaBMC2BVdNWKmqtmpKIxmoIxUjOatpzuKAITNFX3qF9MV48jmmIKGzsBvREOdjQB5T86KMjFUmS0EIBGGAIoyFUTEafahKBkUZcA+1UiQwHlzvVDCp3K/aiIce9X1DGKrsXRnXFtpGtc47ikpAQea22XUCDwaRlst8hzj3rKUfsaRl9xEDNHthqYiryW7KBo39u9Gt4ginV8Z/SpSdltqis0I00s1udsj6082SuMnPyoSufECNjfgiqaRKbFHjPHegvlTg7VqNGME0nKo1b4BxScRqQuD3Ne1VdojyOK94Z5wCKVMq0UGc7VOcbGiBU7jFWRFJyAKKFYAfFz96aQDGDsaq657V5Vbtn606oV2X8M/WpMeFznJ9K8SRRVPlyRvRaCmL+GT2qQjGmgv3qWUfWoeRFrG2K+GRXkBD5G1MldsGvaMUOetAo72WjOdiKOpU4BocahVz3NTwawlJtm6iki+AW2ooXbJ59KCuQc81ZJCzY5AoSsG6DtCki6mUk+1C/K6lIH6UyhAwdyD2qdRwfD3xRxE5iSwQsWVwyHHlOeTSU0Bgk0NnjNbkMYldUfGCfUDFB6n06VryWRQqQ6gBqbfHrjmtFKpUzJq42ZA5q6YB22zWzF0F52VbK6ilyMsH8pX+9Av+j3djLGtzAwEm8bDzK/yI5qlki3V7JcJJXQrHHvmtC2TbilxC0ZAKlT3BGDWjax8HFROWioofsLYyuqKCXYgADvX1fonSoOiWaoqg3Tj+I/f5A9h/euN/B1qknV4mYf9JC4HuBt/evoXhl3HfFeXnyNukduOCSsJ4gEJfSCaiC5ClvEz7b7VcgqPDOMnvjirNZiRVIYav0rJW+inXsrOqXcRjZVmgcYeNhzXzD8WdD/ANJvSqAtbSDVGx9PQ+4r6eINKaQSH5IrF/G1qtx0IOwwYpBg/PY1rCTTJkk1R8Yv498AVmzR9z2re6imH9N6yrmIkZFenjlo4prZmOMb0Fh6UzIpJOaE64FboyBdtqgI0jYHNEC5+VN2FnJKJJAhEK4DvjjfYD3puSS2CVsTW0JIydvaii3jTUAASe57UzKhi2zvjt2pM514qbsqi7KhUggfQUrJGdORTRxxxVW0kH0p2IXijzT0ca5BZsj0peNNzpouggelNOhNGg8kaJnbOOQKRkkLE8UN2IFCLHIz2ocrBRoLkg7UWMsSCdxVI8MfMaZABxjalY6BkkbBRRLZA7EEFSBwaKIRjfnOaZhi82/cc002Iz345qpYldzRmjGM/pQQnP6VQke7YoTZ+1FIGN6gDUaAKIueTV1jBbireGQD71MatxxigAqqAN69nTwPrV0X7HmpdANxwKYgJcFttiKmM6iwI471bw/PqA59askWk7GgCjLqjOPvSNzFIBlsH3rTYDscVWVcpxn50NAYYBHpUlcgZo80DRgsV8v9qBjBPtUlECMVYJ6V4NipDb70gPfIb0RI/XevRIS+T2o60xMoYvQZx3rwXuR9KLnjPFRjNAigQ5zRsY71GCK8QQOKaE0EDjAqytQBxmrKw3FOwoa3JGBVpEBAPpvQI5cMMk4phNL8HP7VSdkihUY3FBn1pKDxtvTzR5NRcQGRcjAIGwpNFJmZJLIe9URyHDDcj1phbaWbbQQAMkkYqr2jxYI8y4z8qimXaIa4YrjGDjtSkjFjk00qgjeiR2omVsgjbY4o2w0jP1N/Uaks2Of0rSjtlWJ0ZMNj55pIwsO1FBaB5LcgURSV2qFU+leI3oAt86v2zUKARvXgMHmolvRcVWy8cet8ngU14WR3qqAELgcetOIvlwK5JzdnbDGq2AWLA3r0ijbFHYbbUFQc1KlfZbjSpFUQs2MVJT2o6IB3qWXJFHy7oXwasDp8oxxVSNLDP2pnw8HBzjHNLyIWJO+D2qVO2U8bS2VJ1ZHFQoy3NUJwMUaEA7kV0xVbOSbbCLmmItvKTudgKEijHvVJUbOQcEHanGSZMotDUqtHvtqxSVxO2MhjnvmonklOA7EgDY0tIkhAYoQrd6vVme6NHpd2hmj1tpbPGcA123VoI7/oyL+bjt1ikEgd28ucYwcV80WEsc5IxTXiyMoDM7Ae9ZZcLnJSTqjTHlUU01dm8zvKEs7nwWaJiEuEbO3zHK981rWnR5XlMcUtvKVxxIATnjY1ylpcFWClQAdiSeK2cTShFM5YRjSgbbSPQVnkhJaToqEk+0dr+EWWHq8atw2qInOQCf8Amu7UNESrKQc96+RdOtzqBMpBzvp9K+kfhZ7CeLQHlW5/mV5SQ2O4/wAVw5YfVaOmMtbNoPgh9IPv602mWXI4oS251YYgj5UdmESBQhI9AKUE12KTXohlDMMgEjvXN/jq5EfTEth/1JpAQPYVodW6yemosj2+pTxlsVwXWOuz9QuHPg+IxHlGPhHsBVXfQJfc56bp9xc62ChQDgs+2TWP1CwubdcvE7KP5lBIrsLe/doma7YZjHmAA3274rnepdVeSV3DOEHCqcVvhnkcqrRnkhBKzO6VaQXLuJkYn5bAf5oPU4LPxjHDERpGNaty3ypz/U0NtKGZgZBjCAAEeprHzh/Lx711wjJytmEnFRpC72zowBBI7ECtS1vHXpi2hiAVZC2scnPaqwymMEgkGqSS5ACoFwMbdz6mrkr7REXXQtdZXOOf7VnszZ81Ozk6eed9qU0hm3qhEqpxvXsZ77UePGPfFVZPNToLKR5DDFH5G9QkWBk0UAcUUIAY87tVTD60wxwdqo+T2NFBZRU32oy7HFQgA2qwBPtTAMsgxvz2oscurATP1pdVJIGKPEhVhz70CKkDORx70J9thxTM3OMUEjUu9aGYuqg5I39q8ijOAaIqfPBNXCAHIFFFWQVwAO9WiHtVwvc7Ab1UXFusetpk0+xo6F2XJVT5nVfmcV6QhIi7sFUDdjxXO38/5m4Z/wCXgfKhCWUJpDkqdsHes/kNOB0kNzbzatEqNp534qY3jkXVC4dc4ODwa5gJnij2801oxaIgqeVPBoWR+0DgvR0JGOeK8cGkLDqLXEghnUB2+FgP0xTzKc5q001ohqihTVkEcUtNahjq49acANe2I3oBGbLAFjJRcYoaQFsFhg99q0sAjABqVi82cbDapdFKxRYgmcDHvUjanDGDmh+EM+1HJBxYDBPariM43FFWPGQaIqgA0nIaiLhO5zVX244pnGTk8DkUCZfN5eKFMHEGBVlAI3FUBJ3xUhtx6VZB5132q8bN25qGbO/HtVNXApXQ6sbWbcAjJ4zV0kyx496SyRxRo3zgHtVcieI1qJ47jOewqjucFdj61K6QpoJOGzRysfGivgQswJUqP9vFNDAUAelJsSDlScelGiJCbk0ckHBs8yLkZ7nmhSLnGjTvR2IXBAyOapgDdsZNPTFTQmy6div6V6SBDgjFHkXO3Y0EqV75BqG0WkwDLpOKlQGbTVyASc5NXjTDAgDnvUS60XDvZKAhwOKeU7YpZ8bkb+lER84P81cE5M9KEUGGGqNPoKsi8Ht3omkHJHNYNnUo2gOdJA9ascgehqdJ5A3FQ+PSpbLUSrscb/8AzVN2OeKvjPbapVdsVtCls5cjk3QIoo3A3qUxxirMp32rygit1kTWjmlicXsIq4q543qqc4qWPm27VKtyHKlEsAHUggEUtIwwV7Z9KOGOdqFgFjmumC2ck2VjtkfcHA9BTsQVUC6dgKTB0vhTTUbhedx6VpJGaYQQQ5V9AG+aajdcbHJpbWjKd6pnHDVnxbLUjVt5hG2QTjnY1pW/UGjwysdXbfeucjlYdwfWmkkU4LvoHrjP6VlPCn2XHI10dzY/jC+iQKZRKANhIM0W4/HHUGQiLwkb1Cb1w0Txq7eJMVT1A3NWS4tIXd5mZ1x5FYEnP0rF4kujRZLNS863c3kniXc7yN21nP2rOvLtl1fxSrkY0A7/AFpCW9eRACHCknTkAD6VjXplLltZ3961jiRLyD7TS6yRIdzwKXunC5Yud+Rnms+G4kQ4DGqzyNJsSTXQkjJsmaRdQ9K8txpOCMj2pdww3G9VDHG/NUSPC6LcgAfPegzXBcjTsB+teSMPEW8wI7etCdMNsSRTaCyfELkk8nvUjnaqrjG9WTOcrSAuHA24q+oUNwTjNQoOd6Yg2s96uHBFCwAKGGOT6UANYyc4qDsMkUA6iedhRdWUwck0AShNMRrk5pbUQNgT9KZj1ALkU0IKowdh9KIhBf2oJbepiwWJzggcVQDMiAncb0ERDPtVLnqdsB/B1M4+grOn6jO48mmP5c03JIji2aNzLBbqNRyx4VeamKSGdcxuMjkHYj6Vh5LeZiSTyTVGXXzU8yuJo9Q6hHEDHAwdzsxHArFkk8Ry2kD0Aq0qhGIOCaGoycmspSbZpFJIkAYzUZB2AowTVzxVT4abd6Q7KlXAyvHtULKRsQDUgFiSrb15kJfcfOkAUEHDqfqDuK2bO/iuI8SMqyKPNqOM+9c+VaM7Z+eKJjUgkGxBwfnVKTQmkzoYJRKzAKy4J05/mHqPai6SMVzqyTBkbUfIukAHGB6VtQ9VtDBEZC2r4WGnOnHr7U+YuAyF/vUjIGaKYxjKmo0HilZSRUKMgVRl3OKLjG2aoF3yDk1Psr0DCnnNSFA5q7juKjk+lVRJDL96GU3ww+1GBCjzc1dMEZpJFCEsZDYA2oTIVXJGflTV1PHFvnLf00j+d380e2ec8VaZm0SDnttUnB+dFTwpB5WGTxVHj0kAfemFAyCRzV0JUVfRtg14jTtigVFw+QM74qQcnjAoS70ZB6UpOkVFWyyqMjIoqhBvjHvVAuBwavoOPNv7VyzzKHZ24fHeR6IYoy6AuduaE0bgAelMxp7GjFML7msH5k7OteBBL8zOby/HnfioVAVwSMd8ninTbh2AJ2oNzbqg8v61a8iPVmcvDmk5VoVMamQ6T5flUnGMY/5qVBzgDFHRVUYxvTnn9IjH4t7aoWAKNvuactIGkGorgVSOLU/y707CSjAZ2HcVhLI2dMMCTsrpGNOwI/WoC49qbeMEjYZHeqad9u1YOR1xhYJQMYI3NDliI/lpgLuM816cjFZKTcjaUEo7ExvUquDiokOk5FEQh9+K2dnOkmySoI7UFhp/zTZwAaXYZya1wdnN5XRQtg4zVSwOcGonXbIO9DjQ4yTtXfCCSs8ycpN0F16d6rrFDbcbHNCI5Gd66Iwo5pSsMXXcgipW4AbBxS+ocVV1ycgfWqokbM+TttV4phn1rOwwGxokWRyaKFZpG4wDpYL7CqrPnOSSR3pR2HO1VVsHOeaXEdse8c52qRINQOxPvSgf1qPF9F+tLgOx+W6kkARiQo7UtJFrGMj70u0zDjf2Jr3jnG437YNCgkDbZP5N8fEA3bHFAeOWIkFSflvTAmfUMb+1HE2objFOkFsQWKR9gpUHljVksXzqkAAB+9aGpSucUFmLYHajQWwcigAAcCgsoA96ZYatqEyheTR2HQq0ZYnfFVCGNgcZx+tNhM78V5o9+aKCxZ2LbgVK6gMY3pgxggbVXw98DNKgsGgLc/arm3AGrPyFXEeDtRdOeadBYvoOAKui4FXbY4qVTJGKKCy6oR2xVgvG9MJAcANtVniRCCHA9iadCBNGM5H2rwjUfOit5SBzVTToVnO6cfOo55omgg7ivPisSwLE0N2cDI2ojeUZNCYljk8UhoqFyck5+dXUAbmoOwqFP19BSGWeXC4Xk96EsZc7b0wkWQcjJq2AmB/airFaXR5YlQAjGfU15mQDJ+9eIXUD6VdlVhjAoJBhkkOFbPtVcDxSp+Fxg/OqSJ4bhlzTOkMgONjwaY+heE7sh5FQw0vnsdjUupRtQ5Bo6J4iZBG3IpFfmadj1YBPDnjJK7FlHatFJobhS0Ugcbcdq5jLROJFyvY153ljbxYXKN3K9/nTVBZ07aQeaRu+oW9s2lmJb+ldzWLN1G6lABfT/wBu1Kg+bU2T7+tGvQ1fs24Orxu+JUMYPDZyPrTsE8dwmuNgy+3aueRw2y7exG1FA050Ext3xwaabFqzZluYkyNWT6Dek5L6Z8qmEX25peOTxDpcaXxx61dUJ/4oSBsFgg5PJ7moOSaKyEV7wyRTJBhSN1JBBov5hywLY+XrUcGvFNZyOaBj1rPHN5SNL+h70Z4stmsooVO9PW144GJPOOM96hyfo1UV7LiLDb8mjIgDDPerRmOQ5Qg+3pRSo54qJT0aRgrCRx5HG+MiirbjOp6ukerQSeP1o3Gxrxc2XlLR9L42DjD6kLtiPIAoDy6sYGw9aNKNROkeX1oRiYjONvanGq2Kad6KjVjUKDJrZjq+9G8wX0oixLIvm2bmr5JEcGxEJg6tsfOipGxXPrTItiTkrV/DYbH6VDyFxwoDEmgHPemERQQSfpXtGFB3zVeOan5GWsCDhR8xVCMZK716JwvOaIy6txuPaplNsuGFR2JmQgEH6VDnWuBz60SSHLbVVIznTjB71tBqjlzKViZQk+pplIyib9/0qyzKr+GFG3Bo4UEZz860yRmqtHPilB20xfHOdq9oyKOUGM81UkcbVrDXRz5Hy7FZI8n2oZwAQcUw6ehNJSkMxA4/vXZj+rRw5fp2UI3ONvahsMZzn70bbG1DZSa7EcTAnc17Jxg0QpvzXtA3pkgRvvUjjmrMBipCgigCBuMVQgg+1GCgbCpA9aABKhJ3/WiYwN6IFB7betQ8e21AymgNse1WCKNyTih4K5qysRUjDRAZ9RzVpCrHStUVwK8SCcrzSpjTL+J2xsKp2yAaqdWrcUTVtQkFg2ZhsDVADkmjKmTmp8M6uKpCKopxxU4AbJFHVdvlUMATTELMD2+1WQe1MJCpPPPrRDAQMgbUALKpJzivHNEkBAwKvEmRk70ABWLO5oc16tsCigavWrXl2kaFYyGcjbHArIXJfzbn3qJSrSGl7GVvbgk4kYE9870N3d3LM7FjyxO9UbAAHaroh+ICosBiC6kjwJdTDtg4Io8XUNThXAI9+aU0+u9CYYJGKpSaEMzx4UnikncAe9HllOPNuewpfw2bc+vFRZaQMbnepZCd6PFASMnirNHj5UDEzEe1EjjwNqKqksfSihVPFAmDBGDigtscnimig+lDaMNt2oEU0g1KgYq2k4wNwO1GjjDbEb0dDSsAUUqQTzXkHhoFPGdqtKhQ14KXBFFiafRVkDDHrUAFGxnZtj86OVIUZFCdCTkUBTAPJIpwwBHyqdSOpKjA7gdqmQMzBgO29RoKsGUbdx60i6ACIlip7VZYABzn0o7LoYOm6H9K8oJJwKOgWxfQ6nyjntR1bygyD6ijFQ2CORXmhwc8Z5zwaSY2gZbVjBwRwfSipchV0zDSw4IGxoEkZU7HI7VG7bP96di4miArqCDkY5quDwaVjEkYzC5X25BpmCYsQJlAYdxTbBJFcBgCN88UaOIBckbnihW7rpRW2x3PHNPIjE4zWEslrR1RwuMtoAYNY23NUaIqMkHIrUWLAwBQ5ozpGRWUcm6NZYaVmWrFW329CKI083eRiBRzb+K4Vdvpmiz9OMCoWmVsncgbCtZZIpqL7MoYcji5RWkHsuoLt4zYztmtB5EkQhSD2yPWsNLYtJ4aKXUn+Xk1qzyBWEaKAqKEAzmvN8rHCMlx9nt+Bmyzi1PpFhjSNvbFHQawvY+1LQsCQpFaNqgfcDSB2Fc0nSO5R3YvJanGQDivRw6SBjP7VslMJpAOKTddLkelZ82XVizp6V7w8jJxRzgt5sfSocKRqByBsKLAVdQG0hgfcUOSIgjvRXXDayd6EznOM4B71SBNA2wfLjBpuCMqMAEjGTSusIuVOWPejRXDq25JTHFafDOUbRi/KxxlxY0iJ6Cg3bpGGUAB2GeOaG946nCKN/5jS5dpCzMc5rTB4s5SuXRzeX5uOMGobYvka9RGaMJOMbD3qoXtxU6RjavXliUkeBHM4MsZPKQT9aHqCjORUENnC71TQ2N+KmHjP2XPyl6KSyMTsaGFyKYEQxk81Uqc8V2RgoqkcMpyk7YuUIPFU33yNqadfLnvVVQFdzVWQKHfYCvaSxApwQLtiii3GDkDjtQ5IaTM/wAFgcEVGN8Yp2WEjGnc9yaqIPWldjoV07d8+1Sq55FMyRZ9vlXlj2wPvTEDRdsLzUMrIfnRwpyBtt3ooj1b7UCM8xFu29U8Psa1FjG+21QbcdhvRQWZ+gKO9XC+lOm3HfmqtEF2qZOi47FDnO9Sq6jv2ojx4NFij33H0rLns14as9FH7UwY007CqmJgARQ3uYYXAklVG9Ca0izOSChFxtvVWVc57+1RDcwTsRFMrEdgalsKck4FWQzyoB6Z9qHcTJbJrkYr6Y7mokuI4Qzscj17Vi3czXExkbZc+UE8CpcqBI0B1KFx/wBKTXzvxS09+8imMAKh5K/2zSiDVt2oojwDkb9vap5NjoANz2q6bnGK9oyc1dBoYVIyfDLYAFMCJljGaNbKpOScCnzb+Io7jFJuhqNmbADrxg1aWzyCw55x2p1bVlbJpjSMjPfiix8TnVQMPKdx+tMRRBhkjBNCTyu2ke29HUMPgwcUrGkVMQVsZ2qjIScDvRFyWwc5o7RAHYbAZJpWOhKSMIv9hQwRGDk4+dNOMn+o/wBqVmQkU7CiVKvuDtQ3k0kADO9Qq+XHepGdQJHFBNEpIGJyMY7UzEoJz3xtS5/iH5UaJ+N9J7g96UnoqK2Xnj8RVPehLEQ1XklYuBHxxipmeRLcP4ZQMcBmGx+R71CdaLcb2TpyuDS/fihpcyA/xCSK8ZQwyDz2NPlRLjYZ9yD61CoCcY2qMllBBFGjBGGOKOQ+IFlwuMUIDDEdqeZOxFUMQYYI370XYcaARkawPvTJQSdqCIGB2OQPvTkCkL5huKTZSQpJCQdIHNBERB8w2zWpoLkADeriBWOHBGPaoc6LWOzPVVC44NXj+LGKYntCWypxvxUhdLAMpZj/AEinz0HxNMWgtVlgVtRBOe3uaetrJgBqlcrjjOBQuljMWCG2LHfj4jWnCCQd9xwK5MjS6PRxcpalsE0CFSunSwOzLsRXlt7hsKzo/qSMGnRCQyMw7b0RQI2J5zXFPM/R6uLxlX1FYbKNPMT5/lVniJXSoUqR/MM70USbZO371UNq2Xc+9Ycpt2zqWOCVJGf4ZhysZwTz6mq6G3J39a0ZYAxzqGfYVVIMAnBwPSr5t7ZmoKOl0LQRZxXQQwKkao3xd6UtoAFU6N27+lagiRo9LnCgfXFZTlZVUD0+GNKsCOxBpS5XJ1YxWgXt3XRFgBFx8qRu5Y28iODjmpTGk2KYIBI59arEuuIf06z5vX1phLWWcqigqvLMfSqxxmFGjJyNWcCnyV0jTjS2BdADuNuwHehyW2IwxIBPamuxzjJ49qmfDKEfcCqTZDRzFwzq2nPwnAxQRI43ViD7GtDqYjDjQMncMazRlWz2r18MrgnR855EeORqw8d3Npww8QevFGiu42IDZTPrxQFT+GdyGJ232xVCnlO5AztWschjPGaWuJ20rIh+uKq0kSH/AKgb2AzWNobJ055xjNeSRlyMD0rpizjktmn+cjDYAbHfNT+bizySKQUrJ/zUBN85rTkZ0a8UkMy+Vt88HavNblhkEgjtWYurPv7Vo21zKBiQBlHc80+ZPEn8uQfP9aG0ek5Ap4XEEmwOG9Grzr5QRuD6b1LmWoCaKwfONqOEHrRERjyNvWiom+w7c0ttA6Qt4W/FUkT2rS8LYDiqSWwwSKuOiGZxjBwKqFKgrx6VomAhQRio8Bc796uyBERYXI5qyKSPhNOiDAxVZXhh+NwD6DmnYC6AZxiiBKTubppDiJdC9j3NLozq+Uc6u5zUuaW2OMW3SNNk33pec6CB671QySEZLmhOzE5Ykk1zSzqSpHZHA4u2GQagNqvriiQvKwVfU0oty65CIAfUmkp9ch1MSTnkmnFomQxedV1DRbLp9XI3+grJkyQxOSTyT3owhbUTyKssJbduK0MGJxq2c8EelMrKyjJcn2Jq7RjtvQ/CJbCgmgOyrM0hyck8Lk14wkbNuaKLaRfPjitGODWFZhgkcVDkkXGDYrbwroDYAx61EqA88+tOyQkEb+Udqr4OsURdhJVoSWLUwCkUeW3K70S2hzLgjitM2qkAnYUOVCUbFrRNGxXOretJBt8IBoUUSpsG1b8UaIP4pDAaexqG7LRYJqGKDLbM8qBRn3FN6dP1qSSBgcY9N6adCaOXFvIrAOhXbvTCwaUwBzzTEoxhvpt3FVi2O4yPemMC8SqdwMeo71aRSy7Ej5UwUBOcZzQ5FIHypWMz5VKKSBS5IUHVk54p2V1ZSBj0pFxqOO4osKGokj0ZOMnc0rcxkP8ADjb6GmLc7ADc8Y9aeNrqXU4z+1Z8+L2a8OS0Ynh+XOcVdJjD8KI//eM4q06iJyN+dqFp7g4q+0ZdMrkhTj7UWOR9UTTZmjT/ANpnIH/H0ryjA4zVGXDAjP3pNAmyshjlmL6fCUnPhgnYegJpiNIdWoQyPEF8wB7+uccVWNNYIbB+nFFSJlZjHIU2xgHmok9Gse7PRWLXmtrdURUGWVpQOBknfn5CqBCCUyRjsaPHdyxEurqJWOD5Rg/SoaRppS80Zd9XmGcZ+tSnJMpqLX5lRJJwqjVxnHNDil8MMCpbB5zsKbd4zI5SDw0OdKNLnT9cb0zYzQRSOX6dFcq2NnZhpxucEHvRzaVpBwTfZmRzHX/E+E+g4p5WgJzE7lB/UoBP0zULaRSKxEMiyZ2wdqdt7YxnAhXzLpO+e1TLIXDE7BCMEggqRzlaNJHlASGx6mmY0MAOqAPnbmqyRmTdEdf9oPFY8zo4V2JZyd+e1CuXEEZkKs3bA2xT5t2iUMqnc9t96DdWZlhaN9tXfnHvVc0JY2zO6TMJFKBSDljntudq3rSLUNLjB5zWN0K00+M7NwzIc7DY1uLeWaYQ3MfiE6dKHUSfkM1z5pXpHZ40KXKQ1NCxjAUZNB8BoxmU4x6VpLEw270O8hJTBOPQ1wWetB+jMDbEZyT2o1rAzZcqdK8GlsFDuO+MnvTtvcSOgjUZA3zTbLlFroKkOpthRUjRXInDYP8AT2pmMmBoz4bN3YcZ9qZKxvCryIA+cKi9qzc6JSAMgjKquctxmjeAjxEvk785xir2Vs91dOMBmA0qPSkbmRpZWiDExIcfM1hybZrGKb4oZTp9p+VM81xlS2AkecH696zZbmJX0xRKAm425pi9lPgxqRyPKo4Uf5pAL8O48xxzvWkFe5BuK7DzX00qaSVVfRF0g0tliduPnV2VAxG59D2qhjIGR61tGKXRlKdBEIcgY+Eb0C5ugTpjBzxnFO2jLuJNKYGd/as/qIjMv8Lc/wAxHetIRuVNHPlyOtCV+I9SaTqyN6QkAwdAx860pIWeTUqED05q5sBszNjuRXbDIoJI87JieRtoz4V0pnbJG+RVJQAoXHenLiKRAWRTsMkYpbwZZR4iLlT71tj27Zy5dRpCZhbdhgiqiLz4IIrQ/KzE/AQPpTUVizISB9a6edHHwTMzwMDK7iqMmdvWta6geIBDjPbel/y8j8DfvkjFNTE8YraxkSANwKfOncCvRW0mOBkDbcVeWGQqAirnuc0+YuAhO2Qw2OTvQUaWPeOR09s4p4WE5IyFx7tVz06U8aB82/4qlNIhwARX0+kK2l8c9jWhD1GAACRGj+e4pePpc+vmI5/3cfpTEfSJWOWkiUe5O/6U/kQvjY5BdW7nAlU7d9qZChSM7j2pKPoUjkaZ4QffNPRfhy7x5L+MfLUah5UvZSxP7FJnjUHufSkZZm3KR8cE1uw/h24XAk6hGyn1hb+9PwfhB51B/PRjPpGf3qf2qMe/9g/Hkzh5JJ5Bux+Q2oQTBwVyK+hf/QSnf8+x35WIf5pW7/BqxLkXM59zbf8ANUvLxP2L9nn9jhzGO+y+lCBCykKNh3robzpVvbMUkvDrHC+Hv9RnakZrIBQ6uWHc6cYonmxyjVl48GSMk0hHSe29U8Ft2P2p5IAq/F+lQ0JbJH6CuRZFdI7XifG2Im3CnUDjPIockQVc/pTpjcAgK32oEiSZ0iJj74rphfs5MlLoQbA559K8AG24pgwSsMmPvzvUNbyL/MFHsN62UjncQaQ6m0imorRVHfPfFK+Gyt5Q7781rwRtpLDfbO/ass2SkbYcXJizRqFIYDHfNWiQE+1RdSaUAAznmqW2uM5IyD2qIq1bLnLi6RaWI+KRnI9KYWILCcKdXpUIpMuTjemtWDW3JRWzHjKb0hWwhCvll8zc57VoNHqBxxVYYctqWm0Xy/Cajly2U4uOhYRKgJAocZIO/rTZXO2az55kilKruO+/eqRDG1xp3OasMl8D0pCO4KnOxzRkufPqxTEJTqAVVTjIyB3PrXkhwgxvml+quYZLGfHEug/9rDH+K04o/J2B96CqE0bDAd81S8/6bKAd/SnDCC/wnjtQpLZsE9qAMLwt8Zx6URYmK7BSeOaeFufE82MD1phYMb6c1EpUXGNmXbxlZSDkY5FaTM/hbKMUQQDZiMHtRNOF3xisJSTOmEWkYd5aSP51TbPalhBKACUNb8seYnEfxdqxyXRih2IO4reDtHPkjTKLHKc/wzn6VVreTUMr+tG1yoxZFDLgZFSZGIy0bAfKhSjtDeKdJpdlY7dwew+tXa3JXdlGfeqqdZBBGParnnaqpEW1pgzbNjzaahYmB2YL8qKNRG52Bq6rxyT70Ug2C/LSMfjH1rQhjdYgAQMc1ESlAcqSSNqukpk8gGk/3rGcom+LHNvQzbxvjJxk9sU5EulctXok2U47b1JyxzxvjFee58rPV+NQoFKzHB0g79qmKRRGDuc71crv7UsozGA5A0kjB9qpNUZuLb0TdTXKwk2ngjAywdSx+m9Yj3txKwM8s4GP/bCqP0robpVityBkM4xt6Vi3USrHECVVix3z2pRmr6NHjdbZk2vhlj4mksWJy+/966PorRLNiNkGpCDggcYNZXT7dHa4WNdREpCgDO3atXpfSZ1uomSDxQkgJDAKMd+frSyyTTRWCLVM6hZ7QaFkuIg7DKrrGo/ShXzI23LDbJPFFdooS0UKImM5KqBj1O1Ra9KvL8lo4iIV3eR/KAPU15ras9SCUVyk6RkSRmR3kbfUc+m9Fsom1NvpB/WtK+tGExlhVlt3JEYIxlRxj296Jb22mIa249uKfOkaOaa0W8KUhZF3ccL7etNw2iGJ3Ykyr8WeBRbTCwEeXKgE4NNxRDGwGZBlya5pzsxc3EDZqUhf8u2iTdSccH1zWKbXw8+LqABwfWupismeOVkXSdQwueR3NB6v0m4njVocFSuTnkEf3qdonH5MYzpvsw7q3W5giAGGRCuQNjjg1kZjg0O6BgpyUbcH2rqJoUs1t7cn+I6FnzyATsP0rlL8vIFIAALHat8Tb0zohU1roqjJK2onTk5+VEnf+GTGpIzgMR96VTKjSVwW5AFHhjMmRjC+prqWtmGReiYm8RCOcEg59aG8eVJIwSavFHcJJOI1WRPEYfFpZePvRRG4TLrpOe5zWyzNKkcr8aLdsCkGMYz7ipmXA07ZFUkuMDSgLHPNVd5Cmoj6YpJSbsbcVGhe5k8p5Byowf8AuFWkiBcyK2ljyV70OfUseSmrzKfnuKgmRgW8qjHYb/eu1ZIxVM814pzdxC7Dlx9aZt5ESMlmBHAFJiLCjVk47mqh9JI7VrKSOaMG2WujrctgD5V6IAtpGAeTmrLC7RkkZ22q1vEzOMjYcmlGWxzhSLGNOSxHqFrzBcYGoVe5RIo3DlUGjZicUCG5S4n8OIHABJY9/lW/KKdGHxzatLSCBtIz5vtVlkTG+vPyqwhJ21fKvFJEOD/aqtEUyI3RwTh1IYj7GjoV05DPkcZFZs8wtYpFjGJS7adh9zWlZaltoQnmGkbkb1HJN0W8clHkMwgs/wARDe/NaVuHiGFlZRz5aSjLFSHUls7HHNM2+gPiRZD7CplTQRtG1ZTzxkEzSnuVOwrct7yZAniEDW4Ub5OTXLhbRRrfxFA/qCj96jqfUPy/5QwvubpGK+Cq7D5VyZIo3gnJ0dZdXbLESYfF9RsK53rV0y2skgtY1IBABO2fnmlJPxFNF1iW2KeJEygqpGy7Htn/ADWb1e7m6kWRIo1OPNhBn71lyUTaGCcmtaMTJmkd3wWO53qpUj5HtTkdlotg0gcOz4VcYyP8UsdpvMuR/SDjapWVSdI7347jHkyixO6jT9qOkehdJzmjiPMWuBQQD3OKWaZ8/wDT39K7cUF+Jnm58r/Cgnwpgc1RT4gBU5zQZbmQAsigNzj1qh6iihQsbA5HOK350cnCy6KWmUb7sSR60ScKjxqYxhzjdfajy3dhKkTWQljlAOtZADv65/8AMVH5aeWcxOpWWI50sQDxWMfIqO9HRLxrarYusKyuEWNQc7YG9MvbpDE0eC/Oe1db/oKdI6elzPC/jFNa4ByDt8R7c4rmbwmC4aKcaJDvo5P6VyryHnyV0kdMcMcWJuO2JPbQeCvkJJPFLSW6AnBIot/diNwkSHykc0M9Rd4jGIYVAXTrRSGODyd+a9BypfSjz4wTf1MYhsMwq+sAscKpO5+lWlg8JQGGk43zyTVLLqcllcRXCjxJAwdkkXytjgUS+63Jf3DS3EKKx+IqPsBXO1llNX0dKlihBqKpnrdToGASCefSnwgEfpSMFxmJvCjJVeTxzRzcExhfXGc811pHE2JXU7+KQmVxtSUwJJyN61JI1fcDNUa1UgahVUQzNVMb4qwO+MGtQWqBcY3+VeW0UsDp2p0IxfxHAX6VJ4a7p5854xvtT9oGltoZsDMiKx08biiXURa0nXSGPhthfXbis/8ACN5+Z6WsLjDW50Z9RyP8fSj2P0aWnB9Kqzb4G1FcZfbtS9xG2ciocjSMD01vHLkg+b19KFHqQaWG9XTZfN9qumHJztWU5WjbHGnZBU4r0iBlx61bTuGB7URjgJgZDMAa532dUVaEZ1ZEOgcVjTI5kJkG9dNJGMYoH5NCBlc7VrDLx7McuFy6MMQspIbYkAj9auqJpbIIYKSCvBpvqcOgwAAgFWGftSCgiTSM4PasMkm5uSZ6PjxXwqMlZ4QOfMxj4500UxBFyz5+lXVIGZdLurdlGf7U0IFfnIzvxXXyVHmOMrp9fwFIYc5bPfjApmKFHbjOP0ozQ+ACF3Py7VZWMULMozp3Py71zvNo6I+NcuiDGwmjQBcENud/TtUxW4jlLP8ACDux2oE16w0yoo1LnAJ3Odv3pO5mkuWBkfIzsoGFH0rFts7I40joYLhLpSYt41OAx21Hvj2od6jLbs0ZYMuGyDVuhQlrIYGwJpqdVMF2mAWEX2OKwtJ0auLbMXzsu7O2ferWUbLJJ4boMAElxkgb1NuPFOM4IHI702lsyzAvFnK7Dam5GskkGEZMJ8TDkjuNvag/lIhOqpEgCKCdKjck/wCB+tO28Ms0yRJGzOx+Bdz9Kcgsgs5VwTITkgD6Afoayc+IUno5roEJHVL1NRP8Rt/XB/5rrorZLKQCYrqlTX/2+mf/ADvXP2ERi6v1BsAGO7II5wDkGtm7hZleV2wcnAxziss2S5F4seqFpU0KunzDnPrXU2n4njs7KO3awjJ8PSdR2J9cftXOxwn8upJBBOcDsKGLO5vOoeTCqpC5xkZ9AO5rCMt2dHkY8eSKU90byrJ1bqTtPMrymPXngBePoPaovLWLQyROzkcvjyH961YOj/lLRY+Wl88jd2x6+1XWxE7eEJhsM4VSaxlJ2cUc8U7T0jEsLRmdouSTyOBT72DpMYhIzKV+Ecgd63IrOGzjzgtJjgdjQYrQRCSSc5Zu2e3vUyT9kS8zk210AsRBaJrZgvffc49M0/NcxC0EuQQw2+tY17MruqQx+IwGdJO31H7Vl9QluZXxdMtuiHTpbPb0Hc1UW6oF43yyTk6Fr3Vc3t28Mh1AFw3sOcfSsCbhMZ+I10JvLe3iljtRI8kiaAzAd+/2rI/LvIy6Vzg4Gkd61g6PWx2k7WgSxTy3BbzPL8Xm70T8xBaNi7kEYGMllON/fGK0OnEO+WidmJKuy+vrVOu2Jm6dPHjBCalGc7jitlK3TOaepUZUPUemxyTslzbqWmYjtqXb2q8vUbFyVWcSseFjUsf0FcgANQDFgCcAntWn0KSaO+KRIXZ0I06sA98muqWKKVmVu6NkJ46iRUeMZ2VxgsPXFDudZdSMbjcetalvb3A0mYJqGcBVIH60W5sAqO+jUQvIOCN9/nUxyJIwnG3sw7pP4ZPYsuPvQPDGncEn0A5p67UaVSIgjUuRjBBzQiGQkEgZp87dsax6pA5tgkeMnfNCmjwVOnTt27+9MDDMX752FXaJi2rThScauwrojkTdnNlwuCUff6Z61lVEKMM5rwcxk5GCDxVIomVSXXYcGqEtkKQeapZEjKWFvsR6yBNeRMF0gp5vvV+lrpujgYGg8/Sp6nCp8IoAuxJA77ih2iuU1FN3JwAcUuf18jp+K8HE1ppFiRpG+FRkkCvB0kBME8bY9DmlZFY9PuFZSCE70r0gN40mMrsNwxFb/Ls4F464t/YB1EMOoSqTqwQcgY7V0HRwfyUROfKOayOpwyfnByTKi7/LamvzlxaWyRw4UkHzYz37VCnUmbTxueKKR0CBmclgM4+Lasi56hdWtw8M8K6lU6XTbIPBrSt58QRakLeQZJbJJxzS97At0wkbJI+HJ4HpWjdnGlT6Ik6pBLaoC0gIwSNHGPf6n7VtWLdI6hHbi4v40lIMjeIv8w4Ue/f0rBh6RJO2IoyNvMQ4P6VaboM8cg0KCCPhBGT9658mNS7Z0QnxX0o07KzjuurrcRSoobV5nYaVUDGTW3Z2lhGsOLu38eUMUbYs5zwAf3+lcle9B6hbWL3ZsmdEw7HIPk78enNLdM6vY2cyyv00yMuSp8XYHbB47EfrXNLByWnZ0/M31o6XqNkysVaEiY5IGonSvue5rFuLJVXIzkDzZHap6t+NOo3UqyW5jhbJ1FIh5s+xzmloOp/6jLJL1G7SGR5FCL4R0KuME7cY9KnFgnBWzV+RyXF9gYYn8VS/BHAG1L4IvmO+BsMH2rb62On26Rf6f1GKaMEAkfEfp6bGsh3to8P4uXYg4XevQxZeUb/M4MsEna+xIz5tidsjbNCa1iY5KEHHyp1QrjUjggehzRRAX83AxzirnlSMceJsypLXShVcn370o0ZST5D61p3FxDFMY2zkc4HFTZ2U19JI8MTMq48wFZ80lbNuLukBkub0wiNr24K6dOgucY9OePak1WWOQEORzuMjFOM6GR9eMZ2zRPCWUHbHpjarglRE20xa9uDcBWaGCPQAP4SYz86qsKaseYg845qL7VbptHr3GDkAZz/xSkUstxdxRyOAjOAUXYVpqOkZqMprkM6Quy524zVZQqKup8F2HI2+9aH5Uk7KMD0pLrEehIkxuSTitOkYpcpUXwVQYOPlUqrncsR8jSfTVkGrI1RjA3fTpPsa2IYt8NHnbYhwaakKcOJNsHOnLYB9acIXtQcY+EaQKMmogEgYrRSM2i4GRkjIoq6VI1LzxUYOkAYAJqsmzYG/vTsmjk7L8SKQI+oRGMnYyx7j7cir/hya3/P9RggZfDLiSI+q9/2rnFJ4PYVSNVN1GrsFD7a+NPvtUcjVxO9kmijkAdgGO4Xud/SiSqG29awfw7YRNEL8tKj6iukvkMB3P1reLAAZqGWLaDqIPFCkkaIeXBzwaYcZBPpkUK7jHhxt6nes57VmuP8AFQS1UGBSTjbck7Urc3qtcQJCx8NJFLHjVv8A2puxcCPDgNpPBGftWRp1SOuMHUeRuMVzydbO3FHk6OlNp4hL/wApqjxeH3GKaSfNuqnbOMihqp0JrHI796kjZj9WU5t2ztlh+gpHwQTqxg53966K7tY53tBIhCB2GAcE+U/4oUnSUCFkdlG+pXGpT+4rKb9nbglFRpidn4ht41e21agAJA2amS3leYKqMM40gKckdvnRYbV7QeWRg5OTGDlSMbGuqlsWs+g2lzEvmn8zsRuoxsCfT/isM3kyWkaYsMIVJ9t6OVurIWbYuHEjadlU9/f5UCKPVDOzjYocbd6POdcimZ1Uk7k9qIAkkTIjnJbTjGRpxzn51UdRuTHOUnLjBGJdWpFqk/8AKJNBHzBP7UnnEgUfD6+ldDeWDixdi6ME06hg7HOP71iGJtSls9tgOa2hOyWr2dN+GG1oyLklc6geB6fvTl4gMl6qgaxGo49VNI2lhJZWkd3cJdQRN5XeAkEA7h19fQjBBFPdIjv3vrswT2l8GMZDvEw1DRsfIcd8GuSe22n+rNG+NNoxLOEfm4leMkEkEac5+netUWyHw3QOoJx5cg877dv+K3LqLqEjLNfW9sojPwrEyAfJi2fbgUfq8i2vSJJbO2tJxGdUiiUrpG2OASTk+1S8jb0TKalWuxLp3T7m0liurFmlklBIDjYKPU+h5rYtLUB52ZADkAhRsABnA9Nya5bpv4q6lJGLKGG2hifGolmJIH8uewoo/E3VUMsMYs0XWSSsJJJz7ms5wk9XsTx5H0ivTbIXPWOu4DZ/MKVQDkEEc/UVq2XR7m+3YNpQ+ZmGNxsR89q5626r1O1vb24tJlE9w6M5ESnV6YHaiv1rrsLPCOpynJ1usWkDPffHyolj5Ps1/wCaOoV+v5HW9H6KzXbpdIywQjKhhu+eB/n60s1jc2N8ZLZHCq+VyuRmuVe96pOQ897dscbarhuPpSt3HMeXclvUkn9d6PjXSZMY5bbk7/I+nfnLeKxZL66t7cIRoEkwDY5OcnNaMPg29o10vmiWLxNS76lxnI+lfPfwNaxRddiDKniNBJpZgDuMcZr6gyxyRMshAQjQ2rv2NVHFFytdnl+Unilx/mBYIkXi/FrGVI9KzL0SMpCKSO+PSmOizi66LbK6MHiTwpCdsFCV+ucVMkrLcKI49QIIAxyazzwSlXozxNpv7o5ctLbeI8RZZNWnX3GazDZtcXKeJIdLPgvz33rp+om1ss3U/hxWtuCZZHbIU+g9TQPwzAl30u0u3Qr4qtKFY74LEqT9CNqzjCSVnqx8xQXJIVu9OkQWkSQ2oAAwBqf5nmgL0+ESQoJSmvYKDux+dX6tlpyYjlYs6yBtxx6Uh+IumXdnBb31vL/AkhUGWN9ice1VCLm9lqXGKSdNl0/L2tw7OBq8VtGSQDg9/WmLu0e6jOoYLsAQO2fT5VyMd34Y8OWQSR6gSoOfqDXWWF67dOiEMCSqpAEu4Y77AitZQ47bCUpPa7Pmlzbsl1Mh+FXKkc7g0bpiOL62BjeTLEaUfSx2PByK27rpN7d9Vu2tLNpNMjZYYAHc4yfekbzpt5YqrXNrMpDBgWHxb9iK61ktUa1FvT2bcMiWmZLa1kjYEallBw31yd6bk63DcxxQJbuJyDr/AKfXI9qrZQrcdPknSRZIVGrJQppPG5PP/mKzbSES3QjjXW3OrPArm5Ld+ieHJ6NLqFsGCoiqWLA/bms2a3eBA0iYlI2Xuo9a6X8O9KnaVpLmLC6SGB5+dKdXlE92wskCSznQrKdyD3PpWLyO6XRphlFZGu/zOXQskmACc7DI7Vpx25EY8TIDevFO2fRmN6VmYlYzp1epo3WQYrpbRIgyqASfYgVv83SRE4qeRmZbxxzDZgVXc52xRIrFcyMOAxVfnQ+gwn8zMJUwoORq8o5PfH71qS31oHeJdeUxnyHnO9XKbukZcEmYXWLcRvbhlAOpskemBQGVWRGQMUVgPKDx3wa6uGwPUHgmFuzDUADIvlOXVds9s7VPVbn/AEqJY3GZck6EGwB9+BU/I7WtlKca4mHf9MFv0hpkaV9cmnBDeUbHO/8A8Vl9ITRM66wAw3yAe49a27z8QTDprWsHiK5Kt4pxnOTnf0wB+tYqdQvFklfxjqZSrhlUkg88jb51vjc62c7qnGjY/wBLFxctI+GZYxpUjZd/Sl+pdNunlRZItBCFvMQAQMcHvW50PqXRS3/3d+If4Wg4VwN/cj9a5nqP4g6hKBmRHSJWjRgmToJzvv7CnGU3LaMnSevRsQxiJIY3fUWAXYdwKZaBAASGJ9c1xE9/NPIsh8jKBgxkjtznNdL0A3YtlknuEkSQZSNxupye+e+DXUrrZxySvRpRxbgLGSR3GDmtKKJZNAKsDwCFHNJ29zbSFvCSKQqcO0bE6T771a7ube2tJbllbESEkDc8c/SkydmpNcs1hrtZHj1JlZGTVq9c1yMH4eLOD5WBOctA2kn6dq3enCMdMtWjlkeNIUGtHBBON+D61dTsQJMpnJ1ioqui06OW6v0hoZECrCDjOIwwH2NIp09gQXyATyD+1dlKiu+AgckbaBSUuFc6I5NuBpFaRuqG3ZzF/C1siMULoTjOMUKN4tHwuDwc9q3utDxbVFePLE5BZQMfKshIiq7rse2KTyU6Lhi5R5MZWVGtTFDhWx8smlhe3AjeISEMRpJO5Hy9KLHGGYKIyM9+1TJZueFUnPpSikVJ1ozLceDOskkazAcoxIBHzG9aFh1S/s0mjtWCJMdxuQPl9Nqp/pxeQFfL6g5NatlYIBjAzwcd60cE/wASOf5K6MZLR5pyG2yckCnZ7UxQgIxMnfJ4FbMdj4TmRsE9jUTpGGyVHzrZNGErZzPUVYWyFicahSNlteRlwf8AqDFbHXEUW8YC41SE/ptWbGCsiu2NWRj6VEn9R1YV/wAZ04TRnMTEdiDnNYn4iUfmIo17R5+5/wCK3o2ffKRsDz4cmf0pO86fFeTTSF2jkVgqtyMADt9a0crOWK4ytmf0SEtA0hYqS2DjggeorSjCKpIx9Bih2lsbWEqzxllJ47UmbyRSzlVI+XNUmTPbHC6s2ldyTwT7ZqyFtyeBWWjP+aMowGzwKfjkLxsW9e1MigjXB8pJ79qNrKgsxxvWezajpxsKPDlhhjkDjNFhRwOd8YoF0p0I47HamGQtIE9KHdLhCDny7imV6OysygsLcR40+EpH2zXjcOjYA43rH6dOzWUaA/Ao2z2/8zTKTFiMnfjeoK90Orck+XB3Oea15rDwrTMkkYIIwjNuduawo114C6ck43Yc0W58SKVRI5OMAEuG0/btmufIm2qZ04mknaNOa2/hwiOIK2N23w5z/jalI+myyzs5UqWJOkLv7msjql1e28ziG8mEUp14RzpBz2+uDR7X8V9XtyX8WGQtHoOuMcevz96h4puP07NI54wlvR0McttbwRPeTBfIMrgk8bf2NOfmunB/D1fCCxYg6VxkkZ7964i76t+bm1XEC+cnhj5c5Ix9SaKhg/JMy3LJJwISDvvznjv/AHrOeGX7zNYZo/uo7+e3ZreyvIwoieVcEkHZlOM/Qg0zb9PWcsi5kRQMScpKx4AxyPlXC2nW7q16f+VjSFYyyO7aDqLDOCd+dyCcb4ro+i/iq46dFaW0ctkyRxAgvE58E5AI2+fvXJkwTekzVZXVpbOyg/DVrAALoCa5dNQi/lUA87dt8UD8TXDxxQ9PiGJMhQqLz2AxXOp+O+oCe4ka4t/EVWjWQ27ZID7Djbk8+m+9dV+F57f8RW895eLDLLb3LBJACpxnKnTgdvWlPx7/AAmCyzhJZMu0jib3oVy8pLgKyH+KMYEQ9CfX2HrSNwrRootl/hIM6sbsfWu56q1v0qPqVwV8S5dyobVjOeSo9s8/OuNaC5jsiAmkl9JTGohT3qIt2rfR3wyucW6/mJT3Zg6VOrR6lbSpJODH5gQfl/mg2sMUr6Jm2HBziuivPw3c23Q74XDKv8LYOck5GQB6HauJ6ZdmF1hlQSw9gWKlfqAf7V0L6k+JWGUXFrs+gw9eeKxisLiyhlijj0ITkMB6g/b7VyV9eXHQ+ryrYuEjkCM8OCFbK5zjsd+a+j9Psrexs1uriLwjoVipIYj0BPeuQ6j0C8691q6uingW6MheVxgINIIGOScYrHHOPJprRnjcLf2/2MN1GPqFiLg4aF0A0E5ZXA4Pbnv6UBOntLYzLHqaXAJwcZPp9s1u23RoYFEUVuPCiGIEaT4jnct3P/NNRRTRNc3d5Kv5O1iL6UUKMgb4Ax/81zuVuomvzQhHXo5vpXSZGlFuVJkbd8cIvqTWl0r8OfmzJISZYUfSmNtZ75/SvdR6t0yzj6VNa3Bkh6jJgncaU4bOO4bAx867TpUMVoRbRhA+M/EM877egzz71SjO/q1Zhn818bh+vucT0fpJHW+p20mA9tFnbffHb70fqP4clixcZSBTMFRHwSFY8k9huOab6ZOF/HHXMAs+g+RT38vPrzWy9pN1hjHIAkUkWBvse3703FWq7Il5GSErulSMlfw3020t/wA1dyS3Trs0CLp83oe+KnpPQIL6VnvrSNIU2AA0sTjbjfjetCKK8ggzcyosEoVC/wDSy7YJxtuPvis9+oXVjKl5ljHKNJ07ZGdv3H2qZScZJSVCjLJNNRlbfv8A9Gp0/pPTlvIJILSOOWBSIn3z75335PNa9xOLG3Gpizj09aW6JGtzELqN8RlsoV7j0P8Aii9Q8EwyTNlyh06QcZYHtWiU1i5ezhyPll4y2LdLcBriJlKH8y5Ix/UA+PuzUh1jqN1YPcXNtc2rwrGzrb3A0HyjJCuN8kdiDWBe2DS3zM0kwWVNQV5nO4yMZz8vlXO39z06KynE9hdLe7xqXY6Fb1yOfXFJZObVHdDw4t8m/wCVf9mP+JvxDfdfug1y2iBN44FJ0J7+7e5r6/8AhuFLfolkHdcflItWeQNIr4hIgKMcHGCAD3PrX2O9nEFraxspZI7eNc5wV8o3rbyGlFF+Ti/Djhpb/wBDfXk8bprSJNH+X8QAlfbbA9T/AIrhLNLyG1uEIlNlpGnxM6QdQ3Xtkn0rb6aI26jHF1GYra+OSFLZVc77+x/evdVvbeC3gXp08lzKVDE5JSEEnIx244rCm9o0wy+GPx1d/l+tifSfw7fXKie8iaO2RdWp02K45HrmugFz03pUEc07KVQqY4I8M2MZ4z7jJNc7b/inqMqRWV5ErqVMaIfLgEZB+fvQIRDOrZiSNSUJ8Qg4XG/6UZElKxcJ5LU3S/ILcfiaGGW6NtbXEcjztLE2lTpBA2I+h+9BP40tI5dNxDPGrNsFwxUZ3PPHt9qyL60QXjsDJ4ZOF82AO3r/AOZrlGRizl9RbUQa6cWLHkWyMsfjqj7C8Fr1PpKSWN4JoGdQFhOrfO+ofUc4rU6F0e3sYQkxja4K+IYtI1qpwNz6V87/AAv1/p/SulSotrAl40bL4zSaHJySp4OcbDHtXWfg7r0fU+vtKJ9Uz9PVCXLn+IGG2T337YFL9nim76OfJlyvG43rs6XqnS5P9H/LQyYdnUvlv5Adx7/vXz3rdrJayKw0lHGCqth/+O1dL169vbX8QLJBeukU8kIlhYEgEHBztsvt70T8QdIhfqKzPJEELYEZcZ2GSvzrHLFRkpQWlo08XI8a4zf4t/8AR82m611KFxIl7dqA3BfUP1rp/wAK3PUfxNOUltoJGQAtMTpJA2wyjt8sVzf4gtFhVPJpEjkqM8AelH/DV6tj4pklEYOFU8ZJPf2roajLHyo1cWpadM7z8V2Qg6Y4/NmWR4fy/hLuocEfbA9a+YtE8Zw+oEcjJrr7x3fpDXSXdizTY/hByZACxBIH071yzt4OcqoOQAWbntUwbTeqsqEEo03dGt+H/wARx9HgmSa3lu5GdGjJnOlFVgxGD6kZq151+frJY/kDgsVD+ITjJJAO25xt9K56WQsyl03VdIOvtWtL+IpZenw2P5Oxjgh1adKN3ABJOd29z61pJJroj43Gdoi+stSeJEUMeMMoIJUjPOOOP0pAxzLqddWkckE4rImvrkPP4U7RRT4EiRnQGA4yB9fvVIIJbmZIoQ0jH4QeAP2FbRxNLbMZZrekaZlZg6Ah1z2bg/Ood3dNAQBedjTq9NiiiWNixKjdgvJ+9Li2IkIVcsOATQnBlOM0hbDINZA2GRn1HG3elwJpMLl39FySBWqlpdS/BbIxA74OKYi6fNDpUxxtnkA5x862i0jmmmzb/D9vJ0/pyxF1y3nOkHOT2Ix22oH4ku1j6JeKciRlCDJxnJxkfStLpsQjQCVkiAXnAcn50PqEayXXToG0MjztK6hdgFQ8j60nIiEd7OT/AAq9sBKs1/cWUoIw0YJDj0OxGfnXWQx9OkXMkr3bng3B3A9lIAH2pK76daWd20/TJpLKQ+UtCfKc/wC0529qtNczxIiXMkMjD+dQct7nNZuaOmUXPaGYIobUNHEx8MnKozk6PkfT2pW7udDc4OrtzSj3oY8HOdjS7TmOdnwGyMDPaoeT0aY/GbuTGbi9UqVkLE+lCtmEjYA296HCPEYl1y2fSm47cI2rVj/bRFNsU5QhGkOW8Qd1HHtTSoJpNDEKucA4pGSRoQCM1MFw8yBAMb71vaTo4+Las0I7SPUYtOwGdVeitjHNrdhpHAHemY00Jjg4GaEz7tkE4GcetaJGDCFkk8mKDJCoXYZzWbB1+xB1lpOceHo8w9yKZvuv9PhiJAaRlfDMu66cgZ/4qXPdItY37FL60WYwpICV8UD7g1M/Q7by6TJGScAhsgH5GiXXUrEsBFIXKTodkzkDuKUn6+jXDIFH5cLjJG+r19qLsf1R0mOR2LRhfF8J2UeWVV0sfn61lX1w8ccvhzAuZT5CoIxkjP6VSX8RysyGKBQmnLBjvn2NY8l14kTF4vMVPmB5J7mmlJ+h3FdsiYsZTqxn1AqwyBue3pQY5B+XHly+rk4o/OcqwFbpaOeTthYVyBk785rRQIkLTPwqk/YUC3jCxa5Bxx70h+JLqSDpDlJFVpDoII5UjfFMixvo00910yK5utOuUlhpXHlztWjCvn24pXpCuvS7VZYtBWMDAbIx2P71pr4eoBOw5FAHz0+Xzgb9zQZPODjuDTUmVGcZBoCqPE47VTKQTpM2FAyRgHOO47/3z9K0mDqdhmsO0YxSv6owYCtxNewU5AGVz/T2paE7odtDnGVJph4yu5VsZ22rMEsik4bSR2olveS5wHapcEy4zaGep2k89mZIkVhF52B5xjsP/OKwVxj2rpre8aPDadX9QY8isa+swkrNEhWNt0BOSB6ZrODadM0yJSSa7EZCMAg4I3GTTSsHCsi/UUo9uycjaroApUNtkfY1U1ZON06HAwkfJJXHY7HNMNNcyeZp3Ydt8bfT5UkqEghxk+pO9M24OTpEgHsdqwlFHTGQwksio2tC4Y5UsTua2Ojdevula5rMsvihQ6gHt3xWbFrDAiSUHgsDWjCf4agyzEA8aj35rmm0vR1wjyVM2uodZ6v1a2xdR2sgZQUYIAQDz8iMb96B0m9vbaPJjRjqz5lKsODpzxQbVUJYjUQm5JYnjmuSsevS2bXhtbqKSEO8kaXKElxq2APYkEnHsaxjjeS6RpKUMKUX0z6hZ9Rv2Be4uGuIZ2DSQMQSN8YDHj6Cs/pf4YsRJYdWAeHwnDyQ6tStjIzvx5h8sCsDpv4omilme7t/Hhebw1ls5QTH5AwChhv3Iz7jtWn0n8YW1v061hupkine4Ibx4mGiJiW1+jbH171Hx5o2jOWSFfQd2erW1q1unUUVJbiZYrdV8xkY/Tt3PyocVzEtx1SS4eGOFriMvJIwAAESdz743NfOPxtfi46j0u6s75ZFhT+FLbsDoIc7884CnB+VbfSvxdZyWdwHt4vEufDTw50/grhQHYjcYyNh70PE4wX9zCOJyb4rf/Zh/jL8WW1zfWy9GDRtYTl4rsPlpM8gD+nP3ArPg/FF5F+dgS/haC+ndZlmtiqlXG74BOn5DcE53rH/ABNbJJ17qD2QAgM7smgaQFO4wO2x4rFl8SNtOskDHevQx4YcFRnKbj2jalu2S2jAeF1gmITTKSdzyFPbYb1tSdf6pd9YjvPzEJmubVkZEnGkIVwynfyk849a42Ji0gQjcnI35NHKnVgheMiqljSHGbl2jtOidcuLC8bqcDRG4S3LkzSKdQ2BXHc8bc1uWP416nZoYjd2LqpdkZ5MkAAnTkDfOoAZ7rXzZGlAXZdz3pyFJ5JY4laMGTYEnA+pNYPGou0zodZPxI+8fhzqdj1vo0NlJeQT3Nzahpo9YLl8APkdjwfvWdd2191S7Ni5h1wgoiHyakzjUO222RXA/ge1sT1WaXrLyGOziafTGwwxXlT6/wDFfS7n8TdLluLgOuRaXECwyxDcGQbMRtsCSDjkGlkjHMlyf/ZzqM8GR8Ff+hnpttH0SxBNzPJJk5gUgIW42GPrmqCyupXS4vCAcExRDsDyTQrz8SWFnf2viNGWuXKu2MiNV31bb78D5+xra6ldPFalgFLONvQA1hkxxeNtukujL5MnK2ty9nH397eW058Vo4bfBUlbfxsKfX329ua4Prc1zf3qpMzsUPkhCaSPTy5PIr6T02L/AFZ7iQy4ijbHl5L8gCj9S6n062ZpLjIfwAcGLDStxuQNuP0rmwpxjya/gelDMscuCjb91/8AD5pbfhrqF1NbExrGJHOPGbGcY7Dcc13QlEUSwSuZAU8Nl7r5QNvlUD8mXlubm9ZraFFDPGh2Zn3A27BRv70j1nq1k1xO/TZGn8rENpGFZR6nt3+tGT5JJWVz+WdNf2D3EFnFbAzXHhI2FUy7YPbcbVn9Otnjt2dZkmQu64YAgAMdtX0/Wq9bvElSK2bMJ1Euk0ZXbSccj19Kzuk3Fv0oysYiS8hXxA2BjPrxz9azjFuJqk+NthmsnW41ywYCYdWU78dsHO2wrPuoWMoCq4AdGRjqUHAOzZG3pWrB1aTqUduyquly2rPYaiB9wBVbuN1BcJnuMMRV8nGVMqNtGI84LFi8ZyunSzAYwM5Hr/xWFeWTNPCLZhK0j+HoBySx3zgeucfQ10s8hYqcMujIKmQ+nzoU07KE8G4lilDZLLKcj/mujHPi9CyY3NUzIk6MkBaOSU+OupZVTGmNg2NiM6hjP1q0t0elWN4bCSWIzx+GW1nO5Gw2q0UAjBdVZM7soUt96yOr3YkeO2hfxETzMQMDP/FdELnKvRz5Yxx479kXHWuqXciPc38zukfhqS24Xbb9BWx+BXA61Le3KSTrDERjJySxwd/XGa5yGOSa4SCCMvI7BUSMZLMeAK7/AKV+Hb7pFg8MtpLLdOweYx6WweAABvgeta+TJRg0u2cnjpSmuT0hnqs3T73qMM9xHOII3C6FRWzHg6hzyT37VgSx20s7usQ0rliHYgt5s+o4G3605dwXJcoba5BXYK0Rz/ase+8QE26B/EJ8yhTn5VyYovUUd0+MY2J3HUZZJpTAqIHYaCowUUcAGmei2b3TvPLcIsUGQvjPjUx50+p/4pc2E4A1Qsme7f8AFb9pK9vZwwxW8Tw6fIP5vcketdc1xjUTkxtylcmVFtZatL9QVPlFkffNAu+m+KqRWt5Zvq3I8Qg/bFMSBG2RJFY8qykUu6uQFZOOMjBrGOn0dUk5KkzPPT4o2CvPG5PeNhz9aY6f/wDYaxA6jV8QlXJ+4NGWzEsmCqkn/cRmm7bpkToDnS2dgGBrSWVVTMo4GnYa26k66g0BOeXiJYY9wMf2qV8CdiSWDH+qMr+1MR2UkaaWdPmVzTK2raV8QKx7aTWPOPaNODAW8Ch8K64PbVx+lOW7h3YMcLG2NJPP/FSkTaXNuqhV+KQjKr/zRLICKNncamY5BapWdN0gfj1FyfY1bXJikVUjUoe2sk4+9ZnWupS3fWImQKgjgceUY2JA/wA0e4uAkbA4JJxgDvSkFqr3M0jYKpEijfknLH+4pPOgx+NX1NEwQeLCuqRC2rATv8//AD0pKeJnkI7BsE+grbsrEyicpG2kAMWxQbWykmmZUjbwhuWwcY+dc0s9NpHZihDcpejFNpI8jaYyFAyQNvuaWutTNtgADAA7V0t1PBF0lFhGZzIwcEbFRxmsC5bUhZgA5OcVeGTk7ZWabcWlopZE4IzhuQaZkuVj8ysCw4zxScGYgT3O1UlKo6vjIB4rvU60eZLDybfo0gXkRWcYB7k8/SjW5jjbzEj5Cl1kUhSWOOfWrNeDTuRtx5a0RzuLNtJ0ZMGQn6V6NWlfZhjPbfFYb3EDqG8ZgQO2f7VCuHOIrkb7nLkHNXZn8YL8SdOMLNdRRiWInzrgZQ+vyNYborRkIXAYeZQ2Riuqa4t7aAC5UNk4ZY5j5vmMbVh3ltaY12k66CT5JOUHp71nxd6N1Oo0zno/FhlwrMhU74ODmmUmlwRrzk5IIzmjG0klYtDoJA83n5+9MN0ySJFYEMT8SrvXSna2cUlT0ImSZs7AjGNqkaihDDYjAGeK0XtzoAWJkXgj3osVifBcyLsOAKLQqZnRQSYI8wXOSM1q2ETTE+IvlH61W3i1AqQ23AY8e1bFtGfBUMMGrshoVkgBYZyRWF+I4zddS6b0+P4STK6/L/gGuomCRI0h3VRk+59K5/o0ZufxndTSHV4YMJ9NWncD5YIoTJaOjiVXtwQuzDNRFDhzngDNKXXWLLpNjGbqQGULpEKbsxBxx2G3euF63+ILvq8mhv4VuOIkPPzPenQUMTWF1CA0f8VcbqOR/mle+6lT6EY710x8o+W9BkgSdDFKu2kb9wd9x96qiVP7nMyDTeqRsGFdF0zRc2alT/Hg20ZHmHt9P1rD6rZy2axu7KyhyoYd+9M2s01jepnKkjBweQe9RJN9G2OSVmpcyRkqTGSMbEnGRXklhONMESHGDuxzXlBkcq7ZUksvz7/5q8kcONhpPb/zFLi6DmrsDLMuAIygIOTgHP60FrohCjnUM5A9KZkjRBqZGIxuc70BoYWjLLklf9+/2ppEtpvQJnjkjGckihuI8kLJgdgRmvShcfGw+Yoca5PLEewqWykrG48eGSZY86ds55+1MWyaiuqaFMnvml4UMZwryLkb5UU7bQq7jMj59k/5rKTSN4xk2kjYsrUFVSErO+QQ0LKVwTwSxH9qYitWhkAvLS687jDRadOn296WECRuVJ2GxfQu9aVxcwExKtwWjjUKocY/sK4J5Lekd8cUl2zRj/0uHSPy9+u52Lrv9hXy78WWUNp+IrqK2iMUDsJIkY/CrDOPvmvovhGVVaP4PXUD9sVx/wD6hxrH1CykCv54CpZvhyGOBn152q/En/yV9zLzMa+O/scqodX8hIYen+RRVv7pURGlLoisiBvMFDDBx6VTAABBII9fSpCDG4yOBXptJ9nlKUo9M9LdRypEPy6xsiqrMuckgnc++/6CnIr7wpCIriRIyckDPH1HNZkmQd/ka9glQSTjGxzSeOLRcc84u0aUN82g5lUsAdnUHJ+9CLa1aUCPOMgLnbb0IpFFBO+TtViEGMkgmksaT0U/Ik1TH0EaHWysSQpX55/timSInIeIso3AD9t6yxkJpEpUcc090ydjL+VmfWshzFk8P6fXj54qJwdWa48yugycDPOfSnFuWZxJKc44KgA+gpdp486iPPzRILiJ41Y4XU+lV5yfc1zzj+R24pJPsaW5dHOWfBGGx39aLHMDkEu5KgHLZ3/8FUjiW2ty5TVo8y789ua2ulWEU+m6UajnMqEaTGpxhvfvtXNOSSs7IJ+wHRi11eQ2MIiiMtwAJWUloy22Ac8b/evrNzH1Ke1SxMxkuoWw0yjQHG+GA/Q/L3rgrS26Za3sMqtO2idvGmiXKgggqF78ZJpif8XX9vP+YW9zG9wy63X4dWcBSe3cjG/9s1KM/pZhnxSk1OFa+50E9q/RrmBVuESOPVcDVg6ypGpsewPPtSN3HddZ6hK73MZHhgrGjBSYmO23v7+tc1bSdUvFs7OeOYRAvCJSCQqHOQTtgc/pSVqk0NwyyyoT4hiKPIAwRTs2/o2Kz4dpPRpGMk7k1y+9HRy2sq299JKshiilZJSW2ITC9+4wTWNedUj6c1rcWhSONyVJmnDAjG5GOBuNqQm67cwdMu+nyTBopCzCNTqJcsCWOM54xk+vvXO9Yb+NHaA7Wseh8HmQnU/6nH/61vj8dSe3ozyZpQVG5dfifWJEa6updUgYpH5FwpGkAsS3A+lZM3WJ2k126CIgsyknW+7Z3ZuTsN/81nIDswBB5O2TRUQKhLndQSSTzXWsUI9I5/knI+gf+nFozdJu5bmS3K3s28c+rdV2zkcbk/at5el2BdnuLhlgAyuJAGJ92P8Aih/ha0nt+g2cV7AkDqNKxl85Xsx9znOKPcwRtLpjWUPj4UAbPyrzMmVPI7OjHDVJtGWekWMqnT1eOGct8EqOq492/wCKBffh+e3jDtIJImyRIJcKMHbJ43+dOz2DJCzDUNRxpkGj75pL8t1KFCIYpIVbl7dScf8A+TiqjOLNamtqVnPdUt7qOOSK1geWZ9tSyalUepbOKx5OmOLcSCKOAqgDF51Opu+wOcmujlhnEMizpHMD5TrXzE+vmH+Ky2sm1gm1YA9txXZiyRitGOXDObtifS5RYyiYNpuuE3ACg+h9a3Y+p30umTLnSwbeTnHzpFIVC4mjgZQRlWO5+xpi26eiOjWU0kGTkqzLIny0nfFGTJF9hDx5RWjWvOtXt4wkkE0RAxqWYt+hpO4jtnt3ni6o5n7QmHTq+pJFXKzmVWubOKYE4L2soXOP9p4qJpOlsNJU2rE7eMhB/Xb9axjNrr+xo8UfZkjxVl1F2V/XYin7O1LP4knnDcsu37U7DYKTqiuMrwTHjBPpkGtOO2/h6QAxPGGJP60p570XHDGOxDxIwfDSNMHktkmjxQIxVMRL4h0gZxk+lNpZBiD/ABNvUDH605N0yC7tHtpVwsg+JNih7MPcHesHNFN0Yxbp8XUZLF7nTcRhTpbvkZ29TgVr2ttE8bLCyM3OzZ2r511g9RsetOeqTStMmFaZf5lHwt+4olrLeSSPLBJPJHnEcqS4xnPJ5rolgdXZlHLydez6LDJbariITxl4CBKNsrkU30Tp8/UUKyIyaiTkLsoPA+frWL0G26P0voE/XpEmv7pCgYyDSE1HG/JxnnG9Tbf+pUsUiAW0JtkkYzCHZnXfSBn4cbfb3rKOFyfejPJkkk441v8APR0lx0xLSxS0tAJWYmRpDxtt9qxXiMMuhMSEZLJjdAPWtGD8bp1KxfNs8DuMeMi61VSecbE7d6wZet29j1Z1s1N5HKVX+KdAk2y2dsjzfpWLxNSfErBLJT+Rb/z/AD6NDp/Sbi7kEjaVjHLMeT6Vp9Kt4TNc2yESSO5/6YGEQADJPej2s99f2MUU1pEsCsWLW8ZAYjOABxW1bRCx/D8S6Ftz4WZWl5XO5z96I4uVv0kZeR5Mun3dJIzJrhLcNDBbh1ACmTVjP2rC6j1t51aGZjpBICRjRW1ZrDfRyTW9xH4a5VtOPKxHLZ+ece9clfWkkcmuaSIBWwEV9TvvyccVglJ/iOjxI4pSafaM+5n/ADEwhiA06fNtxjsP81mzJmU447VvC3YSO0aKixRl3OOBQrLp35wytD4aJEuqR5DgAe1dWPKoI6cmPk7b0jMe2ktAjTgDWMrvk0CdA+Ac4B3PrT808ImjW5YZK5B5A+dCaAyp4uQ0bfCQMCt4Nv6mRNxguC2wXiAoRGowBwaXBPfc+tM+CYnUqCT7CiSgAHKFftWynXRzODfYoJSECahsfXNeWbfcqPmOaF4al/iwM9+1QwPAfIHtWtmPFBJRhTp0EHnGaWEZwf4b+xzRU8TGNWAeAWqZ1MYwzZJGdqexXEFbRqZMlvMPenNADZySfc0lFgY2yTTUKqXJOflVbZnKooLKZBp8NSDt/enDvAFZcbdqXkcma0jVivnJYeuAf3xTpjJHzFaJJHNJti0UAxnfNOIrKoBOR29qQ6jex9LtRc3Abw9QUaRnff8AxWDf/jF5mMHSbdnZthLJt9h/mrVszdezor67gtUM91MiQwEsAx+OQDyr745+1cFadfnsrdlsxoupJWkec7kZXGB6d96Ru57i7k1XUxkPz2HyoSoB/itFonjZLtJNI0szF2Y5Zickn3ryjJyK8TsAKImy+5oKpI72aECPGPiwM/OhBdTOcfzbfajSyjyLgsMZ2pfx44sBzpMjnGePStGciEuvW2vpUx7phx9Of0NCt7ePqPSLdnOmRVwrjkEbftWzPEs8DRH4XQr9xWF+GJf/ALaW2k5R8gf3/tUs0R5mubdPDkTWE3WWMZx8xRo52uoVkQ5HcDsfStJ1VF1oDldyPUdx/wCelBkt0if8xCNjvIq/zj1x6igdoVEkirpG49DQzHE+zO0fr5dQp+UIpWRApTGxHBHrSrkumffYYqW2UkmuysMNorlpLhnAGyhNOfrTUYsyymSBo0UZJSXBYfUUkAyg9s+1WeRpUCSqHxwSMEfWpdMtWujQurONsHp7mdM4J1DK+xH78V6O2u7ddXgSr/uFIRL5tnxp7nmjvcSPhZJQyD1Ab/msZQTOiGSSHI0muZQJWcH1KE/oKfiWaECOG7TSeVdvDx74b9qxYSruQXCxEeZoU+H5g06IbSPS73pmQHcRqQQPkRtWEoR6N1kl2axtZGXUl1HNJqxpSUD9DjNHjja5X8tPCJwCNUUsfwn5GsWF+nyT6I714QeDOg0/cH+4rrel3gs4U139nNHwNQ1Ae2ocVy5ocTfHnbXVnzD8W9Cl6J1LMcbx2twS0QO2g9139P7VgmVhsyg/MY/tX2XrR6T1/pFxZ3wFtcKSYZV3QMNwwyc47HPqa+TTWNyuvEYYxsQwUg/Ueo9xXo+LklOFSW0eX5EVGVrpiUjalbAOT75qkMzbppVvntR5oXhfQ6FHxnB/alZQQc4IzXUjmYdshfhIqH0nGdjznNWTEiB1OOxA7V7DdzkfKnQrI+IAHBFEI1IAAQR3z/ahkZ+JVNEQIFyVwexxzUtFJjTXmuRZyfNJ5Z0wNz/UB78+xzUzXR8KOD+Do5yqAMPnSmzbeb6VYkswZ3JwOSozWbgjdZZGxH1K5WL8q8iCBxqx4YPJ99xTH+r3U1vcQhs+LH4coWJQBGBjbbbbk1hi7nVgY5sYGBsOOaKvUL5dSJcsFI3xgZrB4V9kdcfJ1Tv9fzOqtJOvTWcFzZLeMqqoE0YGA2MYwB7EZPYUj1U9SuUUXviswLMCxyMgDIHbO/zrCivryOPw0u5kj7IshA+wobyPKCZJZGyc7uTULBTvRp+0Jro6ee0uJpNcksaLncSXA2+54rPf8qJ5le7iTyKQwGvU2TnjNT0fpcN4gWeGdWkkWOKWNVZFY/1DOf8AAo3WPwvd9NZNJ/MBtRDRptpAySd9jzSUUnTZTzyatIX/ADlvA6SWzzPIrBicYU434+eKTIYyMXOXfzHA5J3pi0sxJbySBGIRhlgf0xRI7KXWGeNkLDyqOTV1GJk5Sm7Fo1bI9+wr6J/6f/hOGdV6t1JQ0IOLaJ/hY93I7+gHzNc90Tptsb+JOrM1tZBiJCBlmI7f819W/NW5ti3Q7u2kijA8gZSIwPQEjG3vXPnlKqQ5NLSews0codhGFZewDD+1Zd3HqbEsZwDnIYA/+fWinrk6FMItxksGKAgAjtlh+9Hj6nE8ZknglT2yJF+hB/vXnSxmuOU4+rE5JZUCrbzmJMYZZIgymgXMUs0YRjazqOF0lDn/APWtn+CkIn1oiOMgtBhj+n7VjX0Bm/jQapUbclMbfQbj7VNSRtjlGT+xhXNncfmFjRPBEhwcS5H1zS83QLtJWkgljIVsqQwUn6Vsfl38MExqEzszY3/el5YYw66kkUjjKZFXHJJdHX2uzDn6ddJO73EgViN2ADZp2yt4Y4gztqI51b4/SmHtSr7gvn3FUMaomPDI35Jq5ZHJUOKSIlcZCwadWey7/wBquyNKoWYMoPqNj9DQVYqCEBHqVY1d5g8eZpn1DuxH/wA0kNgz0iwcltMcXqRlT9xRz04quqDqV0mrZcusgGPTO/60ub2KNCgOuP3TvXrfqNtGG8SJzkeQqoG/vmqSmzN8Rzwr1HIHUIGII8k0OP7Gri46siYP5KTB4DPHke2371eyltJ0UO3mYDKPIsRBz2wDnI9qLLJ05XEMkUqBzlXaRolAB992+e1Pi/Zi5pa2ZnWOl3fX41E8drbNEuI5ldnZs9s4GF+e+a+fyC66bM/h+JbXkR0yqo2b1yOP2Nfa+mS9IRC8ciBNlYeL4pIzxuBjiub/ABnH+HuszCaCdLS7jBjKOwHiDsD6Eds+uK68DaVPo4ssk5aTRwy/iY3VsIL5HCBg+q3bA1DO5jO3c8EVlMVnmZ4ZMZY6d8MB2zTXW+iydJmGcPDJkxSKMj3B9xWSBgfCCD3FdcMcFuJhLNP8Mjasr+7DrFJMzRhTkEDVgDgGt38Npe3E2II3l1tuFXUzHtvz2rlRHd2DQykSw+INSFhsw4zg81rdH/EU3TbyG5SKJnicONGUJwfbb9KwzYm19KOnDnSX1H3HqXVZ+mKJLqO2knnDJGhnxggZ0DbA/ue9cz1T8cRdR6fcyYgiTw2ijtJjqMj4BDFcdiONs59q4O7/ABFY3t5+YuI2WSQhm0SEYOe+Bjnfj0qs3WenR3jzJYpLE8hPmPiBFzkZ/qPOeKyfyydNMIYfHik29/r8zZ6DeLcflIb6WVoWdjK6HUQ3YkbDkgZPpR2/Ef5HqMlvDDay2SM4DvgvjIxlicZ2PHr7VzX4ku7C86bbzdJl0yszPdRodKpwAAOcc+uPWubR30fEGVT8JFEPFU1ci83kxUkl0fUeldRH4hvrm0s4vDiJ1iTVlQcDZvUeXbtWv+KIx0axj6ZBb6nnQZlYYUBd8nHvXzDo3Ubu1aQ2njRLKoWQxNjKjkZrt+ndftuq27Wrp+WWPEcKBw/lHAOdzxvWOXxXB8ktBj8jm0m9L0cSxw38eVnJ7KCvy5on+qXUWI4ZWVF9TkY9K37roYmvMBF41kfy0O46JbtGUjGrJB1Y3wK7oRjJbOfJllFuiOg3lzfSu00imJF07KAGP+RT960aMUZdTH0q/TempHFkgRseFTsMcVF3BGDhn3xgtik8MW9Dj5M0tmWwT/avzFSIwRucehFN/k11hQ7aeMmrWyW81qk0O0brlSw7UfGX84tb2DT5YAlQcZq17bNGugAMBT6XBhiIB442pOO5NzcTqyjShUZHOSMnP6VUYaM5ZG2ZDRFGzpNaMEagAuCpAq9z+VggMkjBFQ5yxrBuOt3ElyWt8JENgHUHV7mqUCJZtG3pLXiBc6hEzfqAKr1a4v4rZH6THBJKxGrxW4HsNs/esSDrdx+ZaQpGToCdx3zWgvUiyk+Bldzs3HtVqLMnKLFbb8OT9SkFx1+/eZs58CJvKPbPb6D61yNzE1vPPbBjpSZgV4B05AOPlXfw3seg6VZW9CK4rrKgdVuyDkmYnPzH/NaRv2RSvRn68VYHbJNeZBiqjzHHYVRXRdF1Nkn5UQ7bc1VRggdqMgCEsRxxTIvZtHqskcoiFu+TsBIcH5USa4mnsziBB5SRl+GrGub1r91bwkV1GMgkk0P85csjETspJ1EcZNaUclj9p1qV/wAtFIxRklU6l3DD0NetZUtetXB1fwixO3od/wB6xSy9zk0xcdQaW4SfwxrEaqdW+rAxmk0NPezsJJo4mjjZgGkJCj+r2ocUwguFglX4s+E3p6jNckLnxrlZJ3aJNWcwr8B9QM02LmbFtI0pmjjIkYhs6RnScjkHf9aBpnQsfB8u3gs3/wDgnt8j+hr2kGQkfQVEzLFGTMQYsfGR/elIL+BkdgxMSEKHcYwTwDn5c1LRaY3pbT5jj3pcLLnIzSvXry1ayaCG4EkmQcxqdOx/qOP0zSn+sXhto44IljITS0vJY+uTx9Kz4p7SNebWmx/qE/5a1d2bTIR5PUn1FC6fdRSW0ay3C+Lp8wc4OaxZfGlYyTuzMRuTua8jTFcK2pR2O/6Gn8eifl2dG8skETSJKUjXcspqydUvmiHhXDFWGQ2kasfPGa5csXUxrGFwfMUyM+xHFGe9lWAwJIxRlwQwBKj0BqHiXtWaLO102jYkv7mdg8k/jLng7rkewo0XUriKVXtI47d17xITn75oNlYyLZxI5AY5Olj8PtUMssKsY8DTtkSYz+uadQ6oLyd2yt11K6aVna4ld2OSxbn5il2vLpSXXnG7FMbVWeRj5iCxPJJz/el9W/mGAfTatkklSOeTbdsYnuVuwpnCZGxPDVSO1tJwUFw2onbYYFVUl8KAkgzxpw36VIWWMEBHVCdtcef1xTJAJaSxTHw1MyZwdIO9PS9P0rp+GTnSxIz9eKGZ7xF8MEqh4CripjaaSRI57lowTglmPl+dAUej6ZcSuAsZVCPjZhitSysrSKIR3ro0zA4w3b/zvQpEtrRSouGkLDDAALq9884+VL4mgkzasujbDqdj9TSY0b/S+g2wkDzTZhEmQukeYf0nuRx3q3Xh0MzSQtBJbXCIH1IBpwOBpOzHB7Vjv1a8UANJJCAMAwqAD715+pWvU0EXU1cTKuI7qPlfZl4I96ycXdm6mqpC83To2V5enzrOiqCVfCv77d/pVIOmXUzYfwoRnmQgCiNYJHNGI+oQHIzrUNlf0piezvIkLzKlwp38SGZW2GOw/cUm0tWNJvdC0nSbvUQrQyqu2pJFwPocEfaj2PSNWVuXU5Of4RyRjtngfrVbdoGZjLcfliF8mImOT74q0em7KrLeAe03lA/apbSWzSKk3o6bpN/YWU8iWUUcLT4WUq+QDk4/8FaN71mS2iWNIBOXHONSMoO4OO+PpXL/AOgyssUlvE5DZIkWRXRvTBAyO/NDaG/s1kRWuIlbZgVIQj39a5m8UmdKx5YrZu3HUIblALSSK1myWktp1HhyeuDjY7fWkLq86kgdorVCqrpZoAHVlz3xzzWVLK0aKW8KUnuEIHyztSvius3jQa4XPeMkY+R5rWKS6MpcvY3+e8dAJbaIleD5sjHbmtnovVrpA0VrbhFPxtbhEOPckViC5nfSZZVlPA8RQx/UZoovEUaXtIyTyRlQPoKjIuSo2xUnv9f5Nw38hun8WGbSRnR4xb555B+1atuVFsydMtLpfEI1sTpwc529vnWN078RC3jWN1l0jkqwI+xHH1rZbq6XMYJkwB2aLFcGXmtNHoY4Rn+FjtrFf+KktxfyI40+RZi7kA98HFN3t5JJfSzIIIkPCF8MfTNY8N3LKPCiuiN/hRMZ+tOC1jQLJd+LJ/UAygH9Sawk23s0+JQdsaFzOYmQ2dszuNnbH6YpEXEo8vjNt6HNOCXpogbw4AzDkPJhf03pW6u0aLTaqImI4jK6R9RuaSYRXqv1/cYzOkSTXLnwycbgFj8v/mhzXJjUy6VCMfIjnzYrElMpGqV5Cc7aiaocKBqRgx7MMg1fCy1FI1ZbtXU6oY/TynBpfKYJEePcnOKQM0qjIjIHrpNFivtvMqg/9oqlja6C0MMqsAVyD3BHNSpZB/Dijb11nP6UjJO3iErkZpm2QSJraUqR6pz9aunXZm+K9BBNcDmOMLynkGR9aHL+Yuxi4dmGMDUw2+VeudUeSHk29siqR3cIXDsCfdeKN9oPp9h4LMW+JFSNZVX4xnzKexA2P2rOuuq+Jm2eW1jCjAlEfmB9joJ7VMt84XVazIxzuvh4P6mkJZUld/F1ux+ISQhsfIg5/Wtocu2YZIwfRnlQ7+a7kKehbfP9qYaaFFjVOm2pwCgkkUPq9yc4z74qWtPEkxDBKuf9uc/Tt9zVFsGE4jnSZNWwxHuT9TXRzXtnN8P2Q81w0vTmW6sBLaxnAVBgxH2rKms7eeBpooZokTlzuB88/tWrF0u2dkE168fZi0ZVl/Y/eut6X0eMWqR67l7ZgdUi36nV7hMED71nPyowRL8ZrbZ80t7S3kcpJcALj4hGSc/Kiv0+2XToee4Y/wAqRFdvmc13t/03oFrDIxa5d1B8IyyFMH56cY+hrk7y2Jk1W/8AD51ZuVfPywR/arx+Sp+qIfjurMv/AE2FpQG8aPG51x5x9q1nsOmfl9EWrUceYDDD15pDBdtMieYcFTv9+9FDiPyKJFI2OvBro5mXxGpbGxt7UxpHJq9XYA/IGotJenwbraYlLEh9hpHpWcC7fEQygbnYkfQ0WF0TGkK6jca1otE8JLvR0EV/GkJOpiP9zZJNYH4rkmnihvoJJI3gbDIrEAg99u+dqKrFwWYad+Eb/NSsayq8RZ/DcYbK52qbS9FKF+zEi67fvDoN1c6DziTJH6Zr1l1ua02Lq5Ykhmy33HINZ9xBL0+6khlViMZUgfEPUe1Vws2AGHt2IrWkY2+vZtXH4kvGj0xNECw3YJx8s96D07r1/ZwRwmOOSNBpUONJA+dZEqMkZLtkL2xVmliHhrFIxDAeJncA0cULk72dTB+JNcsnjQS6FA+HDaec5q0PW7e3S9nXzM8oKpjBK6QM/wB65dMtJp0psvIOMgUVZUNuVaNsHfVzjFHFA5s6fqsa39xawpJCFckBwAWU7cduO1c1LLIl1JEAsgVyuQNOQDiqRSxhF1PuOCBg/SqOdUjOgIDE7elUo0RKVja3CAjXE4I5ximortDvkqM7bUlGnkBIOw775o0EeXBdcAe2KqibNqCRWj8roWzzXK9Wcy9SuX9ZSPtt+1dDCFZcBTjiuXvJF8ZtH9R39d6Xui4dWDfdsDipCgEDOK9GPKdskb1ByzYwfenRTYRSWPy70706AXd5FC20Wct8huaTUBF25rU6PG2XkA2A0/M0yW9WYu52zj5V4gY4471VnVdiKjxt9sY9cZrQ5CQO+N6gLnOTgVV3LkYyPWqYbvtSAKGCjua8shXIQ41DBweRQiKk4GCBgfOgZpv1W7MSR+IyppGAm2R/ekRqcnAz6jvVkGtdJ7ce1X8IJux2pUU2DUE5BG/vUiUxLpGA2fTtV2OoZQkj0O+KXDY1q/J70BY0Lgxj+Ihz22/epmKFNROCRt6ilSTnIBIHBbtVtJI1Hc0qHZ4OcFVyFP3NOdKtxNfwowyobW304H3pRSAdtzWh0RGYTS7gbAH1pS6Lh2dG8AwBqBHvSctgW3RQwPoc4oPiPnGrB49KjM4A0s23aopGlv2KXFhIjHTHKSe2k0ARTx+bwXwP6kyP1rQErk5I8T/ae1BzNq2ORnOknFUkS2JfG/8A0sknACj9qtJ4kTaZAy6T8Lg+X23rS/N3EDBiyOB2lUNjPzpyLrnijw7yJZEY5JZQwz22x2+tDtdAqfZireTBcaldcYwyhtvrUreXEZ1ArntmNTj9K0+q3StOFnitp10DSVTQyj5j/wCKShs1mdVW4SPI4l2x+1S512Usd9AUuWLFmjg1Hlnj/wAVUrIw2XxAd/IdWKmS2mjPnRgPXGxqgU5yjaSO/FHL7Bw9NE/xotwskee+CKukkgxl2Hrg4qFWVz5nBB7tJ/zTg6R1GTeO0dkxnUuCuPnnFS5pL6mUscm/pTAq0Jkys1zGx7lQ2/0IrUt4PzBVrWWzeX+icKhP0asrwriEuNDIRs3tTkNijKxW7iIA3Dgqf1rKbpd/7OjEm9cf9HSR9FvJIwtzY2Cu3wsGTB9sDetPpnRktmLXllaxNgAPbRliR3BB4+lc3bWLpFGhRSQ+tTJGxUrjs6b/AKV1vSorBrdHiu01k4aEzMQD6YYg/pXmZ3JLT/p/9PRx1+8h9rCEq2hJIl/qXyYrA6nFOI3ePqd1FpGyKobPzwAf71szw9OeX8vMsDMRqwyk5H9qVven2axao2uMED4ZjhR9c1zY3xe/8G+pKjh7mF5JC814sjk/EyHehv06Pwy35tQe3Yf3rbM1jHIYksxpzhnYhz+tIXhSSQkKsaZ2wm+PkNq9SM5PXX9DinGC26f9TPWHQgMgjmjPDK+CPr/xWh0286Tbbz2wlbt59RH0IApBcxu2FRs/1IDRDMGTErE+wUf2rSceSpmcJqO0t/1Opsh0S6iUxSxRsP5Cm6n32p2bpsuAUeKRSfKVYb1xcDwh9YZ43A2IQftWpALlESZWVJeVdXxn7bVxzwNO0/6ndjztro3/AMvdRJkxoSBuKBNMzKVkiQb7etJ23W7tfLcSKVB50ZNXfqnjvvO+D20hayWKSe0bfKmRqk5jBB48p3/SqSTSFwZdYYbaiuKMOpSINOhQRwWyTQH6nfEYjkXTnOkRjFaKL+xMpvsJK11KFDmV1XjVkgUJ9W2lsEd6DJeTyrpmOrfOwxvQnwQNIwapQYuaGSxC5kYN9aotxCCcqT8qUzpyNWT3qAQR5lFWsRD8hIb/ADxGyRLn3OaleoMWHiqcD0/akScDYj5VeMg9qr4kvRn87fTGj1MasRqyrnhjmvN1AFcSEgk/0g/rSpZMnI+9CwrkU1CP2JeSS9jjXEUi6WVDzvowf0pI7N5RjHoaggZOkMcDerDSMbkg8bVoo10Yud9l0k5OfNnOCeaIbgow8RA2R3pdkDbgjHoa8upAQDlfQ4IpOBUcq+40HlaT+CcgjIV8f5roujdVkgZVlstcgx5otDH7Y2+9cqrKGXVBGcHjHP2rrbH8QrDapGLdrdAPKACy/wBxXPmg2qUbNPkTXZ0q3sd7HkrOiqPOklqQ2/oR+1YfU+ndOWRnjso7vVv/ABHZMfqKz7jqLzM2lrWXWePDK/sKzLmxdlLG1lVs+UhsqfXfNYQxcX3Q1ClaAy20KybW0ZZW+AknPtzvSEniR5EcDp9M0y9hpb+JcRxn/uB/tQzb3BJWO5WTy9nO/sM16EF+dmOSTfqgHjT5AbwzjtIopyJgiqs/5QqTnAGpj9RxSfgPnzow+YNeSIlgkcbMx2GlTWlIwbbfZrRmxVy7JKVzsmAB980Zbzp0si5tRGMgZWUqN/UYxSiWE8Fo3iwRh3OAWcB09yD7UzYdJldElmmiSMtsQgkx7+woF/Ej8U9F8W2QCGVLiMaopSwZJB/TkD7VwUkOBrQHB5GODX12yuobCynW8u4pYTt4UY3J9h7+nFcj1bp/T72+e76bJFDDIT4kMh0aD6geh9O1Vjck6oyycWciVdoCurkbg0FIyDwGHtXTv+GLvWWRkeMgkMDv7c4r3T/w9K8oMwKLuCBuf/PetkznkjnwhTzDK1VWcDSACDW71S2aBgm5G+CRjHtWeIEOouuDirozboVVm8LwyPbPenIrUPHHhSrn4vlXoLGUnxApMQ3ye/yp+3lVl2G6+vNFBZ424jjCkjY5FX0H0G4p7QGTB9Ky7lhavrd9K9gTQC2EluRbwMxUhlB0rjvXLhGZtv8A5rTv79rjJTPhk6dR2LH9gPT3pYLhMKOant2bpcVTBBdG2eeTUqVOcbCrONsZ3r0EZZtxsKYmHitXYKTy3wg1qxIbeJY0PG59zSdq2M87DamNzlgTn0NVRk5NnOuuGAYd6o66GxTDhSPMwFVdVfdST9KswKIcggcVU9vtRFwvJAFWGg5xnekAMJuCRsRXhGdxjb1NWc6RsPqaDkk0DGEZYiDnJxjbvVGmO4C/U1CKzEbZor250htWM9vSigsCGZh5jt6DaoVTr4A70dUUJsNvegEnV/ntQAUsNGOfc0MsWOAS3sOKsqF8gAnHJ7CjrDhQqcn0oGG6NGJbstIimNFJIIyM1ukaQcAFR6dqP0voV5F0dLg28jLI7EFBqwNtyBxmnbXpd7eWbuI3NvCupfJl2UnfQP5vU1i3Hs6IqS0YzIM+XFV3CkEUzKBGNJjK74KkEccjPr/mlp9KSN4TuV/lLLg0cX6HzXsC0jq2wB9CRvU+IsmRKmc8EbEV4SDlwM+tebQ26sM+1Pk1pi4Re0yvhsgypyv6VQqhbBTQxGxHFXDsjZH1zwaguCPNGPoadkuNdELr0jV8J4OMirZQAqukjsrdvkamNgcryDypq4hByQM+maTp9lJtdCxgZF1Dg7ZFTAJY2LhVOBuHQEEfWixnwiQSy+q4zTST20mBJDjbdojg/Y7UmhpiGnYamB37DinenTXVo7m1ZGRtmA/mH96h0tv5JJGz2KAfvV44F4DFQfbNRJWqZpCTTtBZkLsWmiAJ7FcYqgtg48vAp7p5dGEKzMyudwy61Hvpwf0pifp92ZlBs5lZjhQIGQn6Yrnf0ujsT5LYlaW0sZHg3Coudwc7U5MrABDfQupO5dMkfInNPdL6Fe3l0Y7kizijOJJJ1xg9gB3NdKfwFG1mDBfRvOcnLR+Qj2xvWEnb2zeOTHFV/wCzmJZnhgjVOrEk/wD4lUgfbGKi1uryJSIDFMpyPQt7kZBrRk/Cl7bxMZrdQEbGrOc7Zzt2rMTp05t2uXs2EIAy4jYAf+evFQlGqNOV7TF5xLM7yPbIJOTnI/elCif+9EytnAznejXcUQVGhO5XLDJGDnj96SLSRELg575HH0raCozyK1Y0ILZMMYg3/cx/zS06Rs2UiVR6KT+9EEisuAS59TkUIqhfzNpx6jP9qr2TSqiqxKo3HyNe0AHK4B9jRAyF9IYE/wB6ILSVicIQT3yKfOuxfG5dAgz88miGYtgGNAMcgb0ynTZgBkxrn1cVQ2k6lh4MjhRksEOAPmcCo5wl0acJxW2DMykadT/U0xCBJsJx9OaGUtEGmS6tTIf5fzONP1Cn+9aln1zoHT4SBYm5uAPKUJK59ywH9qGnX0oj5Ip/UwBsLpYjKY2MSjJkxgD55oUFsbpWeOeIIvLyyBF+hPP0rP6r1h+oMnizTOEHlWQLpHyUbfekf4bganO3+yrhhdW+zKflu6X+To/B6VFb6peoRzT5/wCnE2Fx/wBxo8XUOn21iHg6TFPdIT/E8YMi54J7k/QVyphYklSWB7k4NRGXQnBIHffFafEvuYPPJnQxdW/MOXuem20sucloQFLZ9R3paYwyyfwg0Lb5SVcY+o5+1ZYy+WVTqGxIH2roOgRQS3HhdXhxGimRpfFKlSNlVjuACRj25qmox2SpyYgltdXEgigh8ZzwsQ1E/Qb0OVGglMc0JSQbEF+9db078JXzzJdm9itVILBYizGMHtnb+9EsvwrbpcyfnpraWDPk8LIZh64B8vy3rGWaC9msYt9oQ6b+Fp720W48YKJMFfQr396Vvfw5PG+LaZJgJNOykYG+59tq6lr2OyU2sKJHBEcKoJ2Gf1qr9TiJZI2QSNuACMn5Cph8rYSlBI+f3lpe2UipdxspcZXvkf8AnahGZ9ODjIPcV3bOJlKSedW5DDasT8Q9OhSJGtbeNZmcBtBwd+Nu+a1lrsUJ8jn0uQCA8f1XY1p2cpEMk0TYjTGvxYdQXPuKymjZRk7HONJ2pmD89F/0WlAYYwrbGpkk0axk07Nq36oijT4iGQnA8KNsn9az766vJHzcI+B8Ote31qgkvNLRXBjdTjKTD/GKE8dnb7z3YBxvHbqZCD6Enas4Y4xd0aTyya7oF4mrZTv6Y5olvY3l1OI4baRm5wQQMe5op6pDaiRbGJ/MNmlI++BWe/UL6b/qXUpBztqxzzXSlfqjjcmn3Z0sXQpok03Vxbo7AaIx59Xc9+3tWfdC96dcnA0qD5SgOlse1Y+ZFZTqcMo8pLHYVrQ9QMtswu4y5U5GNs01H8yZZGLmZp5ddwTgtk4GT+prSjvXTVHpIiKgKqnBWgpPYaRIqb53jfn774qfFifDCCRATsdWafATyWKRwKJMsz6mbJYc1pfk/EddCk6Rye9O2YtViBGC7b4Ye3FMyKvhKVPPYetXbMtC6T+EojZTldttxRpLlY7ZpPDDn0Gxoc0OldQb/wDWgqQyle5700SzA6jPHPIS4dcjjkCptulxyIDrDg9uK0X6eDIWJ1fOgSLLHIBEAB6GtCKDf6foiKKRgDbHak1siso1KMY596I3Vbe0BW5m/iE/AvmakD1+1nkKyNJEpOASmQo9du/6Cix8W1dB7q80P4NnF48o2P8ASh9zWW3SZp53kvZy5/2jG37V00EdubVWttBiO4ZTkH3z61kdWvRB/CYMsZ5f1HfFJ62yott8YmB1IILmOCNdKIo2Hvv/AGxQ86QTnNDklaWWSXGWkYnA7egokUEkh8+FT3qV0aurBga225NO27QIwErAKB370Ge1mt9OgMdfGBvR4OlkRs90xDBSQg5+pqkjOTXtk3F9CufBjwCeSe3aohvgSAyHHcg1qi0ii0xxxLgLvkZzXn6LBIGMJ8Fzv/t+1VTM1OPRypUIeAPnvUdjkk0xLFqIoPhsudRAqqMiFCFGyjajwc7CixwOU1Abc/OoQDHmJxWhEUkAKn2xmmkJsyXbV6k16NDzitG4s2+KIZxyBS2lkOCMEdjQ1QWeiGMZzt6UaSRQFwMnvVIiAxJOF74qxHibKvl7migsPb26zKS2cD0odz02UsTEqkE7b71eGfDBZGwBsMfvUzXckU3lxkDGTTpE2MdOsntiTJLsww6r/MPQ03YW9t/qR0wTiONsjXvj0z7d6TsZjJFIzuzkjbB70xbXGmdWNyQFOcMf0p8UOzsel3rRSIsdy40sWEatjPritrqnXjb2Kz2CbK+HzuV9Nq+fSXtqXa3upGRgc6wePr2rdtroIRGCGSVFBB+FvmD2NcubApbR1Yc9aYn127DW/T55JDNeKCWLDIeP+UMe5HGfp2rDS4AVGZSxDZK8bbd/fet8RWky/lp00MrHQ2dOBnfB7kbbUnYxWNlcBbnzLKwV/wAxFlAobfg5B25wamMuMaaHOLk009Mybl7e4kcxL4Kk5EZYtj6nel/DaPcDI9e1euNAmkEJygY6SfTO1TDLo2YuD/Up4+net60c/LZYEHmvakJIVgfarZU5AlhfP9SEf2rzW0WwZWye6BjUcTRTaPagNsn60VJFUZ3+hqjrbxFowkzkDJOcEfpUW93bxMdUIbOMGQ6gPptUuH2LWb0xuKJ7w/wUZyvOBx9aMnR76QFltuDjDEKT96uvXGTStsoKKdlC8/PG1Bk63es5YSiEsN9Pmb/ip4z9FvJD2MwdD6k50i1CjnVI6gAe5zW0vR+mQRxzXXUfDiGA8YXVk91Vti30H1rk3lv7jVcTC4aJNmkcMQPbPAoMk4YsXJkc48zHik8c5e/6AskIq6/qdhc/ifp1hJ//AAHT1jlKaGnK4bHtucfqaXj/ABX1R42b8zNEy76zKWx34NcpaTxGQ+MdKqNsd605JdXTnlhwuVyAwzt3270vggu0Czyl0x68/EE12PzFxdySyY8pGc+/l4AproX4neNZFmnkEa+ZGTOx7gAcVxhZnUkbEjG3pTdtG0YXSx35+VXLDBKiY5sjPt0PXI7vpSXaPrdoyUSPcnHJ3pCP871bpd9b9RkFo+B/9wFwQuc6WHONhwa4/wDDLvb9KvbuK4kU2sZSJEyShb+b05H059KrYdXvwGga9dY5mJZ3fOS39ROSRnBI+dcDx7dHdDasPc9Mfpl0DfSwS42dUIcgMDpbB235Ge4pO7sLz8rHfvqnikbQZDliGA2Uk8nA7bUvc9WvJrP8lM4dI4hGA7ZIw2dv7fKs+ea4jVbeSWSMwsQAJD5T6c4+3rVrGzb5mO75yI8H1AqpjZz5h8iaVjvJzjU41g89n+foaMLtzlXUB/tR8ckUs+N9l5IdvMQce1COCmwLd9ziiG/WLIkR+NiBsaELyCTlSjHuBmmoMl5Y3SI1yhSqkY43GSPkaXktXlGHkcrzhmJH602PFI1RSK69tOARQik5O6nNVHRM9+gAsFCHSx1dttqAbabVvgn57VoxQXMzFY43c+mKNedJ6pZRrNdWEyREAh/DOnf3HFWp17MJY0zJ8EqMuVWoAiDfzt7jamGLckZB4zQQxVsrgfIVfMj4qGF0CMYZl9Q3NUMUbtkSHHc4zQwxJyTk980QsuQFBAxxnNKx8DTto26bZx3Bim8edNdu4PkUBsasDk5HfjA23yOw/CHQ4o7CC/uUFxPOGwrnUEBPYcZ9fmaw/wAP3lm3T5+j3kcsYujkTBtQjcbqceme1b1hIv4dnZLiaa5j8NXtQjjw8nOrbsc/oawyNtUXFJbGutvdmFo7XSiRyaVDH/qEc/4Arjx+I5bCZvGZp9WUkH9HbY8ZrrLu8s+vQCVJgpRCzxHcw4ONRHce9cT1bpn5ScOdwzsJB2yO4/vU43FfQxyjJrkhn84eoWDPC8mBkOsWzMMH14HvWXb9ViETTSw4vI00RTIdwuCMnPJH71nSx+BdNEjHSDqU59RQSdRfVww/Wu6KXo4ZWns37L8QXkUmuctcQp5SFQDVng10PTb2S4TxbmGEMGxoxkY9we9cCk0kSKyNpZXGCf39q27DqYtAsc0izMWYs6Hb9eapxTRKnTOtF5H4ZWeCFk/mMgyD6Vz/AFWBJ7prjpyhARl4F8pB4yo7/KsrqXVZJJ4njZ4yFyQp2B+VPwX6TWcRnj1685bjOD/esfhinaN1nl0LG1aaRgAzOo8wZsnNLvFpDal06dyD2rdtOswNrCsA5UxlZtwR/wDP9qia7s5Qy3FsiSnOWHwyH0z6/alUr6K5xfs5wlNRJHPf1NWCF1B04z2rSSLpzSgtHcaP/wAev98UxE9k+Io5JIQNwkmDj2zVURa+5jweRt/hp1o2W0luJFKxRrqOxJI+QrQj6fB44lMjkg5XGMGkPxhJeQWUc9m5SJWxMAucg8E+1NKwbrsF0qe0vVc2r+Iy41AjBGeK1YbFSNTk5HYcV81SaWAyCNtAkAzp4IyCP1Apubq1/cbz3sx74U4x9qvh9jJZV7PokctlZkyXcqLg7EtxWJ+LOtdNvultb215/GR1kjEatgke/wAjXFvJrOW1MfVjXgCQTpApqH3FLKn0jd/DP4hNh4kF9JNJA+676tBzvz2NdNZ3sN7Jm0uEI9C2D9q+dKxRw4wSpzuM1o2whv7g+EptptJYaPh2G9VRCkfQprgIQDnV6mszqHUX/MLZWQWS6fOSeIh6muXi6x1GFDAkvjBhgahkj5Vo9E6p0+21h2eK4f45Jd8/XtRRSaNKy6fBZHV/1J/5pG5z7elD6p0wdS0yRMI5lUgZGzD3ojtr/iQy61O+VOQan8y2jCHT21CnxFzd2c3Jb9QsfNpliGcakbYn6UrOzyAyTyMxPJJya7B7rw49RJVVG9c/1yVpZ4bZ8KzMGcdlzsB9Bmk40XHJd6J6Z0ySSNZZD4aN8C48ze/sK2IrK3g20lm/qaqxSAe2PKgPYVTqlzJb2Es0R8wAAyOCTjNWopGTyNjSgHLHb2oM6eIwAOzSKv0G5oHTrrX01bmd1Yj4yOx9PnQ/9QtprtUhnQCON2LE4BbG2PXvQSbyJGxBYccZq4j1nUuBp9awZL+5trSFz4UniELlQcg47ijW/V2N4tuxUeQk5282eMdqYGEU2wdqE8GeW4pkXSOv8aIgjuN6kS24zhgvpkb1pSMuTE1t2UbKxHypqC1wNUjCIHtneqfmShI8bWvutAeQuxIP0pUh2zZidVQkMNIG5pS5kgDLIylgdsgcVl+K4bYkfI0yJ4ZUWOcMmP50/emIIbPVGJIJBIv2NAZCEKvkMDsAaqsrwS/wXyoOQex+lMfmIrk6Z/4ZJ+JeKVDsVcMVGTnHavRBmONs5A3PrTUlsItQ8xJ+E52IpZkwdqQx20PgpofC5yB74pOWQu2s9jsPSiiXxlCufMBsaE2VJ1DZqYgKuSwJ7nc+tdD0rqfjW7w3BYvDp0P/ALeMe5rnymnjdT3q9vO1vIWHJGD70qBM7uL8S2iQAIBeaVyVYaTH7jbmlLmSx6j4ElterF4zaXSRifDYcNxkA5rlg4aTXbt4bk5G+CD6fKvM0kc2rAV++Ngay+CKdrTNv2iVU9o1r2yu7aaVZ4CfD2ZiMrvxvSLFR/7eD8zTVv1m4XR/HlQpnTg6k+qmn5OodLvDGZrWNWCgO0DBMt3Ok0fVHtX/AAD6JdOv4mKcH/bVArE7NtW0th0wkueoIYjwGQgg++KND0izllKi7dwf5lUhQPmRR8kV6/sCxSftf1MAQ4BDBTkYBOdqtFbM8gjjVnY8ADJro36FYQ5ZjLJ6fxAAfsKYjMVvEI40jijzklFwT8z3pqV9IThT2xG3/CPUp48oFD6gApOAB6k1P/0t1e1lhmeFZismSkcmcY4JPYGtWO+nOyXEunO2lztW10zqJZSt1Nxw57j0Nc+R5oK9M6MawzdbRzVx0Xrst+yXNvc3ivGzsIZCEO3A37EDY84rKg/CnVbyVYobVo2AHiNO4RQxOwBOMn23r6XF1FZN7adWbhcgbmsv8Zm6uejxQwxwgSSg67htJRhn4M9++fY+tYY/Inai1Rtk8eFOSdnzjqVhN0q9e1uFYTRECQHjfcY9iKX8Rj5WbbTp39K3evdZnu7Kz6fdweLeQqRLcTNrkcsc4Gwxjtz9az36ZfWluLq7sZTDlo8PqUo2Nsgbj1HY4rujLS5dnFKO/pE41wdJyGHFOwMT5X2I3FI+IxjKsqtjGCeR8vajQTJIQszY9H9PnSnG0OEqZ0P4c6mOmdRWZ8G3lQxzI3wuh5B/zTfVemNbMZbYmaybeKUHPlPrj04z7VzQ8SEHWA0f9S7g/UVoWPUbmxGLWdHifcxFgyt9Ox+xrlnjd2jsxZUls86LnFLzDSCFAHt/5xWit70+4bEyPasRvqBKg+xHb5g/OmI+jXF2oaxMVzESAZInBCfMc0r4/iNLUvwmAryrgqMkbjGDR0uo3ULLHpb1/lP+KYuel3EMoWVEYnJwhySBztSzW65wmdWMkFaq4sipILqOMCJtJ9wRVj0+Z8NFCwU+uxpfwJmOkABh3JUCiqZYJQXntw2cnKhiD9BQ/wAmCt9odtOjzXId4tyvZWA/etS0/DnUZQp/MW8YJx57hdvsSawhfhkAZy5U8hREPuBk0P8APzNE8SkRQucskfl1fM8kfM1m1NlqUY7s6e1vLL8P3fitcv1G5i8yrAdMIYd2YjLfQY9zWNP+K+sSdQa8e7cuyldGo6FB9F42rIacbjWQPRRgUNlJ7BR71UcS9kSy3tG+PxNf3QkS/wDDu4n3Mc65X6Y+H6UnJ/p8q6o457VgckahKv7H+9ZwiLD/AKqj0Apq0KoQ06yyY4Vdh9TT+JLaEsz6Y9a9MhvUza9RgZx8SSIyEfcb1ebol7C+lFWb/wD5H/OKXiE9xdLJa2o1j+VAcfXemZbq4tEKSXfhg7mCElgP2H3rKUcl6N4zhWwtraXUGpZfDjRhh1eUDI5xtk8705bWDzhwt0CIyC7KCVUdySdh86yF6jqZf4ZmO3lcnB+1O291fXWmKQILYHV4ERAA+nGfc71LhPtj+SHSOihexsLaZOm+fWoje5fYOAcnSD2yfrkVgdbvBcXASQMEVvP67nzHHr2ApuJ2kk0rLb2MUYJMhbKx+5djufkPkKx+p31hawtH07NzO2zXc3b1KL+539B3qMeJud9sc8qjCuhDqZjjYxqwaU+aRv6c8L9Bz7nHas0sFjcnvxVX8WVmbOQNyc/3rwB2QrqYnAAr0oQpUeZPJydl9JaBdQwef8VeKB5HRABqO+M4AHcmrpHMJFjZdLnfz7BfcmpkGmNlibJI/iScZHp7CtK0ZPsi/uPzN0776T8Pyr0Fz4SSQuC0UmDtypHBFJFsHnPvVlc4BGN/XiigscLKBrVsngg/zUaK9uIgDbysF7qTkfahwRRNeaCx8NF2DHR4hG223l9d99vU15LW4dyVi+bNgZHqKVDsdTqh4mt4j6OoK4+1M212lxrCWZ1KpYkYcADk1nSwtNCbiCEoijzAHI22JGfellYEgMrKedxtRSHyZuxywylfAlCP3XUVB+lOosjwyxyt4kMg0suc81zSsyAMp37b7itO3ur3wi4Zig5Jxgf+ZFJxGpnF3EBhnktZTp8KQrqxkj/ihBSh0sOeD2rV/EQD9RkuEXAkALD3rMWTCaWGtOwPKn2NNCdEeVTvUs5IwFr2hAQdWoH02IoqjA8uMeopioCqOQfKcete8MjjBPtRwfU/SvFgvt86ABpO8bqyk6l4z2o091+ZUa0UNnOQOaAxLg4wBXolJOCwAHOaADxytA6C3dl/mO+31rSg63LHtcQq692XY1h6yrtpPt9KvFN4bhiCwHbNAHSp1C2uZEYvoRd1Qjct6n5UjZEXnVpJychcsM9+wrNeVJGZk2J4XGKtbN4cgY5BA27YNHsfo6aVo4I3kk+FRk1kdav/AB7O3WIFIpcsQedjj7UndXkkynUzHbTk7d6RbJZQabdk1Q217KbUWseI4MkkDlj7mliMbg1JGnn61dFGN6QFoZ5IXRwxBQ6lweDT8PU4pb8T9QtklBTSwXy5Pr86zzjtVNJY7UAPO4ZT5qGoOd6lkxtUFdiAd62MSpIPNeGDUaGJwN6ruKBhdIPv86qyFd968Dkir+YjAOR6GgQENjNWQ+JwMH0qHTuK8rAfEv22pDHILp9AiUnyjhuDQjGMbtgnjNVTS/8ANv77Gp/iBsHcds0xXRSWORQC6kD+rsfrVhOSgWRQwHfvREn8NsDKnuOxohaGX40QE912oodixjf4oiCDyDUHSdniKH/bxTKQROSImbPYYzVzZ3GMNpCDfUxAooLFViDDyNk+mOat4EzrgL8PO2D/AM0X8smnU17AFHYEk/amrOCzZJJJLmRgg8wA0g/vSGZ7wYI1zKr+2/605adGu7jzM2iI932J+lPW95bPBIbWIQGNdpHQb4oY6tFcoiyT7jnbBPzzQAeHp9lbD/7jEzgjIRth9auOpRRyMLYxImfKgOSKQ6g3ggGMhg3DgggVjTtkldiec0mh2deepRY0TSBGB8xPB+tDuCt3ZOLeYSZXAAc4PtgfvXHszODrJJ9Sa0OnXj2csTSTu0bbMvIUf5oGCtru4spRJCzI3p2+1dMeu46WWGWfwtpVXGXzjBHb/iuYuZvzLyyAEZcsAfQ0awuDG/hsxMTqQV5GcelILNjofXp7XxFumLoqaleQ537D610/TPxXb3k0tg65m1EIGIKTY4AznGfWvmce2M500xE6QvHLpYspyNJxuDWU8UZ9msMsodH1GKDpV9GOorYxvoHhvFIgyu+4PypXq3X73WwW48EpICrQdx6b7Ecdq57pPXi9n1LxsjxMFwDwpzuDnOcmjdKhF08i3NwFY8MADseD7DeueOFRbctpdHRLM5pKOmxf8RCznvY7jpiopliWWYJwJDyB6euKxdOGPioT7g4Ip276fNZzeDLhZATycBh6ilH8ePysGx89j9a6YJcUkzmny5NtEJGynMTZJ7A4b6iiPFMx8QAFhuWIwfrnFB8eVDqBP1oxnjnIZmMMo21A5U/MU2iUxjx7jw18SGFgu+T3H3o9r1JQxa0X8vN38MHJ+Qzv8qUgXDH4V1fFoOUb3x2NCmsX8TVDv3wD+oqHjizRZJI6CP8AFfVbbw5C8FzEDgkrsTng91Patuz/APUYfmAZ+mgoE85BVmB7YOBtiuFBlYNrUrJwxIwHHoff3ocYKkmNsHurf5rCfjYn+6aryJ/c7G+/Fi3xDTdI6fPFqOPEiAcfUd8Vjz/6ZdSkwBrBjvolJkjz7NyPrmslZmR/haNjyCMg0UOrtkjf1X/FNYox60HySYw1tLk5BdR/MjBh+lCZQOQw9zVQojYfxlHp/KRTtreXFudUVxlcYIdQ23z5q+IcvuKRoc+QkA96YdIkXzEsexJ/amE6lDk/mIbOQEfzpjH1FP2D210T+X6LFMDtlTLj7kYFZybXZcUn0YSLK4PhBjvjYUeFvBBMgDPj+eQ4Hvgf5roepXf4dgQJeDwpQMGC2mLlT9Nv1rDl6x+H2YLB0y606cannGSfXFOEnL91iklF/iRSTq100Zg/NSJC3KRAIDSTPjft2LHNPf63Fb2zQRdNhCyHV/GIbP2AP60F+rWtxGEuOm2yjPxQsUb9c5q1F/YhzX3ARzZj0hpiCfhQcj5n/FWPUGjhMUMQQc5dy5+2w/SrSRQzANbS4H9Enb6j/FDj6TNI5EY8X3SRcf3z+lPjfZPNr8IrJdNLJqmLOx7u2APoKv8AwwBhjNJ/Svw1aawntkMskBaLOkOrBwp9yDsfnS7yMy5ZiR2Gdq0SS6M237Ls7MQHkAxwq74+2wq3jGFSIRofHxk5b/ihKWfcDH0qGZ122+tWombkQJ5dQ1yMccDOcVdp5nBQEqh7VVCvJTLepO1HKFl1OUUdsc06CysUBS3a5ljbSTpiJXys/fJ9hvitHoTwy3KwXbSzIF8UKpwFKgkDfcntgY571maW0gEkJnij2kr2szTRAE6Sqlh698ev70mtDTpnYWl70bqEztJaRxyYBPiLvvvkD9/amru7tIdCyqoDfAAoOB61w9iJfHzApyQRqzsPc11Kot3IjEM/hLkAfoPn60uKRXJsZv8Ap63yIkUohGdWQNmNY/XbGKyEaxQzZG2o+ZX29c7H2qPxBf3dlfPFHdMEZFKiPGw/Y5oNj+IbjLrehrmE4CoCNWr2zz3+9CXsTa6L/h+xM85kuYBJCm27Yyf3rYuOiwtOkkBVFJyUI8pHoMVeZikUY6aYljLMG3AANBspZ4wPEzgcDUDt6U6C6ML8V9LRCskCNg5yo4X61yOSuB9jX1iSS3uFMc4yjY+E7rXzrrNpHH1i7hgOY9epDjHNTux6oyycHfajLINGknSfUUJwUOluK8Bt6j+1AizB1Hse4716OMtx96uFdFzGfL6Hg1KTKRgAIx7HigCREME9wO9BMzEFSAoPOkYzRjIwhZW+LOOO1L8n5UBZOx3FRjJzUldsjY+1eJJwKAIK5G1eDEEZFXV9xqGB7VbZjtxQBKyJJgMMVZYcHPIobKCSMVUMynCk7UB2XcNqwRtXsnORRBKOGFEWNJBjcD1FMCm5XcVKaQDjaimFsYUgj0qTHgYwR70AEYA1Qx4PsaIB6g4qRitjAEVxxUhBgZFXzvUMfagCojAHNU0kE0UttVdzQBQgnYCq+Gx/kJzRlTzb1JfTtRQwDQsDgrj60VIZAPjwPfeql/QVXxJG2DUgGxaax5n+wqywpEwbRkDkbb0qZpVXAc0PxJGPxtn50AavjaYtNugQnksMms6QzZZXlZg3xDVzUxyum7HV7GvCQtnSNIznegASDDkGjQr4cyvIML3OK804T+XB9RRbadJVKTr5TyQaBi8lxKZS6uQAdh2oB0/+2uk6d8Hv7U1d2xi0kbxnhhwaCi6jzh/fvSAooI5Gc9hQ5F3148p59qYEbhgjgjPB9KmWN4zllx6jtRQWKEZoqqskYX4XX9a8Yg28Rwf6Sf7UIhg24KsKRXYUJhGOQrIOD3+VUB2BBq6zEDDqCKlo4ZT/AA38Nz2bg/WgVlkMcyaW2bkGoUaSY379vX5e9Va3mhP8SI7DcrRUljkTEmNuM80BdEQvJauXiKupGGUjYg8ginLS/ljUixuGi7eDIQRv/Sf/AIpYhHwUbze1UYEHEkQb64pOI1Kujab8S3QiWDqNlDcKu48TIIPqDVYOodNuJG3lsSTsT50Pz9KxspjH8ZR6BgRUsseRlyw9lFT8aXRp8svezof9KjnQvG0chz8dtJnP/wCprPuelzx7oda4yQy6GX55pNJLeM5WNg3Yg0/bv1OYo8U1wkZ4bVtU8Zrpj5QfaFTbzwElwU08qT+3pTEUzRaWVwQRnGc4/wAGtaK6uYY2/MyCZuMSKCF/erjrVqsTRSW8R7gCIaaXLJ/4j44//KjMF3C4OrKjuBuPtR47NLvLRoWGN2CYA+p2qR1yOEEQ20cPyhBrIv7uW7lybiVx2Dtjf+wp1N9qgbgunZrL0tgCEuoAewLgb1duiXk6hwbWTA3CS74+fFc4sRALPHIPcHIqUyrho5Srdu1HB/cXNfY1ZbCO3yJ7q1Rhyol1sPtQw9hGfMZpt+VXSD8s0t+cuFwJUjlX/eoOfrREmsp9jCYn9FbaqUES5v0Np1dbbaysoE//ALJlEjfqAKVvesdQvBolupGX+hNlA+Qrz29q7eSYof6JeD8m4qv5adThI1B7D1+VCxwTuhPLNqrE0hkc8afnRlgWMFpCWx2rzvJG5VyVYcgiqGUfzNmtKM7ZcTOfgjAA4zRhcHAUsCx5070rnxOM49KqpPFFBY+ZnUfw2VD38g3+dBMko8/iuT6g8UuR5t8n5URFJHlGPrSKTG7W7u48tDNKvqc/3zzV0uk1A3NrFP8A7l8jfXGx+ooMKv8AFI3l99815nDnCDT8qdIVsetIenTOVeWaFSNw650/Jh+4ppfw9HM5/K3qSgDOwBP6GsjMw3VCcb7jFXjcq2t2ET9ir7/pSodj8vQrlceEUbbcE8Ghx9KuQ+H8g7kDNBHVbpD5bmRyP6lH70aPqN5KcSBEU/zkacfegNBj0tVGZJtJ9XqE6dAM+a4nHoi4H3oIuGZ1HivMQfhjQAfc0+OqBUxIiaicaIxkL8zQM80Y8MocQIg3A3A+Zrz9V8GFY7QBFXl29ahi10AXICKdtRwoPypW4jRAuf4hPBGyiihWWv7k9SlXwoEU6QHYAZc85JPHyoHTp7K16hH48mqVN1VQNIPbemrZreLSGGCTuQNhXP8AXLE2t2ZI8mGQ5Unt7UnpAtmxLLNLeKxYg5yF1eVRTkk0juCrExJ8LHYmud6Z1V7MFJEEkR2/3L8j6U6er22rKK7t/ScKPvTtBTNq2nllbQ4ySR5gOAKyfxFD4d/HMCP4iYYd8jvQj1a8lyIdES9tIyf1pS4RpmJnkZ5P6idxSbGkJXCEuSOc0EDnGxp2FTkq2T6Zoc8QzrFSMFGxxg7VSRR9atpOn5VKEMCDjPbNAwaM2NJ3HvVgM8UXwhj3Fewp2z96AKYIGO9VxudqI+RgDivIV3DHBoAEqkk5rxQ52orJg7fepCEb5O3FICpVsZPJrwVDjTz3Jq8rHGP1qIVONR9aYFSMnYUZfKuBzVlQMcmiCMHG+woAplg3Pzo0bnxdJP717wsZIxmiW0batbDYd/WgAp04AxQipydt6Kv/AFT7CrH4m/7a2MBYrxkHNRpJPFMybk/9o/tVFoADoPFeRNqKfiFGmAAGBimAvp4+VQACdxRu9RjZvnQAu6AcACvImBn1q5qU4pDBPAzDjiqCEjg7+9OJ8RqrgelFBYm2VO4ryZGxG1Gl+E1MYGV27UgK4VhjT+lQ9sQcrt7GmQN1q0nBpDFoZJY9SFdUZ5Qjb6UU2kcyhoHJP9LcirxAZXbnmhttISP6qYEhZolxIupc4wan41IjIYd4n5+laigN08lgCdPJrJm4z33oEAktR/7eVb+h/wBjQXWRPJKD8mrbQarSMtucDc/Wl3AMcgIyANgaKCzJ8NifKP1rxjKbsNjTUYGrjvV23DZ9KKHYvDPLCcI2V/pO4q7SwSt50Cn3XI/zSzfF9at3NKwCeCh3CBh//W/7HerqsYXBE+n0IyKXPw0S3ZjKoLHHpmgCpaIE4aQ/QUSGW2DYaBnOf/yYpu6RTBkqM+uKQhAxxSY0Opetb7wwQxe+nUfvQpr6afaS4bB7DYfpQZuM0E8iiwCEOTlZM/M0wquB5iM+1Kim4/h+v7U0JkCSRRs+R796Ik0BGmeIDb4lFUQeWqzAYO3amAc2yOviW8vyHpQHSZQdSq499yP3qLMkXC4POa0gBqO1Kh3RkjHIyv6ivFcLkqCPUGjXAAbYYqlsSLhMHlsH3pDsvDcBSA41D1xvRlVtWqym0+qdvsaHeKFnbAA2HAoY7nuDzTEHF68TMlzApJ5ZVCt/ivabK4bKOY3P8rrtn50zOAbMkgE6RufnWSBufnQHY49lKgJVdSY5Q5oQOk4KDPuKrG7IV0MV37HFdMkcclq5dFY4G5Ge9FhRzolXvGM+uanxP6Tj6CpuVVZmCgAZ4Aoa80CLGVtwWOKjxX2CE7+lEUAtuAatxjFAygtJWGqTyj1Y0eCyGc+HJKPY6RVrMA3QyM09cO2lvMefWgCpjkgTJMFqvB0jLfelmeDXqw0zdjIdqHLvjO+/erwAFxkCkBb+NMCGyq+ijAFXjiji8z5buF/zRZCd9+OKo/wmgZZpGk5+HsBVZFx2x7ZzXogCVBoqgGSMEZyRTEDWNkIY4I5NTdCO7t5INyxGVJ9aYn+AjtrFBgA1DagDmTEVfSRhuMUJl0kAjatjqqgFCAM774pS/A0KcDis2i1s9bvgAhvvTmpCBpYE96zbX/qD5U8eVpgEES69eNiN8VSaBjuoyvfPamV4P/bVh/L706EZMsejA7mlwuTWjdDMxzvsf7Uknx0hosmob4yBXpI9RGKLHyPlRJhvH/20hiels78VZ4yACV3o4+P6VFx8VACoDg7b+1HikUbOCp4qq8NTUYBU5A4oAA8esrp3B71cREYC9qiDaXb3pw/EPlQAsFIxtVwFG+N6LVYgMLtQBcL/AA8kb0zGMjAG2PWoh+CiqPJQM//Z';
-const SHU = 'data:image/jpeg;base64,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';
-const NANMAN = 'data:image/jpeg;base64,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';
-const THRONE = 'data:image/jpeg;base64,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';
-
-const HISTORY_ART = {
-  luoyang: LUOYANG,
-  guandu: GUANDU,
-  chibi: CHIBI,
-  shu: SHU,
-  nanman: NANMAN,
-  throne: THRONE,
-};
-
-module.exports = HISTORY_ART;
-
-  };
-
   /* js/scenes/news.js */
-  __defs[44] = function (module, exports, __require) {
+  __defs[41] = function (module, exports, __require) {
 /**
  * 天下通报：国亡、君主下落、两国宣战/议和这类大事，全屏弹一张榜文。
  * 宣战/议和现在用内置战场、使团图片做底，文案整体居中。
@@ -32217,41 +25473,19 @@ module.exports = HISTORY_ART;
 const { text, wrap, panel } = __require(6);
 const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
-const NEWS_ART = __require(45);
-const HISTORY_ART = __require(46);
-
-const ART = Object.assign({}, NEWS_ART, HISTORY_ART);
-
-/** 标题和正文里认得出是哪一段，就用对应的史实图；认不出再按战/和退回旧底图。 */
-const ART_RULES = [
-  [/洛阳|董卓|焚城|焦土|迁都|长安西迁/, 'luoyang'],
-  [/官渡|乌巢|袁绍|河北|黎阳/, 'guandu'],
-  [/赤壁|连环船|火船|夏口|江陵|乌林/, 'chibi'],
-  [/西川|成都|剑阁|汉中|入蜀|刘璋|益州/, 'shu'],
-  [/南中|南蛮|南越|牂牁|交趾|藤甲|孟获|朱提/, 'nanman'],
-  [/称帝|禅让|受禅|玉玺|登基|魏王|帝位|汉廷|许都/, 'throne'],
-];
-
-function pickArt(ev) {
-  if (ev.art && ART[ev.art]) return ev.art;
-  const body = (ev.title || '') + ' ' + (ev.lines || []).join(' ');
-  for (let i = 0; i < ART_RULES.length; i += 1) {
-    if (ART_RULES[i][0].test(body)) return ART_RULES[i][1];
-  }
-  return ev.tag === '战略' ? 'peace' : 'war';
-}
+const NEWS_ART = __require(42);
 
 const ART_CACHE = {};
 
 /** 取内置背景图；浏览器/微信/抖音都通过平台 createImage 加载 data URL。 */
 function artImage(app, id) {
-  if (!id || !ART[id] || !app || !app.runtime || !app.runtime.createImage) return null;
+  if (!id || !NEWS_ART[id] || !app || !app.runtime || !app.runtime.createImage) return null;
   let img = ART_CACHE[id];
   if (!img) {
     img = app.runtime.createImage();
     if (!img) return null;
     img.onload = function () { img.__ready = true; };
-    try { img.src = ART[id]; } catch (e) { return null; }
+    try { img.src = NEWS_ART[id]; } catch (e) { return null; }
     ART_CACHE[id] = img;
   }
   return img.width > 0 && (img.complete || img.__ready) ? img : null;
@@ -32292,34 +25526,18 @@ function drawArt(app, ctx, w, h, id, t) {
   ctx.fillRect(0, 0, w, h);
 }
 
-function isStoryMode(state) {
-  const st = state || {};
-  return !!(st.storyMode || st.historicalSandbox || st.background === 'romance');
-}
-
-/** 榜文停留秒数：三国演义 30 秒，乱世三国 15 秒；事件显式传 0 表示手动关闭。 */
-function autoSecondsFor(state, ev) {
-  const e = ev || {};
-  if (e.auto === 0) return 0;
-  return isStoryMode(state) ? 30 : 15;
-}
-
 const NewsScene = {
   enter(app, params) {
     const ev = params || {};
-    // 三国演义：史实文书停 30 秒，让玩家看清天下大势；乱世三国宣战频繁，15 秒即散。
-    const st = app.state || {};
-    const storyMode = isStoryMode(st);
-    const auto = autoSecondsFor(st, ev);
     app.newsView = {
       title: ev.title || '榜文',
       lines: Array.isArray(ev.lines) ? ev.lines.slice(0, 6) : [],
       tag: ev.tag || (ev.factionId ? '天下' : '军情'),
       mode: ev.mode || 'notice',
       factionId: ev.factionId || null,
-      auto: auto,
-      art: pickArt(ev),
-      skipAny: storyMode ? false : !!ev.skipAny,
+      auto: ev.auto || 0,
+      art: ev.art || null,
+      skipAny: !!ev.skipAny,
       t: 0,
     };
     // 进入场景就预载，图片从内置 data URL 解码。
@@ -32413,7 +25631,7 @@ const NewsScene = {
     } else {
       text(ctx, v.skipAny
         ? '点屏幕任意处跳过 · ' + Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散'
-        : (v.auto > 0 ? Math.max(0, Math.ceil(v.auto - v.t)) + ' 息后自散' : '榜文贴在各城门口，来往的人都在看。'),
+        : (v.auto > 0 ? '军情传得很快，几息后自己散。' : '榜文贴在各城门口，来往的人都在看。'),
         cx + cw / 2, cy + chHeight - 78, {
           size: 14, align: 'center', color: '#b7a58a',
         });
@@ -32447,15 +25665,12 @@ const NewsScene = {
   },
 };
 
-NewsScene.autoSecondsFor = autoSecondsFor;
-NewsScene.isStoryMode = isStoryMode;
-
 module.exports = NewsScene;
 
   };
 
   /* js/scenes/arc.js */
-  __defs[47] = function (module, exports, __require) {
+  __defs[43] = function (module, exports, __require) {
 /**
  * 长夜篇：第一次统一后的庆祝、三十天大旱、流亡边陲、再统一与尾声。
  * 这一页只负责把大事讲清楚；真正的倒计时和天下局势在大地图左上角。
@@ -32463,16 +25678,11 @@ module.exports = NewsScene;
 
 const { text, wrap } = __require(6);
 const { UI_COLORS } = __require(3);
-const { drawBackdrop } = __require(28);
-const { STORY } = __require(19);
+const { drawBackdrop } = __require(25);
 
 const ArcScene = {
   enter(app, params) {
-    let phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
-    // 新叙事：背叛事件对应“退往边陲”，到达事件对应“边陲复国”。
-    if (phase === 'betrayal' || phase === 'retreat-block') phase = 'retreat';
-    if (phase === 'edge') phase = 'reconquest';
-    this.phase = phase;
+    this.phase = (params && params.phase) || (app.state && app.state.arc && app.state.arc.phase) || 'celebration';
     this.t = 0;
   },
   update(app, dt) { this.t += dt || 0; },
@@ -32523,19 +25733,16 @@ const ArcScene = {
             ],
             btn: null,
           }
-          : phase === 'retreat'
-            ? {
-              title: STORY.unification.betrayTitle || '全国背叛',
-              sub: '退往边陲小镇 · 第 ' + (arc.disasterDay || st.clock.day) + ' 天',
-              lines: STORY.unification.betrayLines || [],
-              btn: '继续往边陲小镇',
-            }
-            : {
-              title: STORY.unification.edgeTitle || '边陲小镇',
-              sub: '每月 1000 金币 · 2000 粮草',
-              lines: STORY.unification.edgeLines || [],
-              btn: '从边陲小镇反攻',
-            };
+          : {
+            title: '边陲小城',
+            sub: '与天下为敌',
+            lines: [
+              '这座小城在地图上原本没有名字。你逃到这里的那天，它才出现。',
+              '城墙不高，粮也不多。但城门上还没有挂别人的旗。',
+              '旧部在城外点起几堆火。你们要从这里，再把天下走一遍。',
+            ],
+            btn: '重走统一路',
+          };
 
     drawBackdrop(ctx, phase === 'finale' || phase === 'celebration' ? 'hall' : 'battle', w, h, 77);
     ctx.fillStyle = 'rgba(8,6,4,0.58)';
@@ -32605,7 +25812,7 @@ module.exports = ArcScene;
   };
 
   /* js/scenes/chase.js */
-  __defs[48] = function (module, exports, __require) {
+  __defs[44] = function (module, exports, __require) {
 /**
  * 被追上：处于战争状态的人贴到你身上，就没有"自选撤离"了。
  * 三条路：给钱买路（一天内不追）/ 坦然开战 / 留人断后（折兵换他停几个时辰）。
@@ -32858,7 +26065,7 @@ module.exports = ChaseScene;
   };
 
   /* js/scenes/ending.js */
-  __defs[49] = function (module, exports, __require) {
+  __defs[45] = function (module, exports, __require) {
 /**
  * 结局页
  */
@@ -32942,7 +26149,7 @@ module.exports = EndingScene;
   };
 
   /* js/scenes/lord.js */
-  __defs[50] = function (module, exports, __require) {
+  __defs[46] = function (module, exports, __require) {
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
  * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
@@ -32953,7 +26160,6 @@ const { UI_COLORS } = __require(3);
 const stateLib = __require(7);
 const army = __require(9);
 const { FACTIONS } = __require(5);
-const rank = __require(17);
 const { lookFor } = __require(12);
 
 const RANK_LABEL = { king: '君主', lord: '领兵者', general: '将领' };
@@ -33130,19 +26336,8 @@ function act(app, id) {
   }
   if (id === 'troops') {
     const rows = stateLib.lordTroopLine(lord);
-    const power = stateLib.lordPowerInfo(lord);
-    const marshal = rank.MARSHAL_BY_ID[lord.id];
-    const cmd = typeof lord.commandValue === 'number' ? lord.commandValue.toFixed(2) : '—';
-    const force = typeof lord.forceValue === 'number' ? lord.forceValue.toFixed(2) : '—';
-    const strategist = lord.strategistGrade
-      ? ' · 军师 ' + lord.strategistGrade + '（开局雷击 ' + Math.round((lord.strategistPct || 0) * 100) + '%）'
-      : '';
-    d.line = '“我的家底？”\n' + (power ? '名将榜第 ' + power.rank + ' 位 · ' : '') +
-      (marshal ? '帅才第 ' + marshal.rank + ' 位 · ' : '') +
-      '将帅值 ' + cmd + ' · 武力值 ' + force + strategist + '\n' +
-      (rows.length ? rows.join(' · ') : '人已经打光了') +
-      '\n合计 ' + army.troopCount(lord.troops) + ' / 上限 ' + stateLib.lordTroopCap(lord) +
-      ' 人，士气 ' + Math.round(lord.morale) +
+    d.line = '“我的家底？”\n' + (rows.length ? rows.join(' · ') : '人已经打光了') +
+      '\n合计 ' + army.troopCount(lord.troops) + ' 人，士气 ' + Math.round(lord.morale) +
       (stateLib.isHostileFaction(st, lord.faction) ? '。他手按着刀柄。' : '。');
     d.page = 'troops';
     return;
@@ -33178,7 +26373,7 @@ module.exports = LordScene;
   };
 
   /* js/scenes/revive.js */
-  __defs[51] = function (module, exports, __require) {
+  __defs[47] = function (module, exports, __require) {
 /**
  * 复活提示：全灭之后回到一天前，用一段文字说明这是第几次
  * （次数只在这个界面上出现，别处不提示）
@@ -33271,7 +26466,7 @@ module.exports = ReviveScene;
   };
 
   /* js/scenes/saves.js */
-  __defs[53] = function (module, exports, __require) {
+  __defs[49] = function (module, exports, __require) {
 /**
  * 存档槽：九个位置
  * mode = 'load' 读档 / 'save' 存到某个槽
@@ -33452,16 +26647,16 @@ module.exports.slotKey = slotKey;
   };
 
   /* js/scenes/menu.js */
-  __defs[52] = function (module, exports, __require) {
+  __defs[48] = function (module, exports, __require) {
 /**
  * 系统菜单：九个存档槽 / 最近存档 / 退回战前 / 回标题
  */
 
 const { text, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(21);
+const audio = __require(18);
 const { formatClock } = __require(8);
-const savesLib = __require(53);
+const savesLib = __require(49);
 
 const AUTO_KEY = 'bw_save_v4';
 const AUTO_1 = 'bw_save_v4_a1';
@@ -33628,7 +26823,7 @@ const { createRuntime } = __require(2);
 const pixel = __require(3);
 const { UI, text, wrap, panel } = __require(6);
 const stateLib = __require(7);
-const audio = __require(21);
+const audio = __require(18);
 
 // 存档槽：最新 / 上一份 / 上上一份，外加开打前的快照
 const AUTO_KEY = 'bw_save_v4';
@@ -33644,33 +26839,33 @@ class App {
     this.stack = [];
     this.state = null;
     this.scenes = {
-      title: __require(22),
-      map: __require(23),
-      atlas: __require(26),
-      town: __require(27),
-      founding: __require(30),
-      fief: __require(31),
-      govern: __require(32),
-      shop: __require(33),
-      battle: __require(34),
-      contact: __require(35),
-      army: __require(36),
-      hero: __require(37),
-      prison: __require(38),
-      tourney: __require(39),
-      journal: __require(40),
-      camp: __require(41),
-      help: __require(42),
+      title: __require(19),
+      map: __require(20),
+      atlas: __require(23),
+      town: __require(24),
+      founding: __require(27),
+      fief: __require(28),
+      govern: __require(29),
+      shop: __require(30),
+      battle: __require(31),
+      contact: __require(32),
+      army: __require(33),
+      hero: __require(34),
+      prison: __require(35),
+      tourney: __require(36),
+      journal: __require(37),
+      camp: __require(38),
+      help: __require(39),
       nested: null,
-      chapter: __require(43),
-      news: __require(44),
-      arc: __require(47),
-      chase: __require(48),
-      ending: __require(49),
-      lord: __require(50),
-      revive: __require(51),
-      menu: __require(52),
-      saves: __require(53),
+      chapter: __require(40),
+      news: __require(41),
+      arc: __require(43),
+      chase: __require(44),
+      ending: __require(45),
+      lord: __require(46),
+      revive: __require(47),
+      menu: __require(48),
+      saves: __require(49),
     };
     delete this.scenes.nested;
     this.saveTimer = 10;
@@ -33857,6 +27052,78 @@ class App {
   }
 
   tick() {
+    // 主循环绝不能因为某一帧的场景/音频异常而停掉：requestAnimationFrame
+    // 的下一帧由外层 loop 负责，这里只要把异常吞掉并画出可恢复提示。
+    try {
+      this._tick();
+    } catch (e) {
+      this.onTickError(e);
+    }
+  }
+
+  onTickError(e) {
+    this.lastError = {
+      message: (e && e.message) ? String(e.message) : '未知错误',
+      time: Date.now(),
+    };
+    this.errorCount = (this.errorCount || 0) + 1;
+    try {
+      this.runtime.storage.set('bw_last_error', JSON.stringify({
+        message: this.lastError.message,
+        scene: this.top() ? this.top().name : '',
+        day: this.state && this.state.clock ? this.state.clock.day : 0,
+        hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+        time: this.lastError.time,
+      }));
+    } catch (_) { /* ignore */ }
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('[征战汉末] 帧循环异常：', e);
+    }
+    // 连续在非地图页面报错时，退一层，避免永远卡在坏页面上。
+    if (this.errorCount >= 4 && this.stack.length > 1) {
+      const top = this.top();
+      if (top && top.name !== 'map' && top.name !== 'title') {
+        this.errorCount = 0;
+        this.pop();
+      }
+    }
+    // 地图/标题也连续报错：最后兜底回标题，自动存档不会被覆盖。
+    if (this.errorCount >= 8) {
+      this.errorCount = 0;
+      this.lastError = null;
+      try {
+        this.replace('title');
+        this.showToast('画面连续出错，已返回标题；自动存档还在。', 4);
+      } catch (_) { /* ignore */ }
+      return;
+    }
+    this.drawErrorFrame();
+  }
+
+  drawErrorFrame() {
+    try {
+      const r = this.runtime;
+      const ctx = r.ctx;
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#0f0c09';
+      ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
+      ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f0c060';
+      ctx.font = 'bold 28px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText('这一帧出了点问题', r.width / 2, r.height * 0.42);
+      ctx.fillStyle = '#c9bda2';
+      ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText((this.lastError && this.lastError.message || '未知错误').slice(0, 80),
+        r.width / 2, r.height * 0.42 + 38);
+      ctx.fillStyle = '#8a8070';
+      ctx.fillText('正在尝试恢复；连续出错会自动回到标题', r.width / 2, r.height * 0.42 + 74);
+      ctx.textAlign = 'left';
+    } catch (_) { /* 连错误提示都画不出来时，至少保住主循环 */ }
+  }
+
+  _tick() {
     const now = this.runtime.now();
     let dt = (now - this.last) / 1000;
     this.last = now;
@@ -33892,7 +27159,12 @@ class App {
     ctx.fillStyle = '#0f0c09';
     ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
     ctx.setTransform(r.dpr * r.scale, 0, 0, r.dpr * r.scale, 0, (r.topInsetPx || 0) * r.dpr);
-    audio.update(dt);
+    // 音乐是锦上添花：音频实现出问题不能把整帧拖垮。
+    try {
+      audio.update(dt);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.error) console.error('[征战汉末] 音频异常：', e);
+    }
 
     const top = this.top();
     if (top && top.scene.update) top.scene.update(this, dt);
@@ -33910,17 +27182,35 @@ class App {
       else this.drawToast();
     }
 
-    // 自动存档：别在战斗里存，也别在结局后存
+    // 自动存档：别在战斗里存，也别在结局后存。
+    // 存档失败只记日志，绝不能让一局好游戏因为 JSON 序列化异常停掉；
+    // 上一个自动存档槽保持原样，玩家最多损失最近 45 秒。
     if (this.state && !this.state.gameOver && !this.state.battle) {
       this.saveTimer -= dt;
       if (this.saveTimer <= 0) {
         this.saveTimer = 45;
-        const store = this.runtime.storage;
-        const prev1 = store.get(AUTO_1);
-        if (prev1) store.set(AUTO_2, prev1);
-        const prev0 = store.get(AUTO_KEY);
-        if (prev0) store.set(AUTO_1, prev0);
-        store.set(AUTO_KEY, stateLib.serialize(this.state));
+        try {
+          const store = this.runtime.storage;
+          const prev1 = store.get(AUTO_1);
+          if (prev1) store.set(AUTO_2, prev1);
+          const prev0 = store.get(AUTO_KEY);
+          if (prev0) store.set(AUTO_1, prev0);
+          store.set(AUTO_KEY, stateLib.serialize(this.state));
+          this.saveError = null;
+        } catch (e) {
+          this.saveError = (e && e.message) ? String(e.message) : '自动存档失败';
+          try {
+            this.runtime.storage.set('bw_save_error', JSON.stringify({
+              message: this.saveError,
+              day: this.state && this.state.clock ? this.state.clock.day : 0,
+              hour: this.state && this.state.clock ? this.state.clock.hour : 0,
+              time: Date.now(),
+            }));
+          } catch (_) { /* ignore */ }
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('[征战汉末] 自动存档失败：', e);
+          }
+        }
       }
     }
 

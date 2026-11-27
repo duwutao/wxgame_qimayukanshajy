@@ -134,7 +134,10 @@ const MenuScene = {
       id: 'menu_audio', size: 22, fill: '#241c14', onTap: function () {
         const on = !audio.isEnabled();
         audio.setEnabled(on);
-        if (on) audio.play(app.top() && app.top().name === 'battle' ? 'battle' : 'field');
+        if (on) {
+          const below = app.stack.length > 1 ? app.stack[app.stack.length - 2].name : 'title';
+          app.applyMusic(below);
+        }
         app.showToast(on ? '音乐已打开' : '音乐已关闭', 1.6);
       },
     });

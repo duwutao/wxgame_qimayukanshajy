@@ -35,12 +35,15 @@ const codeFiles = walk(path.join(root, 'js'), []);
 const rootFiles = ['game.js', 'game.json', 'project.config.json', 'project.tt.json']
   .map((f) => path.join(root, f))
   .filter((f) => fs.existsSync(f));
-const all = codeFiles.concat(rootFiles);
+const assetFiles = fs.existsSync(path.join(root, 'assets'))
+  ? walk(path.join(root, 'assets'), [])
+  : [];
+const all = codeFiles.concat(rootFiles, assetFiles);
 const bytes = all.reduce((s, f) => s + fs.statSync(f).size, 0);
 const kb = bytes / 1024;
 if (kb < 4096) ok('包体积');
 else fail('包体积 ' + kb.toFixed(1) + 'KB 超过 4MB 首包上限');
-console.log('包体积：' + kb.toFixed(1) + ' KB（' + all.length + ' 个文件，无图片/音频资源，画面全部运行时绘制）');
+console.log('包体积：' + kb.toFixed(1) + ' KB（' + all.length + ' 个文件，含 assets 图片/音频）');
 
 /* 2. 浏览器 API 依赖：只允许出现在 platform.js / audio.js，且必须有 wx/tt 分支 */
 const BROWSER_API = /\b(document|window|localStorage|addEventListener|requestAnimationFrame|XMLHttpRequest|fetch|new Image)\b/;

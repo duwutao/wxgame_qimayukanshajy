@@ -3826,6 +3826,50 @@ group('n19 版：换位 · 连线 · 山越 · 匪团禁区');
     migrated.lords.filter(function (l) { return l.faction === 'shanyue'; }).length >= 6);
 }
 
+group('n54 旧档主线字段兼容');
+{
+  const st = stateLib.createGame({});
+  st.campaign.stage = 1;
+  st.player.troops = { militia: 40 };
+  const raw = JSON.parse(stateLib.serialize(st));
+  delete raw.campaign.done;
+  delete raw.flags.campaignDone;
+  const loaded = stateLib.deserialize(raw);
+  ok('缺 campaign.done 也能读档', !!loaded && Array.isArray(loaded.campaign.done));
+  ok('缺 flags.campaignDone 也能读档',
+    !!loaded && Array.isArray(loaded.flags.campaignDone));
+  let threw = null;
+  try { stateLib.advanceCampaign(loaded); } catch (e) { threw = e; }
+  ok('章节完成不再抛异常卡死', !threw, threw ? threw.message : 'ok');
+  ok('主线推进并写入两个完成列表',
+    !!loaded && loaded.campaign.stage === 2 &&
+    loaded.campaign.done.indexOf('act1') >= 0 &&
+    loaded.flags.campaignDone.indexOf('act1') >= 0);
+}
+
+group('n55 国战存档循环引用');
+{
+  const st = stateLib.createGame({});
+  const fakeBattle = { state: st, context: { kind: 'siege', siteId: 'xuchang' } };
+  st.warCampaigns = {
+    wei: {
+      faction: 'wei', enemy: 'shu', stage: 'assault', targetId: 'xuchang',
+      attackerIds: [], defenderIds: [], siegeBattle: fakeBattle,
+    },
+  };
+  let raw = null;
+  let threw = null;
+  try { raw = stateLib.serialize(st); } catch (e) { threw = e; }
+  ok('攻城战在场时也能存档', !threw, threw ? threw.message : 'ok');
+  const data = raw ? JSON.parse(raw) : null;
+  ok('存档不写入运行时 Battle',
+    !!data && data.warCampaigns && data.warCampaigns.wei &&
+    data.warCampaigns.wei.siegeBattle === undefined);
+  ok('战役壳字段保留',
+    !!data && data.warCampaigns.wei.stage === 'assault' &&
+    data.warCampaigns.wei.targetId === 'xuchang');
+}
+
 /* ---------------------------------------------------------------- 收尾 */
 
 console.log('\n' + '='.repeat(44));
