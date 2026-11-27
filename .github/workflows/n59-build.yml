@@ -1,0 +1,50 @@
+name: n59 build juqing
+on:
+  push:
+    branches: [juqing]
+    paths:
+      - '.github/workflows/n59-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: juqing
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n59 patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/juqing-n59.patch 'https://aka.doubaocdn.com/s/pUiSjMD8rl'
+          git apply --check /tmp/juqing-n59.patch
+          git apply /tmp/juqing-n59.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Build web entry
+        run: node tools/build-entry.js
+      - name: Verify bundle
+        run: |
+          node -e "const fs=require('fs');const s=fs.readFileSync('web/game.bundle.js','utf8');for(const k of ['虎豹禁骑','元戎神弩营','横江艨艟死士','谯沛锐卒','FACTION_TROOPS'])if(!s.includes(k))throw new Error('missing '+k);console.log('bundle ok',fs.statSync('web/game.bundle.js').size)"
+      - name: Commit n59
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js tools web/index.html web/game.bundle.js manifest.json
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261127n59 各国兵种编制/辖区招募/魏蜀吴T5解锁 [skip ci]'
+          git push origin HEAD:juqing
