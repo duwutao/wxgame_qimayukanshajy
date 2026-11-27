@@ -17,7 +17,7 @@ const territory = require(R + '/core/territory.js');
 const { Battle } = require(R + '/core/battle.js');
 const { RNG } = require(R + '/rng.js');
 const { TROOPS } = require(R + '/data/troops.js');
-const { FACTIONS, FACTION_COMBAT, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN, FREE_CITY_IDS } = require(R + '/data/china.js');
+const { FACTIONS, FACTION_COMBAT, FACTION_ROSTER_MUL, CAMPAIGN, SITE_ROWS, ROADS, CAPITAL_IDS, STRATEGIC_SITES, LORDS, HISTORY_MARKS, TERRAIN, FREE_CITY_IDS } = require(R + '/data/china.js');
 const { VILLAGE_FOOD, GOODS } = require(R + '/data/extra.js');
 
 let pass = 0;
@@ -4465,12 +4465,17 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
       ? Math.max(rankLib.DEFAULT_MONARCH_RECRUIT_MUL, info.recruitMul)
       : info.recruitMul;
   }
+  function rosterCap(l, info) {
+    const mul = Number(FACTION_ROSTER_MUL[l.faction]) || 1;
+    return Math.max(40, Math.round(info.cap * mul));
+  }
   roster.forEach(function (l) {
     if (!l) return;
     const info = rankLib.LORD_POWER_BY_ID[l.id];
-    if (stateLib.lordTroopCap(l) !== info.cap) capBad.push(l.id + ':' + stateLib.lordTroopCap(l));
+    const wantCap = rosterCap(l, info);
+    if (stateLib.lordTroopCap(l) !== wantCap) capBad.push(l.id + ':' + stateLib.lordTroopCap(l));
     const def = armyLib.troopCount(l.defTroops || {});
-    if (def !== info.cap) defBad.push(l.id + ':' + def + '/' + info.cap);
+    if (def !== wantCap) defBad.push(l.id + ':' + def + '/' + wantCap);
     if (stateLib.lordRecruitMul(l) !== effectiveRankMul(l, info)) {
       mulBad.push(l.id + ':' + stateLib.lordRecruitMul(l));
     }
@@ -4505,8 +4510,9 @@ group('名将榜 50 人 · 差异化带兵上限 · 分段招兵速度');
   const saved = stateLib.deserialize(stateLib.serialize(g));
   ok('存档往返后榜单上限与倍率保留', !!saved && list.every(function (x) {
     const l = saved.lords.filter(function (y) { return y.id === x.id; })[0];
-    return l && stateLib.lordTroopCap(l) === rankLib.LORD_POWER_BY_ID[x.id].cap &&
-      stateLib.lordRecruitMul(l) === effectiveRankMul(l, rankLib.LORD_POWER_BY_ID[x.id]);
+    const info = rankLib.LORD_POWER_BY_ID[x.id];
+    return l && stateLib.lordTroopCap(l) === rosterCap(l, info) &&
+      stateLib.lordRecruitMul(l) === effectiveRankMul(l, info);
   }), saved ? 'ok' : 'null');
 
   const romance = stateLib.createGame({ background: 'romance', storyMode: true, seed: 777001 });
@@ -4565,6 +4571,35 @@ group('n48 蜀国南征多路领主');
   const cp = warLib.planCampaign(g, 'shu', g.clock.day);
   ok('普通战线仍按五路上限', !cp || cp.attackerIds.length <= 5,
     cp ? cp.attackerIds.length + ' 路' : 'none');
+}
+
+/* ---------------------------------------------------------------- n51 四阶精锐与魏国带兵 */
+group('n51 四阶精锐只跟名将与国君');
+{
+  const g = stateLib.createGame({ background: 'romance', storyMode: true, seed: 2026112651 });
+  const rankLib = require(R + '/data/lord-rank.js');
+  const bad = [];
+  const illegal = [];
+  g.lords.forEach(function (l) {
+    const t4 = Object.keys(l.troops || {}).filter(function (id) {
+      return TROOPS[id] && Number(TROOPS[id].tier) === 4;
+    });
+    const king = l.rank === 'king' || (FACTIONS[l.faction] || {}).lord === l.name;
+    if ((rankLib.LORD_POWER_BY_ID[l.id] || king) && !t4.length) bad.push(l.name);
+    if (!rankLib.LORD_POWER_BY_ID[l.id] && !king && t4.length) illegal.push(l.name);
+  });
+  ok('榜上与国君人人有 T4', bad.length === 0, bad.join(','));
+  ok('榜外非国君没有 T4', illegal.length === 0, illegal.join(','));
+  const cc = g.lords.filter(function (l) { return l.id === 'caocao'; })[0];
+  ok('曹操带兵上限按魏国系数收口', !!cc && stateLib.lordTroopCap(cc) < 212,
+    cc ? stateLib.lordTroopCap(cc) : 'none');
+  const zl = g.lords.filter(function (l) { return l.id === 'zhangliao'; })[0];
+  const total = zl ? Object.values(zl.troops).reduce(function (a, b) { return a + b; }, 0) : 0;
+  if (zl) stateLib.moveLordToFaction(g, zl, 'wei');
+  ok('张辽归魏后换成亲卫且总兵力不丢',
+    !!zl && zl.faction === 'wei' && (zl.troops.guard || 0) > 0 &&
+    Object.values(zl.troops).reduce(function (a, b) { return a + b; }, 0) === total,
+    zl ? JSON.stringify(zl.troops) : 'none');
 }
 
 /* ---------------------------------------------------------------- 收尾 */

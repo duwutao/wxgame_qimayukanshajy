@@ -493,6 +493,15 @@ const FACTION_COMBAT = {
 };
 
 /**
+ * 名将榜带兵上限的国别系数：只压“单体上限”，不改名次与招兵倍率。
+ * 曹操麾下领主最多（魏 22 人，榜上 12 人），若人人按满额扩编，
+ * 单国兵力会比蜀吴多出一大截；这里把魏国领主的满编统一下调 30%。
+ */
+const FACTION_ROSTER_MUL = {
+  wei: 0.7,
+};
+
+/**
  * 君位继任表：君主被斩后按这张表往下传。
  * 表里有些人开局不在名册上，轮到他们时再生成；表用完了，
  * 就从本势力还活着的领主里挑一位本地、官职大的。
@@ -1066,6 +1075,7 @@ module.exports = {
   STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
+  FACTION_ROSTER_MUL,
   FACTION_RULERS,
   SUCCESSION,
   LORDS,

@@ -32,7 +32,7 @@ const { Battle } = require('./battle.js');
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
-  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS,
+  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS, FACTION_ROSTER_MUL,
 } = require('../data/china.js');
 const { TROOPS } = require('../data/troops.js');
 const {
@@ -404,7 +404,7 @@ function createGame(opts) {
     },
   };
 
-  state.storyHooks = { stageGuandu: stageGuandu };
+  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   syncPlayerFaction(null);
   spawnLords(state);
   autoAssignFiefs(state);
@@ -775,7 +775,13 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordTier4Rule(state);
   applyLordPowerRoster(state);
+  applyFactionRosterCap(state);
+  if (state.flags) {
+    state.flags.lordTier4V1 = true;
+    state.flags.lordWeiCapV1 = true;
+  }
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -5733,10 +5739,26 @@ function lordPowerInfo(lord) {
   return LORD_POWER_BY_ID[lord && lord.id] || null;
 }
 
-function lordTroopCap(lord) {
+/** 名将榜上限 × 国别系数；魏国名将多，单体上限下调，避免堆出双倍兵力。 */
+function lordBaseCap(lord) {
   if (!lord) return 30;
   const power = lordPowerInfo(lord);
-  if (power) return power.cap;
+  const base = power ? power.cap : lordCapForLevel(lordLevel(lord));
+  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
+  return Math.max(40, Math.round(base * mul));
+}
+
+function lordPowerCap(lord) {
+  const power = lordPowerInfo(lord);
+  if (!power) return 0;
+  return lordBaseCap(lord);
+}
+
+function lordTroopCap(lord) {
+  if (!lord) return 30;
+  if (lordPowerInfo(lord)) return lordPowerCap(lord);
+  // 有国别系数的势力（目前是魏）连国君与榜外领主也按系数收口；其余势力仍保底原编制。
+  if (FACTION_ROSTER_MUL[lord.faction]) return lordBaseCap(lord);
   const defCount = army.troopCount(lord.defTroops || lord.troops || {});
   return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
 }
@@ -5748,12 +5770,134 @@ function lordRecruitMul(lord) {
   return power ? Math.max(base, power.recruitMul) : base;
 }
 
+/* ------------------------------------------------------------ 四阶精锐 */
+
+/** 各势力四阶兵的“门面兵种”：名将榜领主与君主至少带一队。 */
+const LORD_T4_BY_FACTION = {
+  wei: 'guard', shu: 'baier', wu: 'danyang', yuan: 'heavy',
+  lv: 'tiefu', ma: 'tiefu', xianbei: 'tengri',
+  zhang: 'guard', zhanglu: 'guard', nanman: 'guard', shanyue: 'danyang',
+  yuanshu: 'guard', biao: 'guard', gongsun: 'guard', hansui: 'guard', han: 'guard',
+};
+const LORD_T4_FALLBACK = 'guard';
+const LORD_T4_RATIO = 0.05;
+const LORD_T4_MIN = 4;
+const LORD_T4_MAX = 8;
+
+function lordTier4Unit(faction) {
+  return LORD_T4_BY_FACTION[faction] || LORD_T4_FALLBACK;
+}
+
+function rosterHasTier4(roster) {
+  return Object.keys(roster || {}).some(function (id) {
+    return TROOPS[id] && Number(TROOPS[id].tier) === 4;
+  });
+}
+
+/** 名将榜前 50 或国君：只有这批人配带四阶精锐。 */
+function lordKeepsTier4(lord) {
+  if (!lord) return false;
+  if (LORD_POWER_BY_ID[lord.id]) return true;
+  if (lord.rank === 'king') return true;
+  const f = FACTIONS[lord.faction];
+  return !!(f && f.lord && f.lord === lord.name);
+}
+
+function stripTier4(roster) {
+  if (!roster) return false;
+  let changed = false;
+  Object.keys(roster).forEach(function (id) {
+    if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
+      delete roster[id];
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+/** 给没有四阶兵的资格领主补一小队：从人数最多的一阶兵里换，不凭空加总兵力。 */
+function injectTier4(roster, unit) {
+  if (!roster || rosterHasTier4(roster)) return false;
+  const total = army.troopCount(roster);
+  if (total <= 0) return false;
+  const add = Math.max(LORD_T4_MIN, Math.min(LORD_T4_MAX, Math.round(total * LORD_T4_RATIO)));
+  let donor = null;
+  Object.keys(roster).forEach(function (id) {
+    if (TROOPS[id] && Number(TROOPS[id].tier) >= 4) return;
+    if (!donor || (roster[id] || 0) > (roster[donor] || 0)) donor = id;
+  });
+  let put = add;
+  if (donor) {
+    const take = Math.min(put, Math.max(0, (roster[donor] || 0) - 1));
+    roster[donor] -= take;
+    if (roster[donor] <= 0) delete roster[donor];
+    put = take;
+  }
+  if (put > 0) roster[unit] = (roster[unit] || 0) + put;
+  return put > 0;
+}
+
+/**
+ * 单个领主的四阶兵归一：够资格的保留数量、换成当前势力的门面兵；
+ * 不够资格的全部剥掉。换旗（张辽归魏、张郃降曹）时也要走一遍。
+ */
+function normalizeLordTier4(lord) {
+  if (!lord || !lord.faction) return;
+  const unit = lordTier4Unit(lord.faction);
+  const keep = lordKeepsTier4(lord);
+  [lord.defTroops, lord.troops].forEach(function (roster) {
+    if (!roster) return;
+    if (!keep) { stripTier4(roster); return; }
+    let count = 0;
+    Object.keys(roster).forEach(function (id) {
+      if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
+        count += roster[id] || 0;
+        delete roster[id];
+      }
+    });
+    if (count > 0) roster[unit] = (roster[unit] || 0) + count;
+    else injectTier4(roster, unit);
+  });
+}
+
+/**
+ * 四阶兵资格：名将榜前 50、君主保留；榜外且不是国君的领主一律剥掉四阶兵。
+ * 旧档里既成事实的四阶兵也会被清掉，保证“精兵只跟名将”的规则一致。
+ */
+function applyLordTier4Rule(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.dead) return;
+    normalizeLordTier4(lord);
+  });
+}
+
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
 function lordRosterToCap(base, cap) {
   const src = base && Object.keys(base).length ? base : { militia: 1 };
   const total = army.troopCount(src);
   const target = Math.max(1, Math.round(Number(cap) || 0));
   if (target <= total) return deepCopy(src);
+  const ids = Object.keys(src);
+  const out = {};
+  let assigned = 0;
+  ids.forEach(function (id, i) {
+    if (i === ids.length - 1) {
+      out[id] = Math.max(1, target - assigned);
+    } else {
+      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
+    }
+    assigned += out[id];
+  });
+  return out;
+}
+
+/** 按比例把编制整体缩放（可缩可扩），用于魏国名将上限下调后的旧档收口。 */
+function lordRosterScale(base, cap) {
+  const src = base && Object.keys(base).length ? base : { militia: 1 };
+  const total = army.troopCount(src);
+  const target = Math.max(1, Math.round(Number(cap) || 0));
+  if (!total || Math.abs(target - total) <= 1) return deepCopy(src);
   const ids = Object.keys(src);
   const out = {};
   let assigned = 0;
@@ -5777,8 +5921,26 @@ function applyLordPowerRoster(state) {
     lord.powerRank = power.rank;
     lord.powerScore = power.score;
     lord.recruitMul = lordRecruitMul(lord);
+    const cap = lordPowerCap(lord);
     const defCount = army.troopCount(lord.defTroops || {});
-    if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
+    if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);
+  });
+}
+
+/** 有国别系数的势力把满编与现存兵力都夹到新上限；只缩不扩。 */
+function applyFactionRosterCap(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || !FACTION_ROSTER_MUL[lord.faction]) return;
+    const cap = lordTroopCap(lord);
+    [lord.defTroops, lord.troops].forEach(function (roster, i) {
+      if (!roster) return;
+      if (army.troopCount(roster) > cap) {
+        const scaled = lordRosterScale(roster, cap);
+        if (i === 0) lord.defTroops = scaled;
+        else lord.troops = scaled;
+      }
+    });
   });
 }
 
@@ -6521,10 +6683,13 @@ function moveLordToFaction(state, lord, target) {
     ? takeSomeTroops(lord.troops, left)
     : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
+  // 换旗后四阶精锐也要换门面：张辽、张郃归魏后带亲卫，榜外降将不再保留旧国精锐。
+  normalizeLordTier4(lord);
 }
 
-/** 一个势力连城带人都没了，满七天：亡国 */
-function fallFaction(state, id) {
+/** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
+function fallFaction(state, id, opts) {
+  const silent = !!(opts && opts.silent);
   // 叛军只在统一背叛后才是真正的势力；开局没有城时不能被判亡国。
   if (id === 'rebel' && !state.arc) return false;
   const fs = state.factionState[id] || (state.factionState[id] = {});
@@ -6615,6 +6780,7 @@ function fallFaction(state, id) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
   state.events.push({
     type: 'faction-fall',
@@ -6623,6 +6789,7 @@ function fallFaction(state, id) {
     fate: fs.fate || 'killed',
     lines: lines,
   });
+  return true;
 }
 
 /** 每日：灭国倒计时（连着七天没城没人，才算亡） */
@@ -7382,7 +7549,7 @@ function deserialize(json) {
   if (!data.relations) return null; // 旧档不兼容
   if ((data.version || 0) < SAVE_VERSION) return null; // 旧地图/旧领主表不兼容
 
-  // 先清掉上一局可能残留的袁绍 0.33 系数；剧情档随后由 story.resume 按存档恢复。
+  // 先清掉上一局可能残留的袁绍旧昏君系数；剧情档随后由 story.resume 按存档恢复。
   story.resetCombat();
   resetFactionRulers();
   const state = {
@@ -7809,6 +7976,16 @@ function deserialize(json) {
     applyLordPowerRoster(state);
     state.flags.lordPowerV1 = true;
   }
+  // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
+  if (!state.flags.lordTier4V1) {
+    applyLordTier4Rule(state);
+    state.flags.lordTier4V1 = true;
+  }
+  // 旧档里魏国领主还没按国别系数收口：满编与现存兵力一起夹到新上限。
+  if (!state.flags.lordWeiCapV1) {
+    applyFactionRosterCap(state);
+    state.flags.lordWeiCapV1 = true;
+  }
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
@@ -7817,7 +7994,7 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
-  state.storyHooks = { stageGuandu: stageGuandu };
+  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
@@ -7972,8 +8149,11 @@ module.exports = {
   lordLevel,
   lordCapForLevel,
   lordTroopCap,
+  lordPowerCap,
   lordRecruitMul,
   lordPowerInfo,
+  lordKeepsTier4,
+  applyLordTier4Rule,
   applyLordPowerRoster,
   useHistory,
   adShiInfo,

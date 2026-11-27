@@ -87,12 +87,15 @@ group('n43 阶段表与两年防卡死');
     const c = story._private.phaseCfg('shu', 'shu_nanman');
     return a.next === 'shu_zhanglu' && b.next === 'shu_nanman' && c.stage === 3;
   })());
-  ok('魏：吕布 → 汉廷 → 西凉 → 河北', (function () {
+  ok('魏：吕布 → 汉廷 → 官渡 → 赤壁 → 西凉', (function () {
     const a = story._private.phaseCfg('wei', 'wei_lv');
     const b = story._private.phaseCfg('wei', 'wei_han');
-    const c = story._private.phaseCfg('wei', 'wei_xiliang');
-    const d = story._private.phaseCfg('wei', 'wei_north');
-    return a.next === 'wei_han' && b.next === 'wei_xiliang' && c.next === 'wei_north' && d.stage === 3;
+    const c = story._private.phaseCfg('wei', 'wei_north');
+    const d = story._private.phaseCfg('wei', 'wei_sworn');
+    const e = story._private.phaseCfg('wei', 'wei_xiliang');
+    return a.next === 'wei_han' && b.next === 'wei_north' && b.restDays === 30 &&
+      c.stage === 3 && c.next === 'wei_sworn' && d.waitChibi === true &&
+      d.next === 'wei_xiliang' && e.waitDays === 15 && e.next === 'wei_jingzhou';
   })());
   ok('吴：刘表 → 袁术 → 南越', (function () {
     const a = story._private.phaseCfg('wu', 'wu_jiangdong');
@@ -115,6 +118,24 @@ group('n43 阶段表与两年防卡死');
   ok('赤壁后曹操只剩一成', STORY.chibi.caoRemainPct === 0.1);
 }
 
+group('n51 魏国史实节奏与袁绍昏君');
+{
+  ok('袁绍官渡只降两成', STORY.yuanWeakPower === 0.8);
+  ok('袁绍第二阶段不取吕布，只北扫鲜卑', (function () {
+    const c = story._private.phaseCfg('yuan', 'yuan_expand');
+    return !!c && c.targets.length === 1 && c.targets[0] === 'xianbei';
+  })());
+  const st = game(2026112651);
+  st.story.guanduStarted = true;
+  st.story.phases.yuan = { id: 'yuan_guandu', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'end', completed: 3, success: false, timedOut: false };
+  const before = (st.lords.filter(function (l) { return l.faction === 'yuan'; })[0] || {}).morale;
+  tickDay(st, 100);
+  ok('官渡袁军对碰系数为 0.8', FACTION_COMBAT.yuan.power === 0.8 && st.story.yuanWeak === true);
+  ok('昏君不再把袁军士气钉死在 35', (st.lords.filter(function (l) { return l.faction === 'yuan'; })[0] || {}).morale === before);
+  story.resetCombat();
+}
+
 group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
 {
   const st = game(20261126031);
@@ -127,6 +148,8 @@ group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
   st.story.jingzhou = null;
   st.story.chibi = null;
   st.story.chibiDone = false;
+  st.story.phases.wei = { id: 'wei_sworn', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'wei_xiliang', completed: 3, success: false, timedOut: false };
   st.clock.day = 31;
   story.tick(st);
   const c = st.story.chibi;
@@ -157,7 +180,14 @@ group('n46 赤壁史诗：曹操南下、火攻、败逃与荆州分治');
     site(st, 'jiangling').ownerFaction === 'wu');
 
   tickDay(st, c.until + STORY.chibi.battleDays + STORY.chibi.aftermathRestDays);
-  ok('赤壁结束后开启荆州十轮', st.story.chibiDone && !!st.story.jingzhou);
+  ok('赤壁结束后魏国先入西凉阶段', st.story.chibiDone && st.story.phases.wei.id === 'wei_xiliang' &&
+    !st.story.jingzhou);
+  st.story.xiliangDone = true;
+  st.story.phases.wei.id = 'wei_jingzhou';
+  st.story.phases.wei.status = 'waiting';
+  st.story.phases.wei.nextId = 'end';
+  story.tick(st);
+  ok('西凉扫平后开启荆州十轮', !!st.story.jingzhou);
 }
 
 
@@ -219,6 +249,7 @@ group('n43 荆州十轮：霸主、联盟与休整');
   st.story.jingzhou = null;
   st.story.chibi = { done: true };
   st.story.chibiDone = true;
+  st.story.xiliangDone = true;
   st.clock.day = 31;
   story.tick(st);
   ok('三國第三阶段完成后一个月聚战荆州', !!(st.story.endgame && st.story.endgame.active) &&
@@ -256,6 +287,26 @@ group('n43 荆州十轮：霸主、联盟与休整');
   story.tick(st);
   ok('第十轮结算后不再停战', st.story.endgame.final === true && st.story.jingzhouDone === true);
 }
+
+group('n51 荆州停战清扫小国');
+{
+  const st = game(2026112652);
+  st.story.endgame = { active: true, phase: 'battle', cycle: 1, since: 1,
+    until: 999, strongest: null, allies: [], initialCities: {}, final: false };
+  st.story.jingzhou = { active: true, sites: STORY.jingzhouSites.slice(), cycle: 1,
+    since: 1, until: 999, winner: null, strong: null };
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'wei'; s.faction = 'wei'; s.playerOwned = false;
+  });
+  story.tick(st);
+  const aliveMinor = Object.keys(FACTIONS).filter(function (id) {
+    if (['wei', 'shu', 'wu', 'bandit', 'player', 'rebel'].indexOf(id) >= 0) return false;
+    return stateLib.factionAlive(st, id);
+  });
+  ok('停战后小国全部并入三国', aliveMinor.length === 0, aliveMinor.join(','));
+  ok('停战文书出现“三国定鼎”', st.events.some(function (e) { return e.title === '三国定鼎'; }));
+}
+
 
 group('n43 最终阶段两年未决强制统一');
 {

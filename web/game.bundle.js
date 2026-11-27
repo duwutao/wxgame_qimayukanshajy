@@ -1120,6 +1120,15 @@ const FACTION_COMBAT = {
 };
 
 /**
+ * 名将榜带兵上限的国别系数：只压“单体上限”，不改名次与招兵倍率。
+ * 曹操麾下领主最多（魏 22 人，榜上 12 人），若人人按满额扩编，
+ * 单国兵力会比蜀吴多出一大截；这里把魏国领主的满编统一下调 30%。
+ */
+const FACTION_ROSTER_MUL = {
+  wei: 0.7,
+};
+
+/**
  * 君位继任表：君主被斩后按这张表往下传。
  * 表里有些人开局不在名册上，轮到他们时再生成；表用完了，
  * 就从本势力还活着的领主里挑一位本地、官职大的。
@@ -1693,6 +1702,7 @@ module.exports = {
   STRATEGIC_SITES,
   FACTIONS,
   FACTION_COMBAT,
+  FACTION_ROSTER_MUL,
   FACTION_RULERS,
   SUCCESSION,
   LORDS,
@@ -9508,8 +9518,8 @@ const STORY = {
   emperorDelayDays: 3,
   emperorAttackers: ['wei', 'wu'],
   emperorTargets: ['yuanshu'],
-  // 官渡袁绍不再背负“昏君”惩罚：战力与士气均按正常值参战。
-  yuanWeakPower: 1,
+  // 官渡袁绍背负“昏君”惩罚：对碰系数 0.8（战力 -20%），不再像旧版那样只剩三成。
+  yuanWeakPower: 0.8,
 
   // 三国演义专属人事：削减吕布、刘表、刘璋的领主，给魏蜀吴袁各补新人。
   // 乱世三国不读取这些配置，仍用完整 LORDS 名单。
@@ -9695,42 +9705,19 @@ const STORY = {
         targets: ['han'],
         objective: { type: 'destroy', factions: ['han'] },
         noTimeout: true,
-        restDays: 3,
-        next: 'wei_xiliang',
+        restDays: 30,
+        next: 'wei_north',
         title: '汉廷覆灭',
-        casusBelli: '曹操要入关中彻底灭亡汉廷；安定若为汉军所占，便从安定杀入武威，不留汉室残旗。',
+        casusBelli: '曹操要入关中彻底灭亡汉廷；汉室残旗一倒，中原与关中方能连成一片，再回头与袁绍争河北。',
         warLines: [
           '曹操以“汉室失道”为名西进，兵锋直指长安、潼关、安定。',
-          '汉廷诸将据关而守；若安定、武威仍悬汉旗，曹军便一路向西，先把汉室残部连根拔起。',
-          '汉廷一灭，曹操收关中、凉州入口，下一刀便转向马腾、韩遂。',
+          '汉廷诸将据关而守；曹军先取潼关，再下长安，要把汉室残部连根拔起。',
+          '汉廷一灭，曹操收关中户籍与百官，转身便盯上了河北袁绍。',
         ],
         successLines: [
           '长安、潼关、安定相继易手；汉廷最后一座城头也降下汉旗，汉室覆灭。',
           '曹操收汉廷百官与关中户籍，天子诏书从此再无人可奉。',
-          '下一阶段：扫平马腾、韩遂，把关中与凉州连成一线。',
-        ],
-      },
-      {
-        id: 'wei_xiliang',
-        label: '扫平西凉',
-        short: '扫平西凉',
-        stage: 2,
-        targets: ['ma', 'hansui'],
-        objective: { type: 'destroy', factions: ['ma', 'hansui'] },
-        noTimeout: true,
-        restDays: 30,
-        next: 'wei_north',
-        title: '扫平西凉',
-        casusBelli: '曹操挟天子在手，以“西凉反复”为名兵发武威、金城，要灭马腾、韩遂。',
-        warLines: [
-          '曹操以天子诏书为名，兵发武威、金城，要灭马腾、韩遂。',
-          '关中诸将随军西进，凉州骑兵来去如风，曹军只能一城一城地推。',
-          '马腾、韩遂互不投降，却也不肯合兵；曹操正好分而破之。',
-        ],
-        successLines: [
-          '马腾、韩遂相继败亡，凉州诸郡归入曹操手中。',
-          '曹操在长安休整，关中、凉州连成一线，北方只剩河北袁绍未平。',
-          '一个月后，曹操将尽起中原兵马北上，与袁绍在官渡决战。',
+          '曹操下令休养生息一个月：西凉马腾、韩遂暂且不碰，先把中原粮草与兵甲备足，准备北上官渡。',
         ],
       },
       {
@@ -9740,17 +9727,16 @@ const STORY = {
         stage: 3,
         stageFlag: 'guandu',
         targets: ['yuan', 'gongsun', 'xianbei'],
-        waitDays: 30,
         objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
         noTimeout: true,
         restDays: 30,
         next: 'wei_sworn',
         title: '官渡定河北',
-        casusBelli: '西凉已平，曹操等了一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
+        casusBelli: '汉廷已灭，曹操休整一个月，尽起中原兵马北上，要在官渡与袁绍决战。',
         warLines: [
           '一个月后，曹操尽起中原兵马北上，袁绍也把河北大军压到官渡。',
           '袁绍兵多粮足，颜良、文丑诸将皆在军中；曹操兵精，却要以少击众。',
-          '官渡一战不再有昏君削弱，袁军按正常士气死战；曹操只能靠烧乌巢、断粮道来换胜机。',
+          '袁绍临阵改令、不听田丰沮授之谏，河北军对碰只剩八成；曹操要趁这口气烧乌巢、断粮道。',
         ],
         successLines: [
           '官渡火起，袁绍大军溃散，曹操一路追到邺城，袁氏覆灭。',
@@ -9760,20 +9746,45 @@ const STORY = {
       },
       {
         id: 'wei_sworn',
-        label: '会盟荆州',
-        short: '会盟荆州',
+        label: '坐等赤壁',
+        short: '坐等赤壁',
         stage: 4,
         targets: [],
         waitAllMajorsStage3: true,
+        waitChibi: true,
         noTimeout: true,
         restDays: 0,
-        next: 'wei_jingzhou',
-        title: '北方已定',
-        casusBelli: '曹操已统一北方，只等刘备、孙权也完成各自战略，三家再会猎荆州。',
+        next: 'wei_xiliang',
+        title: '大战之前',
+        casusBelli: '曹操已统一北方，只等刘备、孙权也走完各自战略，三家再会猎荆州。',
         waitLines: [
           '许都的粮车一辆接一辆往南运，邺城的降卒也被编入曹军。',
           '曹操按兵不动，只派曹仁、夏侯惇盯着襄阳、新野、江陵三镇。',
-          '天下大势，即将在三家会盟荆州时翻开新的一页。',
+          '他要在南下之前先歇足一口气；赤壁那把火，还没烧起来。',
+        ],
+      },
+      {
+        id: 'wei_xiliang',
+        label: '扫平西凉',
+        short: '扫平西凉',
+        stage: 4,
+        targets: ['ma', 'hansui'],
+        objective: { type: 'destroy', factions: ['ma', 'hansui'] },
+        noTimeout: true,
+        waitDays: 15,
+        restDays: 0,
+        next: 'wei_jingzhou',
+        title: '赤壁败后',
+        casusBelli: '赤壁一把火把曹军烧回江北；曹操休整半个月，回头先收拾一直没归附的马腾、韩遂，稳住关中与凉州。',
+        warLines: [
+          '赤壁败后半个月，曹操命关中诸将西进，兵发武威、金城，要灭马腾、韩遂。',
+          '凉州骑兵来去如风，曹军只能一城一城地推；马腾、韩遂互不救援，正好被分而破之。',
+          '曹操要在荆州再起兵之前，先把自己的后背彻底扫干净。',
+        ],
+        successLines: [
+          '马腾、韩遂相继败亡，凉州诸郡归入曹操手中。',
+          '曹操在长安休整，关中、凉州连成一线，西顾之忧尽去。',
+          '他把目光转回荆州：赤壁的账，迟早要算。',
         ],
       },
       {
@@ -9931,25 +9942,25 @@ const STORY = {
       },
       {
         id: 'yuan_expand',
-        label: '东取吕布，北扫鲜卑',
-        short: '吕布鲜卑',
+        label: '北扫鲜卑',
+        short: '北扫鲜卑',
         stage: 2,
-        targets: ['lv', 'xianbei'],
-        objective: { type: 'destroy', factions: ['lv', 'xianbei'] },
+        targets: ['xianbei'],
+        objective: { type: 'destroy', factions: ['xianbei'] },
         noTimeout: true,
         restDays: 30,
         next: 'yuan_wait_guandu',
         title: '河北极盛',
-        casusBelli: '袁绍灭公孙瓒后兵强马壮，要趁势东取吕布、北扫鲜卑，把河北四州连成一片。',
+        casusBelli: '袁绍灭公孙瓒后兵强马壮，要趁势北扫鲜卑，把河北四州连成一片；吕布既已向曹操低头，他不愿再分兵东顾。',
         warLines: [
-          '袁绍席罢，兵分两路：一路东出徐州取吕布，一路北出塞外扫鲜卑。',
+          '袁绍席罢，只命一路北出塞外扫鲜卑，东线按兵不动。',
           '河北新胜，粮草充足，袁绍自谓兵强马壮，不把曹操、孙权放在眼里。',
-          '他要赶在曹操统一北方之前，先拿下吕布与鲜卑。',
+          '他要赶在曹操统一北方之前，先拿下鲜卑、安定塞外，再回头与曹操争中原。',
         ],
         successLines: [
-          '吕布、鲜卑先后败亡，袁绍坐拥河北、幽燕、塞外，声势到了极点。',
+          '鲜卑败亡，袁绍坐拥河北、幽燕、塞外，声势到了极点。',
           '袁绍在邺城阅兵，甲士塞满漳水两岸，谋臣武将都不敢再劝他收手。',
-          '他按兵不动，只等曹操完成西凉战事，再南下与曹操争锋。',
+          '他按兵不动，只等曹操北上，再南下与曹操争锋。',
         ],
       },
       {
@@ -9988,7 +9999,7 @@ const STORY = {
           '曹操北上，袁绍也把河北大军全部压上，两军在官渡相遇。',
           '营寨连绵数十里，粮道只隔一条汴水。',
           '袁绍自恃兵多，不肯听田丰、沮授之谏，临阵改令，军心已散。',
-          '曹操兵精粮足，以逸待劳；这一战，袁绍一个兵已抵不上曹操三个兵。',
+          '曹操兵精粮足，以逸待劳；袁绍昏招迭出，这一战河北军的对碰只余八成。',
         ],
         successLines: [
           '官渡一战，袁绍大军溃散，曹操一路追到邺城。',
@@ -10053,7 +10064,7 @@ const STORY = {
     title: '赤壁之战',
     caoRestDays: 30,
     battleDays: 3,
-    aftermathRestDays: 60,
+    aftermathRestDays: 15,
     fireLossPct: 0.8,
     caoRemainPct: 0.1,
     minCaoLordsDead: 4,
@@ -10077,12 +10088,12 @@ const STORY = {
       '赤壁一役，曹军战船尽毁，伤亡与溃散者不计其数。',
       '一批没有上名将榜的低阶曹将战死江岸；曹操身边只剩诸夏侯、曹氏与少数名将。',
       '孙权、刘备分兵抢占荆州三镇：襄阳、新野归刘备，江陵归孙权。',
-      '孙刘两家约定休战两个月，分赃完毕后，再为荆州三镇重新开战。',
+      '孙刘两家约定休战半个月，分赃完毕后，再为荆州三镇重新开战。',
     ],
     finalTitle: '赤壁余烬',
     finalLines: [
       '赤壁火灭，曹操北归，孙刘分荆州。',
-      '两个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有十轮血战。',
+      '半个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有十轮血战。',
     ],
   },
 
@@ -10290,43 +10301,24 @@ function applyYuanCombat(state, weak) {
   if (!FACTION_COMBAT.yuan) FACTION_COMBAT.yuan = { power: 1 };
   const penaltyPower = Number(STORY.yuanWeakPower);
   const penaltyEnabled = isFinite(penaltyPower) && penaltyPower < 0.999;
-  if (!penaltyEnabled) {
-    FACTION_COMBAT.yuan.power = 1;
-    state.story.yuanWeak = false;
-    (state.lords || []).forEach(function (l) {
-      if (l.faction !== 'yuan' || !l.alive || l.dead) return;
-      if (l.storyMoraleCap) {
-        l.morale = Math.max(typeof l.morale === 'number' ? l.morale : 0, l.preStoryMorale || 70);
-        l.storyMoraleCap = null;
-      }
-    });
-    return;
-  }
-  const on = !!weak && factionAlive(state, 'yuan');
+  const on = penaltyEnabled && !!weak && factionAlive(state, 'yuan');
   FACTION_COMBAT.yuan.power = on ? penaltyPower : 1;
   state.story.yuanWeak = on;
-  if (on) {
-    state.lords.forEach(function (l) {
-      if (l.faction === 'yuan' && l.alive && !l.dead) {
-        if (l.storyMoraleCap === undefined || l.storyMoraleCap === null) {
-          l.preStoryMorale = typeof l.morale === 'number' ? l.morale : 60;
-        }
-        l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
-        l.storyMoraleCap = 35;
-      }
-    });
-  }
+  // n51：昏君只压对碰系数（0.8），不再把袁军士气钉死在 35。
+  // 旧档若还留着 storyMoraleCap=35，在这里恢复成战前士气，避免读档后仍然半残。
+  (state.lords || []).forEach(function (l) {
+    if (l.faction !== 'yuan' || !l.alive || l.dead) return;
+    if (l.storyMoraleCap) {
+      l.morale = Math.max(typeof l.morale === 'number' ? l.morale : 0, l.preStoryMorale || 70);
+      l.storyMoraleCap = null;
+    }
+  });
 }
 
 function yuanMoraleTick(state) {
+  // 0.8 版只压对碰，不再每日把袁军士气往下按。
   const st = state.story;
   if (!st || !st.yuanWeak || !factionAlive(state, 'yuan')) return;
-  const penaltyPower = Number(STORY.yuanWeakPower);
-  if (!isFinite(penaltyPower) || penaltyPower >= 0.999) return;
-  state.lords.forEach(function (l) {
-    if (l.faction !== 'yuan' || !l.alive || l.dead) return;
-    l.morale = Math.min(typeof l.morale === 'number' ? l.morale : 60, 35);
-  });
 }
 
 function resetCombat() {
@@ -10543,6 +10535,7 @@ function init(state, logger) {
     duel: { startDay: state.clock.day, ended: false, winner: null },
     chibi: null,
     chibiDone: false,
+    xiliangDone: false,
     jingzhou: null,
     jingzhouDone: false,
     jingzhouKillBonus: null,
@@ -10646,7 +10639,15 @@ function resume(state, logger) {
   if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
   if (!state.story.waitEvents) state.story.waitEvents = {};
   if (state.story.chibi === undefined) state.story.chibi = null;
-  if (state.story.chibiDone === undefined) state.story.chibiDone = false;
+  if (state.story.chibiDone === undefined) state.story.chibiDone = !!(state.story.chibi && state.story.chibi.done);
+  if (state.story.xiliangDone === undefined) {
+    // 旧档已经走完赤壁的，视为西凉已扫平；还在赤壁之前的，留给新阶段。
+    state.story.xiliangDone = !!state.story.chibiDone;
+  }
+  const weiPhase = state.story.phases && state.story.phases.wei;
+  if (weiPhase && weiPhase.id === 'wei_sworn' && weiPhase.nextId === 'wei_jingzhou') {
+    weiPhase.nextId = 'wei_xiliang';
+  }
   if (state.story.jingzhouKillBonus === undefined) state.story.jingzhouKillBonus = null;
   if (!state.story.blockerTargets) state.story.blockerTargets = {};
   if (!state.story.blockerWars) state.story.blockerWars = {};
@@ -10892,8 +10893,16 @@ function canBeginPhase(state, cfg) {
   }
   if (cfg.waitGuandu && !st.guanduStarted) return false;
   if (cfg.waitJingzhou && !(st.jingzhou && st.jingzhou.active)) return false;
+  if (cfg.waitChibi) {
+    // 赤壁必须先打完；三家若有一家先亡，赤壁不会发生，不再无限等下去。
+    if (!st.chibiDone) {
+      const alive = (STORY.kingdoms || []).filter(function (f) { return factionAlive(state, f); });
+      if (alive.length >= (STORY.kingdoms || []).length) return false;
+    }
+  }
   if (cfg.waitAllMajorsStage3) {
-    if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
+    const alive = (STORY.kingdoms || []).filter(function (f) { return factionAlive(state, f); });
+    if (!alive.length || !alive.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
   }
   if (cfg.waitBleed) {
     if (!state.story.duel.ended) {
@@ -11063,6 +11072,7 @@ function finishPhase(state, faction, ok) {
     p.timedOut = true;
     p.completed += 1;
     if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
+    if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
     p.nextId = cfg.timeoutNext || cfg.next || 'end';
     p.restUntil = state.clock.day + (cfg.timeoutRestDays || 0);
     if (cfg.id === 'yuan_duel' || cfg.id === 'gongsun_duel') {
@@ -11091,6 +11101,7 @@ function finishPhase(state, faction, ok) {
   p.timedOut = false;
   p.completed += 1;
   if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
+  if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
   p.nextId = cfg.successNext || cfg.next || 'end';
   p.restUntil = state.clock.day + (cfg.restDays || STORY.restDays);
   st.targets[faction] = [];
@@ -11217,6 +11228,11 @@ function tickPhase(state, faction) {
       p.nextId = cfg.next || 'end';
       p.restUntil = state.clock.day;
       advancePhase(state, faction);
+      return;
+    }
+    // 赤壁没打成（三家缺一）时，曹操直接从“坐等赤壁”转去扫西凉，不能卡在空阶段。
+    if (cfg.waitChibi && faction === 'wei' && !st.chibiDone) {
+      beginWeiXiliang(state);
       return;
     }
     startPhase(state, faction, {});
@@ -11485,7 +11501,7 @@ function retreatCaoLords(state) {
   });
 }
 
-/** 曹军退到一成，低阶曹将战死；孙刘分荆州，进入两个月休战。 */
+/** 曹军退到一成，低阶曹将战死；孙刘分荆州，进入半个月休战。 */
 function resolveChibiBattle(state) {
   const st = state.story;
   const c = st && st.chibi;
@@ -11533,12 +11549,12 @@ function resolveChibiBattle(state) {
   if (killed.length) lines.push('战死曹将：' + killed.join('、') + '。');
   else lines.push('这一战没有低阶曹将战死，曹军残部退回北方。');
   if (c.playerParticipated) lines.push('你随曹军参加赤壁，乱军中杀出重围，没有被写死。');
-  lines.push('曹操残部北撤，孙刘分荆州；两个月内不再开战。');
+  lines.push('曹操残部北撤，孙刘分荆州；半个月内不再开战。');
   pushStoryEvent(state, (STORY.chibi && STORY.chibi.aftermathTitle) || '曹操败走', lines, {
     tag: '史诗', art: 'war', auto: 10,
   });
   logFn(state, '赤壁决战：曹军余 ' + c.caoAfterBattle + ' 人，曹操北逃；低阶曹将战死 ' +
-    killed.length + ' 人；孙刘分荆州，休战两个月。', 'war');
+    killed.length + ' 人；孙刘分荆州，休战半个月。', 'war');
   refreshHeadline(state);
   return true;
 }
@@ -11577,20 +11593,52 @@ function tickChibi(state) {
     pushStoryEvent(state, (STORY.chibi && STORY.chibi.finalTitle) || '赤壁余烬',
       (STORY.chibi && STORY.chibi.finalLines) || [
         '赤壁火灭，曹操北归，孙刘分荆州。',
-        '两个月后，荆州三镇再次成为三家必争之地。',
+        '半个月后，荆州三镇再次成为三家必争之地。',
       ], { tag: '史诗', art: 'peace', auto: 9 });
-    logFn(state, '赤壁余烬：孙刘分荆州，休战两个月后开启荆州十轮争霸。', 'war');
+    logFn(state, '赤壁余烬：孙刘分荆州，休战半个月后开启荆州十轮争霸。', 'war');
+    beginWeiXiliang(state);
     refreshHeadline(state);
     return true;
   }
   return false;
 }
 
+/** 赤壁之后：曹操回头扫西凉；若马腾韩遂已亡，直接记完成，不空等十五天。 */
+function beginWeiXiliang(state) {
+  const st = state.story;
+  if (!st || st.endgame || st.jingzhou || st.xiliangDone) return false;
+  if (!factionAlive(state, 'wei')) return false;
+  const targets = ['ma', 'hansui'].filter(function (f) { return factionAlive(state, f); });
+  const p = st.phases.wei;
+  if (!targets.length) {
+    st.xiliangDone = true;
+    // 西凉已经没人可打：直接把魏国阶段推到荆州，别让标题停在“坐等赤壁”。
+    if (p && p.id === 'wei_sworn') {
+      st.phases.wei = freshPhase('wei_jingzhou');
+      st.phases.wei.completed = p.completed || 0;
+      st.targets.wei = [];
+    }
+    return false;
+  }
+  if (!p || p.id === 'wei_xiliang' || p.id === 'wei_jingzhou') return false;
+  const completed = p.completed || 0;
+  st.phases.wei = freshPhase('wei_xiliang');
+  st.phases.wei.completed = completed;
+  st.targets.wei = [];
+  startPhase(state, 'wei', {});
+  return true;
+}
+
 function maybeJingzhou(state) {
   const st = state.story;
   if (!st || st.endgame || st.jingzhouDone || st.jingzhou) return false;
   // 赤壁史诗必须先走完；旧档已经进入荆州循环的，不会被新层覆盖。
-  if (!st.chibi || !st.chibi.done) return false;
+  if (!st.chibiDone) return false;
+  // 曹操赤壁败后要先休整半个月、扫平马腾韩遂，西凉未定就不进荆州。
+  if (factionAlive(state, 'wei') && !st.xiliangDone) {
+    beginWeiXiliang(state);
+    if (!st.xiliangDone) return false;
+  }
   if (!STORY.kingdoms || !STORY.kingdoms.every(function (f) { return factionAlive(state, f); })) return false;
   if (!STORY.kingdoms.every(function (f) { return st.stage3Done && st.stage3Done[f]; })) return false;
   return startJingzhou(state);
@@ -11809,6 +11857,73 @@ function beginFinalJingzhou(state) {
   refreshHeadline(state);
 }
 
+/** 小国最后一块城多挨着谁，就并给谁；没有相邻大国时归当前最强的一家。 */
+function nearestKingdomFor(state, faction) {
+  const mine = citiesOf(state, faction).map(function (s) { return s.id; });
+  let best = null;
+  let bestScore = 0;
+  STORY.kingdoms.forEach(function (k) {
+    if (!factionAlive(state, k)) return;
+    const theirs = citiesOf(state, k);
+    let score = 0;
+    mine.forEach(function (a) {
+      theirs.forEach(function (b) {
+        if (siteAdjacent(a, b.id)) score += 1;
+      });
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      best = k;
+    }
+  });
+  return best || strongestKingdom(state);
+}
+
+/**
+ * 三国乱战的停战期：还挂着旧旗的小国由邻近的魏蜀吴吞并，
+ * 君主退隐、残部并入胜方，避免十轮荆州打到一半还有第三方在边上捡城。
+ */
+function sweepMinorFactions(state) {
+  const st = state.story;
+  if (!st || !st.endgame) return [];
+  const minor = Object.keys(FACTIONS).filter(function (id) {
+    if (id === 'bandit' || id === 'player' || id === 'rebel') return false;
+    if (STORY.kingdoms.indexOf(id) >= 0) return false;
+    return factionAlive(state, id);
+  });
+  const swept = [];
+  minor.forEach(function (id) {
+    const to = nearestKingdomFor(state, id);
+    if (!to) return;
+    const sites = citiesOf(state, id);
+    sites.forEach(function (site) { setStorySiteOwner(state, site, to); });
+    Object.keys(FACTIONS).forEach(function (other) {
+      if (other !== id && other !== 'bandit') war.makePeace(state, id, other, true);
+    });
+    war.abortCampaign(state, id);
+    if (state.storyHooks && state.storyHooks.fallFaction) {
+      state.storyHooks.fallFaction(state, id, { silent: true });
+    } else {
+      const fs = state.factionState[id] || (state.factionState[id] = {});
+      fs.dead = true;
+      fs.deadDay = state.clock.day;
+    }
+    swept.push({ id: id, name: factionName(id), to: to, sites: sites.length });
+  });
+  if (!swept.length) return swept;
+  const detail = swept.slice(0, 4).map(function (x) {
+    return x.name + '并入' + factionName(x.to);
+  }).join('；');
+  pushStoryEvent(state, '三国定鼎', [
+    '荆州休战，魏、蜀、吴三家回头把地图上还挂着旧旗的小国一并收了。',
+    detail + (swept.length > 4 ? '；其余小国也望风归降。' : '。'),
+    '从此天下只剩三家，荆州三镇便是最后的战场。',
+  ], { tag: '大势', art: 'peace', auto: 9 });
+  logFn(state, '荆州停战：' + detail + '，天下只剩魏蜀吴三家。', 'throne');
+  refreshHeadline(state);
+  return swept;
+}
+
 function endJingzhouRound(state, winner) {
   const st = state.story;
   const eg = st.endgame;
@@ -11831,6 +11946,8 @@ function endJingzhouRound(state, winner) {
     beginFinalJingzhou(state);
     return;
   }
+  // 停战期先把还活着的小国收掉，再发本轮荆州文书。
+  sweepMinorFactions(state);
   const lines = holder ? [
     factionName(holder) + '占尽襄阳、新野、江陵，成为新一轮霸主。',
     '全国募兵效率 +20%；另外两国立刻结盟，停战一个月。',
@@ -11954,21 +12071,21 @@ function recordCapture(state, site, oldFaction, byFaction) {
   const fsBy = state.factionState && state.factionState[byFaction];
   if (fsBy && citiesOf(state, byFaction).length > 0) fsBy.lastConqueror = null;
 
-  // 官渡之后：只有配置仍压低袁军时，才触发“大军溃散”的士气文书。
+  // 官渡之后：只有配置仍压低袁军时，才触发“大军溃散”的战况文书。
   const yuanPenaltyPower = Number(STORY.yuanWeakPower);
   if (st.yuanWeak && isFinite(yuanPenaltyPower) && yuanPenaltyPower < 0.999 &&
       factionAlive(state, 'yuan') && oldFaction === 'yuan' &&
       byFaction === 'wei' && !st.yuanBattleLost) {
     st.yuanBattleLost = true;
     state.lords.forEach(function (l) {
-      if (l.faction === 'yuan' && l.alive && !l.dead) l.morale = Math.min(l.morale || 35, 20);
+      if (l.faction === 'yuan' && l.alive && !l.dead) l.morale = Math.min(l.morale || 70, 70);
     });
     pushStoryEvent(state, '官渡败讯', [
       '官渡前线溃散，袁绍的河北大军丢下粮车与旌旗，退回黄河北岸。',
       '袁绍不听田丰、沮授之言，斩将换令，军中人人自危。',
-      '从此袁军士气低迷，士兵力气只剩三成；这支部队要一直撑到曹操把袁氏灭亡。',
+      '从此袁军士气低迷，对碰只剩八成；这支部队要一直撑到曹操把袁氏灭亡。',
     ], { tag: '大势', art: 'war', auto: 8 });
-    logFn(state, '官渡败讯：袁绍军心涣散，战力保持 0.33，直到袁氏灭亡。', 'war');
+    logFn(state, '官渡败讯：袁绍军心涣散，对碰系数保持 0.8，直到袁氏灭亡。', 'war');
     refreshHeadline(state);
   }
 }
@@ -11979,17 +12096,20 @@ function refreshHeadline(state) {
   const st = state.story;
   if (!st) return;
   const parts = [];
-  STORY.majors.forEach(function (f) {
-    const p = st.phases[f];
-    if (!p) return;
-    if (p.status === 'done') return;
-    const cfg = currentCfg(state, f);
-    if (p.status === 'rest') {
-      parts.push(FACTIONS[f].name + '：休整');
-    } else if (cfg) {
-      parts.push(FACTIONS[f].name + '：' + (cfg.short || cfg.label));
-    }
-  });
+  // 荆州开打后，三国主线阶段已全部让位；不再显示“扫平西凉/坐等赤壁”这类旧标签。
+  if (!(st.jingzhou && st.jingzhou.active)) {
+    STORY.majors.forEach(function (f) {
+      const p = st.phases[f];
+      if (!p) return;
+      if (p.status === 'done') return;
+      const cfg = currentCfg(state, f);
+      if (p.status === 'rest') {
+        parts.push(FACTIONS[f].name + '：休整');
+      } else if (cfg) {
+        parts.push(FACTIONS[f].name + '：' + (cfg.short || cfg.label));
+      }
+    });
+  }
   if (!st.duel.ended && factionAlive(state, 'yuan') && factionAlive(state, 'gongsun')) {
     parts.push('袁绍·公孙瓒：不死不休');
   }
@@ -11998,7 +12118,7 @@ function refreshHeadline(state) {
   }
   const tripleAlive = (STORY.tripleWar || []).filter(function (f) { return factionAlive(state, f); });
   if (tripleAlive.length >= 2) parts.push('凉州：马腾·韩遂·汉廷');
-  if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·三成战力');
+  if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
   if (st.chibi && !st.chibi.done) {
     parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
   }
@@ -12028,6 +12148,7 @@ function tick(state) {
     return;
   }
   maybeChibi(state);
+  if (st.chibiDone) beginWeiXiliang(state);
   enforceStrategicBlockers(state);
   maybeJingzhou(state);
   if (st.endgame && st.endgame.active) {
@@ -12049,7 +12170,7 @@ module.exports = {
   _private: {
     phaseDone, currentCfg, phaseCfg, phaseList, citiesOf, powerOf, eventLines, displayLabel,
     findBlockingFactions, startChibiPrelude, beginChibiBattle, resolveChibiBattle,
-    startJingzhou, beginFinalJingzhou,
+    startJingzhou, beginFinalJingzhou, sweepMinorFactions, beginWeiXiliang,
   },
 };
 
@@ -12254,7 +12375,7 @@ const { Battle } = __require(16);
 const {
   FACTIONS, FACTION_RULERS, SUCCESSION, RENOWN_TIERS, CAMPAIGN, ENDINGS, EQUIPMENT,
   SITE_ROWS, ROADS, HISTORY_MARKS, REGIONS, RECRUIT_SETS,
-  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS,
+  CAPITAL_IDS, STRATEGIC_SITES, FREE_CITY_IDS, FACTION_ROSTER_MUL,
 } = __require(5);
 const { TROOPS } = __require(10);
 const {
@@ -12626,7 +12747,7 @@ function createGame(opts) {
     },
   };
 
-  state.storyHooks = { stageGuandu: stageGuandu };
+  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   syncPlayerFaction(null);
   spawnLords(state);
   autoAssignFiefs(state);
@@ -12997,7 +13118,13 @@ function spawnLords(state) {
     defs = defs.concat(STORY.lordAdds || []);
   }
   state.lords = defs.map(function (def) { return lordFromDef(state, def); });
+  applyLordTier4Rule(state);
   applyLordPowerRoster(state);
+  applyFactionRosterCap(state);
+  if (state.flags) {
+    state.flags.lordTier4V1 = true;
+    state.flags.lordWeiCapV1 = true;
+  }
   // 生成后再把真正叠格的领主挪开；不改变原开局落位顺序和随机数消耗。
   unstackLords(state);
 }
@@ -17955,10 +18082,26 @@ function lordPowerInfo(lord) {
   return LORD_POWER_BY_ID[lord && lord.id] || null;
 }
 
-function lordTroopCap(lord) {
+/** 名将榜上限 × 国别系数；魏国名将多，单体上限下调，避免堆出双倍兵力。 */
+function lordBaseCap(lord) {
   if (!lord) return 30;
   const power = lordPowerInfo(lord);
-  if (power) return power.cap;
+  const base = power ? power.cap : lordCapForLevel(lordLevel(lord));
+  const mul = Number(FACTION_ROSTER_MUL[lord.faction]) || 1;
+  return Math.max(40, Math.round(base * mul));
+}
+
+function lordPowerCap(lord) {
+  const power = lordPowerInfo(lord);
+  if (!power) return 0;
+  return lordBaseCap(lord);
+}
+
+function lordTroopCap(lord) {
+  if (!lord) return 30;
+  if (lordPowerInfo(lord)) return lordPowerCap(lord);
+  // 有国别系数的势力（目前是魏）连国君与榜外领主也按系数收口；其余势力仍保底原编制。
+  if (FACTION_ROSTER_MUL[lord.faction]) return lordBaseCap(lord);
   const defCount = army.troopCount(lord.defTroops || lord.troops || {});
   return Math.max(defCount, lordCapForLevel(lordLevel(lord)));
 }
@@ -17970,12 +18113,134 @@ function lordRecruitMul(lord) {
   return power ? Math.max(base, power.recruitMul) : base;
 }
 
+/* ------------------------------------------------------------ 四阶精锐 */
+
+/** 各势力四阶兵的“门面兵种”：名将榜领主与君主至少带一队。 */
+const LORD_T4_BY_FACTION = {
+  wei: 'guard', shu: 'baier', wu: 'danyang', yuan: 'heavy',
+  lv: 'tiefu', ma: 'tiefu', xianbei: 'tengri',
+  zhang: 'guard', zhanglu: 'guard', nanman: 'guard', shanyue: 'danyang',
+  yuanshu: 'guard', biao: 'guard', gongsun: 'guard', hansui: 'guard', han: 'guard',
+};
+const LORD_T4_FALLBACK = 'guard';
+const LORD_T4_RATIO = 0.05;
+const LORD_T4_MIN = 4;
+const LORD_T4_MAX = 8;
+
+function lordTier4Unit(faction) {
+  return LORD_T4_BY_FACTION[faction] || LORD_T4_FALLBACK;
+}
+
+function rosterHasTier4(roster) {
+  return Object.keys(roster || {}).some(function (id) {
+    return TROOPS[id] && Number(TROOPS[id].tier) === 4;
+  });
+}
+
+/** 名将榜前 50 或国君：只有这批人配带四阶精锐。 */
+function lordKeepsTier4(lord) {
+  if (!lord) return false;
+  if (LORD_POWER_BY_ID[lord.id]) return true;
+  if (lord.rank === 'king') return true;
+  const f = FACTIONS[lord.faction];
+  return !!(f && f.lord && f.lord === lord.name);
+}
+
+function stripTier4(roster) {
+  if (!roster) return false;
+  let changed = false;
+  Object.keys(roster).forEach(function (id) {
+    if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
+      delete roster[id];
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+/** 给没有四阶兵的资格领主补一小队：从人数最多的一阶兵里换，不凭空加总兵力。 */
+function injectTier4(roster, unit) {
+  if (!roster || rosterHasTier4(roster)) return false;
+  const total = army.troopCount(roster);
+  if (total <= 0) return false;
+  const add = Math.max(LORD_T4_MIN, Math.min(LORD_T4_MAX, Math.round(total * LORD_T4_RATIO)));
+  let donor = null;
+  Object.keys(roster).forEach(function (id) {
+    if (TROOPS[id] && Number(TROOPS[id].tier) >= 4) return;
+    if (!donor || (roster[id] || 0) > (roster[donor] || 0)) donor = id;
+  });
+  let put = add;
+  if (donor) {
+    const take = Math.min(put, Math.max(0, (roster[donor] || 0) - 1));
+    roster[donor] -= take;
+    if (roster[donor] <= 0) delete roster[donor];
+    put = take;
+  }
+  if (put > 0) roster[unit] = (roster[unit] || 0) + put;
+  return put > 0;
+}
+
+/**
+ * 单个领主的四阶兵归一：够资格的保留数量、换成当前势力的门面兵；
+ * 不够资格的全部剥掉。换旗（张辽归魏、张郃降曹）时也要走一遍。
+ */
+function normalizeLordTier4(lord) {
+  if (!lord || !lord.faction) return;
+  const unit = lordTier4Unit(lord.faction);
+  const keep = lordKeepsTier4(lord);
+  [lord.defTroops, lord.troops].forEach(function (roster) {
+    if (!roster) return;
+    if (!keep) { stripTier4(roster); return; }
+    let count = 0;
+    Object.keys(roster).forEach(function (id) {
+      if (TROOPS[id] && Number(TROOPS[id].tier) === 4) {
+        count += roster[id] || 0;
+        delete roster[id];
+      }
+    });
+    if (count > 0) roster[unit] = (roster[unit] || 0) + count;
+    else injectTier4(roster, unit);
+  });
+}
+
+/**
+ * 四阶兵资格：名将榜前 50、君主保留；榜外且不是国君的领主一律剥掉四阶兵。
+ * 旧档里既成事实的四阶兵也会被清掉，保证“精兵只跟名将”的规则一致。
+ */
+function applyLordTier4Rule(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.dead) return;
+    normalizeLordTier4(lord);
+  });
+}
+
 /** 把领主的满编编制按名将榜上限放大；初始 troops 不动，后续靠招兵补满。 */
 function lordRosterToCap(base, cap) {
   const src = base && Object.keys(base).length ? base : { militia: 1 };
   const total = army.troopCount(src);
   const target = Math.max(1, Math.round(Number(cap) || 0));
   if (target <= total) return deepCopy(src);
+  const ids = Object.keys(src);
+  const out = {};
+  let assigned = 0;
+  ids.forEach(function (id, i) {
+    if (i === ids.length - 1) {
+      out[id] = Math.max(1, target - assigned);
+    } else {
+      out[id] = Math.max(1, Math.round(target * (src[id] || 0) / total));
+    }
+    assigned += out[id];
+  });
+  return out;
+}
+
+/** 按比例把编制整体缩放（可缩可扩），用于魏国名将上限下调后的旧档收口。 */
+function lordRosterScale(base, cap) {
+  const src = base && Object.keys(base).length ? base : { militia: 1 };
+  const total = army.troopCount(src);
+  const target = Math.max(1, Math.round(Number(cap) || 0));
+  if (!total || Math.abs(target - total) <= 1) return deepCopy(src);
   const ids = Object.keys(src);
   const out = {};
   let assigned = 0;
@@ -17999,8 +18264,26 @@ function applyLordPowerRoster(state) {
     lord.powerRank = power.rank;
     lord.powerScore = power.score;
     lord.recruitMul = lordRecruitMul(lord);
+    const cap = lordPowerCap(lord);
     const defCount = army.troopCount(lord.defTroops || {});
-    if (defCount < power.cap) lord.defTroops = lordRosterToCap(lord.defTroops, power.cap);
+    if (defCount < cap) lord.defTroops = lordRosterToCap(lord.defTroops, cap);
+  });
+}
+
+/** 有国别系数的势力把满编与现存兵力都夹到新上限；只缩不扩。 */
+function applyFactionRosterCap(state) {
+  if (!state || !Array.isArray(state.lords)) return;
+  state.lords.forEach(function (lord) {
+    if (!lord || !FACTION_ROSTER_MUL[lord.faction]) return;
+    const cap = lordTroopCap(lord);
+    [lord.defTroops, lord.troops].forEach(function (roster, i) {
+      if (!roster) return;
+      if (army.troopCount(roster) > cap) {
+        const scaled = lordRosterScale(roster, cap);
+        if (i === 0) lord.defTroops = scaled;
+        else lord.troops = scaled;
+      }
+    });
   });
 }
 
@@ -18743,10 +19026,13 @@ function moveLordToFaction(state, lord, target) {
     ? takeSomeTroops(lord.troops, left)
     : takeSomeTroops(lord.defTroops, Math.max(6, Math.round(army.troopCount(lord.defTroops) * 0.4)));
   lord.respawnDay = 0;
+  // 换旗后四阶精锐也要换门面：张辽、张郃归魏后带亲卫，榜外降将不再保留旧国精锐。
+  normalizeLordTier4(lord);
 }
 
-/** 一个势力连城带人都没了，满七天：亡国 */
-function fallFaction(state, id) {
+/** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
+function fallFaction(state, id, opts) {
+  const silent = !!(opts && opts.silent);
   // 叛军只在统一背叛后才是真正的势力；开局没有城时不能被判亡国。
   if (id === 'rebel' && !state.arc) return false;
   const fs = state.factionState[id] || (state.factionState[id] = {});
@@ -18837,6 +19123,7 @@ function fallFaction(state, id) {
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
   });
+  if (silent) return true;
   pushLog(state, '【' + (FACTIONS[id].full || id) + '】亡了。');
   state.events.push({
     type: 'faction-fall',
@@ -18845,6 +19132,7 @@ function fallFaction(state, id) {
     fate: fs.fate || 'killed',
     lines: lines,
   });
+  return true;
 }
 
 /** 每日：灭国倒计时（连着七天没城没人，才算亡） */
@@ -19604,7 +19892,7 @@ function deserialize(json) {
   if (!data.relations) return null; // 旧档不兼容
   if ((data.version || 0) < SAVE_VERSION) return null; // 旧地图/旧领主表不兼容
 
-  // 先清掉上一局可能残留的袁绍 0.33 系数；剧情档随后由 story.resume 按存档恢复。
+  // 先清掉上一局可能残留的袁绍旧昏君系数；剧情档随后由 story.resume 按存档恢复。
   story.resetCombat();
   resetFactionRulers();
   const state = {
@@ -20031,6 +20319,16 @@ function deserialize(json) {
     applyLordPowerRoster(state);
     state.flags.lordPowerV1 = true;
   }
+  // n51 四阶精锐规则：旧档只跑一次；榜外领主的四阶兵当场清掉，名将与国君补齐门面兵。
+  if (!state.flags.lordTier4V1) {
+    applyLordTier4Rule(state);
+    state.flags.lordTier4V1 = true;
+  }
+  // 旧档里魏国领主还没按国别系数收口：满编与现存兵力一起夹到新上限。
+  if (!state.flags.lordWeiCapV1) {
+    applyFactionRosterCap(state);
+    state.flags.lordWeiCapV1 = true;
+  }
   ensureWorldFeatures(state.world);
   state.world.factionGrid = null;
   // 旧的集结/扎营军令先清掉，避免老档一进去就有领主在城边永久站住。
@@ -20039,7 +20337,7 @@ function deserialize(json) {
   unstackLords(state);
   autoAssignFiefs(state);
   reconcileFactionRulers(state);
-  state.storyHooks = { stageGuandu: stageGuandu };
+  state.storyHooks = { stageGuandu: stageGuandu, fallFaction: fallFaction };
   war.init(state);
   war.bindLogger(pushLog);
   war.bindCaptureHook(story.recordCapture);
@@ -20194,8 +20492,11 @@ module.exports = {
   lordLevel,
   lordCapForLevel,
   lordTroopCap,
+  lordPowerCap,
   lordRecruitMul,
   lordPowerInfo,
+  lordKeepsTier4,
+  applyLordTier4Rule,
   applyLordPowerRoster,
   useHistory,
   adShiInfo,
