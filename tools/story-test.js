@@ -95,8 +95,9 @@ group('n43 阶段表与两年防卡死');
     const d = story._private.phaseCfg('wei', 'wei_sworn');
     const e = story._private.phaseCfg('wei', 'wei_xiliang');
     return a.next === 'wei_han' && b.next === 'wei_north' && b.restDays === 30 &&
-      c.stage === 3 && c.next === 'wei_sworn' && d.waitChibi === true &&
-      d.next === 'wei_xiliang' && e.waitDays === 0 && e.next === 'wei_jingzhou';
+      c.stage === 3 && c.next === 'wei_jingzhou' &&
+      d.next === 'wei_jingzhou' && !d.waitChibi && !d.waitAllMajorsStage3 &&
+      e.waitDays === 0 && e.next === 'wei_jingzhou';
   })());
   ok('吴：刘表 → 袁术 → 南越', (function () {
     const a = story._private.phaseCfg('wu', 'wu_jiangdong');
@@ -115,8 +116,9 @@ group('n43 阶段表与两年防卡死');
   ok('荆州三镇配置完整', STORY.jingzhouSites.join(',') === 'xiangyang,xinye,jiangling');
   ok('占尽三镇全国募兵 +50%', STORY.jingzhouStrongRecruitMul === 1.5);
   ok('不再保留第十轮霸主额外杀敌', STORY.jingzhouKillMul === undefined);
-  ok('赤壁火攻折损八成', STORY.chibi.fireLossPct === 0.8);
-  ok('赤壁后曹操只剩一成', STORY.chibi.caoRemainPct === 0.1);
+  ok('赤壁火攻改为逐日慢扣', STORY.chibi.fireLossPct > 0 && STORY.chibi.fireLossPct <= 0.1 &&
+    STORY.chibi.fireLossAbsCap > 0);
+  ok('赤壁不再一刀裁到一成', STORY.chibi.caoRemainPct === 0);
 }
 
 group('n51 魏国史实节奏与袁绍昏君');
@@ -149,15 +151,31 @@ group('n55 官渡只报一次，曹袁不死不休');
     return (st.events || []).filter(function (e) { return e.title === '官渡之战'; }).length;
   };
   const before = guanduEvents();
+  const yuanPosBefore = st.lords.filter(function (l) { return l.faction === 'yuan'; })
+    .map(function (l) { return l.id + ':' + l.x + ',' + l.y + ',' + l.inCity; }).join('|');
+  const caoPosBefore = st.lords.filter(function (l) { return l.faction === 'wei'; })
+    .map(function (l) { return l.id + ':' + l.x + ',' + l.y; }).join('|');
   story.startPhase(st, 'wei', { skipWait: true });
   const first = guanduEvents();
   story.startPhase(st, 'yuan', { skipWait: true });
   const second = guanduEvents();
   ok('官渡先由魏国发一次榜文', first === before + 1);
   ok('袁绍进入同一阶段不再弹第二次官渡', second === first);
-  ok('官渡合战只开一场', (st.fieldBattles || []).filter(function (bf) {
+  ok('官渡开局不再强拉全员合战', (st.fieldBattles || []).filter(function (bf) {
     return bf.context && bf.context.cause === 'guandu';
-  }).length === 1);
+  }).length === 0);
+  const yuanPosAfter = st.lords.filter(function (l) { return l.faction === 'yuan'; })
+    .map(function (l) { return l.id + ':' + l.x + ',' + l.y + ',' + l.inCity; }).join('|');
+  const caoPosAfter = st.lords.filter(function (l) { return l.faction === 'wei'; })
+    .map(function (l) { return l.id + ':' + l.x + ',' + l.y; }).join('|');
+  ok('官渡袁绍开局不调一兵一卒', yuanPosBefore === yuanPosAfter);
+  // n74：曹军不再整国瞬移到官渡，只接军令按正常行军开拔。
+  ok('官渡曹操军接令开拔而不瞬移', caoPosBefore === caoPosAfter &&
+    st.lords.some(function (l) {
+      return l.faction === 'wei' && l.order &&
+        (l.order.campaign || ['baima', 'guandu', 'ye'].indexOf(l.order.siteId) >= 0);
+    }));
+  ok('官渡袁绍不主动发起全国战役', !warLib.planCampaign(st, 'yuan', st.clock.day));
   const sumTroops = function (f) {
     return st.lords.filter(function (l) { return l.faction === f && l.alive && !l.dead; })
       .reduce(function (n, l) {
@@ -196,9 +214,8 @@ group('n70 20倍速下官渡、赤壁打满七日');
     return b.context && b.context.cause === 'guandu';
   })[0];
   ok('20倍速档已开启', st.timeScale === 20);
-  ok('官渡合战十二时辰一轮', !!bf && bf.stepEveryH === 12);
-  ok('官渡合战七日封顶', !!bf && bf.finishByH - bf.startedH === 7 * 24);
-  ok('官渡后续零星援军不再拖长战局', !!bf && bf.noReinforce === true);
+  ok('官渡开局不靠一场全员合战', !bf && !!st.story.guanduBattle);
+  ok('官渡战报仍按七日计', st.story.guanduBattle.days === 7);
   const startDay = st.clock.day;
   st.clock.day = startDay + 2;
   story.refreshHeadline(st);
@@ -209,15 +226,14 @@ group('n70 20倍速下官渡、赤壁打满七日');
   while (st.clock.day < startDay + 6 && guard++ < 50000) {
     stateLib.update(st, 1 / 60, { ignoreEvents: true, idleTime: true });
   }
-  ok('20倍速第六日官渡仍在打', (st.fieldBattles || []).some(function (b) {
-    return b.context && b.context.cause === 'guandu';
-  }), 'day=' + st.clock.day);
+  ok('20倍速第六日曹军仍在向袁绍腹地推进', !!st.warCampaigns.wei &&
+    !!st.world.sites.filter(function (s) { return s.id === st.warCampaigns.wei.targetId; })[0],
+    'day=' + st.clock.day);
   while (st.clock.day < startDay + 9 && guard++ < 80000) {
     stateLib.update(st, 1 / 60, { ignoreEvents: true, idleTime: true });
   }
-  ok('20倍速九日内官渡战场收场', !(st.fieldBattles || []).some(function (b) {
-    return b.context && b.context.cause === 'guandu';
-  }), 'day=' + st.clock.day);
+  ok('官渡战报七日后收旗', st.story.guanduBattle && st.story.guanduBattle.done === true,
+    'day=' + st.clock.day);
 }
 
 group('n63 官渡残部按全国满编补兵');
@@ -293,7 +309,7 @@ group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州
   ok('曹操首次占尽三镇才进入赤壁前置', !!c && c.phase === 'rest' && !st.story.jingzhou);
   ok('赤壁前置让孙刘停战结盟', !warLib.atWar(st, 'shu', 'wu') &&
     !warLib.atWar(st, 'wei', 'shu') && !warLib.atWar(st, 'wei', 'wu'));
-  ok('赤壁前置休战一个月', c.until === 31 + STORY.chibi.caoRestDays);
+  ok('赤壁前置开拔休整', c.until === 31 + STORY.chibi.caoRestDays);
   ok('三镇仍在曹操手里', STORY.jingzhouSites.every(function (id) {
     return site(st, id).ownerFaction === 'wei';
   }));
@@ -314,8 +330,8 @@ group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州
   tickDay(st, c.until);
   ok('休战结束进入赤壁决战', c.phase === 'battle');
   ok('赤壁火攻持续七日', c.until - c.since === 7 && c.battleDays === 7);
-  ok('火攻烧掉曹军八成', c.caoAfterFire <= c.caoBefore * 0.22 &&
-    c.caoAfterFire >= c.caoBefore * 0.17, c.caoBefore + '→' + c.caoAfterFire);
+  ok('火攻首日只慢扣一小截', c.caoAfterFire <= c.caoBefore &&
+    c.caoAfterFire >= c.caoBefore * 0.9, c.caoBefore + '→' + c.caoAfterFire);
   ok('孙刘联军对曹宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu'));
   ok('三家军队向赤壁集结', c.gathered === true && st.lords.filter(function (l) {
     return l.faction === 'wei' && l.alive && Math.max(Math.abs(l.x - site(st, 'chibi').x),
@@ -328,7 +344,7 @@ group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州
 
   tickDay(st, c.until + STORY.chibi.battleDays);
   ok('赤壁决战进入败逃结算', c.phase === 'aftermath');
-  ok('曹军只余约一成', c.caoAfterBattle <= c.caoBefore * 0.11,
+  ok('赤壁战后曹军不再被一刀裁到一成', c.caoAfterBattle >= c.caoBefore * 0.4,
     c.caoBefore + '→' + c.caoAfterBattle);
   ok('曹营领主裁到孙刘之和的一半', c.caoLordTarget === target && c.caoLordsAfter === target,
     '曹 ' + c.caoLordsBefore + '→' + c.caoLordsAfter + '，目标 ' + target);
@@ -581,7 +597,7 @@ group('n67 赤壁：曹操首次占尽三镇后休整一个月');
   story.tick(st);
   const c = st.story.chibi;
   ok('曹操首次占尽三镇触发赤壁前置', !!c && c.phase === 'rest');
-  ok('赤壁前置先停战一个月', !!c && c.until === 102 + STORY.chibi.caoRestDays,
+  ok('赤壁前置先行军休整', !!c && c.until === 102 + STORY.chibi.caoRestDays,
     c ? c.until : 'null');
   ok('赤壁前置暂停荆州争霸', st.story.jingzhou.active === false && st.story.jingzhou.suspended === true);
   ok('赤壁前不先弹普通荆州停战', !st.events.some(function (e) {

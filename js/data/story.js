@@ -281,7 +281,7 @@ const STORY = {
         objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
         noTimeout: true,
         restDays: 30,
-        next: 'wei_sworn',
+        next: 'wei_jingzhou',
         title: '官渡之战',
         casusBelli: '汉廷名存实亡，曹操尽起中原兵马北上；袁绍也举河北之众南下，两军在官渡决战。此战之后，曹袁再不休战，直到一方灭亡。',
         warLines: [
@@ -298,15 +298,13 @@ const STORY = {
       },
       {
         id: 'wei_sworn',
-        label: '坐等赤壁',
-        short: '坐等赤壁',
+        label: '整军南下',
+        short: '整军南下',
         stage: 4,
         targets: [],
-        waitAllMajorsStage3: true,
-        waitChibi: true,
         noTimeout: true,
         restDays: 0,
-        next: 'wei_xiliang',
+        next: 'wei_jingzhou',
         title: '大战之前',
         casusBelli: '曹操已统一北方，完成第三阶段；若曹操先占尽三镇，赤壁之战便会提前到来。',
         waitLines: [
@@ -323,7 +321,7 @@ const STORY = {
         targets: ['ma', 'hansui'],
         objective: { type: 'destroy', factions: ['ma', 'hansui'] },
         noTimeout: true,
-        // 赤壁善后本身已是半个月（chibi.aftermathRestDays=15），这里不再叠加等待。
+        // 赤壁善后本身已有数月休战（chibi.aftermathRestDays），这里不再叠加等待。
         waitDays: 0,
         restDays: 0,
         next: 'wei_jingzhou',
@@ -346,7 +344,8 @@ const STORY = {
         label: '荆州争霸',
         short: '荆州争霸',
         stage: 5,
-        targets: [],
+        targets: ['biao', 'shu', 'wu'],
+        objective: { type: 'capture', sites: ['xiangyang', 'xinye', 'jiangling'] },
         waitJingzhou: true,
         noTimeout: true,
         restDays: 0,
@@ -627,12 +626,18 @@ const STORY = {
 
   chibi: {
     title: '赤壁之战',
-    caoRestDays: 30,
+    // 曹操完成第三阶段后先休整一个月（wei_north.restDays），再走一周到江岸；
+    // 这里是开拔行军，不再额外多休一个月。
+    caoRestDays: 7,
     // 赤壁火攻后留七日围剿，不再三天就收场。
     battleDays: 7,
-    aftermathRestDays: 15,
-    fireLossPct: 0.8,
-    caoRemainPct: 0.1,
+    // 赤壁后休养三个月，再让三家重新争夺荆州；不再半个月就开下一轮。
+    aftermathRestDays: 90,
+    // 火攻改成逐日慢扣：每天按现有兵力的一小截烧，不再开局一次抹掉八成。
+    fireLossPct: 0.06,
+    fireLossAbsCap: 1500,
+    // 战后不再把曹军一刀裁到一成；保留战场自然结算，最多只做温和兜底。
+    caoRemainPct: 0,
     southTitle: '曹操南下 · 史实停战',
     southLines: [
       '曹操首次同时占尽襄阳、新野、江陵，荆州三镇尽落曹旗。',
@@ -644,7 +649,7 @@ const STORY = {
     battleLines: [
       '一个月后，曹军自乌林、赤壁一线排开战船，欲一举渡江。',
       '孙刘联军以黄盖诈降、火船突入，东南风骤起，曹军连环船队被一把火烧成火墙。',
-      '火攻开局便折去曹军八成士兵；江面上尽是烧沉的楼船与落水的北军。',
+      '火船撞入连环船队，江面烧成一片；曹军每日都有成百上千的船兵被火吞没。',
       '孙刘联军趁曹军大乱合围而上，沿江追剿曹操残部。',
       '曹操知道大势已去，烧掉剩余战船，带着残部沿华容道北逃。',
     ],
@@ -653,12 +658,12 @@ const STORY = {
       '赤壁一役，曹军战船尽毁，伤亡与溃散者不计其数。',
       '曹操帐下多名领主战死江岸；低阶先死，上榜名将与身负将帅、武力、军师三值之一的无恙。',
       '孙权、刘备分兵抢占荆州三镇：襄阳、新野归刘备，江陵归孙权。',
-      '孙刘两家约定休战半个月；半个月后，三家重新争夺荆州三镇。',
+      '孙刘两家约定休战三个月；三个月后，三家重新争夺荆州三镇。',
     ],
     finalTitle: '赤壁余烬',
     finalLines: [
       '赤壁火灭，曹操北归，孙刘分荆州。',
-      '半个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有三城反复易主。',
+      '三个月后，荆州三镇再次成为三家必争之地；这一次不再有赤壁，只有三城反复易主。',
     ],
   },
 

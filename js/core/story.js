@@ -401,10 +401,8 @@ function resume(state, logger) {
     // 旧档已经走完赤壁的，视为西凉已扫平；还在赤壁之前的，留给新阶段。
     state.story.xiliangDone = !!state.story.chibiDone;
   }
-  const weiPhase = state.story.phases && state.story.phases.wei;
-  if (weiPhase && weiPhase.id === 'wei_sworn' && weiPhase.nextId === 'wei_jingzhou') {
-    weiPhase.nextId = 'wei_xiliang';
-  }
+  // 旧档若停在“整军南下”，n74 起不再绕西凉；统一北方后直接等荆州入场。
+  // tickPhase 会用 stage3Done 把它改为 wei_jingzhou，这里不再覆盖成 wei_xiliang。
   if (state.story.jingzhouKillBonus === undefined) state.story.jingzhouKillBonus = null;
   if (!state.story.blockerTargets) state.story.blockerTargets = {};
   if (!state.story.blockerWars) state.story.blockerWars = {};
@@ -422,6 +420,12 @@ function resume(state, logger) {
     state.story.openingEventShown = state.clock.day >= state.story.openingEventDay;
   }
   if (!state.story.stage3Done) state.story.stage3Done = {};
+  // 旧档已经进入 wei_jingzhou 但三镇还没换旗的，读档时补上，否则永远等不到赤壁。
+  if (state.story.stage3Done.wei && state.story.phases && state.story.phases.wei &&
+      state.story.phases.wei.id === 'wei_jingzhou' && !state.story.chibiDone &&
+      !(state.story.chibi && state.story.chibi.active)) {
+    assignStorySites(state, 'wei', STORY.jingzhouSites);
+  }
   if (state.story.jingzhou) {
     const jz = state.story.jingzhou;
     if (jz.started === undefined) jz.started = !!state.story.endgame;
@@ -990,6 +994,12 @@ function advancePhase(state, faction) {
   st.phases[faction] = freshPhase(nextId);
   st.phases[faction].completed = oldCompleted;
   st.targets[faction] = [];
+  // 曹操进入荆州阶段时，襄阳、新野、江陵先按史实易帜：没有这三镇，
+  // 赤壁前置条件永远不成立，曹操会在荆州边上反复打转而不触发决战。
+  if (faction === 'wei' && nextId === 'wei_jingzhou' &&
+      !(st.chibi && st.chibi.active) && !st.chibiDone) {
+    assignStorySites(state, 'wei', STORY.jingzhouSites);
+  }
   refreshHeadline(state);
   if (!canBeginPhase(state, cfg)) {
     // 等待型阶段（如“等袁术灭亡后一个月”）保持 waiting，不递战书、不进战斗。
@@ -1032,6 +1042,14 @@ function tickPhase(state, faction) {
   if (factionDead(state, faction) || !factionAlive(state, faction)) {
     p.status = 'done';
     st.targets[faction] = [];
+    return;
+  }
+  // 旧档兼容：n74 起曹操不再卡在“坐等赤壁”，统一北方后直接转荆州。
+  if (faction === 'wei' && p.id === 'wei_sworn' && !(st.chibi && st.chibi.active) &&
+      st.stage3Done && st.stage3Done.wei) {
+    p.status = 'rest';
+    p.nextId = 'wei_jingzhou';
+    p.restUntil = state.clock.day;
     return;
   }
   const cfg = currentCfg(state, faction);
@@ -1283,7 +1301,32 @@ function startChibiPrelude(state) {
   return true;
 }
 
-/** 赤壁火攻：开局先烧掉曹军八成，再留七日让孙刘联军围剿残部。 */
+/** 赤壁火攻的逐日扣兵：按曹军现有兵力的一小截烧，单日再设绝对上限。 */
+function applyChibiFireLoss(state, pct, absCap) {
+  const lords = (state.lords || []).filter(function (l) {
+    return l && l.faction === 'wei' && l.alive && !l.dead && !l.prisoner;
+  });
+  const total = lords.reduce(function (n, l) { return n + army.troopCount(l.troops || {}); }, 0);
+  if (total <= 0) return 0;
+  let budget = Math.round(total * Math.max(0, pct));
+  if (absCap > 0) budget = Math.min(budget, absCap);
+  budget = Math.min(budget, total);
+  if (budget <= 0) return 0;
+  let left = budget;
+  lords.forEach(function (l, i) {
+    if (left <= 0) return;
+    const n = army.troopCount(l.troops || {});
+    if (n <= 0) return;
+    const cut = i === lords.length - 1 ? Math.min(n, left)
+      : Math.min(n, Math.round(budget * n / total));
+    if (cut <= 0) return;
+    army.distributeLosses(l.troops, cut);
+    left -= cut;
+  });
+  return budget - left;
+}
+
+/** 赤壁火攻：开局只烧当日的一小截，之后逐日慢扣，不再一次抹掉八成。 */
 function beginChibiBattle(state) {
   const st = state.story;
   const c = st && st.chibi;
@@ -1311,19 +1354,14 @@ function beginChibiBattle(state) {
   if (state.storyHooks && state.storyHooks.stageChibi) {
     c.gathered = !!state.storyHooks.stageChibi(state);
   }
-  let lost = 0;
-  (state.lords || []).forEach(function (l) {
-    if (!l || l.faction !== 'wei' || !l.alive || l.dead || l.prisoner) return;
-    const n = army.troopCount(l.troops);
-    if (n <= 0) return;
-    const cut = Math.max(0, Math.round(n * (cf.fireLossPct || 0.8)));
-    army.distributeLosses(l.troops, cut);
-    lost += cut;
-  });
-  c.fireLoss = lost;
+  c.firePerDay = Math.max(0, Number(cf.fireLossPct) || 0.06);
+  c.fireLossAbsCap = Math.max(0, Number(cf.fireLossAbsCap) || 1500);
+  c.lastFireDay = day;
+  c.fireLoss = applyChibiFireLoss(state, c.firePerDay, c.fireLossAbsCap);
   c.caoAfterFire = countTroops(state, 'wei');
   const lines = (STORY.chibi && STORY.chibi.battleLines || []).slice();
-  lines.push('火攻前曹军约 ' + c.caoBefore + ' 人，火后只剩约 ' + c.caoAfterFire + ' 人。');
+  lines.push('火攻第一日，曹军由约 ' + c.caoBefore + ' 人折到约 ' + c.caoAfterFire +
+    ' 人；往后每日还会继续折损，不再开局一次烧掉大半。');
   lines.push('孙刘联军合计约 ' + (countTroops(state, 'shu') + countTroops(state, 'wu')) +
     ' 人，沿江列阵，准备围剿曹军残部。');
   pushStoryEvent(state, (STORY.chibi && STORY.chibi.battleTitle) || '赤壁火起', lines, {
@@ -1435,16 +1473,18 @@ function retreatCaoLords(state) {
   });
 }
 
-/** 曹军退到一成，按孙刘领主数裁曹营领主；孙刘分荆州，进入半个月休战。 */
+/** 赤壁战后按孙刘领主数裁曹营领主；孙刘分荆州，进入数月休战。 */
 function resolveChibiBattle(state) {
   const st = state.story;
   const c = st && st.chibi;
   if (!c || c.phase !== 'battle') return false;
   const cf = STORY.chibi || {};
   const day = state.clock.day;
-  const remainTarget = Math.max(0, Math.round((c.caoBefore || 0) * (cf.caoRemainPct || 0.1)));
   const current = countTroops(state, 'wei');
-  if (current > remainTarget) {
+  const remainPct = Math.max(0, Number(cf.caoRemainPct) || 0);
+  // 不再在第七天一次性把曹军裁到一成：caoRemainPct 为 0 时完全交给战场结算。
+  const remainTarget = remainPct > 0 ? Math.round((c.caoBefore || 0) * remainPct) : 0;
+  if (remainTarget > 0 && current > remainTarget) {
     let left = current - remainTarget;
     const total = current;
     (state.lords || []).forEach(function (l) {
@@ -1476,23 +1516,23 @@ function resolveChibiBattle(state) {
   c.split = split;
   stopMajorWars(state);
   STORY.kingdoms.forEach(function (f) { st.targets[f] = []; });
-  setTruce(state, STORY.kingdoms, day + (cf.aftermathRestDays || 15));
+  setTruce(state, STORY.kingdoms, day + (cf.aftermathRestDays || 90));
   c.phase = 'aftermath';
   c.since = day;
-  c.until = day + (cf.aftermathRestDays || 15);
+  c.until = day + (cf.aftermathRestDays || 90);
   const lines = (STORY.chibi && STORY.chibi.aftermathLines || []).slice();
   lines.push('曹营领主：战前 ' + c.caoLordsBefore + ' 人，战后 ' + c.caoLordsAfter +
     ' 人；目标为孙刘两家之和的一半（' + c.caoLordTarget + ' 人）。');
   if (killed.length) lines.push('战死曹将：' + killed.join('、') + '。');
   else lines.push('此战没有可裁的低阶曹将；三值、排行榜与君主均未写死。');
   if (c.playerParticipated) lines.push('你随曹军参加赤壁，乱军中杀出重围，没有被写死。');
-  lines.push('曹操残部北撤，孙刘分荆州；半个月内不再开战。');
+  lines.push('曹操残部北撤，孙刘分荆州；数月内不再开战。');
   pushStoryEvent(state, (STORY.chibi && STORY.chibi.aftermathTitle) || '曹操败走', lines, {
     tag: '史诗', art: 'war', auto: 10,
   });
   logFn(state, '赤壁决战：曹军余 ' + c.caoAfterBattle + ' 人，曹操北逃；曹营领主 ' +
     c.caoLordsBefore + '→' + c.caoLordsAfter + '（目标 ' + c.caoLordTarget + '），战死 ' +
-    killed.length + ' 人；孙刘分荆州，休战半个月。', 'war');
+    killed.length + ' 人；孙刘分荆州，休战 ' + (Number(cf.aftermathRestDays) || 90) + ' 天。', 'war');
   refreshHeadline(state);
   return true;
 }
@@ -1509,7 +1549,7 @@ function resumeJingzhouAfterChibi(state) {
     st.phases.wei = freshPhase('wei_jingzhou');
     st.phases.wei.completed = p.completed || 0;
     st.phases.wei.status = 'waiting';
-    st.phases.wei.nextId = 'end';
+    st.phases.wei.nextId = 'wei_jingzhou';
   }
   // 赤壁之后主线直接进入荆州三家争夺；西凉支线不再卡住流程。
   st.xiliangDone = true;
@@ -1544,10 +1584,11 @@ function resumeJingzhouAfterChibi(state) {
   };
   st.jingzhouFocus = STORY.jingzhouSites.slice();
   st.kingdomsAllAtWar = true;
-  // 赤壁善后的半个月停战到期，荆州争霸重新开打。
+  // 赤壁善后的休战到期，荆州争霸重新开打。
   clearTruce(state, STORY.kingdoms);
   syncJingzhouParticipants(state);
-  logFn(state, '赤壁余烬：孙刘分荆州，半个月后三家重新争夺襄阳、新野、江陵。', 'war');
+  const restDays = Number((STORY.chibi && STORY.chibi.aftermathRestDays) || 90);
+  logFn(state, '赤壁余烬：孙刘分荆州，休养 ' + restDays + ' 天后三家重新争夺襄阳、新野、江陵。', 'war');
   refreshHeadline(state);
   return true;
 }
@@ -1575,6 +1616,18 @@ function tickChibi(state) {
     return true;
   }
   if (c.phase === 'battle') {
+    // 火攻逐日慢扣：跳过几天也按每天一小截补算，单日仍有绝对上限。
+    const dayNow = state.clock.day;
+    const lastFire = Number(c.lastFireDay) || dayNow;
+    if (dayNow > lastFire) {
+      const days = Math.min(7, dayNow - lastFire);
+      for (let i = 0; i < days; i++) {
+        c.fireLoss = (c.fireLoss || 0) + applyChibiFireLoss(
+          state, Number(c.firePerDay) || 0.06, Number(c.fireLossAbsCap) || 1500);
+      }
+      c.lastFireDay = dayNow;
+      c.caoAfterFire = countTroops(state, 'wei');
+    }
     // 玩家中途从别处赶到赤壁，也算参战；否则七日战局等于白开。
     if (!c.playerParticipated) {
       const site = storySite(state, 'chibi');
@@ -1597,7 +1650,7 @@ function tickChibi(state) {
     pushStoryEvent(state, (STORY.chibi && STORY.chibi.finalTitle) || '赤壁余烬',
       (STORY.chibi && STORY.chibi.finalLines) || [
         '赤壁火灭，曹操北归，孙刘分荆州。',
-        '半个月后，荆州三镇再次成为三家必争之地。',
+        '三个月后，荆州三镇再次成为三家必争之地。',
       ], { tag: '史诗', art: 'peace', auto: 9 });
     const resumed = resumeJingzhouAfterChibi(state);
     if (!resumed) beginWeiXiliang(state);
@@ -1743,11 +1796,15 @@ function ensureCaoJingzhouBase(state) {
     jz.weiBaseGiven = true;
     return false;
   }
-  // 只从刘表手里接宛城；若已被蜀吴先占，不能凭空改旗。
-  if (base.ownerFaction !== 'biao') return false;
+  // 宛城是曹操南下的史实大营：刘表、蜀、吴谁先占了都交还曹军一次，
+  // 否则曹操没有通往襄阳的城道，荆州阶段只能反复空转、赤壁永远打不起来。
+  // 玩家城不在此列，不能从玩家手里硬抢。
+  if (base.ownerFaction !== 'biao' && base.ownerFaction !== 'shu' && base.ownerFaction !== 'wu') return false;
+  const from = base.ownerFaction;
   assignStorySites(state, 'wei', [baseId]);
   jz.weiBaseGiven = true;
-  logFn(state, '曹操以宛城为南下大营，曹军从南阳直压襄阳、新野。', 'war');
+  logFn(state, '曹操以宛城为南下大营，曹军从' + (from === 'biao' ? '刘表' : from === 'shu' ? '蜀军' : '吴军') +
+    '手里接过南阳，直压襄阳、新野。', 'war');
   return true;
 }
 
@@ -2273,6 +2330,14 @@ function tick(state) {
   st.day = state.clock.day;
   applyYuanCombat(state, !!st.yuanWeak);
   yuanMoraleTick(state);
+  // 官渡阶段战报只挂七日；没有实际合战时到点收旗，不让标题永远停在决战第一日。
+  if (st.guanduBattle && !st.guanduBattle.done) {
+    const nowH = state.clock.day * 24 + state.clock.hour;
+    const active = (state.fieldBattles || []).some(function (bf) {
+      return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+    });
+    if (!active && nowH >= (Number(st.guanduBattle.untilH) || 0)) st.guanduBattle.done = true;
+  }
   if (state.gameOver) return;
   if (st.sandbox && st.openingPending) {
     const due = st.openingEventDay || STORY.openingEventDay || 3;

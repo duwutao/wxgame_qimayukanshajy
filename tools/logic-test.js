@@ -1328,6 +1328,75 @@ ok('旧档散部归田读档后改回在野', migratedLord && migratedLord.neutr
   migratedLord.faction === null && armyLib.troopCount(migratedLord.troops) >= 6,
   migratedLord ? JSON.stringify({ neutral: migratedLord.neutral, retired: migratedLord.retired }) : '无');
 
+// 已判死的势力：旧档漏转、后来补进存档的领主，不能再挂在亡国旗下。
+const stDeadLv = stateLib.createGame({ seed: 777015 });
+stDeadLv.factionState.lv = Object.assign({}, stDeadLv.factionState.lv || {}, { dead: true, deadDay: 1 });
+stDeadLv.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = null; });
+const deadLvLord = stDeadLv.lords.filter(function (l) { return l.id === 'houcheng'; })[0];
+deadLvLord.alive = true;
+deadLvLord.dead = false;
+deadLvLord.retired = false;
+deadLvLord.hidden = null;
+deadLvLord.prisoner = null;
+deadLvLord.faction = 'lv';
+deadLvLord.troops = { militia: 20, spear: 10 };
+const deadCleaned = stateLib.neutralizeDeadFactionLords(stDeadLv);
+ok('判死势力残部当场收旗转在野',
+  deadCleaned >= 1 && deadLvLord.neutral && deadLvLord.faction === null &&
+  deadLvLord.alive && !deadLvLord.retired && armyLib.troopCount(deadLvLord.troops) >= 6,
+  JSON.stringify({ cleaned: deadCleaned, faction: deadLvLord.faction, neutral: deadLvLord.neutral }));
+
+const lvCityBack = stDeadLv.world.sites.filter(function (s) { return s.type !== 'camp'; })[0];
+lvCityBack.ownerFaction = 'lv';
+stDeadLv.parties.push({ id: 'p_dead_lv', faction: 'lv', name: '旧部', troops: { militia: 6 }, x: 1, y: 1 });
+ok('亡国旗已落，即使还有城或野外队伍也不再算活', !stateLib.factionAlive(stDeadLv, 'lv'));
+
+const stPartyOnly = stateLib.createGame({ seed: 777016 });
+stPartyOnly.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = null; });
+stPartyOnly.parties.push({ id: 'p_lv_only', faction: 'lv', name: '旧部', troops: { militia: 6 }, x: 2, y: 2 });
+ok('普通诸侯只剩野外队伍不算活势力', !stateLib.factionAlive(stPartyOnly, 'lv'));
+
+const stDeadSiege = stateLib.createGame({ seed: 777017 });
+stDeadSiege.factionState.lv = Object.assign({}, stDeadSiege.factionState.lv || {}, { dead: true, deadDay: 1 });
+stDeadSiege.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = null; });
+const deadSiegeSite = stDeadSiege.world.sites.filter(function (s) { return s.type === 'town'; })[0];
+deadSiegeSite.siegeStatus = 'assault';
+deadSiegeSite.siegeFaction = 'lv';
+stDeadSiege.warCampaigns = stDeadSiege.warCampaigns || {};
+stDeadSiege.warCampaigns.lv = {
+  attackerIds: [], defenderIds: [], targetId: deadSiegeSite.id,
+  stage: 'siege', done: false,
+};
+stateLib.neutralizeDeadFactionLords(stDeadSiege);
+ok('亡国旗不能再留着围城令',
+  !stDeadSiege.warCampaigns.lv && !deadSiegeSite.siegeStatus && !deadSiegeSite.siegeFaction,
+  JSON.stringify({ campaign: !!stDeadSiege.warCampaigns.lv, siege: deadSiegeSite.siegeStatus }));
+
+const stMigrateActive = stateLib.createGame({ seed: 777018 });
+stMigrateActive.factionState.lv = Object.assign({}, stMigrateActive.factionState.lv || {}, { dead: true, deadDay: 1 });
+stMigrateActive.world.sites.forEach(function (s) { if (s.ownerFaction === 'lv') s.ownerFaction = null; });
+const migrateActiveLord = stMigrateActive.lords.filter(function (l) { return l.id === 'songxian'; })[0];
+migrateActiveLord.faction = 'lv';
+migrateActiveLord.alive = true;
+migrateActiveLord.dead = false;
+migrateActiveLord.retired = false;
+migrateActiveLord.hidden = null;
+migrateActiveLord.prisoner = null;
+const migratedActive = stateLib.deserialize(stateLib.serialize(stMigrateActive));
+const migratedActiveLord = migratedActive && migratedActive.lords.filter(function (l) { return l.id === 'songxian'; })[0];
+ok('旧档里亡国旗下的活领主读档后自动转在野',
+  migratedActiveLord && migratedActiveLord.neutral && migratedActiveLord.faction === null &&
+  migratedActiveLord.alive && armyLib.troopCount(migratedActiveLord.troops) >= 6,
+  migratedActiveLord ? JSON.stringify({ faction: migratedActiveLord.faction, neutral: migratedActiveLord.neutral }) : '无');
+
+const stAliveLv = stateLib.createGame({ seed: 777019 });
+const aliveLvLord = stAliveLv.lords.filter(function (l) { return l.id === 'weixu'; })[0];
+const aliveBefore = { faction: aliveLvLord.faction, neutral: !!aliveLvLord.neutral };
+stateLib.neutralizeDeadFactionLords(stAliveLv);
+ok('没判死的势力残部不会被误收旗',
+  aliveLvLord.faction === aliveBefore.faction && !aliveLvLord.neutral,
+  JSON.stringify({ before: aliveBefore, faction: aliveLvLord.faction, neutral: aliveLvLord.neutral }));
+
 
 
 /* ---------------------------------------------------------------- 三态与招降 */
@@ -3908,9 +3977,9 @@ group('n12 版：禁逃加强 · 绕路 · 巡逻 · 任务框');
     }).filter(Boolean).filter(function (l) {
       return l.order && l.order.type === 'rally';
     });
-    return rally.length > 1;
+    return rally.length !== cp.attackerIds.length;
   });
-  ok('集结时每个国家只留主帅在集结城',
+  ok('集结时出征领主全部到集结城',
     factions.length > 0 && bad.length === 0,
     'campaigns=' + factions.length + ' bad=' + bad.join(','));
 }
@@ -4705,7 +4774,7 @@ group('n48 蜀国南征多路领主');
     l.troops = l.defTroops; l.defending = null; l.order = null;
   });
   const cp = warLib.planCampaign(g, 'shu', g.clock.day);
-  ok('普通战线仍按五路上限', !cp || cp.attackerIds.length <= 5,
+  ok('普通战线按八路上限出征', !cp || cp.attackerIds.length <= 8,
     cp ? cp.attackerIds.length + ' 路' : 'none');
 }
 
@@ -5164,6 +5233,74 @@ group('n55 国战存档循环引用');
   ok('战役壳字段保留',
     !!data && data.warCampaigns.wei.stage === 'assault' &&
     data.warCampaigns.wei.targetId === 'xuchang');
+}
+
+
+group('n74 官渡/赤壁渐进伤亡');
+{
+  const n = 50000;
+  const mk = function (faction) {
+    return { name: faction, faction: faction, troops: { spear: n }, morale: 80, edge: 1 };
+  };
+  const b = new Battle({
+    rng: new RNG(7401), state: {}, battleKey: 'n74-cap',
+    attacker: mk('wei'), defender: mk('yuan'),
+    context: { openingCapPct: 0.03, openingAbsCap: 900, roundLossAbsCap: 900 },
+  });
+  let firstLoss = n - b.remainA();
+  let maxRound = 0;
+  for (let i = 0; i < 14; i++) {
+    const a0 = b.remainA();
+    const d0 = b.remainB();
+    b.step();
+    maxRound = Math.max(maxRound, a0 - b.remainA(), d0 - b.remainB());
+    if (b.batchDone && !b.finished) b.nextBatch();
+  }
+  ok('合战开局不再一轮扣掉一大截', firstLoss <= 900, firstLoss + ' 人');
+  ok('合战单轮伤亡有绝对上限', maxRound <= 900, maxRound + ' 人');
+  ok('十四轮打完仍不会被一次抹掉一半', b.remainA() > n * 0.5 && b.remainB() > n * 0.5,
+    b.remainA() + '/' + b.remainB());
+}
+
+group('n74 战时边境巡逻与主动攻城');
+{
+  const st = stateLib.createGame({ seed: 2026112874, storyMode: true });
+  st.factionWars = st.factionWars || {};
+  st.factionWars['wei|yuan'] = { since: 1, score: 0 };
+  const front = warLib.frontierOwnSites(st, 'wei');
+  ok('魏国能找到与袁绍相邻的边城', front.length > 0, front.map(function (s) { return s.name; }).join('、'));
+  const lord = st.lords.filter(function (l) { return l.faction === 'wei' && l.alive && !l.dead; })[0];
+  if (lord) {
+    lord.patrolSiteId = null;
+    lord.patrolRouteIds = null;
+    lord.patrolIdx = null;
+    const route = stateLib.patrolRouteFor(st, lord);
+    ok('战时巡逻锚点优先敌国边城', route.length > 0 &&
+      front.some(function (s) { return s.id === route[0].id; }),
+      route.map(function (s) { return s.name; }).join('>'));
+  }
+
+  // 兵力过 1/2 的领主应一起编入战役，而不是只去一路、其余留在封地。
+  const st2 = stateLib.createGame({ seed: 2026112875, storyMode: true });
+  st2.factionWars = st2.factionWars || {};
+  st2.factionWars['wei|yuan'] = { since: 1, score: 0 };
+  st2.story.targets.wei = ['yuan'];
+  st2.story.phases.wei.status = 'war';
+  const weiLords = st2.lords.filter(function (l) {
+    return l.faction === 'wei' && l.alive && !l.dead && !l.prisoner && !l.hidden && !l.defending;
+  });
+  let halfCount = 0;
+  weiLords.forEach(function (l, i) {
+    const full = armyLib.troopCount(l.defTroops || {});
+    const half = Math.max(6, Math.ceil(full * (i === 0 ? 1 : 0.55)));
+    l.troops = warLib.scaleTroopsTo(l.defTroops || l.troops || {}, half);
+    if (armyLib.troopCount(l.troops) >= Math.ceil(full * 0.5)) halfCount += 1;
+  });
+  const cp = warLib.planCampaign(st2, 'wei', 1);
+  ok('有战争时能选出攻城目标', !!cp, cp ? cp.targetId : 'null');
+  ok('过半数兵力的领主一起出征', !!cp && cp.attackerIds.length >= Math.min(halfCount, 8),
+    cp ? cp.attackerIds.length + '/' + halfCount : 'null');
+  ok('满编领主优先进入出征名单', !!cp && cp.attackerIds.indexOf(weiLords[0].id) >= 0);
 }
 
 /* ---------------------------------------------------------------- 收尾 */

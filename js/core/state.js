@@ -857,7 +857,7 @@ function fillGuanduFaction(state, faction) {
   return target;
 }
 
-/** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
+/** 官渡开局：曹军补满南下叩关；袁绍按兵不动，只在原地按 0.8 杀敌系数迎战。 */
 function stageGuandu(state) {
   const { STORY } = require('../data/story.js');
   const guanduCfg = STORY.guandu || {};
@@ -891,88 +891,43 @@ function stageGuandu(state) {
   }
   // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
   if (state.story && state.story.guanduBattleStaged) return true;
-  ['wei', 'yuan'].forEach(function (faction, sideIndex) {
-    const lords = state.lords.filter(function (l) {
-      return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
-    });
-    // 先把整个势力的兵力补到满编总和，再逐个布阵。
-    fillGuanduFaction(state, faction);
-    lords.forEach(function (lord, i) {
-      // 官渡不再削袁绍士气：袁军按初始正常士气列阵，曹军仍以逸待劳。
-      lord.morale = faction === 'yuan'
-        ? (Number(lord.baseMorale) || Number(lord.defMorale) || 78)
-        : 92;
-      lord.inCity = null;
-      lord.resting = false;
-      lord.defending = null;
-      lord.order = null;
-      lord.chasing = false;
-      lord.engagedWith = null;
-      lord.engagedSinceH = null;
-      lord.enteringSiteId = null;
-      lord.cityEnterAtH = null;
-      lord.routePath = null;
-      lord.routePathFor = null;
-      lord.orderPath = null;
-      lord.patrolPath = null;
-      lord.wander = null;
-      lord.stepFrom = null;
-      lord.stepTo = null;
-      lord.stepStartH = null;
-      lord.stepHours = null;
-      lord.nextMoveH = 0;
-      const side = faction === 'yuan' ? -1 : 1;
-      const anchor = {
-        x: guandu.x + ((i % 5) - 2) * 2,
-        y: guandu.y + side * (6 + Math.floor(i / 5) * 2),
-      };
-      const spot = findFreeSpotNear(state, anchor.x, anchor.y, 6, lord) ||
-        findFreeSpotNear(state, guandu.x, guandu.y, 12, lord);
-      if (spot) {
-        lord.x = spot.x;
-        lord.y = spot.y;
-        lord.prevX = spot.x;
-        lord.prevY = spot.y;
-      }
-    });
+  // 曹操：补满编制、提士气，但不把全国领主瞬移到官渡。
+  // 让国战流程按封地远近自行点兵，前沿几路先到，后队再一批批补上。
+  fillGuanduFaction(state, 'wei');
+  fillGuanduFaction(state, 'yuan');
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.faction !== 'wei' || !lord.alive || lord.dead || lord.retired || lord.prisoner) return;
+    lord.morale = 92;
+    // 清掉上一场仗残留的军令，不替曹操决定谁去官渡。
+    lord.order = null;
+  });
+  // 袁绍军只恢复正常士气；不传送、不列阵、不替袁绍下军令。
+  state.lords.forEach(function (lord) {
+    if (!lord || lord.faction !== 'yuan' || !lord.alive || lord.dead || lord.retired || lord.prisoner) return;
+    lord.morale = Number(lord.baseMorale) || Number(lord.defMorale) || 78;
   });
 
-  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，附近队伍开局聚合，
-  // 不再中途加入零星援军，免得把七日决战拖成二十天。
-  // 12 时辰一轮，十四轮左右正好打满七日；minFinishH 再兜一层，避免提前收场。
-  const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
-  const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
-  let created = null;
-  if (caocao && yuanshao && war.createFieldBattle) {
-    created = war.createFieldBattle(state,
-      { kind: 'lord', id: caocao.id },
-      { kind: 'lord', id: yuanshao.id },
-      {
-        preAggregate: true,
-        radius: 14,
-        context: { kind: 'field', cause: 'guandu' },
-        stepEveryH: stepHours,
-        minFinishH: nowH + battleDays * 24,
-        finishByH: nowH + battleDays * 24,
-        noReinforce: true,
-      });
-  }
+  // 不再在开局强拉一场“曹袁全员合战”：让曹军按国战流程推进官渡，
+  // 袁绍留在原地，双方接触后由野战/围城逐轮结算，几千几千地掉。
   if (state.story) {
     state.story.guanduBattle = {
       startedH: nowH,
       untilH: nowH + battleDays * 24,
       days: battleDays,
-      battleId: created ? created.id : null,
+      battleId: null,
       done: false,
     };
     state.story.guanduBattleStaged = true;
+    state.story.yuanWeak = true;
+    pushLog(state, '【魏】曹操尽起中原兵马南下，兵锋直指官渡；袁绍按兵不动，只令河北军固守。', 'muster');
   }
   return true;
 }
 
 /**
- * 赤壁开局：孙曹刘三家的军队全部向赤壁集结。
- * 只挪位置、清军令，不补兵也不额外扣兵；火攻损失由剧情层按现有兵力结算。
+ * 赤壁开局：只把已经在江岸附近、来得及赶到的军队收拢到赤壁。
+ * 不再把三国全部领主瞬移到赤壁；远处封地的守军留在原地，
+ * 火攻与江面野战只打已经投入这一战的人马。
  * 玩家本人不强行传送，留在原地决定是否参战。
  */
 function stageChibi(state) {
@@ -980,18 +935,31 @@ function stageChibi(state) {
   if (state.story.chibiBattleStaged) return true;
   const chibi = siteById(state.world, 'chibi');
   if (!chibi) return false;
-  ['wei', 'shu', 'wu'].forEach(function (faction, sideIndex) {
-    let index = 0;
-    (state.lords || []).forEach(function (lord) {
-      if (!lord || lord.faction !== faction || !lord.alive || lord.dead || lord.retired || lord.prisoner) return;
-      if (lord.isPlayer || !army.troopCount(lord.troops || {})) return;
-      const around = Math.PI * 2 * (index % 16) / 16;
-      const ring = 5 + Math.floor(index / 16) * 2;
+  const GATHER_RADIUS = 14;
+  ['wei', 'shu', 'wu'].forEach(function (faction) {
+    const roster = (state.lords || []).filter(function (lord) {
+      return lord && lord.faction === faction && lord.alive && !lord.dead &&
+        !lord.retired && !lord.prisoner && !lord.isPlayer &&
+        army.troopCount(lord.troops || {}) > 0;
+    }).map(function (lord) {
+      return {
+        lord: lord,
+        d: Math.max(Math.abs(lord.x - chibi.x), Math.abs(lord.y - chibi.y)),
+      };
+    }).sort(function (a, b) { return a.d - b.d; });
+    // 先收拢十四格内已经赶到江岸的部队；一路都没有时才点最近的四路，
+    // 仍然只动这几路，不把全国军队一次性搬到赤壁。
+    let gathered = roster.filter(function (x) { return x.d <= GATHER_RADIUS; }).slice(0, 12);
+    if (!gathered.length) gathered = roster.slice(0, 4);
+    gathered.forEach(function (entry, index) {
+      const lord = entry.lord;
+      const around = Math.PI * 2 * (index % 12) / 12;
+      const ring = 4 + Math.floor(index / 12) * 2;
       const side = faction === 'wei' ? -1 : 1;
       const ax = Math.round(chibi.x + Math.cos(around) * ring);
-      const ay = Math.round(chibi.y + side * (5 + Math.abs(Math.sin(around)) * 3) + Math.floor(index / 16));
-      const spot = findFreeSpotNear(state, ax, ay, 8, lord) ||
-        findFreeSpotNear(state, chibi.x, chibi.y, 18, lord);
+      const ay = Math.round(chibi.y + side * (4 + Math.abs(Math.sin(around)) * 3) + Math.floor(index / 12));
+      const spot = findFreeSpotNear(state, ax, ay, 7, lord) ||
+        findFreeSpotNear(state, chibi.x, chibi.y, 16, lord);
       lord.inCity = null;
       lord.resting = false;
       lord.defending = null;
@@ -1014,13 +982,13 @@ function stageChibi(state) {
       lord.stepStartH = null;
       lord.stepHours = null;
       lord.nextMoveH = 0;
+      lord.chibiGathered = true;
       if (spot) {
         lord.x = spot.x;
         lord.y = spot.y;
         lord.prevX = spot.x;
         lord.prevY = spot.y;
       }
-      index += 1;
     });
   });
   state.story.chibiBattleStaged = true;
@@ -3198,12 +3166,48 @@ function rebelPatrolSite(state, lord) {
   return capital;
 }
 
+/** 战时优先巡逻与敌国道路相邻的城；同一座城最多挤几个人，其余去别的边城。 */
+function frontierPatrolSite(state, lord) {
+  if (!lord || !lord.faction || lord.faction === 'player' || lord.faction === 'rebel') return null;
+  // 官渡开局袁绍不调兵：只守本城，等曹军接触后再迎战。
+  if (lord.faction === 'yuan' && state.story && state.story.guanduStarted &&
+      state.story.phases && state.story.phases.wei &&
+      state.story.phases.wei.id === 'wei_north' &&
+      state.story.phases.wei.status === 'war') return null;
+  const front = war.frontierOwnSites(state, lord.faction);
+  if (!front.length) return null;
+  if (lord.patrolSiteId && front.some(function (s) { return s.id === lord.patrolSiteId; })) {
+    return siteById(state.world, lord.patrolSiteId);
+  }
+  const used = {};
+  state.lords.forEach(function (l) {
+    if (l !== lord && l.faction === lord.faction && l.patrolSiteId) {
+      used[l.patrolSiteId] = (used[l.patrolSiteId] || 0) + 1;
+    }
+  });
+  const home = siteById(state.world, lord.home);
+  let best = null;
+  let bestScore = Infinity;
+  front.forEach(function (s, i) {
+    const crowd = (used[s.id] || 0) * 40;
+    const dist = home ? gridDistance(home, s) : 0;
+    const score = crowd + dist + ((lordHash(lord, 'front') + i) % 7) * 0.01;
+    if (score < bestScore) { bestScore = score; best = s; }
+  });
+  if (!best) return null;
+  lord.patrolSiteId = best.id;
+  return best;
+}
+
 /** 每名领主先选一处主城当巡逻锚点，再按 id 排独立的三城路线 */
 function patrolSiteFor(state, lord) {
   if (!lord) return null;
   if (lord.faction === 'rebel' && state.arc && state.arc.phase === 'reconquest') {
     return rebelPatrolSite(state, lord);
   }
+  // 交战中不再守着自己后方的封地转圈：先看敌国边境城。
+  const frontier = frontierPatrolSite(state, lord);
+  if (frontier) return frontier;
   const sites = state.world.sites || [];
   const fief = sites.filter(function (s) { return s.lordId === lord.id; })[0];
   if (fief) return fief;
@@ -3255,17 +3259,27 @@ function patrolRouteFor(state, lord) {
     lord.patrolIdx = null;
   }
 
-  const cities = (state.world.sites || []).filter(function (s) {
+  let cities = (state.world.sites || []).filter(function (s) {
     if (s.type !== 'town' && s.type !== 'castle') return false;
     return lord.faction === 'player' ? !!s.playerOwned : s.ownerFaction === lord.faction;
   });
+  // 交战中路线也压在敌国边境城上，不把巡逻队又带回后方。
+  // 官渡开局的袁绍例外：不调兵，只在原封地城郊巡视。
+  const yuanHold = !!(lord.faction === 'yuan' && state.story && state.story.guanduStarted &&
+    state.story.phases && state.story.phases.wei &&
+    state.story.phases.wei.id === 'wei_north' && state.story.phases.wei.status === 'war');
+  if (lord.faction !== 'player' && lord.faction !== 'rebel' && !yuanHold) {
+    const front = war.frontierOwnSites(state, lord.faction);
+    if (front.length >= 2) cities = front;
+  }
 
   // 旧档里的路线可能因城头换旗失效，先筛一遍。
   if (Array.isArray(lord.patrolRouteIds) && lord.patrolRouteIds.length) {
     const keep = [];
     lord.patrolRouteIds.forEach(function (id) {
       const s = siteById(state.world, id);
-      if (s && (s.type === 'town' || s.type === 'castle')) keep.push(s);
+      if (s && (s.type === 'town' || s.type === 'castle') &&
+          cities.some(function (c) { return c.id === id; })) keep.push(s);
     });
     if (keep.length >= 2) {
       if (lord.patrolIdx === undefined || lord.patrolIdx === null || lord.patrolIdx >= keep.length) {
@@ -4343,8 +4357,10 @@ function moveLords(state, slot) {
         }
       }
       if (!low) lord.recoveryTargetId = null;
+      // 战役军令只要求过半数就出城；普通巡逻/守城仍按三分之二补满再走。
+      const leaveRatio = lord.order && lord.order.campaign ? 0.5 : LORD_RECOVERY_RATIO;
       if (lord.order && lord.order.siteId && !lord.order.hold &&
-          (yiRush || now >= Math.max(6, Math.ceil(full * LORD_RECOVERY_RATIO)))) {
+          (yiRush || now >= Math.max(6, Math.ceil(full * leaveRatio)))) {
         leaveLordCity(state, lord, '军令到了');
         return;
       }
@@ -4359,10 +4375,13 @@ function moveLords(state, slot) {
     const home = siteById(state.world, lord.home);
     const nowCount = army.troopCount(lord.troops || {});
     const fullCount = army.troopCount(lord.defTroops || {});
-    // 掉到满编三分之二以下先回城补人：不然开局玩家能把名将一个个捡走
+    // 掉到满编三分之二以下先回城补人：不然开局玩家能把名将一个个捡走。
+    // 但战役军令例外：只要还过半数，就继续跟着大军走，不临阵脱队回城。
     const needRest = nowCount < Math.max(6, Math.ceil(fullCount * LORD_RECOVERY_RATIO));
+    const campaignOrder = !!(lord.order && lord.order.campaign);
+    const campaignReady = campaignOrder && nowCount >= Math.max(6, Math.ceil(fullCount * 0.5));
     // 兵太少就不再执行集结/围城军令；守城令可以留着，但到城后先补兵。
-    if (needRest && lord.order && lord.order.type !== 'defend' && !yiRush) {
+    if (needRest && !campaignReady && lord.order && lord.order.type !== 'defend' && !yiRush) {
       lord.order = null;
       lord.defending = null;
       lord.orderDetourTarget = null;
@@ -4370,7 +4389,7 @@ function moveLords(state, slot) {
     // 卡住两个行军步以上：先清掉失效军令并换目的地，再进入正常选路。
     maybeUnstickLord(state, lord, nowH);
     // 国战军令：集结 / 开拔 / 围城 / 回防。接了令就按军令走，不再自己乱追人
-    if (lord.order && lord.order.siteId && !needRest) {
+    if (lord.order && lord.order.siteId && (!needRest || campaignReady)) {
       const orderSite = siteById(state.world, lord.order.siteId);
       if (orderSite) {
         const od = gridDistance(lord, orderSite);

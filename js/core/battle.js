@@ -212,11 +212,13 @@ function defenseOf(side, st, tactic, enemySt) {
  * 防守权重给得高（3.2）：甲厚、结阵的一方几乎不掉人，输的一方才会被碾。
  * minLoss 传 0 时，弱势一方可能整轮无伤亡（仗就不会打成磨盘）。
  */
-function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng, minLoss) {
+function lossOfAttacker(defenderAtk, attackerDef, attackerCount, rng, minLoss, absCap) {
   const ratio = defenderAtk / (defenderAtk + attackerDef * 3.2);
   const base = clamp(Math.pow(Math.min(1.2, ratio), 1.9) * 0.56, 0.02, 0.3);
   const jitter = 0.9 + rng.random() * 0.2;
-  const n = Math.round(attackerCount * base * jitter);
+  let n = Math.round(attackerCount * base * jitter);
+  // 史实决战给单轮伤亡封顶：兵力再厚，也不能一轮被抹掉一大截。
+  if (typeof absCap === 'number' && absCap > 0) n = Math.min(n, absCap);
   return Math.max(minLoss === undefined ? 1 : minLoss, n);
 }
 
@@ -266,6 +268,11 @@ class Battle {
     this.formationLog = '';
     this.openingLossA = 0;
     this.openingLossB = 0;
+    // 史实决战（官渡/赤壁）走渐进伤亡：开局齐射与单轮伤亡都设绝对上限，
+    // 普通遭遇战不传这两个参数，仍按原来的比例结算。
+    this.openingCapPct = clamp(Number(opts.openingCapPct || (this.context && this.context.openingCapPct) || MAX_OPENING_LOSS_PCT), 0, MAX_OPENING_LOSS_PCT);
+    this.openingAbsCap = Math.max(0, Number(opts.openingAbsCap || (this.context && this.context.openingAbsCap) || 0));
+    this.roundLossAbsCap = Math.max(0, Number(opts.roundLossAbsCap || (this.context && this.context.roundLossAbsCap) || 0));
     this.openingBlockA = 0;
     this.openingBlockB = 0;
     this.openingDone = false;
@@ -562,7 +569,9 @@ class Battle {
 
   openingCap(targetKey) {
     const side = this.sideOf(targetKey);
-    return side ? Math.floor((side.initialCount || 0) * MAX_OPENING_LOSS_PCT) : 0;
+    if (!side) return 0;
+    const pctCap = Math.floor((side.initialCount || 0) * this.openingCapPct);
+    return this.openingAbsCap > 0 ? Math.min(pctCap, this.openingAbsCap) : pctCap;
   }
 
   openingUsed(targetKey) {
@@ -866,11 +875,15 @@ class Battle {
     if (this.fireGround && playerKey === 'a' && sa.fireRatio > 0.05) atkA *= 1.15;
     if (this.fireGround && playerKey === 'b' && sb.fireRatio > 0.05) atkB *= 1.15;
 
-    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
-    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1);
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1, this.roundLossAbsCap);
+    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1, this.roundLossAbsCap);
     // 新规则不套旧“玩家伤亡打六折”，所有倍率都从阵法/兵种/T5 来。
     lossA = Math.max(1, Math.round(lossA * this.b.killMul));
     lossB = Math.max(1, Math.round(lossB * this.a.killMul));
+    if (this.roundLossAbsCap > 0) {
+      lossA = Math.min(lossA, this.roundLossAbsCap);
+      lossB = Math.min(lossB, this.roundLossAbsCap);
+    }
     if (nightFree && playerKey === 'a') lossA = 0;
     if (nightFree && playerKey === 'b') lossB = 0;
 
@@ -985,12 +998,16 @@ class Battle {
 
     // 主将亲自带的人更经打：玩家侧伤亡打六折，但每轮至少折 1 人。
     // 不能出现“敌方每轮必掉 1、我方可以永远 0”的磨盘，否则再弱的敌人也会被拖死。
-    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1);
+    let lossA = lossOfAttacker(atkB, defA, sa.count, this.rng, 1, this.roundLossAbsCap);
     if (this.a.isPlayer) lossA = Math.max(1, Math.round(lossA * 0.45));
-    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1) + alphaStrike;
+    let lossB = lossOfAttacker(atkA, defB, sb.count, this.rng, 1, this.roundLossAbsCap) + alphaStrike;
     // 杀敌增益：只放大对敌军的每轮杀伤；自己的伤亡仍由对方系数决定。
     lossA = Math.max(1, Math.round(lossA * this.b.killMul));
     lossB = Math.max(1, Math.round(lossB * this.a.killMul));
+    if (this.roundLossAbsCap > 0) {
+      lossA = Math.min(lossA, this.roundLossAbsCap);
+      lossB = Math.min(lossB, this.roundLossAbsCap);
+    }
     // 夜袭三回合：被压制的一侧真的一点伤害都打不出，不再按“每轮至少 1 人”保底。
     if (nightFree && playerKey === 'a') lossA = 0;
     if (nightFree && playerKey === 'b') lossB = 0;
