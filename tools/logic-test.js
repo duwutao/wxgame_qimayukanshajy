@@ -1258,6 +1258,78 @@ ok('吕布灭亡后张辽固定转入魏', zhangliaoAfterLv && zhangliaoAfterLv.
   zhangliaoAfterLv ? zhangliaoAfterLv.faction + '/' + zhangliaoAfterLv.alive : '无');
 ok('亡国弹窗有话说', st14.events.some(function (e) { return e.type === 'faction-fall' && (e.lines || []).length; }));
 
+/* ---------------------------------------------------------------- 在野残部 */
+group('在野残部 · 招揽 · 自动投靠');
+const liru = st14.lords.filter(function (l) { return l.id === 'liru'; })[0];
+ok('没有固定去向的残部转成在野', liru && liru.neutral && liru.faction === null && liru.alive && !liru.retired,
+  liru ? JSON.stringify({ faction: liru.faction, neutral: liru.neutral, alive: liru.alive }) : '无');
+ok('在野残部至少带一队残兵', liru && armyLib.troopCount(liru.troops) >= 6,
+  liru ? JSON.stringify(liru.troops) : '无');
+ok('在野不算敌对势力', !stateLib.isHostileFaction(st14, null));
+ok('在野对话改口称在野', stateLib.lordGreet(st14, liru).indexOf('在野之身') >= 0 &&
+  stateLib.lordGreet(st14, liru).indexOf('关系 0') < 0, stateLib.lordGreet(st14, liru));
+
+const stNeutral = stateLib.createGame({ seed: 777011 });
+const freeLord = stNeutral.lords.filter(function (l) { return l.id === 'liru'; })[0];
+stateLib.makeNeutralLord(stNeutral, freeLord, 'lv');
+stNeutral.player.faction = 'player';
+stNeutral.world.sites[0].playerOwned = true;
+freeLord.neutralFavor = 50;
+const neutralOffer = stateLib.neutralRecruitChance(stNeutral, freeLord);
+ok('有旗有城时招揽在野概率过半', neutralOffer.chance >= 0.8 && neutralOffer.mode === 'self',
+  JSON.stringify(neutralOffer));
+const giftGoldBefore = stNeutral.player.gold;
+const giftNeutral = stateLib.giftLord(stNeutral, freeLord, 100);
+ok('给在野送礼加个人好感而非势力关系', giftNeutral.ok && freeLord.neutralFavor > 50 &&
+  stNeutral.player.gold === giftGoldBefore - 100, JSON.stringify(giftNeutral));
+const provokeNeutral = stateLib.provokeLord(stNeutral, freeLord);
+ok('在野不接战书，也不会写空势力宣战', !provokeNeutral.ok && !stNeutral.wars[null], JSON.stringify(provokeNeutral));
+
+const savedNext = stNeutral.rng.next;
+stNeutral.rng.next = function () { return 0; };
+const recruitNeutral = stateLib.recruitNeutralLord(stNeutral, freeLord.id);
+stNeutral.rng.next = savedNext;
+ok('玩家能收编在野残部', recruitNeutral.ok && freeLord.faction === 'player' && !freeLord.neutral,
+  JSON.stringify({ ok: recruitNeutral.ok, faction: freeLord.faction, neutral: freeLord.neutral }));
+
+const stAutoJoin = stateLib.createGame({ seed: 777012 });
+const autoLord = stAutoJoin.lords.filter(function (l) { return l.id === 'liru'; })[0];
+stateLib.makeNeutralLord(stAutoJoin, autoLord, 'lv');
+autoLord.neutralSince = stAutoJoin.clock.day - 10;
+const savedJoinNext = stAutoJoin.rng.next;
+stAutoJoin.rng.next = function () { return 0; };
+stateLib.neutralLordTick(stAutoJoin);
+stAutoJoin.rng.next = savedJoinNext;
+ok('在野满六天后小概率投有城势力', !autoLord.neutral && !!autoLord.faction && autoLord.faction !== 'player',
+  String(autoLord.faction));
+
+const stWander = stateLib.createGame({ seed: 777013 });
+const wanderLord = stWander.lords.filter(function (l) { return l.id === 'liru'; })[0];
+stateLib.makeNeutralLord(stWander, wanderLord, 'lv');
+let neutralMoved = false;
+[0, 6, 12].forEach(function (h) {
+  wanderLord.neutralNextMoveH = 0;
+  if (stateLib.moveNeutralLord(stWander, wanderLord, h)) neutralMoved = true;
+});
+ok('在野残部会离开原地往别处走', neutralMoved && (!!wanderLord.neutralWander || !!wanderLord.stepTo),
+  JSON.stringify({ wander: wanderLord.neutralWander, step: wanderLord.stepTo }));
+
+// 旧档里按“散部归田”处理过的残部，读档后应该回到在野，而不是永远消失。
+const stOldSave = stateLib.createGame({ seed: 777014 });
+const oldRetired = stOldSave.lords.filter(function (l) { return l.id === 'liru'; })[0];
+oldRetired.faction = 'lv';
+oldRetired.alive = false;
+oldRetired.retired = true;
+oldRetired.troops = {};
+stOldSave.factionState.lv = Object.assign({}, stOldSave.factionState.lv || {}, { dead: true, deadDay: 1 });
+const migratedSave = stateLib.deserialize(stateLib.serialize(stOldSave));
+const migratedLord = migratedSave && migratedSave.lords.filter(function (l) { return l.id === 'liru'; })[0];
+ok('旧档散部归田读档后改回在野', migratedLord && migratedLord.neutral && !migratedLord.retired &&
+  migratedLord.faction === null && armyLib.troopCount(migratedLord.troops) >= 6,
+  migratedLord ? JSON.stringify({ neutral: migratedLord.neutral, retired: migratedLord.retired }) : '无');
+
+
+
 /* ---------------------------------------------------------------- 三态与招降 */
 
 group('三态 · 招降 · 封领主');

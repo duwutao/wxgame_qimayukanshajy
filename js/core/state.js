@@ -52,7 +52,7 @@ const {
   convertRosterToFaction,
 } = require('../data/troops.js');
 const {
-  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, VILLAGE_FOOD,
+  BANDIT_TIERS, BANDIT_NAMES, BANDIT_UNLOCK_STAGE, LORD_TALK, LORD_EXTRA_BIO, FACTION_TALK, NEUTRAL_TALK, VILLAGE_FOOD,
 } = require('../data/extra.js');
 const { LORD_BIOS } = require('../data/bios.js');
 const { LORD_POWER_BY_ID, MARSHAL_BY_ID, DEFAULT_MONARCH_RECRUIT_MUL, roleInfoFor, commandCapFor } = require('../data/lord-rank.js');
@@ -63,6 +63,10 @@ const NPC_STEP_HOURS = 3;
 const MA_CHAO_TO_SHU_DAY = 12;
 /** 领主基础行军：6 时辰一格；领主不再享受任何额外提速。 */
 const LORD_STEP_HOURS = 6;
+/** 亡国残部：在野后至少先漂几天，再考虑投别家，给玩家留出招揽窗口。 */
+const NEUTRAL_JOIN_MIN_DAYS = 6;
+/** 在野领主每天自动投靠他国的小概率；按天掷，不按回合叠。 */
+const NEUTRAL_JOIN_CHANCE = 0.004;
 // 同一格连续两个行军步（12 时辰）还走不动，就判定为卡点，换一个可达目的地。
 const LORD_STUCK_HOURS = 12;
 /** 逃遁只比基础速度多 20%：6 / 1.2 = 5 时辰一格。 */
@@ -792,6 +796,15 @@ function lordFromDef(state, def) {
     exPlayer: false,
     arcLoyal: false,
     borderStation: false,
+    // 亡国后没有归入任何一家的残部：无旗、无城、可被招揽，也可自己投别家。
+    neutral: false,
+    neutralFrom: null,
+    neutralSince: 0,
+    neutralFavor: 0,
+    neutralWander: null,
+    neutralPath: null,
+    neutralNextMoveH: 0,
+    neutralCoolDay: 0,
   };
 }
 
@@ -1945,6 +1958,8 @@ function dailyTick(state) {
   });
   // 0 兵打散的领主：三天期满后悄悄到募兵最快的城，从零开始招募
   scatteredLordTick(state);
+  // 在野残部：每天小概率自己投一家；不掷中就一直在地图上漂着
+  neutralLordTick(state);
 
   // 领主在自己的城镇/村庄招兵：用独立的领主兵源池，和玩家招募互不冲突
   lordRestTick(state);
@@ -2235,7 +2250,7 @@ function breakTail(state, unitId, kind) {
   let best = null;
   let bestD = 1e9;
   state.lords.forEach(function (l) {
-    if (!l.alive || l.inCity || l.prisoner || l.scattered || l.scatterHidden) return;
+    if (!l.alive || l.inCity || l.prisoner || l.scattered || l.scatterHidden || l.neutral) return;
     const d = Math.max(Math.abs(l.x - unit.x), Math.abs(l.y - unit.y));
     if (d <= range && d < bestD) {
       bestD = d;
@@ -2329,7 +2344,7 @@ function strongerLordNear(state, unit, range) {
   let best = null;
   let bestScore = -Infinity;
   (state.lords || []).forEach(function (lord) {
-    if (!lord.alive || lord.inCity || lord.prisoner || lord.dead) return;
+    if (!lord.alive || lord.inCity || lord.prisoner || lord.dead || lord.neutral) return;
     if (lord.id === unit.id) return;
     const d = Math.max(Math.abs(lord.x - unit.x), Math.abs(lord.y - unit.y));
     if (d > range) return;
@@ -3071,6 +3086,8 @@ function scatteredLordTick(state) {
 function lordRecruitTick(state) {
   state.lords.forEach(function (lord) {
     if (!lord.alive || lord.prisoner) return;
+    // 在野的人不占城、不靠据点补兵，只带着眼前这点残部走。
+    if (lord.neutral) return;
     // 驿站旧部在等玩家来领，不算“驻城募兵”。
     if (lord.borderStation) return;
     // 打散的队伍由 scatteredLordTick 统一送回最快的城，三天后从零招募；
@@ -4162,6 +4179,11 @@ function moveLords(state, slot) {
     }
     // 兼容旧调用：显式传槽时仍只处理该槽；正常 update 不再传槽。
     if (slot !== undefined && npcSlotFor(lord) !== slot) return;
+    // 在野残部不守旧土、不进旧城，自己在地图上全国游走。
+    if (lord.neutral) {
+      moveNeutralLord(state, lord, nowH);
+      return;
+    }
     // 非玩家单位误入边陲小镇十格：不让他继续走，直接送回本城。
     if (lord.faction !== 'player' && !lord.inCity && edgeTownBlocked(state.world, lord.x, lord.y)) {
       const home = siteById(state.world, lord.home);
@@ -4683,6 +4705,7 @@ function fightNeighbors(state) {
     } else {
       lord = state.lords.filter(function (l) {
         return l.alive && !l.prisoner && !l.inCity && !l.scattered && !l.engagedWith && l.faction !== 'bandit' &&
+          !l.neutral &&
           Math.abs(l.x - party.x) <= 1 && Math.abs(l.y - party.y) <= 1;
       })[0];
       if (!lord) return;
@@ -6430,11 +6453,15 @@ function applyFactionRosterCap(state) {
 
 function lordLines(lord) {
   const base = LORD_TALK[lord.id] || {};
-  const pool = FACTION_TALK[lord.faction] || { greet: [], idle: [] };
-  const factionName = FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世';
+  const neutralPool = NEUTRAL_TALK;
+  const pool = lord.neutral ? neutralPool : (FACTION_TALK[lord.faction] || { greet: [], idle: [] });
+  const factionName = lord.neutral
+    ? ('旧属' + (lord.neutralFrom && FACTIONS[lord.neutralFrom] ? FACTIONS[lord.neutralFrom].name : '诸侯') + '，如今在野')
+    : (FACTIONS[lord.faction] ? FACTIONS[lord.faction].full + '麾下' : '游走于乱世');
   const bio = LORD_BIOS[lord.id] || base.bio || LORD_EXTRA_BIO[lord.id] || (lord.name + '，' + factionName + '。');
-  const greet = base.greet || (pool.greet && pool.greet[0]) || '有什么事？';
-  const idle = (base.idle || []).concat(pool.idle || []);
+  // 在野的人已经不在旧主旗下，人物专属台词可能还提着旧旗号，统一换成在野通用话。
+  const greet = (lord.neutral ? null : base.greet) || (pool.greet && pool.greet[0]) || '有什么事？';
+  const idle = (lord.neutral ? [] : (base.idle || [])).concat(pool.idle || []);
   return {
     greet: greet,
     bio: bio,
@@ -6465,25 +6492,37 @@ function lordIdle(state, lord) {
 function lordGreet(state, lord) {
   const t = lordLines(lord);
   const line = t.greet || '你来了。';
+  if (lord.neutral) {
+    return line + '\n（在野之身 · ' + RANK_NAME[lordRank(lord)] + ' · 可招揽）';
+  }
   const rel = relationOf(state, lord.faction);
   return line + '\n（关系 ' + rel + ' · ' + RANK_NAME[lordRank(lord)] + '）';
 }
 
-/** 送礼：100 金 = 君主 5 点、领兵者 3 点、将领 2 点 */
+/** 送礼：100 金 = 君主 5 点、领兵者 3 点、将领 2 点；在野的人记个人好感。 */
 function giftLord(state, lord, gold) {
   const n = Math.max(20, Math.floor(gold));
   if (state.player.gold < n) return { ok: false, msg: '金钱不够，你只有 ' + state.player.gold };
   const rate = RANK_RATE[lordRank(lord)];
   const gain = Math.max(1, Math.round((n / 100) * rate));
   state.player.gold -= n;
+  if (lord.neutral) {
+    lord.neutralFavor = Math.min(100, (Number(lord.neutralFavor) || 0) + gain);
+    pushLog(state, '你给在野的' + lord.name + '送了 ' + n + ' 金钱，他收下了，好感 +' + gain + '。');
+    return {
+      ok: true, gain: gain, rel: lord.neutralFavor,
+      msg: '送 ' + n + ' 金钱，在野好感 +' + gain + '（现在 ' + lord.neutralFavor + '）',
+    };
+  }
   changeRelation(state, lord.faction, gain);
   const rel = relationOf(state, lord.faction);
   pushLog(state, '你给' + lord.name + '送了 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）。');
   return { ok: true, msg: '送 ' + n + ' 金钱，关系 +' + gain + '（现在 ' + rel + '）', gain, rel };
 }
 
-/** 开战：直接扣 25 关系 */
+/** 开战：直接扣 25 关系；在野的人不接战书。 */
 function provokeLord(state, lord) {
+  if (lord.neutral) return { ok: false, msg: '在野的人不接战书；想收他，得开口。' };
   changeRelation(state, lord.faction, -25);
   state.wars[lord.faction] = true;
   state.playerWarSince = state.playerWarSince || {};
@@ -7192,6 +7231,274 @@ function moveLordToFaction(state, lord, target) {
   normalizeLordT5(state, lord);
 }
 
+/* ------------------------------------------------------------ 在野残部 */
+
+/** 把一名亡国残部改成无旗在野：不再守旧土，也不占任何一家的城。 */
+function makeNeutralLord(state, lord, from) {
+  if (!lord) return;
+  lord.faction = null;
+  lord.neutral = true;
+  lord.neutralFrom = from || lord.neutralFrom || null;
+  lord.neutralSince = state.clock.day;
+  lord.neutralFavor = Number(lord.neutralFavor) || 0;
+  lord.neutralWander = null;
+  lord.neutralPath = null;
+  lord.neutralNextMoveH = 0;
+  lord.neutralCoolDay = 0;
+  lord.alive = true;
+  lord.dead = false;
+  lord.retired = false;
+  lord.hidden = null;
+  lord.prisoner = null;
+  lord.inCity = null;
+  lord.resting = false;
+  lord.borderStation = false;
+  lord.scattered = false;
+  lord.scatterHidden = false;
+  lord.scatterRecovering = false;
+  lord.scatterUntilH = 0;
+  lord.respawnDay = 0;
+  lord.enteringSiteId = null;
+  lord.cityEnterAtH = null;
+  lord.fieldBattleId = null;
+  lord.engagedWith = null;
+  lord.engagedSinceH = null;
+  lord.order = null;
+  lord.defending = null;
+  lord.chasing = false;
+  lord.hunting = false;
+  lord.fleeing = false;
+  lord.fleePath = null;
+  lord.routePath = null;
+  lord.patrolPath = null;
+  lord.wander = null;
+  // 在野的人不再占城：旧封地要收回，否则城头还会给他记一笔税。
+  lord.home = null;
+  const oldFiefs = state.world.sites.filter(function (s) { return s.lordId === lord.id; });
+  oldFiefs.forEach(function (s) { s.lordId = null; s.selfFief = false; });
+
+  // 残部不能带着 0 兵在野：至少留一小队，否则地图上看不见、也谈不上招揽。
+  if (army.troopCount(lord.troops || {}) < 6) {
+    const base = lord.defTroops || {};
+    const want = Math.max(6, Math.round(army.troopCount(base) * 0.45));
+    lord.troops = takeSomeTroops(base, want);
+    if (army.troopCount(lord.troops || {}) < 1) lord.troops = { militia: 6 };
+  }
+  lord.morale = Math.max(45, Math.min(100, Number(lord.morale) || 60));
+
+  // 如果亡国时人正站在城中心，先挪到城外的空地；否则寻路起点会落在不可走的据点上。
+  const onSite = siteAt(state.world, lord.x, lord.y);
+  if (onSite) {
+    const spot = findFreeSpotNear(state, onSite.x, onSite.y, 1, lord) ||
+      findFreeSpotNear(state, onSite.x, onSite.y, 2, lord) ||
+      findFreeSpotNear(state, onSite.x, onSite.y, 3, lord);
+    if (spot) {
+      lord.x = spot.x;
+      lord.y = spot.y;
+    }
+  }
+  lord.stepFrom = null;
+  lord.stepTo = null;
+  lord.stepHours = null;
+  lord.stepStartH = null;
+  lord.nextMoveH = 0;
+}
+
+function clearNeutralLord(lord) {
+  if (!lord) return;
+  lord.neutral = false;
+  lord.neutralWander = null;
+  lord.neutralPath = null;
+  lord.neutralNextMoveH = 0;
+}
+
+/** 在野领主的下一个目的地：随机挑一座城/村，落在城郊，不进城。 */
+function chooseNeutralWander(state, lord) {
+  const sites = state.world.sites.filter(function (s) {
+    return s.type === 'town' || s.type === 'castle' || s.type === 'village';
+  });
+  if (!sites.length) return null;
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const site = sites[state.rng.int(0, sites.length - 1)];
+    const away = Math.max(Math.abs(site.x - lord.x), Math.abs(site.y - lord.y));
+    // 先尽量挑远一点，免得在野的人只在老家门口打转。
+    if (attempt < 18 && away < 18) continue;
+    for (let r = 2; r <= 4; r += 1) {
+      const spot = findFreeSpotNear(state, site.x, site.y, r, lord);
+      if (!spot || (spot.x === lord.x && spot.y === lord.y)) continue;
+      const path = patrolPathTo(state, lord, spot);
+      if (!path || !path.length) continue;
+      return { x: spot.x, y: spot.y, siteId: site.id, path: path };
+    }
+  }
+  return null;
+}
+
+/** 在野领主每 6 时辰走一格；没有目标就换一座远处的城，走到城郊停半天再走。 */
+function moveNeutralLord(state, lord, nowH) {
+  if (!lord || !lord.neutral || !lord.alive || lord.dead || lord.prisoner || lord.retired) return false;
+  if (lord.inCity) lord.inCity = null;
+  if (nowH < (lord.neutralNextMoveH || 0)) return false;
+
+  if (lord.neutralWander &&
+      Math.max(Math.abs(lord.neutralWander.x - lord.x), Math.abs(lord.neutralWander.y - lord.y)) <= 1) {
+    lord.neutralWander = null;
+    lord.neutralPath = null;
+    lord.neutralNextMoveH = nowH + 12 + state.rng.int(0, 12);
+    return true;
+  }
+
+  if (!lord.neutralWander || !Array.isArray(lord.neutralPath) || !lord.neutralPath.length) {
+    const next = chooseNeutralWander(state, lord);
+    if (!next) {
+      lord.neutralNextMoveH = nowH + 6;
+      return false;
+    }
+    lord.neutralWander = { x: next.x, y: next.y, siteId: next.siteId };
+    lord.neutralPath = next.path;
+  }
+
+  let step = null;
+  while (lord.neutralPath.length) {
+    const cand = lord.neutralPath.shift();
+    if (!isPassable(state.world, cand.x, cand.y)) continue;
+    if (siteAt(state.world, cand.x, cand.y)) continue;
+    if (unitOccupies(state, lord, cand.x, cand.y)) continue;
+    step = cand;
+    break;
+  }
+  if (!step) {
+    lord.neutralWander = null;
+    lord.neutralPath = null;
+    lord.neutralNextMoveH = nowH + 2;
+    return false;
+  }
+  stepUnitTo(state, lord, step, LORD_STEP_HOURS);
+  lord.nextMoveH = nowH + LORD_STEP_HOURS;
+  lord.neutralNextMoveH = nowH + LORD_STEP_HOURS;
+  return true;
+}
+
+/** 玩家眼下能不能收在野的人：自立算自己，有主算替主上收。 */
+function neutralRecruitStanding(state) {
+  const p = state.player;
+  const owned = state.world.sites.filter(function (s) { return s.playerOwned; }).length;
+  if (p.faction && p.faction !== 'player' && FACTIONS[p.faction] &&
+      !(state.factionState && state.factionState[p.faction] && state.factionState[p.faction].dead)) {
+    return { mode: 'vassal', faction: p.faction, owned: owned };
+  }
+  if (owned > 0) return { mode: 'self', faction: 'player', owned: owned };
+  return { mode: 'none', faction: null, owned: 0 };
+}
+
+/** 在野招揽概率：比牢里招降高，给玩家一个明确的“收残部”窗口。 */
+function neutralRecruitChance(state, lord) {
+  if (!lord || !lord.neutral) {
+    return { chance: 0, mode: 'none', target: null, reason: '他不是在野之身。' };
+  }
+  if (lord.arcNoRecruit) {
+    return { chance: 0, mode: 'arc', target: null, reason: '天下皆反时，没有人会在这时候接你的旗。' };
+  }
+  const standing = neutralRecruitStanding(state);
+  if (standing.mode === 'none') {
+    return {
+      chance: 0, mode: 'none', target: null, owned: 0,
+      reason: '你连一面旗、一座城都没有，他没法把残部交给你。',
+    };
+  }
+  const p = state.player;
+  let chance = standing.mode === 'self' ? 0.72 : 0.62;
+  chance += Math.min(0.10, standing.owned * 0.02);
+  chance += Math.min(0.10, (p.renown || 0) / 8000);
+  chance += Math.min(0.12, (lord.neutralFavor || 0) * 0.0025);
+  chance = Math.max(0.55, Math.min(0.92, chance));
+  return {
+    chance: chance,
+    mode: standing.mode,
+    target: standing.faction,
+    owned: standing.owned,
+    reason: '',
+  };
+}
+
+/** 玩家开口收在野残部；成功后就近落到玩家/主上的城里。 */
+function recruitNeutralLord(state, lordId) {
+  const lord = state.lords.filter(function (l) { return l.id === lordId; })[0];
+  if (!lord) return { ok: false, msg: '查无此人' };
+  if (!lord.neutral || lord.dead || !lord.alive) return { ok: false, msg: '他已经不是在野之身。' };
+  const offer = neutralRecruitChance(state, lord);
+  if (offer.chance <= 0) return { ok: false, msg: offer.reason, chance: 0 };
+  const cool = lord.neutralCoolDay || 0;
+  if (state.clock.day < cool) {
+    return {
+      ok: false, cooldown: true, waitDays: cool - state.clock.day,
+      chance: offer.chance,
+      msg: lord.name + '把刀横在膝上：“话已经说过了，让我再想几天。”',
+    };
+  }
+  lord.neutralCoolDay = state.clock.day + 3;
+  if (state.rng.next() > offer.chance) {
+    return {
+      ok: false, chance: offer.chance,
+      msg: lord.name + '摇了摇头：“旧部还没散尽，我再走一段看看。”',
+    };
+  }
+  const target = offer.target;
+  moveLordToFaction(state, lord, target);
+  clearNeutralLord(lord);
+  state.player.renown += 20;
+  const toName = target === 'player' ? '你的旗' : (FACTIONS[target] ? FACTIONS[target].full : target);
+  const toWhom = target === 'player' ? '你' : toName;
+  pushLog(state, lord.name + '带着残部归了' + toName + '。', 'recruit');
+  return {
+    ok: true, lordId: lord.id, faction: target, chance: offer.chance,
+    msg: lord.name + '抱拳：“这条命，先记在' + toWhom + '名下。”',
+  };
+}
+
+/** 在野的人自己找下家：只投有城的活势力，不投玩家，也不投匪。 */
+function neutralJoinTarget(state, lord) {
+  const here = { x: lord.x, y: lord.y };
+  const list = Object.keys(FACTIONS).filter(function (id) {
+    if (id === 'player' || id === 'bandit' || id === 'rebel') return false;
+    if (!FACTIONS[id] || (state.factionState[id] || {}).dead) return false;
+    return state.world.sites.some(function (s) { return s.ownerFaction === id && s.type !== 'camp'; });
+  });
+  if (!list.length) return null;
+  const scored = list.map(function (id) {
+    return { id: id, d: nearestFactionCity(state, id, here) };
+  }).sort(function (a, b) { return a.d - b.d; });
+  // 只在最近的几家里面掷，避免一个在野的人突然跨半张地图去投远国。
+  const top = scored.slice(0, Math.min(4, scored.length));
+  return top[state.rng.int(0, top.length - 1)].id;
+}
+
+function neutralJoinFaction(state, lord) {
+  if (!lord || !lord.neutral || lord.dead || !lord.alive) return null;
+  const target = neutralJoinTarget(state, lord);
+  if (!target) return null;
+  const from = lord.neutralFrom;
+  const name = lord.name;
+  moveLordToFaction(state, lord, target);
+  clearNeutralLord(lord);
+  pushLog(state, name + '在野了一阵，最后带着残部投了' +
+    (FACTIONS[target] ? FACTIONS[target].full : target) + '。', 'neutral');
+  // 记一笔旧旗，酒馆/人物页还能看出他是从哪家散出来的。
+  if (from) lord.formerFaction = from;
+  return target;
+}
+
+/** 每日一次：在野的人小概率自己投靠一家；不掷中就一直漂着，等玩家来收。 */
+function neutralLordTick(state) {
+  const day = state.clock.day;
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.neutral || !lord.alive || lord.dead || lord.prisoner || lord.retired) return;
+    if (day - (lord.neutralSince || day) < NEUTRAL_JOIN_MIN_DAYS) return;
+    if (state.rng.next() >= NEUTRAL_JOIN_CHANCE) return;
+    neutralJoinFaction(state, lord);
+  });
+}
+
 /** 一个势力连城带人都没了，满七天：亡国；opts.silent 用于停战期批量清扫，不发单国文书。 */
 function fallFaction(state, id, opts) {
   const silent = !!(opts && opts.silent);
@@ -7227,7 +7534,9 @@ function fallFaction(state, id, opts) {
     lines.push('“' + ruler.name + '”这个名字，从今天的榜文上划掉了。');
   }
 
-  // 剩下的领主：灭国者优先收大部分；小部分逃往邻国，由邻国吸纳。
+  // 剩下的领主：史实固定去向优先；其余六成半归攻破最后城池的人，
+  // 剩下没有归入任何一家的，全部收旗成为在野残部，不再由邻国自动吞并。
+  // 只有在 LOYAL_GONE 里写明宁死不降的人，才真正解甲归田。
   // 最后一座城是谁打下的，谁就是灭国者；这条在夺城钩子里记进 fs.lastConqueror。
   const others = state.lords.filter(function (l) {
     return l.faction === id && l.alive && l !== ruler && !l.factionStateFixed;
@@ -7242,14 +7551,11 @@ function fallFaction(state, id, opts) {
   const conquerorAlive = !!(conqueror && (conqueror === 'player'
     ? state.player.faction === 'player' && state.world.sites.some(function (s) { return s.playerOwned; })
     : factionAlive(state, conqueror)));
-  // 灭国分三档：史实固定的去向（DEFECT_TO）先走；剩下的六成半归攻破最后城池的人；
-  // 其余没有固定去向的，全部由邻国就近吸纳。只有宁死不降的（LOYAL_GONE）才隐居。
-  // 不能再让带兵的旧部留在原地打旧旗号。
   const flexible = others.filter(function (l) { return !LOYAL_GONE[l.id] && !DEFECT_TO[l.id]; });
   const shareQuota = conquerorAlive ? Math.ceil(flexible.length * 0.65) : 0;
   let givenToConqueror = 0;
   const gone = [];
-  const retired = [];
+  const neutral = [];
   others.forEach(function (l) {
     if (LOYAL_GONE[l.id]) {
       l.alive = false;
@@ -7264,12 +7570,10 @@ function fallFaction(state, id, opts) {
     if (!target && conquerorAlive && givenToConqueror < shareQuota) {
       target = conqueror;
     }
-    if (!target) target = pickFactionFor(state, l, id);
     if (!target) {
-      l.alive = false;
-      l.retired = true;
-      l.troops = {};
-      retired.push(l.name);
+      // 没有固定去向，也没有被灭国者收走：不留在原地打旧旗号，也不凭空消失。
+      makeNeutralLord(state, l, id);
+      neutral.push(l.name);
       return;
     }
     if (target === conqueror) givenToConqueror += 1;
@@ -7286,8 +7590,10 @@ function fallFaction(state, id, opts) {
   if (gone.length) {
     lines.push(gone.slice(0, 4).join('、') + '不肯降，解甲归乡里去了。');
   }
-  if (retired.length) {
-    lines.push(retired.slice(0, 4).join('、') + '见大势已去，散部归田。');
+  if (neutral.length) {
+    fs.neutralCount = neutral.length;
+    lines.push(neutral.slice(0, 4).join('、') + (neutral.length > 4 ? '等 ' + neutral.length + ' 人' : '') +
+      '收了旗，成了在野之身，带着残部往别处去了。');
   }
 
   // 这个势力的旗从此从地图上撤掉（跟你的旧关系留着：村里那个隐者还认这个）
@@ -8560,6 +8866,21 @@ function deserialize(json) {
     if (l.exPlayer === undefined) l.exPlayer = !!(l.hero || l.title === '你的家臣');
     if (l.arcLoyal === undefined) l.arcLoyal = false;
     if (l.borderStation === undefined) l.borderStation = false;
+    if (l.neutral === undefined) l.neutral = false;
+    if (l.neutralFrom === undefined) l.neutralFrom = null;
+    if (l.neutralSince === undefined) l.neutralSince = 0;
+    if (l.neutralFavor === undefined) l.neutralFavor = 0;
+    if (l.neutralWander === undefined) l.neutralWander = null;
+    if (l.neutralPath === undefined) l.neutralPath = null;
+    if (l.neutralNextMoveH === undefined) l.neutralNextMoveH = 0;
+    if (l.neutralCoolDay === undefined) l.neutralCoolDay = 0;
+    // 旧档里已经按“散部归田”处理的亡国残部，只要不是宁死不降的名单，
+    // 读档时改回在野，不用重开一局才能看到新机制。
+    if (l.retired && !l.hidden && !l.neutral && l.faction && !l.alive &&
+        state.factionState && state.factionState[l.faction] && state.factionState[l.faction].dead &&
+        !LOYAL_GONE[l.id]) {
+      makeNeutralLord(state, l, l.faction);
+    }
     if (l.scattered && !l.respawnDay) l.respawnDay = state.clock.day + 3;
     if (!l.level) l.level = lordLevelForRank(lordRank(l));
   });
@@ -8737,6 +9058,12 @@ module.exports = {
   fallFaction,
   pickFactionFor,
   moveLordToFaction,
+  makeNeutralLord,
+  neutralRecruitChance,
+  recruitNeutralLord,
+  neutralJoinFaction,
+  neutralLordTick,
+  moveNeutralLord,
   ensureMaChaoToShu,
   MA_CHAO_TO_SHU_DAY,
   resolveMaSurrender,

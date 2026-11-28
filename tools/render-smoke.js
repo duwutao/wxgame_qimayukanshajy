@@ -23,7 +23,10 @@ function ok(name, cond, extra) {
 }
 
 function makeCtx() {
-  const store = {};
+  const store = {
+    __texts: [],
+    fillText: function (s) { store.__texts.push(String(s)); },
+  };
   const gradient = { addColorStop: function () {} };
   const fn = function () {};
   return new Proxy(store, {
@@ -32,6 +35,7 @@ function makeCtx() {
       if (k === 'measureText') {
         return function (s) { return { width: (String(s).length || 1) * 13 }; };
       }
+      if (k === 'fillText') return t.fillText;
       if (k === 'createLinearGradient' || k === 'createRadialGradient') {
         return function () { return gradient; };
       }
@@ -692,6 +696,49 @@ smoke('被追上页（领主三选项）', function () {
   ok('被追上页记下了对象', !!app.chase && app.chase.id === lord.id);
   app.pop();
   ok('退出后清空对象', !app.chase);
+});
+
+smoke('在野领主：菜单改口与招揽页', function () {
+  const prevState = app.state;
+  const st = app.state = stateLib.createGame({ seed: 4325 });
+  st.events.length = 0;
+  const lord = st.lords.filter(function (l) { return l.id === 'liru'; })[0];
+  stateLib.makeNeutralLord(st, lord, 'lv');
+  st.player.faction = 'player';
+  st.world.sites[0].playerOwned = true;
+  app.replace('map');
+  app.push('lord', { lordId: lord.id });
+  app.ui.begin();
+  app.top().scene.render(app);
+  let ids = app.ui.items.map(function (b) { return b.id; });
+  ok('在野对话把开战换成招揽', ids.indexOf('ld_recruit') >= 0 && ids.indexOf('ld_war') < 0, ids.join(','));
+  const recruit = app.ui.items.filter(function (b) { return b.id === 'ld_recruit'; })[0];
+  recruit.onTap();
+  app.ui.begin();
+  app.top().scene.render(app);
+  ids = app.ui.items.map(function (b) { return b.id; });
+  ok('招揽页有开口与再想想', ids.indexOf('recruit_go') >= 0 && ids.indexOf('recruit_back') >= 0, ids.join(','));
+  app.pop();
+  app.state = prevState;
+  app.replace('map');
+});
+
+smoke('在野领主：地图挂野字旗', function () {
+  const prevState = app.state;
+  const st = stateLib.createGame({ seed: 4326 });
+  st.events.length = 0;
+  const lord = st.lords.filter(function (l) { return l.id === 'liru'; })[0];
+  stateLib.makeNeutralLord(st, lord, 'lv');
+  app.state = st;
+  app.replace('map');
+  app.mapZoom = 1;
+  app.mapCam = { x: lord.x * 64 - 300, y: lord.y * 64 - 300 };
+  app.ui.begin();
+  app.top().scene.render(app);
+  ok('地图给在野领主画了“野”字旗', rt.ctx.__texts.indexOf('野') >= 0,
+    JSON.stringify(rt.ctx.__texts.slice(-24)));
+  app.state = prevState;
+  app.replace('map');
 });
 
 smoke('城池菜单：选项挤不下时出现滚动 + 固定离城', function () {

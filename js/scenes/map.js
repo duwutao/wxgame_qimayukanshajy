@@ -1744,7 +1744,8 @@ function drawUnits(ctx, app, cam, box, w) {
     const sy = box.top + up.y * TS - cam.y + TS / 2;
     if (sx < -50 || sx > w + 50 || sy < box.top - 50 || sy > box.top + box.h + 50) return;
     const hostile = stateLib.isHostileFaction(st, lord.faction);
-    const col = FACTIONS[lord.faction] ? FACTIONS[lord.faction].color : '#999';
+    const neutral = !!lord.neutral;
+    const col = FACTIONS[lord.faction] ? FACTIONS[lord.faction].color : (neutral ? '#9b8d76' : '#999');
 
     // 整张天下：领主收成一个势力色方块，敌对的套红圈
     if (low) {
@@ -1795,8 +1796,8 @@ function drawUnits(ctx, app, cam, box, w) {
       ctx.drawImage(icon, sx - isz / 2, sy - isz * 0.76, isz, isz);
     }
 
-    // 势力简写：一面小旗，全国地图上也认得出是哪家的
-    const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : '?';
+    // 势力简写：一面小旗，全国地图上也认得出是哪家的；在野的人挂“野”字旗
+    const banner = FACTIONS[lord.faction] ? FACTIONS[lord.faction].banner : (neutral ? '野' : '?');
     ctx.fillStyle = 'rgba(12,9,6,0.6)';
     ctx.fillRect(bxx - 2 * z, byy - 2 * z, bw + 4 * z, bh + 4 * z);
     ctx.fillStyle = col;

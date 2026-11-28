@@ -1,6 +1,7 @@
 /**
  * 领主对话：碰面先说话，再决定结交、送礼还是拔刀
- * 六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
+ * 常规六件事：了解生平 / 查看兵力 / 送礼 / 开战 / 你在做什么 / 离开
+ * 在野残部把“开战”换成“招揽入伙”，走招揽概率与三日冷却。
  */
 
 const { text, panel, wrap } = require('../render/ui.js');
@@ -27,6 +28,20 @@ const OPTIONS = [
   { id: 'idle', label: '你在做什么' },
   { id: 'leave', label: '离开' },
 ];
+
+// 在野的人不接战书：把“开战”换成“招揽入伙”，走另一套高概率流程。
+const NEUTRAL_OPTIONS = [
+  { id: 'bio', label: '了解生平' },
+  { id: 'troops', label: '查看兵力' },
+  { id: 'gift', label: '送礼结交' },
+  { id: 'recruit', label: '招揽入伙' },
+  { id: 'idle', label: '你在做什么' },
+  { id: 'leave', label: '离开' },
+];
+
+function optionsFor(lord) {
+  return lord && lord.neutral ? NEUTRAL_OPTIONS : OPTIONS;
+}
 
 const LordScene = {
   enter(app, params) {
@@ -66,7 +81,9 @@ const LordScene = {
     if (!lord) return;
 
     const fac = FACTIONS[lord.faction];
-    const col = fac ? fac.color : '#8f8f86';
+    const neutral = !!lord.neutral;
+    const oldFac = neutral && lord.neutralFrom ? FACTIONS[lord.neutralFrom] : null;
+    const col = fac ? fac.color : (neutral ? '#9b8d76' : '#8f8f86');
 
     ctx.fillStyle = '#0d0a07';
     ctx.fillRect(0, 0, w, h);
@@ -93,7 +110,8 @@ const LordScene = {
 
     // 名字与身份
     text(ctx, lord.name, w / 2, 26, { size: 42, align: 'center', color: '#f5e9cf', shadow: true });
-    text(ctx, (lord.title || '') + ' · ' + (fac ? fac.full : '无主'), w / 2, 76, {
+    text(ctx, (lord.title || '') + ' · ' +
+      (fac ? fac.full : (neutral ? '在野' + (oldFac ? ' · 旧属' + oldFac.name : '') : '无主')), w / 2, 76, {
       size: 18, align: 'center', color: '#c9bda2', shadow: true,
     });
 
@@ -102,8 +120,9 @@ const LordScene = {
     const isBio = d.page === 'bio';
     const boxH = isBio ? (h - boxY - 116) : Math.min(260, h - boxY - 250);
     panel(ctx, 20, boxY, w - 40, boxH, { fill: '#201a14' });
-    text(ctx, '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' +
-      (RANK_LABEL[stateLib.lordRank(lord)] || '将领'),
+    text(ctx, neutral ? '在野之身 · 可招揽 · ' + (RANK_LABEL[stateLib.lordRank(lord)] || '将领')
+      : '关系 ' + stateLib.relationOf(st, lord.faction) + ' · ' +
+        (RANK_LABEL[stateLib.lordRank(lord)] || '将领'),
       w - 36, boxY + 10, { size: 16, align: 'right', color: '#a2947a' });
     if (isBio) text(ctx, '生平', 40, boxY + 10, { size: 16, color: '#c9bda2' });
     const size = isBio ? 18 : 21;
@@ -118,16 +137,27 @@ const LordScene = {
     const bottomY = boxY + boxH + 16;
 
     if (d.page === 'menu') {
-      OPTIONS.forEach(function (op, i) {
+      optionsFor(lord).forEach(function (op, i) {
         const bw = (w - 60) / 3;
         const bx = 20 + (i % 3) * (bw + 10);
         const by = bottomY + Math.floor(i / 3) * 78;
         app.ui.button(ctx, bx, by, bw, 68, op.label, {
           id: 'ld_' + op.id,
           size: 22,
-          fill: op.id === 'war' ? '#43201a' : '#33271b',
+          fill: op.id === 'war' ? '#43201a' : (op.id === 'recruit' ? '#5a4317' : '#33271b'),
           onTap: function () { act(app, op.id); },
         });
+      });
+    } else if (d.page === 'recruit') {
+      const offer = stateLib.neutralRecruitChance(st, lord);
+      text(ctx, offer.chance > 0
+        ? '开口招揽：约 ' + Math.round(offer.chance * 100) + '% 会答应。'
+        : offer.reason, 24, bottomY, { size: 18, color: offer.chance > 0 ? '#e8c878' : '#c98b7a' });
+      app.ui.button(ctx, 20, bottomY + 34, w / 2 - 30, 72, '开口招揽', {
+        id: 'recruit_go', size: 24, fill: '#5a4317', onTap: function () { act(app, 'recruit_go'); },
+      });
+      app.ui.button(ctx, w / 2 + 10, bottomY + 34, w / 2 - 30, 72, '再想想', {
+        id: 'recruit_back', size: 24, fill: '#241c14', onTap: function () { d.page = 'menu'; },
       });
     } else if (d.page === 'gift') {
       text(ctx, '送礼：君主 100 金钱换 5 点，领兵者 3 点，将领 2 点。', 24, bottomY, {
@@ -206,12 +236,35 @@ function act(app, id) {
     d.page = 'gift';
     return;
   }
+  if (id === 'recruit') {
+    const offer = stateLib.neutralRecruitChance(st, lord);
+    const oldFac = lord.neutralFrom && FACTIONS[lord.neutralFrom];
+    d.line = offer.chance > 0
+      ? '“旗已经折了，这些人还没散。”\n' +
+        '（在野' + (oldFac ? ' · 旧属' + oldFac.name : '') +
+        ' · 招揽成功率约 ' + Math.round(offer.chance * 100) + '%）'
+      : offer.reason;
+    d.page = 'recruit';
+    return;
+  }
+  if (id === 'recruit_go') {
+    const r = stateLib.recruitNeutralLord(st, lord.id);
+    app.showToast(r.msg, 2.6);
+    d.line = r.ok ? r.msg + '\n（声望 +20）' : r.msg;
+    d.page = 'menu';
+    return;
+  }
   if (id === 'idle') {
     d.line = '“' + stateLib.lordIdle(st, lord) + '”\n（他把手里的东西放下，看了你一眼。）';
     d.page = 'idle';
     return;
   }
   if (id === 'war') {
+    if (lord.neutral) {
+      d.line = '“我现在没有旗，也没有城。要收我，开口；要打，等我先找面旗。”';
+      d.page = 'menu';
+      return;
+    }
     const r = stateLib.provokeLord(st, lord);
     app.showToast(r.msg + '，他拔了刀。', 2);
     stateLib.startLordBattle(st, lord);

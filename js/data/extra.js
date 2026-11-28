@@ -541,6 +541,23 @@ const FACTION_TALK = {
   },
 };
 
+/** 亡国残部转在野后的通用话：没有旗号，也没有城，只剩旧部。 */
+const NEUTRAL_TALK = {
+  greet: [
+    '旗折了，人还在。你找我，是想听旧部的名字？',
+    '我现在没有城，也没有主。有话直说。',
+    '旧主的印绶交了，刀还没交。',
+    '这一路人跟着我走了半个月，总得给他们找个去处。',
+  ],
+  idle: [
+    '在数还剩多少人。',
+    '在打听旧部的下落。',
+    '在等一个还愿意竖旗的人。',
+    '在修一辆断轴的粮车。',
+    '在看路。哪边有城，哪边就能活。',
+  ],
+};
+
 const LOOK_WEAPONS = ['ji', 'dao', 'qiang', 'gong', 'jian'];
 const LOOK_HELMS = ['plume', 'horn', 'crown', 'band'];
 const LOOK_CAPES = ['#7a2118', '#4a2a20', '#3a4a58', '#2f6a3a', '#4a3a68', '#8a6a2a', '#5a6a4a', '#3a5a6a', '#6a5a2a', '#4a5a6a'];
@@ -590,6 +607,7 @@ module.exports = {
   LORD_TALK,
   LORD_EXTRA_BIO,
   FACTION_TALK,
+  NEUTRAL_TALK,
   LORD_LOOK,
   lookFor,
   VILLAGE_FOOD,

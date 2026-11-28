@@ -3304,8 +3304,8 @@ function strategyTick(state) {
         if (!l || !l.alive || l.prisoner) return;
         if (siteDistance(l, target) <= 2 && cp.arrivedIds.indexOf(id) < 0) {
           cp.arrivedIds.push(id);
-          logFn(state, '【' + FACTIONS[l.faction].name + '】的' + l.name + '赶到' + target.name +
-            '城下，守军士气振了一下。', 'siege');
+          logFn(state, '【' + (FACTIONS[l.faction] ? FACTIONS[l.faction].name : '无旗残部') + '】的' +
+            l.name + '赶到' + target.name + '城下，守军士气振了一下。', 'siege');
         }
       });
       if (day >= cp.siegeUntil) beginSiegeAssault(state, cp, target, day);
