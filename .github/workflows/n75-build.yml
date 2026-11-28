@@ -21,9 +21,18 @@ jobs:
           node-version: '20'
       - name: Apply n75 source patch
         run: |
+          set -e
           curl --http1.1 -L --retry 3 --fail -o /tmp/n75-source.patch 'https://aka.doubaocdn.com/s/VUyUPv2Mns'
-          git apply --check /tmp/n75-source.patch
-          git apply /tmp/n75-source.patch
+          git apply --check --exclude=web/index.html /tmp/n75-source.patch
+          git apply --exclude=web/index.html /tmp/n75-source.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for p in [Path('index.html'), Path('web/index.html')]:
+              s = p.read_text()
+              s = re.sub(r'game\.bundle\.js\?v=[0-9A-Za-z]+', 'game.bundle.js?v=20261128game1h', s)
+              p.write_text(s)
+          PY
       - name: Test
         run: |
           node tools/logic-test.js
