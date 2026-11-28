@@ -8983,6 +8983,8 @@ function createFieldBattle(state, aRef, bRef, opts) {
   });
   battle.fieldBattleId = id;
   battle.joinLog = [];
+  const startedH = state.clock.day * 24 + state.clock.hour;
+  const stepEveryH = Math.max(1, Number(options.stepEveryH) || 3);
   const battlefield = {
     id: id,
     center: center,
@@ -8993,11 +8995,20 @@ function createFieldBattle(state, aRef, bRef, opts) {
     bSide: bSide,
     battle: battle,
     participants: [],
-    startedH: state.clock.day * 24 + state.clock.hour,
+    startedH: startedH,
+    // 史实决战按 12 时辰推一轮；普通遭遇战仍用 3 时辰。
+    stepEveryH: stepEveryH,
+    // 显式指定节奏的战场开局就推第一轮，不让官渡空等半日。
+    lastStepH: options.stepEveryH ? startedH - stepEveryH : startedH,
+    minFinishH: Math.max(0, Number(options.minFinishH) || 0),
+    // 史实决战到点必须收兵：不能因为残兵只剩个位数就无限拖下去。
+    finishByH: Math.max(0, Number(options.finishByH) || 0),
     lastTickH: 0,
     joinLog: [],
     playerInvolved: playerInvolved,
     playerSide: options.playerSide || (aInfo.isPlayer ? 'a' : bInfo.isPlayer ? 'b' : null),
+    // 官渡这类决战开局已把附近队伍算进来，不再让后续零星援军把战局拖成二十天。
+    noReinforce: !!options.noReinforce,
     context: context,
   };
   markFieldParticipants(state, battlefield, aInfos, 'a');
@@ -9132,6 +9143,10 @@ function settleFieldBattle(state, battlefield, summary, options) {
   const battle = bf.battle;
   const result = summary && summary.result ? summary.result : battle.result;
   if (!result) return null;
+  // 官渡战场一旦结算，标题栏的“决战第 X/7 日”就收掉，不能战后还挂着倒计时。
+  if (bf.context && bf.context.cause === 'guandu' && state.story && state.story.guanduBattle) {
+    state.story.guanduBattle.done = true;
+  }
   const playerBattle = !!bf.playerInvolved || !!opts.playerBattle;
   const pending = state.postBattleLord;
   const winnerSide = result === 'win' ? 'a' : result === 'lose' ? 'b' : null;
@@ -9269,9 +9284,9 @@ function abandonFieldBattle(state, battlefield, reason) {
   return true;
 }
 
-/** NPC 战场：每 3 时辰推进一阵；其他队伍在战中进入五格就加入 */
 /**
- * NPC 合战：每 3 时辰推进一轮，和玩家战斗里每 0.6 秒推进一轮的节奏接近。
+ * NPC 合战：默认每 3 时辰推进一轮，和玩家战斗里每 0.6 秒推进一轮的节奏接近；
+ * 官渡这类史实决战可由战场自己的 stepEveryH 放慢到 12 时辰一轮。
  * 这样五格内援军有时间加入，各领主也按现有人数逐步、均衡分摊伤亡，
  * 一直打到一方归零才结算；不再一口气跑完 24 轮，也不再按 72 时辰平局收场。
  */
@@ -9283,12 +9298,29 @@ function tickFieldBattles(state) {
     if (!bf || !bf.battle || bf.playerInvolved) return;
     // 开战这一拍先只有最初两方入阵；下一轮（3 时辰后）起，五格内
     // 已经站着的队伍再按阵营动态加入，保证“不预先聚合”。
-    if (nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
+    if (!bf.noReinforce && nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
     const battle = bf.battle;
+    // 已经打完的战场不再等下一轮：到最短保留日就结算。
+    if (battle.finished) {
+      if (bf.minFinishH && nowH < bf.minFinishH) return;
+      settleFieldBattle(state, bf, battle.summary(), {});
+      processed += 1;
+      return;
+    }
+    const stepEvery = Math.max(1, Number(bf.stepEveryH) || 3);
+    const lastStep = typeof bf.lastStepH === 'number' ? bf.lastStepH : bf.startedH;
+    if (nowH - lastStep < stepEvery) return;
+    bf.lastStepH = nowH;
     if (battle.batchDone && !battle.finished) battle.nextBatch();
     if (!battle.finished) battle.step();
+    // 官渡到第七日仍未分胜负，就按剩余兵力收兵，避免十几天一直挂着一场残兵战。
+    if (!battle.finished && bf.finishByH && nowH >= bf.finishByH) {
+      battle.finishByRemain();
+    }
     syncFieldBattle(state, bf, { writeBack: true });
     if (battle.finished) {
+      // 官渡这类史实决战即使提前分出胜负，也要把战场留满七日再结算。
+      if (bf.minFinishH && nowH < bf.minFinishH) return;
       settleFieldBattle(state, bf, battle.summary(), {});
       processed += 1;
     }
@@ -11374,6 +11406,8 @@ const STORY = {
         short: '官渡定河北',
         stage: 3,
         stageFlag: 'guandu',
+        // 官渡决战至少七日；即使战场提前分出胜负，也不让阶段在第七日前翻页。
+        minBattleDays: 7,
         targets: ['yuan', 'gongsun', 'xianbei'],
         objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
         noTimeout: true,
@@ -11643,6 +11677,8 @@ const STORY = {
         restDays: 0,
         next: 'end',
         stageFlag: 'guandu',
+        // 与曹操侧同一场决战，也必须打满七日。
+        minBattleDays: 7,
         yuanPenalty: true,
         title: '官渡之战',
         casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。此战之后，曹袁再不休战，直到一方灭亡。',
@@ -11713,10 +11749,18 @@ const STORY = {
     ],
   },
 
+  // 官渡是国运决战：至少打满七个游戏日，让玩家有时间赶到、看清战局。
+  // 3 时辰一轮会把这场决战在三天内打完；改成 12 时辰一轮，正合七日。
+  guandu: {
+    battleDays: 7,
+    stepHours: 12,
+  },
+
   chibi: {
     title: '赤壁之战',
     caoRestDays: 30,
-    battleDays: 3,
+    // 赤壁火攻后留七日围剿，不再三天就收场。
+    battleDays: 7,
     aftermathRestDays: 15,
     fireLossPct: 0.8,
     caoRemainPct: 0.1,
@@ -12197,6 +12241,13 @@ function resume(state, logger) {
   if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
   if (!state.story.waitEvents) state.story.waitEvents = {};
   if (state.story.chibi === undefined) state.story.chibi = null;
+  // 旧档赤壁火攻只有三天：读档时补到七日，别让已开的战局继续三天收场。
+  if (state.story.chibi && state.story.chibi.phase === 'battle' && !state.story.chibi.done) {
+    const cDays = Math.max(1, Number((STORY.chibi || {}).battleDays) || 7);
+    state.story.chibi.battleDays = cDays;
+    const since = Number(state.story.chibi.since) || state.clock.day;
+    state.story.chibi.until = Math.max(Number(state.story.chibi.until) || 0, since + cDays);
+  }
   if (state.story.chibiBattleStaged === undefined) {
     state.story.chibiBattleStaged = !!(state.story.chibi && state.story.chibi.phase !== 'rest');
   }
@@ -12254,6 +12305,29 @@ function resume(state, logger) {
       !!(state.fieldBattles || []).some(function (bf) {
         return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
       });
+  }
+  // 旧档里已经打起来的官渡战场：补上七日节奏与最短结算时间，不重新布阵。
+  if (!state.story.guanduBattle) {
+    const guanduBf = (state.fieldBattles || []).filter(function (bf) {
+      return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+    })[0];
+    if (guanduBf) {
+      const gCfg = STORY.guandu || {};
+      const gDays = Math.max(1, Number(gCfg.battleDays) || 7);
+      const nowH = state.clock.day * 24 + state.clock.hour;
+      guanduBf.stepEveryH = Math.max(1, Number(gCfg.stepHours) || 12);
+      guanduBf.lastStepH = nowH;
+      guanduBf.noReinforce = true;
+      guanduBf.minFinishH = Math.max(nowH, (guanduBf.startedH || nowH) + gDays * 24);
+      guanduBf.finishByH = guanduBf.minFinishH;
+      state.story.guanduBattle = {
+        startedH: guanduBf.startedH || nowH,
+        untilH: guanduBf.minFinishH,
+        days: gDays,
+        battleId: guanduBf.id,
+        done: false,
+      };
+    }
   }
   if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
   if (!state.story.targetRegion) state.story.targetRegion = {};
@@ -12660,6 +12734,12 @@ function finishPhase(state, faction, ok) {
   // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
   // 官渡例外：曹袁必须打到一方灭亡，不能靠逾期收兵把剧情提前结束。
   if (!ok && isGuanduStage(cfg)) return;
+  // 官渡/赤壁这类史实决战，即便目标提前达成，也要让战局在台上留满规定天数。
+  const minBattleDays = Math.max(0, Number(cfg.minBattleDays) || 0);
+  if (minBattleDays) {
+    const startedDay = Number(p.startedDay) || 0;
+    if (state.clock.day - startedDay < minBattleDays) return;
+  }
   if (!ok) {
     const deadline = STORY.phaseDeadlineDays || 720;
     if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
@@ -12697,6 +12777,7 @@ function finishPhase(state, faction, ok) {
   p.success = true;
   p.timedOut = false;
   p.completed += 1;
+  if (isGuanduStage(cfg) && st.guanduBattle) st.guanduBattle.done = true;
   if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
   if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
   p.nextId = cfg.successNext || cfg.next || 'end';
@@ -13058,12 +13139,13 @@ function startChibiPrelude(state) {
   return true;
 }
 
-/** 赤壁火攻：开局先烧掉曹军八成，再留三天让孙刘联军围剿残部。 */
+/** 赤壁火攻：开局先烧掉曹军八成，再留七日让孙刘联军围剿残部。 */
 function beginChibiBattle(state) {
   const st = state.story;
   const c = st && st.chibi;
   if (!c || c.phase !== 'rest') return false;
   const cf = STORY.chibi || {};
+  const battleDays = Math.max(1, Number(cf.battleDays) || 7);
   const day = state.clock.day;
   clearTruce(state, STORY.kingdoms);
   stopMajorWars(state);
@@ -13076,7 +13158,8 @@ function beginChibiBattle(state) {
   st.kingdomsAllAtWar = true;
   c.phase = 'battle';
   c.since = day;
-  c.until = day + (cf.battleDays || 3);
+  c.battleDays = battleDays;
+  c.until = day + battleDays;
   c.caoBefore = countTroops(state, 'wei');
   const site = storySite(state, 'chibi');
   c.playerParticipated = chibiPlayerParticipated(state, site);
@@ -13347,9 +13430,20 @@ function tickChibi(state) {
     beginChibiBattle(state);
     return true;
   }
-  if (c.phase === 'battle' && state.clock.day >= (c.until || 0)) {
-    resolveChibiBattle(state);
-    return true;
+  if (c.phase === 'battle') {
+    // 玩家中途从别处赶到赤壁，也算参战；否则七日战局等于白开。
+    if (!c.playerParticipated) {
+      const site = storySite(state, 'chibi');
+      if (chibiPlayerParticipated(state, site)) {
+        c.playerParticipated = true;
+        logFn(state, '你赶到赤壁江岸，与曹军残部会合；赤壁决战还没结束。', 'war');
+        refreshHeadline(state);
+      }
+    }
+    if (state.clock.day >= (c.until || 0)) {
+      resolveChibiBattle(state);
+      return true;
+    }
   }
   if (c.phase === 'aftermath' && state.clock.day >= (c.until || 0)) {
     c.phase = 'done';
@@ -14004,8 +14098,25 @@ function refreshHeadline(state) {
     parts.push('袁术：仲家称帝');
   }
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
+  // 官渡与赤壁都给出“第几日/共几日”，让玩家在 8 倍速下也能看出决战还没完。
+  if (st.guanduBattle && !st.guanduBattle.done) {
+    const gb = st.guanduBattle;
+    const totalDays = Math.max(1, Number(gb.days) || (STORY.guandu && STORY.guandu.battleDays) || 7);
+    const nowH = state.clock.day * 24 + state.clock.hour;
+    const elapsedH = Math.max(0, nowH - (Number(gb.startedH) || 0));
+    const dayNo = Math.min(totalDays, Math.floor(elapsedH / 24) + 1);
+    parts.push('官渡：决战第 ' + dayNo + '/' + totalDays + ' 日');
+  }
   if (st.chibi && !st.chibi.done) {
-    parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
+    const c = st.chibi;
+    if (c.phase === 'battle') {
+      const totalDays = Math.max(1, Number(c.battleDays) || STORY.chibi.battleDays || 7);
+      const elapsed = Math.max(0, state.clock.day - (Number(c.since) || state.clock.day));
+      const dayNo = Math.min(totalDays, Math.floor(elapsed) + 1);
+      parts.push('赤壁：火攻决战 · 第 ' + dayNo + '/' + totalDays + ' 日');
+    } else {
+      parts.push('赤壁：曹操南下');
+    }
   }
   if (st.jingzhou && st.jingzhou.active) parts.push('荆州：三家会战');
   if (st.endgame && st.endgame.active) parts.push('乱国：三国循环');
@@ -15490,10 +15601,38 @@ function fillGuanduFaction(state, faction) {
 
 /** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
 function stageGuandu(state) {
-  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
-  if (state.story && state.story.guanduBattleStaged) return true;
+  const { STORY } = __require(19);
+  const guanduCfg = STORY.guandu || {};
+  const battleDays = Math.max(1, Number(guanduCfg.battleDays) || 7);
+  const stepHours = Math.max(1, Number(guanduCfg.stepHours) || 12);
+  const nowH = state.clock.day * 24 + state.clock.hour;
   const guandu = siteById(state.world, 'guandu');
   if (!guandu) return false;
+  // 旧档/重复调用：已经有官渡战场时只补齐节奏参数，绝不重新洗牌。
+  const existing = (state.fieldBattles || []).filter(function (bf) {
+    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+  })[0];
+  if (existing) {
+    existing.stepEveryH = stepHours;
+    existing.noReinforce = true;
+    if (!existing.minFinishH) existing.minFinishH = (existing.startedH || nowH) + battleDays * 24;
+    if (!existing.finishByH) existing.finishByH = existing.minFinishH;
+    if (state.story) {
+      if (!state.story.guanduBattle) {
+        state.story.guanduBattle = {
+          startedH: existing.startedH || nowH,
+          untilH: existing.minFinishH,
+          days: battleDays,
+          battleId: existing.id,
+          done: false,
+        };
+      }
+      state.story.guanduBattleStaged = true;
+    }
+    return true;
+  }
+  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
+  if (state.story && state.story.guanduBattleStaged) return true;
   ['wei', 'yuan'].forEach(function (faction, sideIndex) {
     const lords = state.lords.filter(function (l) {
       return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
@@ -15540,22 +15679,36 @@ function stageGuandu(state) {
     });
   });
 
-  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
-  if (state.fieldBattles && state.fieldBattles.some(function (bf) {
-    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  })) {
-    if (state.story) state.story.guanduBattleStaged = true;
-    return true;
-  }
+  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，附近队伍开局聚合，
+  // 不再中途加入零星援军，免得把七日决战拖成二十天。
+  // 12 时辰一轮，十四轮左右正好打满七日；minFinishH 再兜一层，避免提前收场。
   const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
   const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
+  let created = null;
   if (caocao && yuanshao && war.createFieldBattle) {
-    war.createFieldBattle(state,
+    created = war.createFieldBattle(state,
       { kind: 'lord', id: caocao.id },
       { kind: 'lord', id: yuanshao.id },
-      { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
+      {
+        preAggregate: true,
+        radius: 14,
+        context: { kind: 'field', cause: 'guandu' },
+        stepEveryH: stepHours,
+        minFinishH: nowH + battleDays * 24,
+        finishByH: nowH + battleDays * 24,
+        noReinforce: true,
+      });
   }
-  if (state.story) state.story.guanduBattleStaged = true;
+  if (state.story) {
+    state.story.guanduBattle = {
+      startedH: nowH,
+      untilH: nowH + battleDays * 24,
+      days: battleDays,
+      battleId: created ? created.id : null,
+      done: false,
+    };
+    state.story.guanduBattleStaged = true;
+  }
   return true;
 }
 

@@ -383,6 +383,13 @@ function resume(state, logger) {
   if (!state.story.duel) state.story.duel = { startDay: 1, ended: false, winner: null };
   if (!state.story.waitEvents) state.story.waitEvents = {};
   if (state.story.chibi === undefined) state.story.chibi = null;
+  // 旧档赤壁火攻只有三天：读档时补到七日，别让已开的战局继续三天收场。
+  if (state.story.chibi && state.story.chibi.phase === 'battle' && !state.story.chibi.done) {
+    const cDays = Math.max(1, Number((STORY.chibi || {}).battleDays) || 7);
+    state.story.chibi.battleDays = cDays;
+    const since = Number(state.story.chibi.since) || state.clock.day;
+    state.story.chibi.until = Math.max(Number(state.story.chibi.until) || 0, since + cDays);
+  }
   if (state.story.chibiBattleStaged === undefined) {
     state.story.chibiBattleStaged = !!(state.story.chibi && state.story.chibi.phase !== 'rest');
   }
@@ -440,6 +447,29 @@ function resume(state, logger) {
       !!(state.fieldBattles || []).some(function (bf) {
         return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
       });
+  }
+  // 旧档里已经打起来的官渡战场：补上七日节奏与最短结算时间，不重新布阵。
+  if (!state.story.guanduBattle) {
+    const guanduBf = (state.fieldBattles || []).filter(function (bf) {
+      return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+    })[0];
+    if (guanduBf) {
+      const gCfg = STORY.guandu || {};
+      const gDays = Math.max(1, Number(gCfg.battleDays) || 7);
+      const nowH = state.clock.day * 24 + state.clock.hour;
+      guanduBf.stepEveryH = Math.max(1, Number(gCfg.stepHours) || 12);
+      guanduBf.lastStepH = nowH;
+      guanduBf.noReinforce = true;
+      guanduBf.minFinishH = Math.max(nowH, (guanduBf.startedH || nowH) + gDays * 24);
+      guanduBf.finishByH = guanduBf.minFinishH;
+      state.story.guanduBattle = {
+        startedH: guanduBf.startedH || nowH,
+        untilH: guanduBf.minFinishH,
+        days: gDays,
+        battleId: guanduBf.id,
+        done: false,
+      };
+    }
   }
   if (state.story.kingdomsAllAtWar === undefined) state.story.kingdomsAllAtWar = false;
   if (!state.story.targetRegion) state.story.targetRegion = {};
@@ -846,6 +876,12 @@ function finishPhase(state, faction, ok) {
   // 防卡死：目标未达成时，等满两年就自动进入下一阶段；玩家故意阻挠也不能把天下锁死。
   // 官渡例外：曹袁必须打到一方灭亡，不能靠逾期收兵把剧情提前结束。
   if (!ok && isGuanduStage(cfg)) return;
+  // 官渡/赤壁这类史实决战，即便目标提前达成，也要让战局在台上留满规定天数。
+  const minBattleDays = Math.max(0, Number(cfg.minBattleDays) || 0);
+  if (minBattleDays) {
+    const startedDay = Number(p.startedDay) || 0;
+    if (state.clock.day - startedDay < minBattleDays) return;
+  }
   if (!ok) {
     const deadline = STORY.phaseDeadlineDays || 720;
     if (state.clock.day - (p.startedDay || state.clock.day) < deadline) return;
@@ -883,6 +919,7 @@ function finishPhase(state, faction, ok) {
   p.success = true;
   p.timedOut = false;
   p.completed += 1;
+  if (isGuanduStage(cfg) && st.guanduBattle) st.guanduBattle.done = true;
   if (cfg.stage === 3 && st.stage3Done) st.stage3Done[faction] = state.clock.day;
   if (cfg.id === 'wei_xiliang') st.xiliangDone = true;
   p.nextId = cfg.successNext || cfg.next || 'end';
@@ -1244,12 +1281,13 @@ function startChibiPrelude(state) {
   return true;
 }
 
-/** 赤壁火攻：开局先烧掉曹军八成，再留三天让孙刘联军围剿残部。 */
+/** 赤壁火攻：开局先烧掉曹军八成，再留七日让孙刘联军围剿残部。 */
 function beginChibiBattle(state) {
   const st = state.story;
   const c = st && st.chibi;
   if (!c || c.phase !== 'rest') return false;
   const cf = STORY.chibi || {};
+  const battleDays = Math.max(1, Number(cf.battleDays) || 7);
   const day = state.clock.day;
   clearTruce(state, STORY.kingdoms);
   stopMajorWars(state);
@@ -1262,7 +1300,8 @@ function beginChibiBattle(state) {
   st.kingdomsAllAtWar = true;
   c.phase = 'battle';
   c.since = day;
-  c.until = day + (cf.battleDays || 3);
+  c.battleDays = battleDays;
+  c.until = day + battleDays;
   c.caoBefore = countTroops(state, 'wei');
   const site = storySite(state, 'chibi');
   c.playerParticipated = chibiPlayerParticipated(state, site);
@@ -1533,9 +1572,20 @@ function tickChibi(state) {
     beginChibiBattle(state);
     return true;
   }
-  if (c.phase === 'battle' && state.clock.day >= (c.until || 0)) {
-    resolveChibiBattle(state);
-    return true;
+  if (c.phase === 'battle') {
+    // 玩家中途从别处赶到赤壁，也算参战；否则七日战局等于白开。
+    if (!c.playerParticipated) {
+      const site = storySite(state, 'chibi');
+      if (chibiPlayerParticipated(state, site)) {
+        c.playerParticipated = true;
+        logFn(state, '你赶到赤壁江岸，与曹军残部会合；赤壁决战还没结束。', 'war');
+        refreshHeadline(state);
+      }
+    }
+    if (state.clock.day >= (c.until || 0)) {
+      resolveChibiBattle(state);
+      return true;
+    }
   }
   if (c.phase === 'aftermath' && state.clock.day >= (c.until || 0)) {
     c.phase = 'done';
@@ -2190,8 +2240,25 @@ function refreshHeadline(state) {
     parts.push('袁术：仲家称帝');
   }
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
+  // 官渡与赤壁都给出“第几日/共几日”，让玩家在 8 倍速下也能看出决战还没完。
+  if (st.guanduBattle && !st.guanduBattle.done) {
+    const gb = st.guanduBattle;
+    const totalDays = Math.max(1, Number(gb.days) || (STORY.guandu && STORY.guandu.battleDays) || 7);
+    const nowH = state.clock.day * 24 + state.clock.hour;
+    const elapsedH = Math.max(0, nowH - (Number(gb.startedH) || 0));
+    const dayNo = Math.min(totalDays, Math.floor(elapsedH / 24) + 1);
+    parts.push('官渡：决战第 ' + dayNo + '/' + totalDays + ' 日');
+  }
   if (st.chibi && !st.chibi.done) {
-    parts.push(st.chibi.phase === 'battle' ? '赤壁：火攻决战' : '赤壁：曹操南下');
+    const c = st.chibi;
+    if (c.phase === 'battle') {
+      const totalDays = Math.max(1, Number(c.battleDays) || STORY.chibi.battleDays || 7);
+      const elapsed = Math.max(0, state.clock.day - (Number(c.since) || state.clock.day));
+      const dayNo = Math.min(totalDays, Math.floor(elapsed) + 1);
+      parts.push('赤壁：火攻决战 · 第 ' + dayNo + '/' + totalDays + ' 日');
+    } else {
+      parts.push('赤壁：曹操南下');
+    }
   }
   if (st.jingzhou && st.jingzhou.active) parts.push('荆州：三家会战');
   if (st.endgame && st.endgame.active) parts.push('乱国：三国循环');

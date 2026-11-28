@@ -1319,6 +1319,8 @@ function createFieldBattle(state, aRef, bRef, opts) {
   });
   battle.fieldBattleId = id;
   battle.joinLog = [];
+  const startedH = state.clock.day * 24 + state.clock.hour;
+  const stepEveryH = Math.max(1, Number(options.stepEveryH) || 3);
   const battlefield = {
     id: id,
     center: center,
@@ -1329,11 +1331,20 @@ function createFieldBattle(state, aRef, bRef, opts) {
     bSide: bSide,
     battle: battle,
     participants: [],
-    startedH: state.clock.day * 24 + state.clock.hour,
+    startedH: startedH,
+    // 史实决战按 12 时辰推一轮；普通遭遇战仍用 3 时辰。
+    stepEveryH: stepEveryH,
+    // 显式指定节奏的战场开局就推第一轮，不让官渡空等半日。
+    lastStepH: options.stepEveryH ? startedH - stepEveryH : startedH,
+    minFinishH: Math.max(0, Number(options.minFinishH) || 0),
+    // 史实决战到点必须收兵：不能因为残兵只剩个位数就无限拖下去。
+    finishByH: Math.max(0, Number(options.finishByH) || 0),
     lastTickH: 0,
     joinLog: [],
     playerInvolved: playerInvolved,
     playerSide: options.playerSide || (aInfo.isPlayer ? 'a' : bInfo.isPlayer ? 'b' : null),
+    // 官渡这类决战开局已把附近队伍算进来，不再让后续零星援军把战局拖成二十天。
+    noReinforce: !!options.noReinforce,
     context: context,
   };
   markFieldParticipants(state, battlefield, aInfos, 'a');
@@ -1468,6 +1479,10 @@ function settleFieldBattle(state, battlefield, summary, options) {
   const battle = bf.battle;
   const result = summary && summary.result ? summary.result : battle.result;
   if (!result) return null;
+  // 官渡战场一旦结算，标题栏的“决战第 X/7 日”就收掉，不能战后还挂着倒计时。
+  if (bf.context && bf.context.cause === 'guandu' && state.story && state.story.guanduBattle) {
+    state.story.guanduBattle.done = true;
+  }
   const playerBattle = !!bf.playerInvolved || !!opts.playerBattle;
   const pending = state.postBattleLord;
   const winnerSide = result === 'win' ? 'a' : result === 'lose' ? 'b' : null;
@@ -1605,9 +1620,9 @@ function abandonFieldBattle(state, battlefield, reason) {
   return true;
 }
 
-/** NPC 战场：每 3 时辰推进一阵；其他队伍在战中进入五格就加入 */
 /**
- * NPC 合战：每 3 时辰推进一轮，和玩家战斗里每 0.6 秒推进一轮的节奏接近。
+ * NPC 合战：默认每 3 时辰推进一轮，和玩家战斗里每 0.6 秒推进一轮的节奏接近；
+ * 官渡这类史实决战可由战场自己的 stepEveryH 放慢到 12 时辰一轮。
  * 这样五格内援军有时间加入，各领主也按现有人数逐步、均衡分摊伤亡，
  * 一直打到一方归零才结算；不再一口气跑完 24 轮，也不再按 72 时辰平局收场。
  */
@@ -1619,12 +1634,29 @@ function tickFieldBattles(state) {
     if (!bf || !bf.battle || bf.playerInvolved) return;
     // 开战这一拍先只有最初两方入阵；下一轮（3 时辰后）起，五格内
     // 已经站着的队伍再按阵营动态加入，保证“不预先聚合”。
-    if (nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
+    if (!bf.noReinforce && nowH > bf.startedH) addNearbyToFieldBattle(state, bf, { npc: true });
     const battle = bf.battle;
+    // 已经打完的战场不再等下一轮：到最短保留日就结算。
+    if (battle.finished) {
+      if (bf.minFinishH && nowH < bf.minFinishH) return;
+      settleFieldBattle(state, bf, battle.summary(), {});
+      processed += 1;
+      return;
+    }
+    const stepEvery = Math.max(1, Number(bf.stepEveryH) || 3);
+    const lastStep = typeof bf.lastStepH === 'number' ? bf.lastStepH : bf.startedH;
+    if (nowH - lastStep < stepEvery) return;
+    bf.lastStepH = nowH;
     if (battle.batchDone && !battle.finished) battle.nextBatch();
     if (!battle.finished) battle.step();
+    // 官渡到第七日仍未分胜负，就按剩余兵力收兵，避免十几天一直挂着一场残兵战。
+    if (!battle.finished && bf.finishByH && nowH >= bf.finishByH) {
+      battle.finishByRemain();
+    }
     syncFieldBattle(state, bf, { writeBack: true });
     if (battle.finished) {
+      // 官渡这类史实决战即使提前分出胜负，也要把战场留满七日再结算。
+      if (bf.minFinishH && nowH < bf.minFinishH) return;
       settleFieldBattle(state, bf, battle.summary(), {});
       processed += 1;
     }

@@ -859,10 +859,38 @@ function fillGuanduFaction(state, faction) {
 
 /** 官渡开局：曹袁两军补满，分别在官渡南北列阵。 */
 function stageGuandu(state) {
-  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
-  if (state.story && state.story.guanduBattleStaged) return true;
+  const { STORY } = require('../data/story.js');
+  const guanduCfg = STORY.guandu || {};
+  const battleDays = Math.max(1, Number(guanduCfg.battleDays) || 7);
+  const stepHours = Math.max(1, Number(guanduCfg.stepHours) || 12);
+  const nowH = state.clock.day * 24 + state.clock.hour;
   const guandu = siteById(state.world, 'guandu');
   if (!guandu) return false;
+  // 旧档/重复调用：已经有官渡战场时只补齐节奏参数，绝不重新洗牌。
+  const existing = (state.fieldBattles || []).filter(function (bf) {
+    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
+  })[0];
+  if (existing) {
+    existing.stepEveryH = stepHours;
+    existing.noReinforce = true;
+    if (!existing.minFinishH) existing.minFinishH = (existing.startedH || nowH) + battleDays * 24;
+    if (!existing.finishByH) existing.finishByH = existing.minFinishH;
+    if (state.story) {
+      if (!state.story.guanduBattle) {
+        state.story.guanduBattle = {
+          startedH: existing.startedH || nowH,
+          untilH: existing.minFinishH,
+          days: battleDays,
+          battleId: existing.id,
+          done: false,
+        };
+      }
+      state.story.guanduBattleStaged = true;
+    }
+    return true;
+  }
+  // 官渡只布阵一次；袁绍后进入阶段时不能把已经开打的战场重新洗牌。
+  if (state.story && state.story.guanduBattleStaged) return true;
   ['wei', 'yuan'].forEach(function (faction, sideIndex) {
     const lords = state.lords.filter(function (l) {
       return l && l.faction === faction && l.alive && !l.dead && !l.retired && !l.prisoner && !l.hidden;
@@ -909,22 +937,36 @@ function stageGuandu(state) {
     });
   });
 
-  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，五格内的队伍会陆续入阵。
-  if (state.fieldBattles && state.fieldBattles.some(function (bf) {
-    return bf && bf.context && bf.context.cause === 'guandu' && bf.battle && !bf.battle.finished;
-  })) {
-    if (state.story) state.story.guanduBattleStaged = true;
-    return true;
-  }
+  // 直接在官渡拉一场曹袁合战：两军已经补满并在南北列阵，附近队伍开局聚合，
+  // 不再中途加入零星援军，免得把七日决战拖成二十天。
+  // 12 时辰一轮，十四轮左右正好打满七日；minFinishH 再兜一层，避免提前收场。
   const caocao = state.lords.filter(function (l) { return l.id === 'caocao' && l.alive && !l.dead; })[0];
   const yuanshao = state.lords.filter(function (l) { return l.id === 'yuanshao' && l.alive && !l.dead; })[0];
+  let created = null;
   if (caocao && yuanshao && war.createFieldBattle) {
-    war.createFieldBattle(state,
+    created = war.createFieldBattle(state,
       { kind: 'lord', id: caocao.id },
       { kind: 'lord', id: yuanshao.id },
-      { preAggregate: true, radius: 14, context: { kind: 'field', cause: 'guandu' } });
+      {
+        preAggregate: true,
+        radius: 14,
+        context: { kind: 'field', cause: 'guandu' },
+        stepEveryH: stepHours,
+        minFinishH: nowH + battleDays * 24,
+        finishByH: nowH + battleDays * 24,
+        noReinforce: true,
+      });
   }
-  if (state.story) state.story.guanduBattleStaged = true;
+  if (state.story) {
+    state.story.guanduBattle = {
+      startedH: nowH,
+      untilH: nowH + battleDays * 24,
+      days: battleDays,
+      battleId: created ? created.id : null,
+      done: false,
+    };
+    state.story.guanduBattleStaged = true;
+  }
   return true;
 }
 

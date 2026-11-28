@@ -178,6 +178,45 @@ group('n55 官渡只报一次，曹袁不死不休');
     story._private.phaseCfg('yuan', 'yuan_guandu').noTimeout === true);
 }
 
+group('n70 官渡、赤壁打满七日');
+{
+  ok('官渡配置为七日', STORY.guandu && STORY.guandu.battleDays === 7 && STORY.guandu.stepHours === 12);
+  ok('官渡两个阶段都有七日保护', story._private.phaseCfg('wei', 'wei_north').minBattleDays === 7 &&
+    story._private.phaseCfg('yuan', 'yuan_guandu').minBattleDays === 7);
+  const st = game(2026112755);
+  st.story.phases.wei = { id: 'wei_north', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'wei_sworn', completed: 2, success: false, timedOut: false };
+  st.story.phases.yuan = { id: 'yuan_guandu', status: 'waiting', startedDay: 1,
+    restUntil: 0, nextId: 'end', completed: 3, success: false, timedOut: false };
+  story.startPhase(st, 'wei', { skipWait: true });
+  story.startPhase(st, 'yuan', { skipWait: true });
+  const bf = (st.fieldBattles || []).filter(function (b) {
+    return b.context && b.context.cause === 'guandu';
+  })[0];
+  ok('官渡合战十二时辰一轮', !!bf && bf.stepEveryH === 12);
+  ok('官渡合战七日封顶', !!bf && bf.finishByH - bf.startedH === 7 * 24);
+  ok('官渡后续零星援军不再拖长战局', !!bf && bf.noReinforce === true);
+  const startDay = st.clock.day;
+  st.clock.day = startDay + 2;
+  story.refreshHeadline(st);
+  ok('官渡标题显示第 3/7 日', st.story.headline.indexOf('官渡：决战第 3/7 日') >= 0,
+    st.story.headline);
+  st.clock.day = startDay;
+  let guard = 0;
+  while (st.clock.day < startDay + 6 && guard++ < 50000) {
+    stateLib.update(st, 0.5, { ignoreEvents: true, idleTime: true });
+  }
+  ok('第六个游戏日官渡仍在打', (st.fieldBattles || []).some(function (b) {
+    return b.context && b.context.cause === 'guandu';
+  }), 'day=' + st.clock.day);
+  while (st.clock.day < startDay + 9 && guard++ < 80000) {
+    stateLib.update(st, 0.5, { ignoreEvents: true, idleTime: true });
+  }
+  ok('九日内官渡战场收场', !(st.fieldBattles || []).some(function (b) {
+    return b.context && b.context.cause === 'guandu';
+  }), 'day=' + st.clock.day);
+}
+
 group('n63 官渡残部按全国满编补兵');
 {
   const st = game(2026112763);
@@ -271,6 +310,7 @@ group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州
   const target = Math.max(1, Math.round((shuN + wuN) / 2));
   tickDay(st, c.until);
   ok('休战结束进入赤壁决战', c.phase === 'battle');
+  ok('赤壁火攻持续七日', c.until - c.since === 7 && c.battleDays === 7);
   ok('火攻烧掉曹军八成', c.caoAfterFire <= c.caoBefore * 0.22 &&
     c.caoAfterFire >= c.caoBefore * 0.17, c.caoBefore + '→' + c.caoAfterFire);
   ok('孙刘联军对曹宣战', warLib.atWar(st, 'wei', 'shu') && warLib.atWar(st, 'wei', 'wu'));
@@ -278,6 +318,10 @@ group('n46 赤壁史诗：曹操首次占尽三镇、火攻、裁领主与荆州
     return l.faction === 'wei' && l.alive && Math.max(Math.abs(l.x - site(st, 'chibi').x),
       Math.abs(l.y - site(st, 'chibi').y)) <= 22;
   }).length > 0);
+  st.clock.day = c.since + 3;
+  story.tick(st);
+  ok('赤壁标题显示第 4/7 日', st.story.headline.indexOf('赤壁：火攻决战 · 第 4/7 日') >= 0,
+    st.story.headline);
 
   tickDay(st, c.until + STORY.chibi.battleDays);
   ok('赤壁决战进入败逃结算', c.phase === 'aftermath');

@@ -275,6 +275,8 @@ const STORY = {
         short: '官渡定河北',
         stage: 3,
         stageFlag: 'guandu',
+        // 官渡决战至少七日；即使战场提前分出胜负，也不让阶段在第七日前翻页。
+        minBattleDays: 7,
         targets: ['yuan', 'gongsun', 'xianbei'],
         objective: { type: 'destroy', factions: ['yuan', 'gongsun', 'xianbei'] },
         noTimeout: true,
@@ -544,6 +546,8 @@ const STORY = {
         restDays: 0,
         next: 'end',
         stageFlag: 'guandu',
+        // 与曹操侧同一场决战，也必须打满七日。
+        minBattleDays: 7,
         yuanPenalty: true,
         title: '官渡之战',
         casusBelli: '曹操北上，袁绍尽起河北大军南下，两军在官渡决战。此战之后，曹袁再不休战，直到一方灭亡。',
@@ -614,10 +618,18 @@ const STORY = {
     ],
   },
 
+  // 官渡是国运决战：至少打满七个游戏日，让玩家有时间赶到、看清战局。
+  // 3 时辰一轮会把这场决战在三天内打完；改成 12 时辰一轮，正合七日。
+  guandu: {
+    battleDays: 7,
+    stepHours: 12,
+  },
+
   chibi: {
     title: '赤壁之战',
     caoRestDays: 30,
-    battleDays: 3,
+    // 赤壁火攻后留七日围剿，不再三天就收场。
+    battleDays: 7,
     aftermathRestDays: 15,
     fireLossPct: 0.8,
     caoRemainPct: 0.1,
