@@ -2240,7 +2240,7 @@ function refreshHeadline(state) {
     parts.push('袁术：仲家称帝');
   }
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
-  // 官渡与赤壁都给出“第几日/共几日”，让玩家在 8 倍速下也能看出决战还没完。
+  // 官渡与赤壁都给出“第几日/共几日”，让玩家在高倍速测试档下也能看出决战还没完。
   if (st.guanduBattle && !st.guanduBattle.done) {
     const gb = st.guanduBattle;
     const totalDays = Math.max(1, Number(gb.days) || (STORY.guandu && STORY.guandu.battleDays) || 7);

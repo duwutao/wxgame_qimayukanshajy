@@ -178,12 +178,14 @@ group('n55 官渡只报一次，曹袁不死不休');
     story._private.phaseCfg('yuan', 'yuan_guandu').noTimeout === true);
 }
 
-group('n70 官渡、赤壁打满七日');
+group('n70 60倍速下官渡、赤壁打满七日');
 {
   ok('官渡配置为七日', STORY.guandu && STORY.guandu.battleDays === 7 && STORY.guandu.stepHours === 12);
   ok('官渡两个阶段都有七日保护', story._private.phaseCfg('wei', 'wei_north').minBattleDays === 7 &&
     story._private.phaseCfg('yuan', 'yuan_guandu').minBattleDays === 7);
   const st = game(2026112755);
+  // 60 倍速只用于测剧情：一帧 1/60 秒正好推进一个游戏时辰。
+  st.timeScale = 60;
   st.story.phases.wei = { id: 'wei_north', status: 'waiting', startedDay: 1,
     restUntil: 0, nextId: 'wei_sworn', completed: 2, success: false, timedOut: false };
   st.story.phases.yuan = { id: 'yuan_guandu', status: 'waiting', startedDay: 1,
@@ -193,6 +195,7 @@ group('n70 官渡、赤壁打满七日');
   const bf = (st.fieldBattles || []).filter(function (b) {
     return b.context && b.context.cause === 'guandu';
   })[0];
+  ok('60倍速档已开启', st.timeScale === 60);
   ok('官渡合战十二时辰一轮', !!bf && bf.stepEveryH === 12);
   ok('官渡合战七日封顶', !!bf && bf.finishByH - bf.startedH === 7 * 24);
   ok('官渡后续零星援军不再拖长战局', !!bf && bf.noReinforce === true);
@@ -204,15 +207,15 @@ group('n70 官渡、赤壁打满七日');
   st.clock.day = startDay;
   let guard = 0;
   while (st.clock.day < startDay + 6 && guard++ < 50000) {
-    stateLib.update(st, 0.5, { ignoreEvents: true, idleTime: true });
+    stateLib.update(st, 1 / 60, { ignoreEvents: true, idleTime: true });
   }
-  ok('第六个游戏日官渡仍在打', (st.fieldBattles || []).some(function (b) {
+  ok('60倍速第六日官渡仍在打', (st.fieldBattles || []).some(function (b) {
     return b.context && b.context.cause === 'guandu';
   }), 'day=' + st.clock.day);
   while (st.clock.day < startDay + 9 && guard++ < 80000) {
-    stateLib.update(st, 0.5, { ignoreEvents: true, idleTime: true });
+    stateLib.update(st, 1 / 60, { ignoreEvents: true, idleTime: true });
   }
-  ok('九日内官渡战场收场', !(st.fieldBattles || []).some(function (b) {
+  ok('60倍速九日内官渡战场收场', !(st.fieldBattles || []).some(function (b) {
     return b.context && b.context.cause === 'guandu';
   }), 'day=' + st.clock.day);
 }

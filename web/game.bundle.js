@@ -14098,7 +14098,7 @@ function refreshHeadline(state) {
     parts.push('袁术：仲家称帝');
   }
   if (st.yuanWeak && factionAlive(state, 'yuan')) parts.push('袁绍：官渡昏君·八成战力');
-  // 官渡与赤壁都给出“第几日/共几日”，让玩家在 8 倍速下也能看出决战还没完。
+  // 官渡与赤壁都给出“第几日/共几日”，让玩家在高倍速测试档下也能看出决战还没完。
   if (st.guanduBattle && !st.guanduBattle.done) {
     const gb = st.guanduBattle;
     const totalDays = Math.max(1, Number(gb.days) || (STORY.guandu && STORY.guandu.battleDays) || 7);
@@ -27455,8 +27455,8 @@ function drawTop(ctx, app, w) {
   text(ctx, title, 16, 40, { size: 24, color: '#f0c060' });
   text(ctx, '· ' + p.name + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
-  // 倍速：额外保留 8x 测试档
-  const speeds = [1, 2, 3, 8];
+  // 倍速：额外保留 8x 与 60x 测试档；60x 只用于快速验剧情
+  const speeds = [1, 2, 3, 8, 60];
   const speedW = 40;
   const speedGap = 6;
   const speedStart = w - 18 - (speeds.length * speedW + (speeds.length - 1) * speedGap);

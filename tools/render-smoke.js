@@ -514,6 +514,18 @@ smoke('玩法：五个分类', function () {
   });
 });
 
+smoke('地图 60 倍速测试档', function () {
+  app.state = stateLib.createGame({ seed: 4243 });
+  app.state.events = [];
+  app.replace('map');
+  app.ui.begin();
+  app.top().scene.render(app);
+  const ids = app.ui.items.map(function (b) { return b.id; });
+  ok('地图出现 60x 测试档', ids.indexOf('speed60') >= 0, ids.join(','));
+  app.ui.items.filter(function (b) { return b.id === 'speed60'; })[0].onTap();
+  ok('点 60x 后时间倍率为 60', app.state.timeScale === 60, app.state.timeScale);
+});
+
 smoke('天下通报页（国亡弹窗）', function () {
   app.state = stateLib.createGame({ seed: 4242 });
   app.replace('map');
