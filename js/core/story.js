@@ -112,6 +112,8 @@ function factionDead(state, id) {
 function factionAlive(state, id) {
   if (!id || !FACTIONS[id] || factionDead(state, id)) return false;
   if (citiesOf(state, id).length) return true;
+  // 叛军在统一背叛前没有城，野外队伍是它唯一的存在形式；正常诸侯只看城。
+  if (id !== 'rebel') return false;
   return (state.parties || []).some(function (p) { return p && p.faction === id; });
 }
 

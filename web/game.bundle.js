@@ -11970,6 +11970,8 @@ function factionDead(state, id) {
 function factionAlive(state, id) {
   if (!id || !FACTIONS[id] || factionDead(state, id)) return false;
   if (citiesOf(state, id).length) return true;
+  // 叛军在统一背叛前没有城，野外队伍是它唯一的存在形式；正常诸侯只看城。
+  if (id !== 'rebel') return false;
   return (state.parties || []).some(function (p) { return p && p.faction === id; });
 }
 
@@ -21708,11 +21710,15 @@ const LOYAL_GONE = {
   chengong: true, zhangren: true, dongcheng: true, guanyu: true,
 };
 
-/** 这个势力还算不算活着：只要还有一座城（或一支野外的队伍）就活着 */
+/** 这个势力还算不算活着：看城，不看野外残部；亡国旗一落就不再算活。 */
 function factionAlive(state, id) {
   if (!FACTIONS[id]) return false;
+  const fs = state.factionState && state.factionState[id];
+  if (fs && fs.dead) return false;
   const sites = state.world.sites.filter(function (s) { return s.ownerFaction === id && s.type !== 'camp'; });
   if (sites.length > 0) return true;
+  // 叛军在统一背叛前本来就没有城，野外队伍是它唯一的存在形式。
+  if (id !== 'rebel') return false;
   const parties = state.parties.filter(function (p) { return p.faction === id; });
   return parties.length > 0;
 }
@@ -22383,7 +22389,15 @@ function fallFaction(state, id, opts) {
   // 这个势力的旗从此从地图上撤掉（跟你的旧关系留着：村里那个隐者还认这个）
   state.world.sites.forEach(function (s) {
     if (s.ownerFaction === id) s.ownerFaction = null;
+    // 亡国旗不能再挂在城下围营上：旧档里残留的围城令一并撤掉。
+    if (s.siegeFaction === id) {
+      s.siegeStatus = null;
+      s.siegeFaction = null;
+      s.siegeSinceH = null;
+    }
   });
+  // 先撤掉这个势力还没打完的围城/集结，再清外交战事，避免残部继续替亡国攻城。
+  war.abortCampaign(state, id);
   // 灭国解锁 T5 后要强制重铺玩家城兵源，不能因为“旗没变”被跳过。
   refreshSiteRosters(state, true, true);
   war.dropFactionWars(state, id);
@@ -22397,6 +22411,43 @@ function fallFaction(state, id, opts) {
     lines: lines,
   });
   return true;
+}
+
+/**
+ * 亡国残部收尾：势力已经判死，但地图上还有人挂旧旗（旧档漏转、后来补进存档
+ * 的领主、或剧情直接置 dead 的旁路），一律收旗转在野，不能在亡国旗下继续游荡。
+ * 隐居旧主、俘虏、已故者不动；这些人的去向另有安排。
+ */
+function neutralizeDeadFactionLords(state) {
+  if (!state || !Array.isArray(state.lords)) return 0;
+  const dead = {};
+  Object.keys(state.factionState || {}).forEach(function (id) {
+    const fs = state.factionState[id];
+    if (fs && fs.dead && id !== 'player') dead[id] = true;
+  });
+  let count = 0;
+  state.lords.forEach(function (lord) {
+    if (!lord || !lord.faction || !dead[lord.faction]) return;
+    if (lord.faction === 'bandit' || (lord.faction === 'rebel' && !state.arc)) return;
+    if (!lord.alive || lord.dead || lord.retired || lord.hidden || lord.prisoner) return;
+    makeNeutralLord(state, lord, lord.faction);
+    count += 1;
+  });
+  // 亡国旗不能留在城头或城下围营上；旧档里没清干净的城也一起收回。
+  state.world.sites.forEach(function (s) {
+    if (dead[s.ownerFaction]) s.ownerFaction = null;
+    if (dead[s.siegeFaction]) {
+      s.siegeStatus = null;
+      s.siegeFaction = null;
+      s.siegeSinceH = null;
+    }
+  });
+  // 亡国的围城/集结不能留给在野的人继续打，旧档里残留的战事键也要清掉。
+  Object.keys(dead).forEach(function (id) {
+    war.abortCampaign(state, id);
+    if (state.wars && state.wars[id] !== false) war.dropFactionWars(state, id);
+  });
+  return count;
 }
 
 /** 每日：灭国倒计时（连着七天没城没人，才算亡） */
@@ -22435,6 +22486,8 @@ function factionTick(state) {
     }
     if (fs.doomDays >= 7) fallFaction(state, id);
   });
+  // 兜底：旧档漏转、后来补进存档的领主，不能继续挂已亡势力的旗。
+  neutralizeDeadFactionLords(state);
 }
 
 /** 酒馆打听：花钱问出隐居的旧主在哪个村 */
@@ -23681,6 +23734,8 @@ function deserialize(json) {
     }
     state.lords.push(lord);
   });
+  // 旧档里已经亡国的势力，不能再让补进来的领主挂旧旗站在地图上。
+  neutralizeDeadFactionLords(state);
   // n53 三类身份：先按存档里的国君标记算一遍，等 reconcileFactionRulers 后再校正一次。
   applyLordRoles(state);
   state.flags.lordRolesV1 = true;
@@ -23840,6 +23895,7 @@ module.exports = {
   reconcileFactionRulers,
   campTierForRenown,
   fallFaction,
+  neutralizeDeadFactionLords,
   pickFactionFor,
   moveLordToFaction,
   makeNeutralLord,
