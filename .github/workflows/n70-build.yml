@@ -43,3 +43,4 @@ jobs:
           fi
           git commit -m 'release(game_1): 官渡赤壁打满七日 [skip ci]'
           git push origin HEAD:game_1
+# trigger
