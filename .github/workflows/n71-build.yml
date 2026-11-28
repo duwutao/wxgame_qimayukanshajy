@@ -40,3 +40,4 @@ jobs:
           git add js/core/story.js js/scenes/map.js tools/story-test.js tools/render-smoke.js web/game.bundle.js
           git commit -m "n71 新增 60x 剧情测试档"
           git push origin HEAD:game_1
+# trigger: 60x build
