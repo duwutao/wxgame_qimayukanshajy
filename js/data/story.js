@@ -621,7 +621,7 @@ const STORY = {
     aftermathRestDays: 15,
     fireLossPct: 0.8,
     caoRemainPct: 0.1,
-    southTitle: '曹操南下',
+    southTitle: '曹操南下 · 史实停战',
     southLines: [
       '曹操首次同时占尽襄阳、新野、江陵，荆州三镇尽落曹旗。',
       '孙刘两家立刻停战结盟，一起遣使与曹操约定：一个月内谁都不动兵。',

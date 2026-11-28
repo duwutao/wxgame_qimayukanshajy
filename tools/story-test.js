@@ -540,7 +540,11 @@ group('n67 赤壁：曹操首次占尽三镇后休整一个月');
   ok('赤壁前不先弹普通荆州停战', !st.events.some(function (e) {
     return String(e.title || '').indexOf('史实停战') === 0;
   }), st.events.map(function (e) { return e.title; }).join(' / '));
-  const south = st.events.filter(function (e) { return e.title === '曹操南下'; })[0];
+  const south = st.events.filter(function (e) {
+    return String(e.title || '').indexOf('曹操南下') >= 0;
+  })[0];
+  ok('曹操首次占尽三镇也发史实停战', !!(south && south.tag === '史实停战' &&
+    south.title.indexOf('史实停战') >= 0 && south.lines.join('').indexOf('史实停战') >= 0));
   ok('赤壁文案写明一个月后决战', !!(south && south.lines.join('').indexOf('一个月后') >= 0));
 }
 

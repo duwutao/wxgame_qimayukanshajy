@@ -1235,9 +1235,9 @@ function startChibiPrelude(state) {
     st.jingzhou.until = until;
   }
   const lines = (STORY.chibi && STORY.chibi.southLines || []).slice();
-  lines.push('襄阳、新野、江陵三镇已归曹操；孙刘两家停战结盟，与曹军约定一个月内不动兵。');
+  lines.push('襄阳、新野、江陵三镇已归曹操；这是荆州战后的史实停战，孙刘两家停战结盟，与曹军约定一个月内不动兵。');
   pushStoryEvent(state, (STORY.chibi && STORY.chibi.southTitle) || '曹操南下', lines, {
-    tag: '史诗', art: 'war', auto: 10,
+    tag: '史实停战', art: 'war', auto: 10,
   });
   logFn(state, '曹操首次占尽荆州三镇：孙刘停战结盟，孙曹刘三家停火一个月，一个月后赤壁决战。', 'war');
   refreshHeadline(state);
