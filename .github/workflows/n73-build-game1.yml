@@ -1,0 +1,94 @@
+name: n73 build game_1
+
+on:
+  push:
+    branches: [game_1]
+    paths:
+      - '.github/workflows/n73-build-game1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: game_1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply n73 patch
+        env:
+          PATCH_B64: |
+            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
+            A2fD+oDIFgAA
+        run: |
+          echo "$PATCH_B64" | base64 -d | gunzip > /tmp/n73.patch
+          echo "cfccb5212f21cd461cd65853fc4755cde86324cacfc8d88558080d5cc90358b8  /tmp/n73.patch" | sha256sum -c -
+          git apply --check /tmp/n73.patch
+          git apply /tmp/n73.patch
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build bundle
+        run: node tools/bundle.js
+      - name: Commit n73
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add js/core/state.js js/core/story.js index.html web/index.html web/game.bundle.js
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release: 20261128n73 亡国残部收旗转在野 [skip ci]'
+          git push origin HEAD:game_1
