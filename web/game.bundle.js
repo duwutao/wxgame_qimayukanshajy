@@ -27455,8 +27455,8 @@ function drawTop(ctx, app, w) {
   text(ctx, title, 16, 40, { size: 24, color: '#f0c060' });
   text(ctx, '· ' + p.name + ' · ' + fac, 180, 44, { size: 18, color: '#a2947a' });
 
-  // 倍速：额外保留 8x 与 60x 测试档；60x 只用于快速验剧情
-  const speeds = [1, 2, 3, 8, 60];
+  // 倍速：额外保留 8x 与 20x 测试档；20x 只用于快速验剧情
+  const speeds = [1, 2, 3, 8, 20];
   const speedW = 40;
   const speedGap = 6;
   const speedStart = w - 18 - (speeds.length * speedW + (speeds.length - 1) * speedGap);
