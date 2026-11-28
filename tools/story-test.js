@@ -434,6 +434,148 @@ group('n61 荆州入场：先完成第三阶段者先入场');
 }
 
 
+group('n65 荆州争霸：曹操的进攻重心');
+{
+  const st = game(2026112665);
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.clock.day = 100;
+  site(st, 'wan').ownerFaction = 'biao';
+  site(st, 'wan').faction = 'biao';
+  site(st, 'xiangyang').ownerFaction = 'biao';
+  site(st, 'xiangyang').faction = 'biao';
+  site(st, 'xinye').ownerFaction = 'shu';
+  site(st, 'xinye').faction = 'shu';
+  site(st, 'jiangling').ownerFaction = 'wu';
+  site(st, 'jiangling').faction = 'wu';
+  story._private.startJingzhou(st);
+  ok('曹操以宛城为南下大营', site(st, 'wan').ownerFaction === 'wei');
+  const cp = warLib.planCampaign(st, 'wei', 100);
+  ok('曹操荆州首攻襄阳', !!cp && cp.targetId === 'xiangyang', cp ? cp.targetId : 'null');
+  ok('曹操荆州目标只在三镇内', !cp || STORY.jingzhouSites.indexOf(cp.targetId) >= 0,
+    cp ? cp.targetId : 'null');
+  site(st, 'xiangyang').ownerFaction = 'wei';
+  site(st, 'xiangyang').faction = 'wei';
+  const cp2 = warLib.planCampaign(st, 'wei', 101);
+  ok('襄阳入手后转攻新野', !!cp2 && cp2.targetId === 'xinye', cp2 ? cp2.targetId : 'null');
+  if (cp2) {
+    cp2.targetId = 'hefei';
+    cp2.enemy = 'wu';
+    cp2.stage = 'march';
+    warLib.strategyTick(st);
+    ok('曹操旧的非荆州战役会被撤掉', !st.warCampaigns.wei);
+  }
+}
+
+
+group('n66 荆州：每次占尽三镇都发史实停战');
+{
+  const st = game(2026112666);
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.chibiDone = true;
+  st.story.chibi = { done: true };
+  st.clock.day = 100;
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'shu'; s.faction = 'shu'; s.playerOwned = false;
+  });
+  story._private.startJingzhou(st);
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'wei'; s.faction = 'wei';
+  });
+  story.tick(st);
+  let truces = st.events.filter(function (e) { return e.title === '史实停战：曹操'; });
+  ok('占尽三镇弹出史实停战', truces.length === 1, truces.length + ' 次');
+  ok('史实停战有独立标签', !!(truces[0] && truces[0].tag === '史实停战'));
+  ok('史实停战一个月', st.story.endgame.phase === 'rest' &&
+    st.story.endgame.until === st.clock.day + 30, st.story.endgame.until + ' / ' + st.clock.day);
+  ok('史实停战写明三家立约', !!(truces[0] && truces[0].lines.join('').indexOf('停战一个月') >= 0));
+
+  // 同一国丢掉一城后再占尽，也要再发一次，不因 roundStartHolder 相同而漏掉。
+  st.story.endgame.phase = 'battle';
+  st.story.endgame.active = true;
+  st.story.endgame.until = 999;
+  st.story.jingzhou.active = true;
+  st.story.jingzhou.until = 999;
+  st.story.jingzhou.roundStartHolder = 'wei';
+  st.story.jingzhou.lastSeenHolder = 'wei';
+  site(st, 'xiangyang').ownerFaction = 'shu';
+  site(st, 'xiangyang').faction = 'shu';
+  st.clock.day = 101;
+  story.tick(st);
+  ok('丢掉一城后不算占尽', st.story.jingzhou.active === true);
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'wei'; s.faction = 'wei';
+  });
+  st.clock.day = 102;
+  story.tick(st);
+  truces = st.events.filter(function (e) { return e.title === '史实停战：曹操'; });
+  ok('同一国重新占尽也再发史实停战', truces.length === 2, truces.length + ' 次');
+}
+
+group('n67 赤壁：曹操首次占尽三镇后休整一个月');
+{
+  const st = game(2026112667);
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.chibi = null;
+  st.story.chibiDone = false;
+  st.clock.day = 100;
+  STORY.jingzhouSites.forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'shu'; s.faction = 'shu'; s.playerOwned = false;
+  });
+  story._private.startJingzhou(st);
+  ['xiangyang', 'xinye'].forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = 'wei'; s.faction = 'wei';
+  });
+  st.clock.day = 101;
+  story.tick(st);
+  ok('只占两镇不触发赤壁', !st.story.chibi);
+  site(st, 'jiangling').ownerFaction = 'wei';
+  site(st, 'jiangling').faction = 'wei';
+  st.clock.day = 102;
+  story.tick(st);
+  const c = st.story.chibi;
+  ok('曹操首次占尽三镇触发赤壁前置', !!c && c.phase === 'rest');
+  ok('赤壁前置先停战一个月', !!c && c.until === 102 + STORY.chibi.caoRestDays,
+    c ? c.until : 'null');
+  ok('赤壁前置暂停荆州争霸', st.story.jingzhou.active === false && st.story.jingzhou.suspended === true);
+  ok('赤壁前不先弹普通荆州停战', !st.events.some(function (e) {
+    return String(e.title || '').indexOf('史实停战') === 0;
+  }), st.events.map(function (e) { return e.title; }).join(' / '));
+  const south = st.events.filter(function (e) { return e.title === '曹操南下'; })[0];
+  ok('赤壁文案写明一个月后决战', !!(south && south.lines.join('').indexOf('一个月后') >= 0));
+}
+
+group('n68 曹操：护君入关');
+{
+  const cfg = story._private.phaseCfg('wei', 'wei_han');
+  ok('汉廷阶段改称护君入关', cfg.label === '护君入关' && cfg.short === '护君' &&
+    cfg.title === '护君入关');
+  ok('宣战理由用护君名义', cfg.casusBelli.indexOf('护君') >= 0 &&
+    cfg.casusBelli.indexOf('灭亡汉廷') < 0, cfg.casusBelli);
+  ok('战争文案不再写汉室失道', cfg.warLines.join('').indexOf('汉室失道') < 0);
+  ok('胜利文案不再写汉室覆灭', cfg.successLines.join('').indexOf('汉室覆灭') < 0);
+  ok('官渡阶段承接汉廷名存实亡', story._private.phaseCfg('wei', 'wei_north')
+    .casusBelli.indexOf('汉廷名存实亡') >= 0);
+}
+
+group('n69 三国：荆州优先、边境其次');
+{
+  const st = game(2026112669);
+  st.story.stage3Done = { wei: 1, shu: 1, wu: 1 };
+  st.story.chibiDone = true;
+  st.story.chibi = { done: true };
+  st.clock.day = 100;
+  const base = { wan: 'biao', xiangyang: 'biao', xinye: 'shu', jiangling: 'wu' };
+  Object.keys(base).forEach(function (id) {
+    const s = site(st, id); s.ownerFaction = base[id]; s.faction = base[id]; s.playerOwned = false;
+  });
+  story._private.startJingzhou(st);
+  ['wei', 'shu', 'wu'].forEach(function (f) {
+    const cp = warLib.planCampaign(st, f, 100);
+    ok(f + '优先打荆州三镇', !!cp && STORY.jingzhouSites.indexOf(cp.targetId) >= 0,
+      cp ? cp.targetId : 'null');
+  });
+}
+
 group('n51 荆州停战清扫小国');
 {
   const st = game(2026112652);

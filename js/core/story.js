@@ -422,6 +422,7 @@ function resume(state, logger) {
     if (jz.lastCountedHolder === undefined) jz.lastCountedHolder = null;
     if (jz.countingFromDay === undefined) jz.countingFromDay = 0;
     if (jz.roundStartHolder === undefined) jz.roundStartHolder = null;
+    if (jz.lastSeenHolder === undefined) jz.lastSeenHolder = jz.roundStartHolder || null;
     if (jz.final === undefined) jz.final = !!(state.story.endgame && state.story.endgame.final);
     if (!jz.eligible) jz.eligible = {};
   }
@@ -1482,6 +1483,7 @@ function resumeJingzhouAfterChibi(state) {
   jz.winner = null;
   jz.strong = null;
   jz.roundStartHolder = holderOfJingzhou(state);
+  jz.lastSeenHolder = jz.roundStartHolder;
   if (!jz.eligible) jz.eligible = {};
   if (jz.takeoverCount === undefined) jz.takeoverCount = 0;
   if (jz.lastCountedHolder === undefined) jz.lastCountedHolder = holderOfJingzhou(state);
@@ -1673,6 +1675,31 @@ function jingzhouSiteOwners(state) {
 }
 
 /**
+ * 曹操的荆州南下大营：宛城若还在刘表手里，入场时交给曹操。
+ * 许昌—汝南—宛之间只有汝南是村，城网判定会把宛隔在门外；
+ * 没有这座城，曹操的荆州战役根本起不来，只会转去打淮南或关中。
+ * 只交一次，之后宛城丢了也不再凭空补旗。
+ */
+function ensureCaoJingzhouBase(state) {
+  const st = state && state.story;
+  const jz = st && st.jingzhou;
+  if (!jz || !jz.started || !jz.active || jz.final || jz.weiBaseGiven) return false;
+  if (!jz.eligible || !jz.eligible.wei) return false;
+  const baseId = STORY.jingzhouCaoBase || 'wan';
+  const base = storySite(state, baseId);
+  if (!base || base.playerOwned || base.ownerFaction === 'wei') {
+    jz.weiBaseGiven = true;
+    return false;
+  }
+  // 只从刘表手里接宛城；若已被蜀吴先占，不能凭空改旗。
+  if (base.ownerFaction !== 'biao') return false;
+  assignStorySites(state, 'wei', [baseId]);
+  jz.weiBaseGiven = true;
+  logFn(state, '曹操以宛城为南下大营，曹军从南阳直压襄阳、新野。', 'war');
+  return true;
+}
+
+/**
  * 把当前有资格的国家和荆州三镇的实际归属同步到外交层：
  *  - 已完成第三阶段的国家互相开战；
  *  - 三镇若在未完成国手里，入场国也要向它开战才能夺城；
@@ -1687,6 +1714,7 @@ function syncJingzhouParticipants(state) {
   const next = {};
   eligible.forEach(function (f) { next[f] = true; });
   jz.eligible = next;
+  ensureCaoJingzhouBase(state);
   const owners = jingzhouSiteOwners(state);
   eligible.forEach(function (f) {
     const foes = {};
@@ -1768,6 +1796,7 @@ function startJingzhou(state) {
   jz.winner = null;
   jz.strong = null;
   jz.roundStartHolder = holder;
+  jz.lastSeenHolder = holder;
   if (jz.takeoverCount === undefined) jz.takeoverCount = 0;
   if (jz.lastCountedHolder === undefined) jz.lastCountedHolder = holder;
   if (jz.countingFromDay === undefined) jz.countingFromDay = 0;
@@ -1821,6 +1850,7 @@ function beginJingzhouCycle(state) {
   jz.until = eg.until;
   jz.winner = null;
   jz.roundStartHolder = holderOfJingzhou(state);
+  jz.lastSeenHolder = jz.roundStartHolder;
   // 上一轮停战已到期；结盟关系和攻击目标重新按当前三镇归属铺开。
   clearTruce(state, STORY.kingdoms);
   syncJingzhouParticipants(state);
@@ -1943,13 +1973,15 @@ function sweepMinorFactions(state) {
   return swept;
 }
 
-function endJingzhouRound(state, winner) {
+function endJingzhouRound(state, winner, captured) {
   const st = state.story;
   const eg = st && st.endgame;
   const jz = st && st.jingzhou;
   if (!eg || !jz || eg.phase !== 'battle') return;
   const holder = winner || holderOfJingzhou(state);
   noteJingzhouHolder(state, holder);
+  // 曹操首次占尽三镇不是普通荆州停战，而是赤壁前的一个月休整。
+  if (holder === 'wei' && maybeChibi(state)) return;
   // 超过十次易主：这一次占城不再换停战，直接进入三家不死不休。
   if ((jz.takeoverCount || 0) > (STORY.jingzhouMaxTakeovers || 10)) {
     beginFinalJingzhou(state);
@@ -1971,17 +2003,29 @@ function endJingzhouRound(state, winner) {
   setTruce(state, STORY.kingdoms, eg.until);
   // 停战期先把还活着的小国收掉，再发本轮荆州文书。
   sweepMinorFactions(state);
-  const lines = holder ? [
-    factionName(holder) + '占尽襄阳、新野、江陵，成为新一轮霸主。',
-    '全国募兵效率 +50%；另外两国立刻结盟，停战一个月。',
-    '一个月后，两家联盟会从汉中、夷陵、合肥三个方向同时来攻。',
+  const isCapture = captured !== false;
+  const lines = holder ? (isCapture ? [
+    factionName(holder) + '占尽襄阳、新野、江陵，三镇尽落其手。',
+    '魏、蜀、吴三家依例遣使立约：停战一个月，各守现有疆界；胜者全国募兵效率 +50%。',
+    '这就是荆州战后的史实停战；一个月后，另外两家会从汉中、夷陵、合肥再来争荆州。',
   ] : [
+    factionName(holder) + '仍据襄阳、新野、江陵，这一轮没有新的霸主。',
+    '三家就地收兵，停战一个月；胜者全国募兵效率 +50%。',
+    '一个月后重开荆州；三镇仍是最先要争的地方。',
+  ]) : [
     '这一轮谁也没能独吞荆州三镇。',
     strongestKingdom(state) ? (factionName(strong) + '兵势最盛，被另外两家视为霸主。') : '三家各自收兵。',
     '休整一个月，再战荆州。',
   ];
-  pushStoryEvent(state, holder ? '荆州霸主：' + factionName(holder) : '荆州休战', lines, { tag: '会战', art: 'peace', auto: 9 });
-  logFn(state, holder ? '荆州霸主：' + factionName(holder) + '，全国募兵 +50%。' : '荆州休战一个月。', 'war');
+  const eventTitle = holder
+    ? (isCapture ? '史实停战：' + factionName(holder) : '荆州休战：' + factionName(holder))
+    : '荆州休战';
+  pushStoryEvent(state, eventTitle, lines, {
+    tag: isCapture ? '史实停战' : '会战', art: 'peace', auto: 9,
+  });
+  logFn(state, holder
+    ? (isCapture ? '史实停战：' + factionName(holder) + '占尽荆州三镇，停战一个月。' : '荆州休战：' + factionName(holder) + '仍据三镇。')
+    : '荆州休战一个月。', 'war');
   refreshHeadline(state);
 }
 
@@ -1989,14 +2033,17 @@ function tickJingzhou(state) {
   const st = state.story;
   const jz = st && st.jingzhou;
   if (!jz || !jz.active) return;
+  // 记录 tick 前的三镇主人：同一国丢掉一城后再占尽，也要重新发一次史实停战。
+  const prevHolder = jz.lastSeenHolder !== undefined ? jz.lastSeenHolder : (jz.roundStartHolder || null);
   syncJingzhouParticipants(state);
   const holder = holderOfJingzhou(state);
+  jz.lastSeenHolder = holder;
   noteJingzhouHolder(state, holder);
-  if (holder && (!jz.roundStartHolder || holder !== jz.roundStartHolder)) {
-    endJingzhouRound(state, holder);
+  if (holder && holder !== prevHolder) {
+    endJingzhouRound(state, holder, true);
     return;
   }
-  if (state.clock.day >= (jz.until || 0)) endJingzhouRound(state, holder || null);
+  if (state.clock.day >= (jz.until || 0)) endJingzhouRound(state, holder || null, false);
 }
 
 /** 最终阶段（三镇易主超过十次后）也会被玩家拖住；满两年强制推举共主。 */

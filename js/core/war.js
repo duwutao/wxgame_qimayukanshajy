@@ -2270,6 +2270,21 @@ function ensureHanSuiMieMaWar(state, day) {
   return true;
 }
 
+/**
+ * 荆州争霸的重心：已入场的魏蜀吴，只要三镇里还有可攻目标，就先打三镇；
+ * 三镇暂时都接不上路时，再回落到边境和别的战线。赤壁与停战期不抢靶。
+ */
+function jingzhouTheaterFocus(state, faction) {
+  const st = state && state.story;
+  const jz = st && st.jingzhou;
+  if (!jz || !jz.active || jz.final || jz.suspended) return null;
+  if (st.chibi && st.chibi.active) return null;
+  if (!jz.eligible || !jz.eligible[faction]) return null;
+  const list = (st.jingzhouFocus && st.jingzhouFocus.length)
+    ? st.jingzhouFocus : (jz.sites || []);
+  return list.length ? list : null;
+}
+
 /** 一个国家一次只打一处：挑最近的敌城，在自己最靠前的城里集结 */
 function planCampaign(state, faction, day) {
   const story = state.story;
@@ -2333,6 +2348,9 @@ function planCampaign(state, faction, day) {
   if (!lords.length) return null;
 
   let target = null;
+  // 荆州重心：已入场的魏蜀吴，三镇中只要还有可攻目标，就压过边境战线。
+  const jingzhouPriority = jingzhouTheaterFocus(state, faction);
+  let jingzhouPriorityTarget = null;
   // 入川主轴：剑阁首攻之后不绕汉中、江州，沿剑阁—巴西—成都一路压到成都城下。
   if (faction === 'shu' && foes.indexOf('zhang') >= 0 &&
       !pairBlocked(state, 'shu', 'zhang', day)) {
@@ -2401,9 +2419,17 @@ function planCampaign(state, faction, day) {
         if (rank >= 0) score -= (focus.length - rank) * 120;
         else score += 90;
       }
+      // 荆州重心：按调整后的分数记下三镇最优目标，循环结束后优先。
+      if (jingzhouPriority && jingzhouPriority.indexOf(s.id) >= 0) {
+        if (!jingzhouPriorityTarget || score < jingzhouPriorityTarget.score) {
+          jingzhouPriorityTarget = { site: s, score: score, distance: near.distance };
+        }
+      }
       if (!target || score < target.score) target = { site: s, score: score, distance: near.distance };
     });
   });
+  // 荆州争霸期间优先三镇；三镇没有可攻目标时才回落到边境和普通选靶。
+  if (jingzhouPriorityTarget) target = jingzhouPriorityTarget;
   // 汉中北面两座自由城：没有敌国战役时，任何能接上城道的势力都可以来争。
   // 刘璋开局先盯刘备与南中，不抢这两座空城；过了开局窗口才按普通势力算。
   // 韩遂在灭凉期间不捡自由城，免得把兵锋从武威、居延挪到汉中北面。
@@ -3183,6 +3209,15 @@ function strategyTick(state) {
       // 不再给天下设“同时只能三场大战”的上限：每个还活着的势力都该往邻国压。
       planCampaign(state, faction, day);
       return;
+    }
+    // 后来才完成第三阶段的国家，旧战役可能还挂在边境；荆州已开打就撤掉，
+    // 下一拍由 planCampaign 重新按三镇选靶。
+    {
+      const focus = jingzhouTheaterFocus(state, faction);
+      if (focus && focus.indexOf(cp.targetId) < 0) {
+        abortCampaign(state, faction);
+        return;
+      }
     }
     if (cp.done) {
       attackersOf(state, cp).forEach(clearOrder);
