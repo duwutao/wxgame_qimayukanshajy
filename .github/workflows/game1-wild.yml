@@ -24,10 +24,10 @@ jobs:
           node-version: '20'
       - name: Apply game_1 wild patch
         run: |
-          curl --http1.1 -L --retry 3 --fail -o /tmp/game1-wild.zip 'https://aka.doubaocdn.com/s/qy2eYvaIUE'
+          curl --http1.1 -L --retry 3 --fail -o /tmp/game1-wild.zip 'https://aka.doubaocdn.com/s/FkD1bWWhUu'
           rm -rf /tmp/game1-wild
           mkdir -p /tmp/game1-wild
-          unzip -q /tmp/game1-wild.zip -d /tmp/game1-wild
+          unzip -q /tmp/game1-wild.zip -d /tmp/game1-wild -x '.github/*'
           cp -a /tmp/game1-wild/. .
       - name: Test
         run: |
