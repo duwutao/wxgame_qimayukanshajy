@@ -1,0 +1,52 @@
+name: game1 wild apply
+
+on:
+  push:
+    branches: [game_1]
+    paths:
+      - '.github/workflows/game1-wild.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: game_1
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply game_1 wild patch
+        run: |
+          curl --http1.1 -L --retry 3 --fail -o /tmp/game1-wild.zip 'https://aka.doubaocdn.com/s/qy2eYvaIUE'
+          rm -rf /tmp/game1-wild
+          mkdir -p /tmp/game1-wild
+          unzip -q /tmp/game1-wild.zip -d /tmp/game1-wild
+          cp -a /tmp/game1-wild/. .
+      - name: Test
+        run: |
+          node tools/logic-test.js
+          node tools/story-test.js
+          node tools/render-smoke.js
+          node tools/minigame-check.js
+      - name: Build browser bundle
+        run: |
+          node tools/bundle.js
+          node tools/build-entry.js
+      - name: Commit release
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'release(game_1): 在野残部机制与招揽 [skip ci]'
+          git push origin HEAD:game_1
